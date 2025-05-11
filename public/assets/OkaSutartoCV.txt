@@ -1,0 +1,124 @@
+name: OKA SUTARTO PUTRA
+title: Fullstack Developer
+location: Bandung, Indonesia
+phone / whatsapp: "+6282216418397"
+email: okasputra@gmail.com
+linkedin: https://linkedin.com/in/okasutarto
+github: https://github.com/okasutarto
+
+summary: >
+  Fullstack developer with 2+ years of experience creating user-friendly and functional web applications.
+  Expertise in JavaScript, React, Vue.js, Node.js, and PostgreSQL. Proven track record of on-time project delivery,
+  cross-functional team collaboration, and implementing effective solutions to complex technical challenges.
+
+experience:
+  - title: Frontend Engineer
+    company: Jublia
+    location: Remote
+    type: Full-time
+    start date: July 2023
+    end date: still work until now
+    responsibilities:
+      - Led design and development of an innovative event app.
+      - Delivered high-quality code with comprehensive unit tests.
+      - Collaborated with cross-functional teams to implement features.
+      - Enhanced UI/UX for better user engagement.
+      - Made key decisions in code and infrastructure design.
+
+  - title: Backend Developer
+    company: Null Reborn
+    location: Bandung, Indonesia
+    type: Part-time
+    start date: "March 2023 – July 2023"
+    responsibilities:
+      - Designed and developed RESTful APIs.
+      - Implemented secure authentication and authorization.
+      - Built applications using Node.js, Express, and ORMs.
+      - Optimized database queries and schema.
+      - Collaborated with frontend developers.
+
+  - title: Junior Frontend Developer
+    company: PT Geekseat Indonesia
+    location: Bandung, Indonesia
+    start date: September 2022
+    end date:  June 2023
+    responsibilities:
+      - Developed responsive web applications.
+      - Built UIs with React and Vue.js.
+      - Integrated APIs and real-time data.
+      - Collaborated with UI/UX teams.
+      - Practiced Scrum and Agile development.
+
+education:
+  - institution: Telkom University
+    degree: Bachelor of Industrial Engineering
+    date: "2010 – 2015"
+    gpa: 2.79
+
+  - institution: Hacktiv8
+    program: Fullstack JavaScript Immersive
+    date: "February 2022 – July 2022"
+    score: 84.2
+    description: >
+      Comprehensive program covering frontend and backend development,
+      software engineering practices, and industry-standard tools.
+
+projects:
+  - name: Summarizer
+    type: Fullstack
+    description: AI app that summarizes text, PDFs, and images using OpenAI.
+    tech_stack: [Next.js, OpenAI, Tailwind]
+    github: https://github.com/okasutarto/summarizer
+
+  - name: Pokedex
+    type: Frontend
+    description: Explore Pokémon species with detailed info.
+    tech_stack: [Vue.js, Bootstrap, SASS, Axios, Pinia, Vite]
+    demo: https://pokedex-oka.vercel.app
+
+  - name: punyagawe.id
+    type: Backend
+    description: Promotional site for wedding invitations and souvenirs.
+    tech_stack: [Node.js, MySQL, JWT, Sequelize, Express, CORS, dotenv]
+    website: https://punyagawe.id
+
+  - name: Wooshfood Onboarding
+    type: Frontend
+    description: Restaurant onboarding portal.
+    tech_stack: [Vue.js, Bootstrap, Kendo UI, SASS, Axios, Pinia, Vite]
+    website: https://onboarding.wooshfood.com
+
+  - name: Stone & Wood
+    type: Frontend
+    description: Promotional contest site for brewery.
+    tech_stack: [Vue.js, Bootstrap, Axios, Pinia, Vite]
+    website: https://winwithstoneandwood.com
+
+  - name: Wooshfood Reports
+    type: Frontend
+    description: Internal dashboard for business reporting.
+    tech_stack: [Vue.js, Tailwind, Kendo UI, SASS, Axios, Pinia, Vite]
+    website: https://reporting.development.wooshfood.com
+
+  - name: Loveynest
+    type: Backend
+    description: Intimacy-building app for couples.
+    tech_stack: [React Native, Express, Node.js, PostgreSQL, JWT, Sequelize]
+
+  - name: Shoepedia
+    type: Fullstack
+    description: E-commerce site for shoes.
+    tech_stack: [Vue.js, Express, Node.js, PostgreSQL, Supabase, Tailwind, Bootstrap, JWT]
+
+  - name: Netflix Clone
+    type: Fullstack
+    description: Clone of Netflix interface and backend.
+    tech_stack: [React.js, Express, Node.js, Redux, JWT, Tailwind, PostgreSQL, Sequelize]
+
+skills:
+  frontend: [HTML, CSS, JavaScript, React.js, Vue.js, Svelte, Bootstrap, Tailwind, Axios, SASS]
+  backend: [Node.js, Express, Sequelize]
+  database: [MySQL, PostgreSQL, MongoDB, GraphQL]
+  tools_infra: [Git, JWT, AWS, Azure, Azure DevOps]
+  methodologies: [Agile development]
+  soft_skills: [Problem Solving, Analytical Thinking, Communication, Collaboration, Continuous Learning]

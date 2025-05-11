@@ -49,7 +49,9 @@
           </div>
         </div>
         
-        <div class="flex-1 overflow-y-auto p-4 space-y-3 smooth-scroll overscroll-contain" ref="chatMessages">
+        <div class="flex-1 overflow-y-auto p-4 space-y-3 smooth-scroll overscroll-contain" 
+             ref="chatMessages"
+             @scroll="handleScroll">
           <TransitionGroup name="message">
             <div 
               v-for="(message, index) in messages" 
@@ -145,14 +147,16 @@ export default {
     // New reactive states
     const showTooltip = ref(false);
     const hasNewMessages = ref(false);
+    const isUserAtBottom = ref(true);
 
-    const scrollToBottom = () => {
+    const scrollToBottom = (force = false) => {
       setTimeout(() => {
-        // Add extra null check inside the timeout
-        if (chatMessages.value) {
+        // Only auto-scroll if user is already at bottom or if forced
+        if ((isUserAtBottom.value || force) && chatMessages.value) {
           chatMessages.value.scrollTop = chatMessages.value.scrollHeight;
+          isUserAtBottom.value = true;
         }
-      }, 50); // Small delay to ensure DOM is updated
+      }, 50);
     };
 
     // Show typing animation when chat is opened
@@ -196,15 +200,10 @@ export default {
           messages.value[messageIndex].text += initialMessage[i];
           i++;
           
-          // Scroll to bottom for every few characters
-          if (i % 5 === 0) {
-            scrollToBottom();
-          }
         } else {
           clearInterval(interval);
           isStreaming.value = false;
           hasInitialMessageShown.value = true;
-          scrollToBottom(); // Final scroll when complete
         }
       }, 10); // Increased from 20ms to 60ms for slower typing
     };
@@ -233,6 +232,14 @@ export default {
     const dismissTooltip = () => {
       showTooltip.value = false;
       localStorage.setItem('hasSeenChatTooltip', 'true');
+    };
+
+    const handleScroll = () => {
+      if (chatMessages.value) {
+        const { scrollTop, scrollHeight, clientHeight } = chatMessages.value;
+        // Consider "at bottom" if within 30px of the bottom
+        isUserAtBottom.value = scrollHeight - scrollTop - clientHeight < 30;
+      }
     };
 
     const sendMessage = async () => {
@@ -286,7 +293,7 @@ export default {
             
             // Scroll periodically to improve performance
             if (messages.value[messageIndex].text.length % 5 === 0) {
-              scrollToBottom();
+              scrollToBottom(); // No forced scroll during typing
             }
             
             setTimeout(typeToken, 10);
@@ -353,7 +360,9 @@ export default {
       hasNewMessages,
       isWaitingForResponse,
       isStreaming,
-      scrollToBottom
+      scrollToBottom,
+      isUserAtBottom,
+      handleScroll
     };
   }
 }

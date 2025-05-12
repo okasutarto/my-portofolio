@@ -81,23 +81,44 @@
 }
 </style>
 
-<script>
-export default {
-  name: 'TheHero',
-  methods: {
-    scrollToSection(sectionId) {
-      const element = document.getElementById(sectionId);
-      if (element) {
-        const offset = 80; // Adjust this value based on your navbar height
-        const elementPosition = element.getBoundingClientRect().top;
-        const offsetPosition = elementPosition + window.pageYOffset - offset;
-        
-        window.scrollTo({
-          top: offsetPosition,
-          behavior: 'smooth'
-        });
+<script setup>
+import { nextTick } from 'vue';
+
+// Scroll to section function
+const scrollToSection = async (sectionId) => {
+  const element = document.getElementById(sectionId);
+  if (!element) return;
+
+  const offset = 80; // Adjust based on navbar height
+  const elementPosition = element.getBoundingClientRect().top;
+  const offsetPosition = elementPosition + window.pageYOffset - offset;
+  
+  window.scrollTo({
+    top: offsetPosition,
+    behavior: 'smooth'
+  });
+  
+  // For the About section, trigger animations after scrolling completes
+  if (sectionId === 'about') {
+    // Wait for scroll to complete before triggering animations
+    await nextTick();
+    setTimeout(() => {
+      // Access the AboutSection component and trigger animations
+      try {
+        // Method 1: Try to access component through DOM
+        const aboutComponent = document.getElementById('about').__vueParentComponent?.proxy;
+        if (aboutComponent && aboutComponent.showAllElements) {
+          aboutComponent.showAllElements();
+          return;
+        }
+          
+        // Method 2: Using custom event as fallback
+        const event = new CustomEvent('showAboutAnimations');
+        document.dispatchEvent(event);
+      } catch (error) {
+        console.error("Could not trigger about section animations:", error);
       }
-    }
+    }, 500); // Adjust timing as needed
   }
-}
+};
 </script>

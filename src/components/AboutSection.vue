@@ -190,7 +190,7 @@ export default {
     
     // Check if element should be visible
     const isElementVisible = (position) => {
-      return position > 0.15 && position < 0.85;
+      return position > 0.1 && position < 0.9; // Wider visibility range (was 0.15-0.85)
     };
     
     // Update sequential animations based on scroll direction
@@ -212,7 +212,7 @@ export default {
       
       // Only check heading when profile is visible and ready
       if (profileVisible) {
-        setTimeout(() => { animationState.profile.ready = true; }, 50);
+        setTimeout(() => { animationState.profile.ready = true; }, 400);
       } else {
         animationState.profile.ready = false;
         resetDependentAnimations('profile');
@@ -225,7 +225,7 @@ export default {
         animationState.heading.visible = headingVisible;
         
         if (headingVisible) {
-          setTimeout(() => { animationState.heading.ready = true; }, 50);
+          setTimeout(() => { animationState.heading.ready = true; }, 100);
         } else {
           animationState.heading.ready = false;
           resetDependentAnimations('heading');
@@ -239,7 +239,7 @@ export default {
         animationState.description.visible = descriptionVisible;
         
         if (descriptionVisible) {
-          setTimeout(() => { animationState.description.ready = true; }, 50);
+          setTimeout(() => { animationState.description.ready = true; }, 100);
         } else {
           animationState.description.ready = false;
           resetDependentAnimations('description');
@@ -253,7 +253,7 @@ export default {
         animationState.skillsHeading.visible = skillsHeadingVisible;
         
         if (skillsHeadingVisible) {
-          setTimeout(() => { animationState.skillsHeading.ready = true; }, 50);
+          setTimeout(() => { animationState.skillsHeading.ready = true; }, 100);
         } else {
           animationState.skillsHeading.ready = false;
           resetDependentAnimations('skillsHeading');
@@ -267,7 +267,7 @@ export default {
         animationState.skills.visible = skillsVisible;
         
         if (skillsVisible) {
-          setTimeout(() => { animationState.skills.ready = true; }, 50);
+          setTimeout(() => { animationState.skills.ready = true; }, 100);
         } else {
           animationState.skills.ready = false;
         }
@@ -278,10 +278,13 @@ export default {
     const handleScrollUpAnimations = () => {
       // Skills appear first when scrolling up
       const skillsVisible = isElementVisible(elementPositions.skills);
+      
+      // Simpler approach: only make visible when clearly visible, keep invisible otherwise
       animationState.skills.visible = skillsVisible;
       
       if (skillsVisible) {
-        setTimeout(() => { animationState.skills.ready = true; }, 50);
+        // Increase timeout for smoother transition
+        setTimeout(() => { animationState.skills.ready = true; }, 300);
       } else {
         animationState.skills.ready = false;
         resetDependentAnimationsReverse('skills');
@@ -294,7 +297,7 @@ export default {
         animationState.skillsHeading.visible = skillsHeadingVisible;
         
         if (skillsHeadingVisible) {
-          setTimeout(() => { animationState.skillsHeading.ready = true; }, 50);
+          setTimeout(() => { animationState.skillsHeading.ready = true; }, 200);
         } else {
           animationState.skillsHeading.ready = false;
           resetDependentAnimationsReverse('skillsHeading');
@@ -308,7 +311,7 @@ export default {
         animationState.description.visible = descriptionVisible;
         
         if (descriptionVisible) {
-          setTimeout(() => { animationState.description.ready = true; }, 50);
+          setTimeout(() => { animationState.description.ready = true; }, 200);
         } else {
           animationState.description.ready = false;
           resetDependentAnimationsReverse('description');
@@ -322,7 +325,7 @@ export default {
         animationState.heading.visible = headingVisible;
         
         if (headingVisible) {
-          setTimeout(() => { animationState.heading.ready = true; }, 50);
+          setTimeout(() => { animationState.heading.ready = true; }, 200);
         } else {
           animationState.heading.ready = false;
           resetDependentAnimationsReverse('heading');
@@ -336,7 +339,7 @@ export default {
         animationState.profile.visible = profileVisible;
         
         if (profileVisible) {
-          setTimeout(() => { animationState.profile.ready = true; }, 50);
+          setTimeout(() => { animationState.profile.ready = true; }, 200);
         } else {
           animationState.profile.ready = false;
         }
@@ -349,7 +352,8 @@ export default {
         'profile': ['heading', 'description', 'skillsHeading', 'skills'],
         'heading': ['description', 'skillsHeading', 'skills'],
         'description': ['skillsHeading', 'skills'],
-        'skillsHeading': ['skills']
+        'skillsHeading': ['skills'],
+        'skills': []
       };
       
       if (resetMap[element]) {
@@ -366,7 +370,8 @@ export default {
         'skills': ['skillsHeading', 'description', 'heading', 'profile'],
         'skillsHeading': ['description', 'heading', 'profile'],
         'description': ['heading', 'profile'],
-        'heading': ['profile']
+        'heading': ['profile'],
+        'profile': []
       };
       
       if (resetMap[element]) {
@@ -435,14 +440,61 @@ export default {
       }
     };
     
+    // Add this new method to show all elements
+    const showAllElements = () => {
+      // Show all elements at once with staggered delays
+      animationState.profile.visible = true;
+      setTimeout(() => {
+        animationState.profile.ready = true;
+        animationState.heading.visible = true;
+      }, 200);
+      
+      setTimeout(() => {
+        animationState.heading.ready = true;
+        animationState.description.visible = true;
+      }, 400);
+      
+      setTimeout(() => {
+        animationState.description.ready = true;
+        animationState.skillsHeading.visible = true;
+      }, 600);
+      
+      setTimeout(() => {
+        animationState.skillsHeading.ready = true;
+        animationState.skills.visible = true;
+      }, 800);
+      
+      setTimeout(() => {
+        animationState.skills.ready = true;
+      }, 1000);
+    };
+    
+    // Add a function to detect when the section enters the viewport
+    const checkIfSectionInView = () => {
+      const aboutSection = document.getElementById('about');
+      if (aboutSection) {
+        const rect = aboutSection.getBoundingClientRect();
+        // If the section is fully or mostly in view
+        if (rect.top < window.innerHeight * 0.5 && rect.bottom > 0) {
+          showAllElements();
+        }
+      }
+    };
+    
     // Set up and clean up event listeners
     onMounted(() => {
       window.addEventListener('scroll', handleScroll);
+      window.addEventListener('hashchange', checkIfSectionInView);
+      
+      // Check initial state - important for direct navigation to section
+      setTimeout(checkIfSectionInView, 100);
+      
       handleScroll(); // Initial calculation
     });
     
     onUnmounted(() => {
       window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('hashchange', checkIfSectionInView);
     });
     
     return {
@@ -463,7 +515,10 @@ export default {
       getSkillAnimationClass,
       
       // Skills
-      skills
+      skills,
+      
+      // New method
+      showAllElements
     };
   }
 }
@@ -478,12 +533,12 @@ section {
 
 /* Base animation classes */
 .animate-fade-in-slide-right {
-  animation: fade-in-slide-right 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fade-in-slide-right 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   opacity: 0;
 }
 
 .animate-fade-out-slide-left {
-  animation: fade-out-slide-left 0.5s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards;
+  animation: fade-out-slide-left 1s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards;
   opacity: 0;
 }
 
@@ -512,11 +567,11 @@ section {
 
 /* Animation delays for staggered effect in both directions */
 .animation-delay-0 { animation-delay: 0s; }
-.animation-delay-1 { animation-delay: 0.1s; }
-.animation-delay-2 { animation-delay: 0.2s; }
-.animation-delay-3 { animation-delay: 0.3s; }
-.animation-delay-4 { animation-delay: 0.4s; }
-.animation-delay-5 { animation-delay: 0.5s; }
+.animation-delay-1 { animation-delay: 0.2s; } /* increased from 0.1s */
+.animation-delay-2 { animation-delay: 0.4s; } /* increased from 0.2s */
+.animation-delay-3 { animation-delay: 0.6s; } /* increased from 0.3s */
+.animation-delay-4 { animation-delay: 0.8s; } /* increased from 0.4s */
+.animation-delay-5 { animation-delay: 1s; } /* increased from 0.5s */
 
 /* Reverse delays for skills disappearing in reverse order */
 .animation-delay-reverse-5 { animation-delay: 0s; }

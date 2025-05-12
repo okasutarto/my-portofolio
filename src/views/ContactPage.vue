@@ -1,7 +1,7 @@
 <template>
   <div class="contact-page relative py-16">
     <div class="container mx-auto px-4 py-2 md:py-16 relative z-10">
-      <div class="max-w-3xl mx-auto bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
+      <div class="max-w-3xl mx-auto bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md animate-fade-in">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <h2 class="text-2xl font-semibold mb-6 dark:text-white">Get In Touch</h2>
@@ -67,31 +67,51 @@
               <div>
                 <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
                 <input type="text" id="name" v-model="form.name" required
+                       :class="{'border-red-500': errors.name}"
                        class="mt-1 block w-full rounded-md border border-gray-200 dark:border-0 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white p-2">
+                <p v-if="errors.name" class="mt-1 text-sm text-red-500">{{ errors.name }}</p>
               </div>
               
               <div>
                 <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
                 <input type="email" id="email" v-model="form.email" required
+                       :class="{'border-red-500': errors.email}"
                        class="mt-1 block w-full rounded-md border border-gray-200 dark:border-0 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white p-2">
+                <p v-if="errors.email" class="mt-1 text-sm text-red-500">{{ errors.email }}</p>
               </div>
               
               <div>
                 <label for="subject" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Subject</label>
                 <input type="text" id="subject" v-model="form.subject"
+                       :class="{'border-red-500': errors.subject}"
                        class="mt-1 block w-full rounded-md border border-gray-200 dark:border-0 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white p-2">
+                <p v-if="errors.subject" class="mt-1 text-sm text-red-500">{{ errors.subject }}</p>
               </div>
               
               <div>
                 <label for="message" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Message</label>
                 <textarea id="message" v-model="form.message" rows="5" required
+                          :class="{'border-red-500': errors.message}"
                           class="mt-1 block w-full rounded-md border border-gray-200 dark:border-0 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:text-white p-2"></textarea>
+                <p v-if="errors.message" class="mt-1 text-sm text-red-500">{{ errors.message }}</p>
+              </div>
+              
+              <div v-if="formStatus.show" :class="formStatus.isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'" class="p-3 rounded-md text-sm">
+                {{ formStatus.message }}
               </div>
               
               <div>
                 <button type="submit" 
-                        class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-blue-700 dark:hover:bg-blue-600 dark:focus:ring-offset-gray-800">
-                  Send Message
+                        :disabled="isSubmitting"
+                        class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-blue-700 dark:hover:bg-blue-600 dark:focus:ring-offset-gray-800 disabled:opacity-70 disabled:cursor-not-allowed">
+                  <span v-if="isSubmitting" class="flex items-center justify-center">
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Sending...
+                  </span>
+                  <span v-else>Send Message</span>
                 </button>
               </div>
             </form>
@@ -102,33 +122,132 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: 'ContactPage',
-  data() {
-    return {
-      form: {
-        name: '',
-        email: '',
-        subject: '',
-        message: ''
-      }
-    }
-  },
-  methods: {
-    submitForm() {
-      // Reset form after submission
-      this.form = { name: '', email: '', subject: '', message: '' };
-      // Show success message (in a real app)
-      alert('Thank you for your message. I will get back to you soon!');
-    }
+<script setup>
+import { ref, reactive } from 'vue'
+
+// Form state
+const form = reactive({
+  name: '',
+  email: '',
+  subject: '',
+  message: ''
+})
+
+// Error state
+const errors = reactive({
+  name: '',
+  email: '',
+  subject: '',
+  message: ''
+})
+
+// Other reactive state
+const isSubmitting = ref(false)
+const formStatus = reactive({
+  show: false,
+  isError: false,
+  message: ''
+})
+
+// Email validation function
+const validateEmail = (email) => {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return re.test(email)
+}
+
+// Form validation function
+const validateForm = () => {
+  let isValid = true
+  
+  // Reset all errors
+  Object.keys(errors).forEach(key => {
+    errors[key] = ''
+  })
+
+  if (!form.name.trim()) {
+    errors.name = 'Name is required'
+    isValid = false
+  }
+
+  if (!form.email.trim()) {
+    errors.email = 'Email is required'
+    isValid = false
+  } else if (!validateEmail(form.email)) {
+    errors.email = 'Please enter a valid email'
+    isValid = false
+  }
+
+  if (!form.message.trim()) {
+    errors.message = 'Message is required'
+    isValid = false
+  } else if (form.message.trim().length < 10) {
+    errors.message = 'Message must be at least 10 characters'
+    isValid = false
+  }
+
+  return isValid
+}
+
+// Form submission handler
+const submitForm = async () => {
+  // Clear previous status
+  formStatus.show = false
+  
+  // Validate the form
+  if (!validateForm()) {
+    return
+  }
+  
+  isSubmitting.value = true
+  
+  try {
+    // Simulate API call with a delay
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    
+    // In a real application, you would send the form data to your backend
+    // const response = await fetch('/api/contact', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify(form)
+    // })
+    
+    // if (!response.ok) throw new Error('Failed to send message')
+    
+    // Show success message
+    formStatus.show = true
+    formStatus.isError = false
+    formStatus.message = 'Thank you for your message! I will get back to you soon.'
+    
+    // Reset form
+    form.name = ''
+    form.email = ''
+    form.subject = ''
+    form.message = ''
+  } catch (error) {
+    // Show error message
+    formStatus.show = true
+    formStatus.isError = true
+    formStatus.message = 'Something went wrong. Please try again later.'
+    console.error('Form submission error:', error)
+  } finally {
+    isSubmitting.value = false
   }
 }
 </script>
 
 <style scoped>
-.contact-page {
-  min-height: 100vh;
-  padding-bottom: 60px;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-out forwards;
 }
 </style>

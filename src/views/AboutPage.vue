@@ -3,7 +3,7 @@
     
     <div class="container mx-auto px-4 py-2 md:py-16 relative z-10">
       
-      <div class="max-w-3xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+      <div class="max-w-3xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md animate-fade-in">
         <div class="mb-8 flex flex-col md:flex-row items-center">
           <div class="md:w-1/3 mb-6 md:mb-0">
             <div class="rounded-full overflow-hidden w-48 h-48 mx-auto border-4 border-gray-200 dark:border-gray-700">
@@ -70,3 +70,20 @@ export default {
   name: 'AboutPage'
 }
 </script>
+
+<style scoped>
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-out forwards;
+}
+</style>

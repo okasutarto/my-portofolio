@@ -87,9 +87,9 @@ export default {
     setTimeout(() => {
       this.project = {
         id: this.$route.params.id || 1,
-        title: 'E-Commerce Website',
+        title: 'Summarizer',
         image: 'https://via.placeholder.com/1200x600',
-        description: 'A fully functional e-commerce platform with product listings, cart, and checkout.',
+        description: 'AI tool summarizing text, PDFs, and images into insights.',
         longDescription: 'This is a complete e-commerce solution built with Vue.js and a backend API. It includes user authentication, product browsing, search functionality, shopping cart, payment processing, and order management.',
         features: [
           'User registration and authentication',

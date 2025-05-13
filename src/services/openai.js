@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:3000/api';
+const API_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 
 /**
  * Get streaming response from the backend API
@@ -11,7 +11,7 @@ export const getStreamingResponse = async (prompt, onToken) => {
     // Use EventSource to handle server-sent events
     return new Promise((resolve, reject) => {
       let fullResponse = '';
-      const eventSource = new EventSource(`${API_URL}/chat/stream?message=${encodeURIComponent(prompt)}`);
+      const eventSource = new EventSource(`${API_URL}/api/chat/stream?message=${encodeURIComponent(prompt)}`);
       
       eventSource.onmessage = (event) => {
         if (event.data === '[DONE]') {

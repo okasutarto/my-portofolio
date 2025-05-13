@@ -93,20 +93,20 @@ export default {
       {
         id: 1,
         title: 'Summarizer',
-        description: 'AI tool summarizing text, PDFs, and images into insights.',
-        image: 'https://picsum.photos/id/367/800/450', // Shopping/retail related image
-        technologies: ['Next.Js', 'Shadcn UI', 'OpenAI API'],
+        description: 'AI-powered tool that summarizes text, PDFs, and images into clear, actionable insights.',
+        image: 'https://narrato.io/blog/wp-content/uploads/2024/04/Content_Marketing_Case_Study_Airtable_812__500_px_Presentation_169_18.jpg', // Shopping/retail related image
+        technologies: ['Next', 'Shadcn UI', 'OpenAI API'],
         demoLink: '#',
-        codeLink: '#'
+        codeLink: 'https://github.com/okasutarto/summarizer'
       },
       {
         id: 2,
         title: 'Pokedex',
         description: 'Pokedex Web App: Explore Pokémon types, stats, abilities, and evolutions.',
-        image: 'https://picsum.photos/id/178/800/450', // Weather/clouds related image
+        image: 'https://static.wixstatic.com/media/2e36a5_76a80b6d6fc04bd38ef398cc27b97cc4~mv2.jpg/v1/fill/w_568,h_332,al_c,q_80,usm_0.66_1.00_0.01,enc_avif,quality_auto/2e36a5_76a80b6d6fc04bd38ef398cc27b97cc4~mv2.jpg', // Weather/clouds related image
         technologies: ['Vue.js', 'Axios', 'CSS'],
-        demoLink: '#',
-        codeLink: '#'
+        demoLink: 'https://pokedex-oka.vercel.app/#/',
+        codeLink: 'https://github.com/okasutarto/Pokedex'
       },
       {
         id: 3,

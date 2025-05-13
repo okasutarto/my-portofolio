@@ -191,7 +191,7 @@ export default {
                 ease: 'power2.out',
                 scrollTrigger: {
                   trigger: projectTitles[index],
-                  start: 'top 65%',
+                  start: 'top 75%',
                   toggleActions: 'play none none reverse'
                 }
               }
@@ -211,7 +211,7 @@ export default {
                 ease: 'power2.out',
                 scrollTrigger: {
                   trigger: projectDescriptions[index],
-                  start: 'top 65%',
+                  start: 'top 75%',
                   toggleActions: 'play none none reverse'
                 }
               }
@@ -253,7 +253,7 @@ export default {
               ease: 'back.out(1.5)',
               scrollTrigger: {
                 trigger: badge,
-                start: 'top 65%',
+                start: 'top 75%',
                 toggleActions: 'play none none reverse'
               }
             }

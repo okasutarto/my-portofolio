@@ -3,7 +3,7 @@
     <!-- Tooltip/Popper -->
     <Transition name="tooltip">
       <div v-if="showTooltip" class="absolute bottom-20 right-0 bg-white dark:bg-gray-800 pt-6 p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 w-52 text-center">
-        <p class="text-sm font-medium">👋 Hi there! Need help?</p>
+        <p class="text-sm font-medium"><span class="waving-hand">👋</span> Hi there! Need help?</p>
         <p class="text-xs text-gray-600 dark:text-gray-300 mt-1">Ask me anything about Oka!</p>
         <div class="absolute -bottom-2 right-6 w-4 h-4 bg-white dark:bg-gray-800 rotate-45 border-b border-r border-gray-200 dark:border-gray-700"></div>
         <button @click="dismissTooltip" class="absolute top-1 right-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
@@ -515,5 +515,24 @@ export default {
     transform: scale(0.8) translateY(20px);
     opacity: 0;
   }
+}
+
+/* Waving hand animation */
+@keyframes wave {
+  0% { transform: rotate(0deg); }
+  10% { transform: rotate(14deg); }
+  20% { transform: rotate(-8deg); }
+  30% { transform: rotate(14deg); }
+  40% { transform: rotate(-4deg); }
+  50% { transform: rotate(10deg); }
+  60% { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.waving-hand {
+  font-size: 1.25em;
+  display: inline-block;
+  animation: wave 2.5s infinite;
+  transform-origin: 70% 70%; /* Pivot from bottom right of the hand */
 }
 </style>

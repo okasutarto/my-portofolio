@@ -1,6 +1,6 @@
 name: OKA SUTARTO PUTRA
 title: Fullstack Developer
-location: Bandung, Indonesia
+location: Pontianak, Indonesia
 phone / whatsapp: "+6282216418397"
 email: okasputra@gmail.com
 linkedin: https://linkedin.com/in/okasutarto

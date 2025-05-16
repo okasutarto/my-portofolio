@@ -231,7 +231,7 @@ export default {
                 ease: 'power2.out',
                 scrollTrigger: {
                   trigger: projectLinks[index],
-                  start: 'top 75%',
+                  start: 'top 80%',
                   toggleActions: 'play none none reverse'
                 }
               }

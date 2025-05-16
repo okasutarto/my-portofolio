@@ -6,7 +6,7 @@ email: okasputra@gmail.com
 linkedin: https://linkedin.com/in/okasutarto
 github: https://github.com/okasutarto
 
-summary: >
+summary / about me: 
   Fullstack developer with 2+ years of experience creating user-friendly and functional web applications.
   Expertise in JavaScript, React, Vue.js, Node.js, and PostgreSQL. Proven track record of on-time project delivery,
   cross-functional team collaboration, and implementing effective solutions to complex technical challenges.

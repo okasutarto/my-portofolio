@@ -1,26 +1,31 @@
 # Oka's Portfolio Website
 
-This project is a modern, responsive portfolio website built with Vue.js that showcases Oka's skills, projects, and professional background. It features a clean design with interactive elements, dark mode support, and an AI-powered chatbot assistant.
+This project is a modern, responsive portfolio website built with Vue.js that showcases Oka's skills, projects, and professional background. It features a clean design with interactive elements, dark mode support, GSAP animations, and an AI-powered chatbot assistant.
 
 ## Features
 
-- Responsive Design: Fully responsive layout that works on all device sizes
-- Dark/Light Mode: Toggle between light and dark themes based on preference
-- Interactive UI: Animations, transitions, and interactive elements enhance user experience
-- Project Showcase: Detailed project cards with links to live demos and code repositories
-- Animated Background: Dynamic, customizable background animations
-- Vue Router Integration: Smooth navigation between different sections
-- Contact Form: Easy-to-use contact form for potential employers or clients
-- AI-Powered Chatbot: Virtual assistant to answer questions about skills and experience
+- **Responsive Design:** Fully responsive layout optimized for all device sizes
+- **Dark/Light Mode:** Toggle between light and dark themes based on preference
+- **Interactive UI:** GSAP-powered animations, transitions, and interactive elements
+- **Enhanced Hero Section:** Floating gradient orbs, animated name, tech stack badges, and social links
+- **Timeline Experience Section:** Standout vertical timeline with scroll-linked animations, glowing nodes, and progressive reveal
+- **Project Showcase:** Detailed project cards with case studies, links to live demos and repositories
+- **Testimonials Carousel:** Mobile-optimized carousel with touch-friendly navigation
+- **Animated Background:** Dynamic, customizable background animations
+- **Vue Router Integration:** Smooth navigation between different sections
+- **Contact Form:** EmailJS-powered contact form for potential employers or clients
+- **AI-Powered Chatbot:** Virtual assistant with markdown rendering and mobile-optimized full-screen mode
 
 ## Technologies Used
 
-- Vue.js 3: Modern JavaScript framework for building user interfaces
-- Vue Router: For handling navigation and routing
-- Tailwind CSS: Utility-first CSS framework for rapid UI development
-- JavaScript/ES6+: Modern JavaScript features
-- OpenAI API: Powers the portfolio chatbot assistant
-- CSS Animations: Custom animations for enhanced user experience
+- **Vue.js 3:** Modern JavaScript framework with Composition API
+- **Vue Router:** For handling navigation and routing
+- **Tailwind CSS:** Utility-first CSS framework for rapid UI development
+- **GSAP (GreenSock):** Professional-grade animation library with ScrollTrigger
+- **JavaScript/ES6+:** Modern JavaScript features
+- **OpenAI API:** Powers the portfolio chatbot assistant
+- **EmailJS:** Contact form email service integration
+- **Vercel:** Serverless API deployment for the chatbot backend
 
 ## Project Structure
 
@@ -28,29 +33,37 @@ This project is a modern, responsive portfolio website built with Vue.js that sh
 my-portfolio/
 ├── src/
 │   ├── components/             # Reusable UI components
-│   │   ├── AboutSection.vue    # About section component
-│   │   ├── AnimatedBackground.vue # Background animation component
-│   │   ├── ChatBot.vue         # AI chatbot component
-│   │   ├── ContactSection.vue  # Contact form component
-│   │   ├── ProjectCard.vue     # Project display component
-│   │   ├── TheNavbar.vue       # Navigation bar component
-│   │   ├── TheHero.vue         # Hero section component
+│   │   ├── AboutSection.vue    # About section with skills
+│   │   ├── AnimatedBackground.vue # Dynamic background animations
+│   │   ├── ChatBot.vue         # AI chatbot with markdown support
+│   │   ├── ContactSection.vue  # EmailJS contact form
+│   │   ├── CustomCursor.vue    # Custom cursor effect
+│   │   ├── ExperienceSection.vue # Timeline work experience
+│   │   ├── ProjectCard.vue     # Project display cards
+│   │   ├── ProjectsSection.vue # Projects grid section
+│   │   ├── TestimonialsSection.vue # Testimonials carousel
+│   │   ├── TheFooter.vue       # Footer component
+│   │   ├── TheHero.vue         # Enhanced hero section
+│   │   ├── TheNavbar.vue       # Navigation bar
 │   │   └── ThemeSwitcher.vue   # Dark/light mode toggle
 │   ├── views/                  # Page components
 │   │   ├── HomePage.vue        # Main landing page
 │   │   ├── AboutPage.vue       # About page
 │   │   ├── ContactPage.vue     # Contact page
-│   │   ├── ProjectDetails.vue  # Project details page
+│   │   ├── ProjectDetails.vue  # Project case study page
 │   │   └── NotFound.vue        # 404 page
 │   ├── layouts/                # Layout components
 │   │   └── MainLayout.vue      # Main layout wrapper
 │   ├── composables/            # Reusable Vue composition functions
 │   │   ├── useDarkMode.js      # Dark mode functionality
+│   │   ├── useTheme.js         # Theme management
 │   │   └── useIntersectionObserver.js # Scroll animation trigger
 │   ├── services/               # External service integrations
 │   │   └── openai.js           # OpenAI API integration
-│   ├── utils/                  # Utility functions
-│   │   └── tokenizer.js        # Text processing utilities
+│   ├── config/                 # Configuration files
+│   │   └── emailjs.js          # EmailJS configuration
+│   ├── data/                   # Static data
+│   │   └── projects.js         # Projects data with case studies
 │   ├── router/                 # Vue Router configuration
 │   │   └── index.js            # Routes definition
 │   ├── assets/                 # Static assets
@@ -58,24 +71,50 @@ my-portfolio/
 │   │       └── index.css       # Main CSS file with Tailwind
 │   ├── App.vue                 # Root Vue component
 │   └── main.js                 # Vue application entry point
+├── my-portfolio-api/           # Serverless API (Vercel)
+│   ├── index.js                # API endpoint for chatbot
+│   ├── package.json            # API dependencies
+│   ├── vercel.json             # Vercel configuration
+│   └── assets/
+│       └── OkaSutartoCV.txt    # CV data for chatbot context
 ├── public/                     # Public static assets
-│   └── assets/                 # Other static assets
-│       └── OkaSutartoCV.txt    # CV data for chatbot
-├── .env                        # Environment variables
 ├── tailwind.config.js          # Tailwind CSS configuration
 ├── vue.config.js               # Vue CLI configuration
 ├── package.json                # Project dependencies and scripts
 └── README.md                   # Project documentation
 ```
 
-## Chatbot Assistant
+## Key Sections
 
-The portfolio includes an AI-powered chatbot that can answer questions about Oka's skills, projects, and professional background:
+### Hero Section
+- Floating gradient orbs and decorative shapes
+- Animated gradient name with underline effect
+- Tech stack badges (Vue.js, React, TypeScript, etc.)
+- Social media links (GitHub, LinkedIn, Twitter)
+- Waving hand emoji animation
+- Enhanced CTA buttons with hover effects
 
-- Conversational Interface: Natural language processing allows users to ask questions
-- Custom Knowledge Base: Pre-loaded with information from Oka's CV
-- Real-time Responses: Streaming API integration for smooth typing effect
-- Mobile Responsive: Works seamlessly on all devices
+### Experience Timeline
+- Scroll-linked vertical timeline that grows as you scroll
+- Glowing timeline nodes with company colors
+- Year badges attached to timeline nodes
+- Connector lines from nodes to cards
+- Progressive reveal animation tied to scroll position
+- Mobile-optimized layout with badges above cards
+
+### Testimonials
+- Carousel with auto-play functionality
+- Touch-friendly navigation on mobile
+- LinkedIn integration for recommendations
+- Company badges and author information
+
+### Chatbot Assistant
+- Full-screen mode on mobile devices
+- Markdown rendering (bold, italic, links, lists)
+- Quick question buttons
+- Typing indicators
+- Clear chat functionality
+- Safe area support for notched devices
 
 ## Setup Instructions
 
@@ -90,15 +129,33 @@ The portfolio includes an AI-powered chatbot that can answer questions about Oka
    npm install
    ```
 
-3. **Create a `.env` file:**
-   Copy the `.env.example` to `.env` and add your OpenAI API key:
+3. **Set up environment variables:**
+   Create a `.env` file in the root directory:
    ```
-   OPENAI_API_KEY=your_api_key_here
+   VUE_APP_EMAILJS_SERVICE_ID=your_emailjs_service_id
+   VUE_APP_EMAILJS_TEMPLATE_ID=your_emailjs_template_id
+   VUE_APP_EMAILJS_PUBLIC_KEY=your_emailjs_public_key
    ```
 
-4. **Run the application:**
+4. **Set up the API (for chatbot):**
+   ```bash
+   cd my-portfolio-api
+   npm install
+   ```
+   Create a `.env` file in the `my-portfolio-api` directory:
+   ```
+   OPENAI_API_KEY=your_openai_api_key
+   ```
+
+5. **Run the application:**
    ```bash
    npm run serve
+   ```
+
+6. **Run the API locally (optional):**
+   ```bash
+   cd my-portfolio-api
+   npm run dev
    ```
 
 ## Usage
@@ -123,9 +180,18 @@ To customize the chatbot for your own portfolio:
 
 This application can be deployed to various platforms:
 
-- **Netlify/Vercel:** Connect your repository for automatic deployment
+- **Vercel (Recommended):** 
+  - Frontend: Connect your repository for automatic deployment
+  - API: Deploy the `my-portfolio-api` folder as a serverless function
+- **Netlify:** Connect your repository for automatic deployment
 - **GitHub Pages:** Run `npm run build` and deploy the dist folder
 - **Custom Server:** Deploy the built files to your web server
+
+### Vercel Deployment
+
+1. Import your repository to Vercel
+2. Set up environment variables in Vercel dashboard
+3. The API will be automatically deployed from `my-portfolio-api`
 
 ## Troubleshooting
 

@@ -81,7 +81,7 @@
                         {{ testimonial.name }}
                       </h4>
                       <p class="text-sm text-gray-500 dark:text-gray-400">
-                        {{ testimonial.role }}
+                        {{ testimonial.role }} at {{ testimonial.company }}
                       </p>
                       <a 
                         v-if="testimonial.linkedIn"
@@ -95,11 +95,6 @@
                         </svg>
                         View on LinkedIn
                       </a>
-                    </div>
-                    
-                    <!-- Company Badge -->
-                    <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-full">
-                      <span class="text-xs font-medium text-gray-600 dark:text-gray-300">{{ testimonial.company }}</span>
                     </div>
                   </div>
                 </div>

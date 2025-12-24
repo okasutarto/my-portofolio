@@ -38,11 +38,11 @@
               >
                 <!-- Animated pulse ring -->
                 <div 
-                  class="absolute inset-0 rounded-full bg-primary/30 dark:bg-primary/40"
+                  class="absolute inset-0 rounded-full bg-white/10 dark:bg-primary/40"
                   :class="{ 'animate-ping-slow': experience.current }"
                 ></div>
                 <!-- Outer decorative ring -->
-                <div class="w-12 h-12 rounded-full border-4 border-primary/20 dark:border-primary/30 bg-white dark:bg-gray-900 flex items-center justify-center shadow-lg shadow-primary/20">
+                <div class="w-12 h-12 rounded-full border-4 border-primary/30 dark:border-primary/30 bg-white dark:bg-gray-900 flex items-center justify-center shadow-lg shadow-primary/20">
                   <!-- Inner colored dot -->
                   <div 
                     class="w-6 h-6 rounded-full shadow-inner flex items-center justify-center"
@@ -52,9 +52,9 @@
                     <span class="text-white text-xs font-bold">{{ experiences.length - index }}</span>
                   </div>
                 </div>
-                <!-- Year badge attached to node -->
+                <!-- Year badge attached to node - hidden on mobile, shown on desktop -->
                 <div 
-                  class="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap"
+                  class="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap hidden md:block"
                 >
                   <span class="px-3 py-1 text-xs font-bold rounded-full bg-gradient-to-r from-primary to-secondary text-white shadow-lg">
                     {{ experience.period}}
@@ -76,6 +76,13 @@
               class="ml-20 md:ml-0 md:w-[calc(50%-4rem)] mt-2 mb-16 group"
               :class="index % 2 === 0 ? 'md:mr-auto md:pr-6' : 'md:ml-auto md:pl-6'"
             >
+              <!-- Year badge - shown on mobile at top of card -->
+              <div class="md:hidden mb-3">
+                <span class="px-3 py-1 text-xs font-bold rounded-full bg-gradient-to-r from-primary to-secondary text-white shadow-lg">
+                  {{ experience.period }}
+                </span>
+              </div>
+              
               <div class="relative p-6 bg-white dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 overflow-hidden">
                 <!-- Decorative gradient border on hover -->
                 <div class="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -286,26 +293,24 @@ export default {
         )
       );
 
-      // Timeline line animation - grows from top to bottom
+      // Timeline line animation - grows progressively as you scroll through experiences
+      // Set initial state
+      gsap.set(timelineLine.value, { opacity: 1, scaleY: 0, transformOrigin: 'top' });
+      
       animations.push(
-        gsap.fromTo(timelineLine.value,
-          { opacity: 0, scaleY: 0 },
-          {
-            opacity: 1,
-            scaleY: 1,
-            duration: 1.5,
-            ease: 'power2.out',
-            transformOrigin: 'top',
-            scrollTrigger: {
-              trigger: timelineLine.value,
-              start: 'top 80%',
-              toggleActions: 'play none none reverse'
-            }
+        gsap.to(timelineLine.value, {
+          scaleY: 1,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: '#experience',
+            start: 'top 60%',
+            end: 'bottom 70%',
+            scrub: 0.5, // Smooth scrubbing tied to scroll position
           }
-        )
+        })
       );
 
-      // Timeline end cap animation
+      // Timeline end cap animation - appears when line reaches the end
       if (timelineEnd.value) {
         animations.push(
           gsap.fromTo(timelineEnd.value,
@@ -314,11 +319,10 @@ export default {
               opacity: 1,
               scale: 1,
               duration: 0.5,
-              delay: 1.2,
               ease: 'back.out(1.7)',
               scrollTrigger: {
                 trigger: timelineEnd.value,
-                start: 'top 90%',
+                start: 'top 85%',
                 toggleActions: 'play none none reverse'
               }
             }
@@ -341,7 +345,6 @@ export default {
               x: 0,
               y: 0,
               duration: 0.9,
-              delay: 0.3 * index,
               ease: 'power3.out',
               scrollTrigger: {
                 trigger: card,
@@ -353,7 +356,7 @@ export default {
         );
       });
 
-      // Timeline dots animation with bounce effect
+      // Timeline dots animation with bounce effect - appears just before their card
       timelineDots.forEach((dot, index) => {
         animations.push(
           gsap.fromTo(dot,
@@ -363,11 +366,10 @@ export default {
               opacity: 1,
               rotation: 0,
               duration: 0.6,
-              delay: 0.3 * index + 0.2,
               ease: 'back.out(2)',
               scrollTrigger: {
-                trigger: dot,
-                start: 'top 85%',
+                trigger: experienceCards[index] || dot,
+                start: 'top 90%',
                 toggleActions: 'play none none reverse'
               }
             }

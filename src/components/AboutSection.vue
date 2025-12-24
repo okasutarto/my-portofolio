@@ -2,20 +2,39 @@
   <section id="about" class="sm:py-16 md:py-20 overflow-hidden flex items-center">
     <div class="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
       <div class="flex flex-col lg:flex-row items-center gap-8 sm:gap-10 md:gap-12 lg:gap-16">
-        <!-- Profile image with circular design -->
+        <!-- Profile image with rotating ring design -->
         <div class="w-full lg:w-2/5 relative flex justify-center">
           <div 
             class="relative" 
             ref="profileContainer"
           >
+            <!-- Rotating dashed ring -->
+            <div class="absolute inset-0 w-72 sm:w-80 md:w-96 h-72 sm:h-80 md:h-96 -m-4 sm:-m-6 md:-m-8">
+              <div class="absolute inset-0 rounded-full border-2 border-dashed border-primary/40 animate-spin-slow"></div>
+            </div>
+            
+            <!-- Outer glow ring -->
+            <div class="absolute inset-0 w-64 sm:w-72 md:w-80 h-64 sm:h-72 md:h-80 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-xl"></div>
+            
             <!-- Circular image -->
-            <div class="rounded-full overflow-hidden w-64 sm:w-72 md:w-80 h-64 sm:h-72 md:h-80 shadow-lg">
+            <div class="relative rounded-full overflow-hidden w-64 sm:w-72 md:w-80 h-64 sm:h-72 md:h-80 shadow-2xl ring-4 ring-white dark:ring-gray-800">
               <img 
                 ref="profileImage"
                 src="@/assets/profile-placeholder.jpg" 
                 alt="Profile" 
                 class="w-full h-full object-cover transition-transform duration-700 ease-out"
               >
+            </div>
+            
+            <!-- Floating badges -->
+            <div class="absolute -right-2 sm:-right-4 top-4 sm:top-8 px-3 py-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg animate-float z-10">
+              <span class="text-xl sm:text-2xl">💻</span>
+            </div>
+            <div class="absolute -left-2 sm:-left-4 bottom-12 sm:bottom-16 px-3 py-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg animate-float-delayed z-10">
+              <span class="text-xl sm:text-2xl">🚀</span>
+            </div>
+            <div class="absolute right-8 sm:right-4 -bottom-2 sm:-bottom-4 px-3 py-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg animate-float z-10">
+              <span class="text-xl sm:text-2xl">⚡</span>
             </div>
           </div>
         </div>
@@ -26,30 +45,69 @@
           ref="contentSection"
         >
           <h2 
-            class="text-4xl font-bold mb-6 text-gray-900 dark:text-gray-50 animation-element"
+            class="text-3xl sm:text-4xl font-bold mb-6 text-gray-900 dark:text-gray-50 animation-element"
             ref="headingRef"
-          >About Me</h2>
+          >Building End-to-End <br class="hidden sm:block"/><span class="text-primary">Digital Solutions</span></h2>
           <p 
             class="mb-6 text-lg text-gray-700 dark:text-gray-300 leading-relaxed animation-element"
             ref="descriptionRef"
           >
-            Hey there! Code craftsman here, wielding Vue, React, JavaScript, and cutting-edge web tech to build digital solutions that actually matter. Former industrial engineer turned developer, I bring fresh eyes to every project. Always tinkering with new tools and pushing my skills to the next level—because in tech, standing still means falling behind!
+            Fullstack Developer crafting seamless experiences from <span class="font-semibold text-primary">frontend to backend</span>. I build responsive UIs with Vue.js, React, & Angular, architect robust APIs with Node.js, and design efficient databases. Former industrial engineer turned developer—I bring analytical thinking and fresh perspectives to every project!
           </p>
           
-          <div class="mt-8">
+          <!-- Quick Stats -->
+          <div class="grid grid-cols-3 gap-3 sm:gap-4 mb-8 animation-element" ref="statsRef">
+            <div class="text-center p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-shadow">
+              <p class="text-2xl sm:text-3xl font-bold text-primary">3+</p>
+              <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Years Exp.</p>
+            </div>
+            <div class="text-center p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-shadow">
+              <p class="text-2xl sm:text-3xl font-bold text-primary">15+</p>
+              <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Projects</p>
+            </div>
+            <div class="text-center p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-shadow">
+              <p class="text-2xl sm:text-3xl font-bold text-primary">99%</p>
+              <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Satisfaction</p>
+            </div>
+          </div>
+          
+          <div class="mt-6">
             <h3 
               class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200 animation-element"
               ref="skillsHeadingRef"
-            >Skills</h3>
-            <div class="flex flex-wrap gap-3">
+            >Tech Stack</h3>
+            <div class="flex flex-wrap gap-2 sm:gap-3">
               <span 
                 v-for="(skill, index) in skills" 
-                :key="skill"
-                class="skill-tag bg-gray-100 dark:bg-gray-800 rounded-lg px-4 py-2 text-sm font-medium text-primary-600 dark:text-primary-400 border border-gray-200 dark:border-gray-700 hover:shadow-md animation-element"
+                :key="skill.name"
+                class="skill-tag bg-gray-100 dark:bg-gray-800 rounded-lg px-3 sm:px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-primary hover:text-primary dark:hover:text-primary hover:shadow-md animation-element flex items-center gap-2"
                 :class="`skill-tag-${index}`"
                 :ref="el => { if(el) skillElements[index] = el }"
-              >{{ skill }}</span>
+              >
+                <span>{{ skill.icon }}</span>
+                <span>{{ skill.name }}</span>
+              </span>
             </div>
+          </div>
+          
+          <!-- CTA Buttons -->
+          <div class="mt-8 flex flex-wrap gap-4 animation-element" ref="ctaRef">
+            <a 
+              href="#contact" 
+              @click.prevent="scrollToContact"
+              class="btn btn-primary flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              Let's Talk
+            </a>
+            <router-link to="/about" class="btn btn-outline flex items-center gap-2">
+              Learn More
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              </svg>
+            </router-link>
           </div>
         </div>
       </div>
@@ -72,12 +130,33 @@ export default {
     const backgroundCircle = ref(null);
     const profileImage = ref(null);
     const contentSection = ref(null);
+    const badgeRef = ref(null);
     const headingRef = ref(null);
     const descriptionRef = ref(null);
+    const statsRef = ref(null);
     const skillsHeadingRef = ref(null);
+    const ctaRef = ref(null);
 
-    // Skills array for dynamic rendering
-    const skills = reactive(['Vue', 'React', 'JavaScript', 'HTML/CSS', 'Tailwind CSS', 'Git']);
+    // Scroll to contact function
+    const scrollToContact = () => {
+      const contactSection = document.getElementById('contact');
+      if (contactSection) {
+        contactSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    };
+
+    // Skills array with icons - Fullstack focused
+    const skills = reactive([
+      { name: 'Vue.js', icon: '🟢' },
+      { name: 'React', icon: '⚛️' },
+      { name: 'Angular', icon: '🅰️' },
+      { name: 'Node.js', icon: '🟩' },
+      { name: 'Express', icon: '⚡' },
+      { name: 'PostgreSQL', icon: '🐘' },
+      { name: 'MySQL', icon: '🐬' },
+      { name: 'TypeScript', icon: '📘' },
+      { name: 'REST APIs', icon: '🔗' }
+    ]);
     const skillElements = reactive([]);
     
     // Store all animations for cleanup
@@ -100,12 +179,13 @@ export default {
       // Profile image scale and rotation
       animations.push(
         gsap.fromTo(profileImage.value,
-          { opacity: 0, x: -20 },
+          { opacity: 0, scale: 0.8 },
           { 
             opacity: 1, 
-            x: 0, 
-            duration: 0.5,
-            delay: 0.5,
+            scale: 1, 
+            duration: 0.8,
+            delay: 0.3,
+            ease: 'back.out(1.7)',
             scrollTrigger: {
               trigger: profileImage.value,
               start: 'top 85%',
@@ -128,14 +208,33 @@ export default {
         })
       );
       
+      // Badge animation
+      if (badgeRef.value) {
+        animations.push(
+          gsap.fromTo(badgeRef.value,
+            { opacity: 0, y: -20 },
+            { 
+              opacity: 1, 
+              y: 0, 
+              duration: 0.5,
+              scrollTrigger: {
+                trigger: badgeRef.value,
+                start: 'top 75%',
+                toggleActions: 'play none none reverse'
+              }
+            }
+          )
+        );
+      }
+      
       // Heading animation
       animations.push(
         gsap.fromTo(headingRef.value,
-          { opacity: 0, x: -20 },
+          { opacity: 0, x: -30 },
           { 
             opacity: 1, 
             x: 0, 
-            duration: 0.5,
+            duration: 0.6,
             scrollTrigger: {
               trigger: headingRef.value,
               start: 'top 75%',
@@ -148,11 +247,11 @@ export default {
       // Description animation
       animations.push(
         gsap.fromTo(descriptionRef.value,
-          { opacity: 0, x: -20 },
+          { opacity: 0, x: -30 },
           { 
             opacity: 1, 
             x: 0, 
-            duration: 0.5,
+            duration: 0.6,
             delay: 0.1,
             scrollTrigger: {
               trigger: descriptionRef.value,
@@ -162,6 +261,26 @@ export default {
           }
         )
       );
+      
+      // Stats animation
+      if (statsRef.value) {
+        animations.push(
+          gsap.fromTo(statsRef.value,
+            { opacity: 0, y: 30 },
+            { 
+              opacity: 1, 
+              y: 0, 
+              duration: 0.6,
+              delay: 0.2,
+              scrollTrigger: {
+                trigger: statsRef.value,
+                start: 'top 70%',
+                toggleActions: 'play none none reverse'
+              }
+            }
+          )
+        );
+      }
       
       // Skills heading animation
       animations.push(
@@ -186,15 +305,17 @@ export default {
         if (element) {
           animations.push(
             gsap.fromTo(element,
-              { opacity: 0, x: -20 },
+              { opacity: 0, y: 20, scale: 0.8 },
               { 
                 opacity: 1, 
-                x: 0, 
-                duration: 0.5,
-                delay: 0.2 + (index * 0.1),
+                y: 0, 
+                scale: 1,
+                duration: 0.4,
+                delay: 0.3 + (index * 0.08),
+                ease: 'back.out(1.7)',
                 scrollTrigger: {
                   trigger: element,
-                  start: 'top 70%',
+                  start: 'top 80%',
                   toggleActions: 'play none none reverse'
                 }
               }
@@ -202,6 +323,26 @@ export default {
           );
         }
       });
+      
+      // CTA animation
+      if (ctaRef.value) {
+        animations.push(
+          gsap.fromTo(ctaRef.value,
+            { opacity: 0, y: 20 },
+            { 
+              opacity: 1, 
+              y: 0, 
+              duration: 0.5,
+              delay: 0.4,
+              scrollTrigger: {
+                trigger: ctaRef.value,
+                start: 'top 80%',
+                toggleActions: 'play none none reverse'
+              }
+            }
+          )
+        );
+      }
     });
     
     onUnmounted(() => {
@@ -220,11 +361,15 @@ export default {
       backgroundCircle,
       profileImage,
       contentSection,
+      badgeRef,
       headingRef, 
-      descriptionRef, 
+      descriptionRef,
+      statsRef,
       skillsHeadingRef,
+      ctaRef,
       skills,
-      skillElements
+      skillElements,
+      scrollToContact
     };
   }
 }
@@ -232,25 +377,57 @@ export default {
 
 <style scoped>
 section {
-  padding-top: 6rem;    /* 96px */
-  padding-bottom: 6rem; /* 96px */
+  padding-top: 6rem;
+  padding-bottom: 6rem;
 }
 
 @media (min-width: 640px) {
   section {
-    padding-top: 4rem;    /* 64px */
-    padding-bottom: 4rem; /* 64px */
+    padding-top: 4rem;
+    padding-bottom: 4rem;
   }
 }
 
 @media (min-width: 768px) {
   section {
-    padding-top: 6rem;    /* 96px */
-    padding-bottom: 6rem; /* 96px */
+    padding-top: 6rem;
+    padding-bottom: 6rem;
   }
 }
 
-/* Keep existing styles below */
+/* Rotating ring animation */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 20s linear infinite;
+}
+
+/* Floating animation */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float 3s ease-in-out infinite;
+  animation-delay: 1.5s;
+}
+
 /* Hide elements before animation */
 .animation-element {
   opacity: 0;
@@ -262,8 +439,7 @@ section {
 }
 
 .skill-tag:hover {
-  transform: translateY(-2px) !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transform: translateY(-3px) !important;
 }
 
 /* Image hover effect */

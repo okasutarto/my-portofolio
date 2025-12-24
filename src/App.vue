@@ -1,5 +1,6 @@
 <template>
   <div class="min-h-screen flex flex-col">
+    <CustomCursor />
     <TheNavbar />
     <main class="flex-grow">
       <MainLayout>
@@ -21,6 +22,7 @@ import TheNavbar from './components/TheNavbar.vue';
 import TheFooter from './components/TheFooter.vue';
 import MainLayout from './layouts/MainLayout.vue';
 import ChatBot from './components/ChatBot.vue';
+import CustomCursor from './components/CustomCursor.vue';
 import { useTheme } from './composables/useTheme';
 
 const { initTheme } = useTheme();

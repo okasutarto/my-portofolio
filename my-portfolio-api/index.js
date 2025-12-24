@@ -74,7 +74,7 @@ app.get('/api/chat/stream', async (req, res) => {
         { role: 'user', content: message }
       ],
       stream: true,
-      max_tokens: 200,
+      max_tokens: 1000,
     });
     
     // Stream the response to the client

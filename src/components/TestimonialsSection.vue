@@ -16,23 +16,23 @@
 
       <!-- Testimonials Carousel -->
       <div class="relative">
-        <!-- Navigation Buttons -->
+        <!-- Navigation Buttons - Hidden on mobile, shown on tablet+ -->
         <button 
           @click="prevTestimonial"
-          class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 md:-translate-x-12 z-20 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white dark:bg-gray-800 shadow-lg flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-primary hover:text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary"
+          class="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-12 z-20 w-12 h-12 rounded-full bg-white dark:bg-gray-800 shadow-lg items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-primary hover:text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary"
           aria-label="Previous testimonial"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
 
         <button 
           @click="nextTestimonial"
-          class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 md:translate-x-12 z-20 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white dark:bg-gray-800 shadow-lg flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-primary hover:text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary"
+          class="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-12 z-20 w-12 h-12 rounded-full bg-white dark:bg-gray-800 shadow-lg items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-primary hover:text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary"
           aria-label="Next testimonial"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
           </svg>
         </button>
@@ -108,18 +108,43 @@
           </div>
         </div>
 
-        <!-- Dots Indicator -->
-        <div class="flex justify-center gap-2 mt-8">
+        <!-- Dots Indicator with mobile navigation -->
+        <div class="flex justify-center items-center gap-3 mt-8">
+          <!-- Mobile prev button -->
           <button 
-            v-for="(_, index) in testimonials" 
-            :key="index"
-            @click="goToTestimonial(index)"
-            class="w-2.5 h-2.5 rounded-full transition-all duration-300 focus:outline-none"
-            :class="currentIndex === index 
-              ? 'bg-primary w-8' 
-              : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'"
-            :aria-label="`Go to testimonial ${index + 1}`"
-          ></button>
+            @click="prevTestimonial"
+            class="md:hidden w-9 h-9 rounded-full bg-white dark:bg-gray-800 shadow-md flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-primary hover:text-white transition-all duration-300"
+            aria-label="Previous testimonial"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          <!-- Dots -->
+          <div class="flex gap-2">
+            <button 
+              v-for="(_, index) in testimonials" 
+              :key="index"
+              @click="goToTestimonial(index)"
+              class="w-2.5 h-2.5 rounded-full transition-all duration-300 focus:outline-none"
+              :class="currentIndex === index 
+                ? 'bg-primary w-8' 
+                : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'"
+              :aria-label="`Go to testimonial ${index + 1}`"
+            ></button>
+          </div>
+
+          <!-- Mobile next button -->
+          <button 
+            @click="nextTestimonial"
+            class="md:hidden w-9 h-9 rounded-full bg-white dark:bg-gray-800 shadow-md flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-primary hover:text-white transition-all duration-300"
+            aria-label="Next testimonial"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
         </div>
       </div>
     </div>

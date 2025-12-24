@@ -2,11 +2,18 @@
   <div class="fixed bottom-6 right-6 z-50">
     <!-- Tooltip/Popper -->
     <Transition name="tooltip">
-      <div v-if="showTooltip" class="absolute bottom-20 right-0 bg-white dark:bg-gray-800 pt-6 p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 w-52 text-center">
-        <p class="text-sm font-medium"><span class="waving-hand">👋</span> Hi there! Need help?</p>
-        <p class="text-xs text-gray-600 dark:text-gray-300 mt-1">Ask me anything about Oka!</p>
-        <div class="absolute -bottom-2 right-6 w-4 h-4 bg-white dark:bg-gray-800 rotate-45 border-b border-r border-gray-200 dark:border-gray-700"></div>
-        <button @click="dismissTooltip" class="absolute top-1 right-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+      <div v-if="showTooltip && !isOpen" class="absolute bottom-20 right-0 bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 w-56">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0">
+            <span class="text-lg">🤖</span>
+          </div>
+          <div>
+            <p class="text-sm font-semibold text-gray-900 dark:text-white">Hi there! <span class="waving-hand">👋</span></p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Ask me anything about Oka's work!</p>
+          </div>
+        </div>
+        <div class="absolute -bottom-2 right-8 w-4 h-4 bg-white dark:bg-gray-800 rotate-45 border-b border-r border-gray-100 dark:border-gray-700"></div>
+        <button @click="dismissTooltip" class="absolute top-2 right-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
           </svg>
@@ -14,42 +21,83 @@
       </div>
     </Transition>
 
+    <!-- Chat Toggle Button -->
     <button 
-      @click="isOpen = !isOpen"
-      class="w-14 h-14 rounded-full bg-primary hover:bg-primary-dark text-white shadow-lg flex items-center justify-center transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary relative animate-pulse-subtle"
+      @click="toggleChat"
+      class="chat-toggle-btn group w-14 h-14 rounded-full bg-gradient-to-br from-primary to-secondary hover:from-primary-dark hover:to-secondary text-white shadow-lg flex items-center justify-center transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+      :class="{ 'rotate-0': !isOpen, 'rotate-180': isOpen }"
       :aria-label="isOpen ? 'Close chat' : 'Open chat'"
     >
-      <svg v-if="!isOpen" xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" viewBox="0 0 20 20" fill="currentColor">
-        <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
-        <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z" />
-      </svg>
-      <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" viewBox="0 0 20 20" fill="currentColor">
-        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-      </svg>
+      <Transition name="icon-switch" mode="out-in">
+        <svg v-if="!isOpen" key="chat" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
+          <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z" />
+        </svg>
+        <svg v-else key="close" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+        </svg>
+      </Transition>
       
       <!-- Notification indicator -->
-      <span v-if="hasNewMessages" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white dark:border-gray-800"></span>
+      <span v-if="hasNewMessages && !isOpen" class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-2 border-white dark:border-gray-900 flex items-center justify-center">
+        <span class="text-[10px] font-bold text-white">1</span>
+      </span>
+      
+      <!-- Pulse ring -->
+      <span v-if="!isOpen" class="absolute inset-0 rounded-full bg-primary/30 animate-ping-slow"></span>
     </button>
     
+    <!-- Chat Window -->
     <Transition name="chat-window">
       <div 
         v-if="isOpen" 
-        class="absolute bottom-20 right-0 w-80 sm:w-96 h-96 bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden flex flex-col border border-gray-200 dark:border-gray-700"
+        class="absolute bottom-20 right-0 w-80 sm:w-[380px] h-[500px] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-200 dark:border-gray-700"
       >
-        <div class="bg-primary text-white p-4 flex items-center">
-          <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center mr-3">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
-              <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z" />
-            </svg>
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-primary to-secondary text-white p-4 flex items-center justify-between">
+          <div class="flex items-center">
+            <div class="relative">
+              <div class="w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center mr-3">
+                <span class="text-xl">🤖</span>
+              </div>
+              <span class="absolute bottom-0 right-2 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></span>
+            </div>
+            <div>
+              <h3 class="font-semibold">Oka's Assistant</h3>
+              <p class="text-xs text-white/70 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
+                Online • Ready to help
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 class="font-medium">Portfolio Assistant</h3>
-            <p class="text-xs opacity-75">Ask me anything about Oka!</p>
+          <button 
+            @click="clearChat" 
+            class="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            title="Clear chat"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div v-if="messages.length <= 1" class="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Quick questions:</p>
+          <div class="flex flex-wrap gap-2">
+            <button 
+              v-for="question in quickQuestions" 
+              :key="question"
+              @click="askQuickQuestion(question)"
+              class="text-xs px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20 rounded-full text-gray-600 dark:text-gray-300 transition-colors"
+            >
+              {{ question }}
+            </button>
           </div>
         </div>
         
-        <div class="flex-1 overflow-y-auto p-4 space-y-3 smooth-scroll overscroll-contain" 
+        <!-- Messages Area -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-4 smooth-scroll overscroll-contain bg-gray-50 dark:bg-gray-900/50" 
              ref="chatMessages"
              @scroll="handleScroll">
           <TransitionGroup name="message">
@@ -61,65 +109,66 @@
                 'flex justify-start': message.sender === 'bot'
               }"
             >
-              <div 
-                :class="{
-                  'bg-primary text-white rounded-t-lg rounded-bl-lg': message.sender === 'user',
-                  'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-t-lg rounded-br-lg': message.sender === 'bot'
-                }"
-                class="max-w-[80%] p-3 text-sm break-words whitespace-pre-wrap"
-              >
-                <span v-html="formatMessageWithLinks(message.text)"></span>
-                <span v-if="message.isTyping" class="typing-cursor">|</span>
+              <!-- Bot Message -->
+              <div v-if="message.sender === 'bot'" class="flex items-end gap-2 max-w-[85%]">
+                <div class="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 text-xs">
+                  🤖
+                </div>
+                <div class="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-2xl rounded-bl-md p-3 text-sm shadow-sm">
+                  <span v-html="formatMessageWithLinks(message.text)"></span>
+                  <span v-if="message.isTyping" class="typing-cursor"></span>
+                </div>
+              </div>
+              
+              <!-- User Message -->
+              <div v-else class="max-w-[85%]">
+                <div class="bg-gradient-to-br from-primary to-secondary text-white rounded-2xl rounded-br-md p-3 text-sm shadow-sm">
+                  {{ message.text }}
+                </div>
               </div>
             </div>
           </TransitionGroup>
           
-          <!-- Keep the loading indicator for initial connection -->
+          <!-- Typing Indicator -->
           <Transition name="message">
-            <div v-if="isTyping" class="flex justify-start">
-              <div class="bg-gray-100 dark:bg-gray-700 rounded-t-lg rounded-br-lg p-3 text-sm max-w-[80%]">
-                <div class="flex space-x-1">
-                  <div class="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-500 animate-pulse"></div>
-                  <div class="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-500 animate-pulse" style="animation-delay: 0.2s"></div>
-                  <div class="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-500 animate-pulse" style="animation-delay: 0.4s"></div>
-                </div>
+            <div v-if="isTyping || isWaitingForResponse" class="flex items-end gap-2">
+              <div class="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 text-xs">
+                🤖
               </div>
-            </div>
-          </Transition>
-
-          <!-- AI typing indicator when streaming is about to start -->
-          <Transition name="message">
-            <div v-if="isWaitingForResponse" class="flex justify-start">
-              <div class="bg-gray-100 dark:bg-gray-700 rounded-t-lg rounded-br-lg p-3 text-sm max-w-[80%]">
-                <div class="flex space-x-1">
-                  <div class="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-500 animate-pulse"></div>
-                  <div class="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-500 animate-pulse" style="animation-delay: 0.2s"></div>
-                  <div class="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-500 animate-pulse" style="animation-delay: 0.4s"></div>
+              <div class="bg-white dark:bg-gray-800 rounded-2xl rounded-bl-md p-3 shadow-sm">
+                <div class="flex space-x-1.5">
+                  <div class="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style="animation-delay: 0ms"></div>
+                  <div class="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style="animation-delay: 150ms"></div>
+                  <div class="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style="animation-delay: 300ms"></div>
                 </div>
               </div>
             </div>
           </Transition>
         </div>
         
-        <div class="p-3 border-t border-gray-200 dark:border-gray-700">
-          <form @submit.prevent="sendMessage" class="flex space-x-2">
+        <!-- Input Area -->
+        <div class="p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
+          <form @submit.prevent="sendMessage" class="flex items-center gap-2">
             <input 
               v-model="userInput"
               type="text"
-              placeholder="Ask something..."
-              class="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white"
-              :disabled="isTyping"
+              placeholder="Type your message..."
+              class="flex-1 rounded-xl border-0 bg-gray-100 dark:bg-gray-800 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 dark:text-white placeholder-gray-400"
+              :disabled="isTyping || isWaitingForResponse"
             />
             <button 
               type="submit"
-              class="bg-primary hover:bg-primary-dark text-white rounded-lg px-4 py-2 text-sm flex items-center justify-center transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="!userInput.trim() || isTyping"
+              class="w-11 h-11 bg-gradient-to-br from-primary to-secondary hover:from-primary-dark hover:to-secondary text-white rounded-xl flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+              :disabled="!userInput.trim() || isTyping || isWaitingForResponse"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
               </svg>
             </button>
           </form>
+          <p class="text-[10px] text-gray-400 dark:text-gray-500 text-center mt-2">
+            Powered by AI • Responses may vary
+          </p>
         </div>
       </div>
     </Transition>
@@ -138,7 +187,7 @@ export default {
     const userInput = ref('');
     const isTyping = ref(false);
     const chatMessages = ref(null);
-    const initialMessage = 'Hi there! I\'m Oka\'s portfolio assistant. How can I help you today?';
+    const initialMessage = 'Hi there! 👋 I\'m Oka\'s AI assistant. I can tell you about his skills, experience, and projects. What would you like to know?';
     const hasInitialMessageShown = ref(false);
     
     const isStreaming = ref(false);
@@ -148,6 +197,13 @@ export default {
     const showTooltip = ref(false);
     const hasNewMessages = ref(false);
     const isUserAtBottom = ref(true);
+    
+    // Quick questions
+    const quickQuestions = ref([
+      "What's his experience?",
+      "Tech stack?",
+      "Recent projects?"
+    ]);
 
     const scrollToBottom = (force = false) => {
       setTimeout(() => {
@@ -157,6 +213,32 @@ export default {
           isUserAtBottom.value = true;
         }
       }, 50);
+    };
+    
+    // Toggle chat
+    const toggleChat = () => {
+      isOpen.value = !isOpen.value;
+      if (isOpen.value) {
+        showTooltip.value = false;
+      }
+    };
+    
+    // Clear chat
+    const clearChat = () => {
+      messages.value = [];
+      hasInitialMessageShown.value = false;
+      // Re-trigger initial message
+      isTyping.value = true;
+      setTimeout(() => {
+        isTyping.value = false;
+        streamInitialMessage();
+      }, 500);
+    };
+    
+    // Ask quick question
+    const askQuickQuestion = (question) => {
+      userInput.value = question;
+      sendMessage();
     };
 
     // Show typing animation when chat is opened
@@ -362,7 +444,11 @@ export default {
       isStreaming,
       scrollToBottom,
       isUserAtBottom,
-      handleScroll
+      handleScroll,
+      toggleChat,
+      clearChat,
+      askQuickQuestion,
+      quickQuestions
     };
   }
 }
@@ -370,7 +456,7 @@ export default {
 
 <style scoped>
 /* Message styling */
-[class~="max-w-[80%]"] {
+[class~="max-w-[85%]"] {
   overflow-wrap: break-word;
   word-wrap: break-word;
   word-break: break-word;
@@ -392,34 +478,24 @@ export default {
 
 /* Link styling */
 :deep(a) {
-  color: #3b82f6; /* blue-500 */
+  color: #3b82f6;
   text-decoration: underline;
   word-break: break-all;
 }
 
 :deep(a:hover) {
-  color: #1d4ed8; /* blue-700 */
+  color: #1d4ed8;
 }
 
-/* Dark mode link styling */
 .dark :deep(a) {
-  color: #60a5fa; /* blue-400 */
+  color: #60a5fa;
 }
 
 .dark :deep(a:hover) {
-  color: #93c5fd; /* blue-300 */
+  color: #93c5fd;
 }
 
-/* Scroll to bottom button animation */
-.scroll-btn-enter-active, .scroll-btn-leave-active {
-  transition: opacity 0.3s, transform 0.3s;
-}
-.scroll-btn-enter-from, .scroll-btn-leave-to {
-  opacity: 0;
-  transform: translateY(10px);
-}
-
-/* New tooltip animations */
+/* Tooltip animations */
 .tooltip-enter-active,
 .tooltip-leave-active {
   transition: opacity 0.3s, transform 0.3s;
@@ -427,39 +503,52 @@ export default {
 .tooltip-enter-from,
 .tooltip-leave-to {
   opacity: 0;
-  transform: translateY(10px);
+  transform: translateY(10px) scale(0.95);
 }
 
-/* Pulse animation for the button */
-@keyframes pulse-subtle {
+/* Icon switch animation */
+.icon-switch-enter-active,
+.icon-switch-leave-active {
+  transition: all 0.2s ease;
+}
+.icon-switch-enter-from {
+  opacity: 0;
+  transform: scale(0.5) rotate(-90deg);
+}
+.icon-switch-leave-to {
+  opacity: 0;
+  transform: scale(0.5) rotate(90deg);
+}
+
+/* Slow ping animation */
+@keyframes ping-slow {
   0% {
-    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.7);
+    transform: scale(1);
+    opacity: 0.5;
   }
-  70% {
-    box-shadow: 0 0 0 10px rgba(79, 70, 229, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0);
+  75%, 100% {
+    transform: scale(1.5);
+    opacity: 0;
   }
 }
 
-.animate-pulse-subtle {
-  animation: pulse-subtle 2s infinite;
+.animate-ping-slow {
+  animation: ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
-/* Remove smooth-scroll behavior that causes flickering */
+/* Smooth scroll */
 .smooth-scroll {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  scroll-behavior: smooth;
 }
 
-/* Add this to improve rendering performance */
 .flex-1 {
   min-height: 0;
   contain: content;
 }
 
-/* Add typing cursor animation */
+/* Typing cursor */
 @keyframes blink {
   0%, 49% { opacity: 1; }
   50%, 100% { opacity: 0; }
@@ -470,54 +559,45 @@ export default {
   width: 2px;
   height: 1em;
   background-color: currentColor;
-  margin-left: 1px;
-  animation: blink 0.9s infinite;
+  margin-left: 2px;
+  animation: blink 0.8s infinite;
   vertical-align: middle;
-  transform: translateY(-1px);
 }
 
-/* For dark mode */
-.dark .typing-cursor {
-  opacity: 0.8;
-}
-
-/* ChatBot window animation */
+/* Chat window animation */
 .chat-window-enter-active {
-  animation: bounce-in 0.5s ease-out;
+  animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   transform-origin: bottom right;
 }
 
 .chat-window-leave-active {
-  animation: bounce-out 0.3s ease-in;
+  animation: slide-down 0.3s ease-in forwards;
   transform-origin: bottom right;
 }
 
-@keyframes bounce-in {
+@keyframes slide-up {
   0% {
     opacity: 0;
-    transform: scale(0.8) translateY(20px);
-  }
-  60% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: translateY(20px) scale(0.95);
   }
   100% {
-    transform: scale(1) translateY(0);
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
-@keyframes bounce-out {
+@keyframes slide-down {
   0% {
-    transform: scale(1);
     opacity: 1;
+    transform: translateY(0) scale(1);
   }
   100% {
-    transform: scale(0.8) translateY(20px);
     opacity: 0;
+    transform: translateY(20px) scale(0.95);
   }
 }
 
-/* Waving hand animation */
+/* Waving hand */
 @keyframes wave {
   0% { transform: rotate(0deg); }
   10% { transform: rotate(14deg); }
@@ -530,9 +610,36 @@ export default {
 }
 
 .waving-hand {
-  font-size: 1.25em;
   display: inline-block;
   animation: wave 2.5s infinite;
-  transform-origin: 70% 70%; /* Pivot from bottom right of the hand */
+  transform-origin: 70% 70%;
+}
+
+/* Bounce animation for typing dots */
+@keyframes bounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-bounce {
+  animation: bounce 1s infinite;
+}
+
+/* Chat toggle button */
+.chat-toggle-btn {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.chat-toggle-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.4);
+}
+
+.chat-toggle-btn:active {
+  transform: scale(0.95);
 }
 </style>

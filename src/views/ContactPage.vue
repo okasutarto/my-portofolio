@@ -217,8 +217,8 @@ const submitForm = async () => {
   try {
     // Prepare template parameters for EmailJS
     const templateParams = {
-      from_name: form.name,
-      from_email: form.email,
+      name: form.name,
+      email: form.email,
       subject: form.subject || 'No Subject',
       message: form.message,
       to_name: 'Oka Sutarto Putra',

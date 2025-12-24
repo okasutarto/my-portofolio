@@ -136,6 +136,8 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
+import emailjs from '@emailjs/browser'
+import { EMAILJS_CONFIG } from '@/config/emailjs'
 
 // Form state
 const form = reactive({
@@ -213,17 +215,24 @@ const submitForm = async () => {
   isSubmitting.value = true
   
   try {
-    // Simulate API call with a delay
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    // Prepare template parameters for EmailJS
+    const templateParams = {
+      from_name: form.name,
+      from_email: form.email,
+      subject: form.subject || 'No Subject',
+      message: form.message,
+      to_name: 'Oka Sutarto Putra',
+    }
     
-    // In a real application, you would send the form data to your backend
-    // const response = await fetch('/api/contact', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(form)
-    // })
+    // Send email using EmailJS
+    const response = await emailjs.send(
+      EMAILJS_CONFIG.SERVICE_ID,
+      EMAILJS_CONFIG.TEMPLATE_ID,
+      templateParams,
+      EMAILJS_CONFIG.PUBLIC_KEY
+    )
     
-    // if (!response.ok) throw new Error('Failed to send message')
+    console.log('Email sent successfully:', response)
     
     // Show success message
     formStatus.show = true
@@ -240,7 +249,7 @@ const submitForm = async () => {
     formStatus.show = true
     formStatus.isError = true
     formStatus.message = 'Something went wrong. Please try again later.'
-    console.error('Form submission error:', error)
+    console.error('EmailJS error:', error)
   } finally {
     isSubmitting.value = false
   }

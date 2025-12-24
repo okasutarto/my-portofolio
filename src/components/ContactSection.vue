@@ -79,6 +79,8 @@
 import { ref, reactive, onMounted, onBeforeUnmount } from 'vue';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import emailjs from '@emailjs/browser';
+import { EMAILJS_CONFIG } from '@/config/emailjs';
 
 // Register ScrollTrigger plugin
 gsap.registerPlugin(ScrollTrigger);
@@ -182,33 +184,38 @@ const submitForm = async () => {
   submitStatus.value = null;
   
   try {
-    // Send form data (example using fetch with Formspree)
-    const response = await fetch('https://formspree.io/your_formspree_id', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(form)
-    });
+    // Prepare template parameters for EmailJS
+    const templateParams = {
+      from_name: form.name,
+      from_email: form.email,
+      subject: 'Portfolio Contact Form',
+      message: form.message,
+      to_name: 'Oka Sutarto Putra',
+    };
     
-    if (response.ok) {
-      // Success handling
-      submitStatus.value = 'success';
-      // Reset form after submission
-      form.name = '';
-      form.email = '';
-      form.message = '';
-      
-      // After 3 seconds, clear the success message
-      setTimeout(() => {
-        submitStatus.value = null;
-      }, 3000);
-    } else {
-      // Error handling
-      submitStatus.value = 'error';
-    }
+    // Send email using EmailJS
+    const response = await emailjs.send(
+      EMAILJS_CONFIG.SERVICE_ID,
+      EMAILJS_CONFIG.TEMPLATE_ID,
+      templateParams,
+      EMAILJS_CONFIG.PUBLIC_KEY
+    );
+    
+    console.log('Email sent successfully:', response);
+    
+    // Success handling
+    submitStatus.value = 'success';
+    // Reset form after submission
+    form.name = '';
+    form.email = '';
+    form.message = '';
+    
+    // After 5 seconds, clear the success message
+    setTimeout(() => {
+      submitStatus.value = null;
+    }, 5000);
   } catch (error) {
-    console.error('Form submission error:', error);
+    console.error('EmailJS error:', error);
     submitStatus.value = 'error';
   } finally {
     isSubmitting.value = false;

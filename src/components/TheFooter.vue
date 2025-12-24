@@ -12,7 +12,7 @@
           <a href="https://linkedin.com/in/okasutarto" target="_blank" class="hover:text-gray-400">
             LinkedIn
           </a>
-          <a href="mailto:your.email@example.com" class="hover:text-gray-400">
+          <a href="mailto:okasputra@gmail.com" class="hover:text-gray-400">
             Contact
           </a>
         </div>

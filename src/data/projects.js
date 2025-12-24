@@ -307,6 +307,80 @@ export const projects = [
     codeLink: '#',
     
     metaDescription: 'Point of Sale backend system built with Node.js and PostgreSQL'
+  },
+  {
+    id: 'punyagawe',
+    title: 'Punyagawe.id',
+    type: 'Backend',
+    featured: false,
+    image: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=800&h=450&fit=crop',
+    thumbnail: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=800&h=450&fit=crop',
+    description: 'Promotional site for wedding invitations and souvenirs.',
+    
+    overview: 'Punyagawe.id is a backend service powering a promotional website for wedding invitations and souvenirs. Built with Node.js and Express, it provides a robust API for managing products, orders, and customer interactions.',
+    
+    problem: {
+      title: 'The Challenge',
+      description: 'Wedding vendors needed a reliable platform to showcase their invitation designs and souvenir products with efficient order management.',
+      points: [
+        'Need for a scalable product catalog management system',
+        'Secure customer data handling for orders',
+        'Integration with frontend for seamless user experience',
+        'Efficient database queries for product searches'
+      ]
+    },
+    
+    solution: {
+      title: 'The Solution',
+      description: 'I developed a RESTful backend API that handles all business logic for the wedding invitation platform, including product management, order processing, and user authentication.',
+      points: [
+        'RESTful API architecture for easy frontend integration',
+        'Secure JWT-based authentication system',
+        'Optimized database queries using Sequelize ORM',
+        'CORS enabled for cross-origin requests'
+      ]
+    },
+    
+    features: [
+      'Product catalog management',
+      'Order processing system',
+      'User authentication and authorization',
+      'Secure API endpoints',
+      'Database management with Sequelize',
+      'Environment configuration with dotenv'
+    ],
+    
+    technologies: ['Node.js', 'Express', 'MySQL', 'Sequelize', 'JWT', 'CORS', 'dotenv'],
+    
+    role: 'Backend Developer',
+    duration: '4 weeks',
+    year: '2023',
+    
+    screenshots: [
+      { url: 'https://picsum.photos/800/450?random=10', caption: 'API documentation' },
+      { url: 'https://picsum.photos/800/450?random=11', caption: 'Database structure' }
+    ],
+    
+    results: {
+      title: 'Impact & Results',
+      metrics: [
+        { value: '15+', label: 'API endpoints' },
+        { value: '99%', label: 'API uptime' },
+        { value: '100+', label: 'Products managed' }
+      ]
+    },
+    
+    learnings: [
+      'Building production-ready APIs with Express',
+      'MySQL database optimization with Sequelize',
+      'Implementing secure authentication flows',
+      'Managing environment variables for different deployments'
+    ],
+    
+    demoLink: 'https://punyagawe.id',
+    codeLink: '#',
+    
+    metaDescription: 'Backend API for wedding invitation and souvenir promotional website'
   }
 ]
 

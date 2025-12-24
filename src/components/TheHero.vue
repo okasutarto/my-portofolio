@@ -96,7 +96,7 @@
             :href="social.url" 
             target="_blank" 
             rel="noopener noreferrer"
-            class="w-12 h-12 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-white transition-all duration-300 hover:scale-110 hover:-translate-y-1 shadow-lg shadow-transparent hover:shadow-primary/25"
+            class="w-12 h-12 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-white transition-all duration-300 hover:scale-110 hover:-translate-y-1 shadow-lg shadow-transparent hover:shadow-primary/25"
             :title="social.name"
           >
             <component :is="social.icon" class="w-5 h-5" />

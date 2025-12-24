@@ -123,8 +123,8 @@
                 <div class="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 text-xs">
                   🤖
                 </div>
-                <div class="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-2xl rounded-bl-md p-3 text-sm shadow-sm">
-                  <span v-html="formatMessageWithLinks(message.text)"></span>
+                <div class="bot-message bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-2xl rounded-bl-md p-3 text-sm shadow-sm">
+                  <div v-html="formatMessageWithLinks(message.text)" class="message-content"></div>
                   <span v-if="message.isTyping" class="typing-cursor"></span>
                 </div>
               </div>
@@ -420,19 +420,38 @@ export default {
     const formatMessageWithLinks = (text) => {
       if (!text) return '';
       
-      // Updated regex that excludes trailing punctuation
-      const urlRegex = /(https?:\/\/[^\s]+?)([.,;:!?])?(?=\s|$)/g;
+      let formattedText = text;
       
-      // Replace URLs with anchor tags while preserving punctuation
-      const formattedText = text.replace(
-        urlRegex,
+      // Convert markdown bold **text** to <strong>
+      formattedText = formattedText.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-gray-900 dark:text-white">$1</strong>');
+      
+      // Convert markdown italic *text* to <em> (but not if it's part of bold)
+      formattedText = formattedText.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+      
+      // Convert markdown links [text](url) to anchor tags FIRST
+      formattedText = formattedText.replace(
+        /\[([^\]]+)\]\(([^)]+)\)/g,
+        '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-primary hover:text-primary-dark underline">$1</a>'
+      );
+      
+      // Convert plain URLs to anchor tags (only if not already inside an href)
+      // Use a negative lookbehind to avoid matching URLs already in href=""
+      formattedText = formattedText.replace(
+        /(?<!href="|">)(https?:\/\/[^\s<>"]+?)([.,;:!?])?(?=\s|$|<)/g,
         (match, url, punctuation = '') => {
-          // Clean the URL (remove any trailing punctuation captured by mistake)
           const cleanUrl = url.replace(/[.,;:!?]$/, '');
-          
-          return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-500 underline hover:text-blue-700">${cleanUrl}</a>${punctuation}`;
+          return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="text-primary hover:text-primary-dark underline">${cleanUrl}</a>${punctuation}`;
         }
       );
+      
+      // Convert numbered lists (1. item) to proper list items
+      formattedText = formattedText.replace(/^(\d+)\.\s+(.+)$/gm, '<div class="flex gap-2 my-1"><span class="text-primary font-semibold">$1.</span><span>$2</span></div>');
+      
+      // Convert bullet points (- item) to proper list items
+      formattedText = formattedText.replace(/^[-•]\s+(.+)$/gm, '<div class="flex gap-2 my-1"><span class="text-primary">•</span><span>$1</span></div>');
+      
+      // Convert line breaks to <br> for proper spacing
+      formattedText = formattedText.replace(/\n/g, '<br>');
       
       return formattedText;
     };
@@ -776,5 +795,21 @@ export default {
 /* Safe area for devices with notches/home indicators */
 .safe-area-bottom {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* Message content formatting */
+.message-content {
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.message-content br + br {
+  display: block;
+  content: '';
+  margin-top: 0.5rem;
+}
+
+.bot-message a {
+  word-break: break-all;
 }
 </style>

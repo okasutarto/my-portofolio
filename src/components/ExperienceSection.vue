@@ -47,9 +47,9 @@
               </div>
 
               <!-- Company & Role -->
-              <div class="flex items-start gap-4 mb-3">
+              <div class="flex items-center gap-4 mb-3">
                 <div 
-                  class="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden shadow-md"
+                  class="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden shadow-md border-none"
                   :style="{ background: experience.color }"
                 >
                   <img 
@@ -66,7 +66,7 @@
                   </div>
                 </div>
                 <div>
-                  <h3 class="text-lg font-bold text-gray-900 dark:text-white">
+                  <h3 class="text-md font-bold text-gray-900 dark:text-white">
                     {{ experience.role }}
                   </h3>
                   <a 

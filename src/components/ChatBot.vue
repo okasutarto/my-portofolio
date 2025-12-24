@@ -60,7 +60,7 @@
     <Transition name="chat-window">
       <div 
         v-if="isOpen" 
-        class="absolute bottom-20 right-0 w-80 sm:w-[380px] h-[500px] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col border-none"
+        class="fixed sm:absolute bottom-0 sm:bottom-20 right-0 left-0 sm:left-auto w-full sm:w-[380px] h-[85vh] sm:h-[500px] bg-white dark:bg-gray-900 sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col border-none"
       >
         <!-- Header -->
         <div class="bg-gradient-to-r from-primary to-secondary text-white p-4 flex items-center justify-between">
@@ -156,18 +156,18 @@
         </div>
         
         <!-- Input Area -->
-        <div class="p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
+        <div class="p-3 sm:p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 safe-area-bottom">
           <form @submit.prevent="sendMessage" class="flex items-center gap-2">
             <input 
               v-model="userInput"
               type="text"
               placeholder="Type your message..."
-              class="flex-1 rounded-xl border-0 bg-gray-100 dark:bg-gray-800 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 dark:text-white placeholder-gray-400"
+              class="flex-1 min-w-0 rounded-xl border-0 bg-gray-100 dark:bg-gray-800 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 dark:text-white placeholder-gray-400"
               :disabled="isTyping || isWaitingForResponse"
             />
             <button 
               type="submit"
-              class="w-11 h-11 bg-gradient-to-br from-primary to-secondary hover:from-primary-dark hover:to-secondary text-white rounded-xl flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+              class="w-11 h-11 flex-shrink-0 bg-gradient-to-br from-primary to-secondary hover:from-primary-dark hover:to-secondary text-white rounded-xl flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
               :disabled="!userInput.trim() || isTyping || isWaitingForResponse"
             >
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -771,5 +771,10 @@ export default {
     opacity: 0;
     transform: translateY(10px) scale(0.95);
   }
+}
+
+/* Safe area for devices with notches/home indicators */
+.safe-area-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 </style>

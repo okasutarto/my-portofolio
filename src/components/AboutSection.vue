@@ -80,7 +80,7 @@
               <span 
                 v-for="(skill, index) in skills" 
                 :key="skill.name"
-                class="skill-tag bg-gray-100 dark:bg-gray-800 rounded-lg px-3 sm:px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-primary hover:text-primary dark:hover:text-primary hover:shadow-md animation-element flex items-center gap-2"
+                class="skill-tag bg-white border-none dark:bg-gray-800 rounded-lg px-3 sm:px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-primary hover:text-primary dark:hover:text-primary hover:shadow-md animation-element flex items-center gap-2"
                 :class="`skill-tag-${index}`"
                 :ref="el => { if(el) skillElements[index] = el }"
               >

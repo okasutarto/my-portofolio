@@ -2,7 +2,7 @@
   <div class="fixed bottom-6 right-6 z-50">
     <!-- Tooltip/Popper -->
     <Transition name="tooltip">
-      <div v-if="showTooltip && !isOpen" class="absolute bottom-20 right-0 bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 w-56">
+      <div v-if="showTooltip && !isOpen" class="absolute bottom-20 right-0 bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-xl border-none w-56">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0">
             <span class="text-lg">🤖</span>
@@ -51,7 +51,7 @@
     <Transition name="chat-window">
       <div 
         v-if="isOpen" 
-        class="absolute bottom-20 right-0 w-80 sm:w-[380px] h-[500px] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-gray-200 dark:border-gray-700"
+        class="absolute bottom-20 right-0 w-80 sm:w-[380px] h-[500px] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col border-none"
       >
         <!-- Header -->
         <div class="bg-gradient-to-r from-primary to-secondary text-white p-4 flex items-center justify-between">

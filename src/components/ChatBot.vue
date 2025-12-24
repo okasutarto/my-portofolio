@@ -2,17 +2,17 @@
   <div class="fixed bottom-6 right-6 z-50">
     <!-- Tooltip/Popper -->
     <Transition name="tooltip">
-      <div v-if="showTooltip && !isOpen" class="absolute bottom-20 right-0 bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-xl border-none w-56">
+      <div v-if="showTooltip && !isOpen" class="absolute bottom-24 right-0 bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-2xl border-none w-60 backdrop-blur-sm">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0">
-            <span class="text-lg">🤖</span>
+          <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 animate-bounce-slow">
+            <span class="text-xl">🤖</span>
           </div>
           <div>
-            <p class="text-sm font-semibold text-gray-900 dark:text-white">Hi there! <span class="waving-hand">👋</span></p>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Ask me anything about Oka's work!</p>
+            <p class="text-sm font-bold text-gray-900 dark:text-white">Hey! Need help? <span class="waving-hand">👋</span></p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Chat with my AI assistant!</p>
           </div>
         </div>
-        <div class="absolute -bottom-2 right-8 w-4 h-4 bg-white dark:bg-gray-800 rotate-45 border-b border-r border-gray-100 dark:border-gray-700"></div>
+        <div class="absolute -bottom-2 right-10 w-4 h-4 bg-white dark:bg-gray-800 rotate-45"></div>
         <button @click="dismissTooltip" class="absolute top-2 right-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
@@ -21,31 +21,40 @@
       </div>
     </Transition>
 
-    <!-- Chat Toggle Button -->
-    <button 
-      @click="toggleChat"
-      class="chat-toggle-btn group w-14 h-14 rounded-full bg-gradient-to-br from-primary to-secondary hover:from-primary-dark hover:to-secondary text-white shadow-lg flex items-center justify-center transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-      :class="{ 'rotate-0': !isOpen, 'rotate-180': isOpen }"
-      :aria-label="isOpen ? 'Close chat' : 'Open chat'"
-    >
-      <Transition name="icon-switch" mode="out-in">
-        <svg v-if="!isOpen" key="chat" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
-          <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
-          <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z" />
-        </svg>
-        <svg v-else key="close" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-        </svg>
-      </Transition>
+    <!-- Floating Chat Toggle Button with Effects -->
+    <div class="relative">
+      <!-- Animated gradient ring -->
+      <div v-if="!isOpen" class="absolute inset-0 w-16 h-16 -m-1 rounded-full bg-gradient-conic animate-spin-slow opacity-70 blur-sm"></div>
       
-      <!-- Notification indicator -->
-      <span v-if="hasNewMessages && !isOpen" class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-2 border-white dark:border-gray-900 flex items-center justify-center">
-        <span class="text-[10px] font-bold text-white">1</span>
-      </span>
+      <!-- Glow effect -->
+      <div v-if="!isOpen" class="absolute inset-0 w-14 h-14 rounded-full bg-primary/50 blur-xl animate-glow"></div>
       
-      <!-- Pulse ring -->
-      <span v-if="!isOpen" class="absolute inset-0 rounded-full bg-primary/30 animate-ping-slow"></span>
-    </button>
+      <!-- Main Button -->
+      <button 
+        @click="toggleChat"
+        class="chat-toggle-btn relative group w-14 h-14 rounded-full bg-gradient-to-br from-primary via-secondary to-primary bg-size-200 animate-gradient text-white shadow-2xl flex items-center justify-center transition-all duration-300 focus:outline-none hover:shadow-primary/50 hover:shadow-2xl"
+        :class="{ 'animate-float': !isOpen }"
+        :aria-label="isOpen ? 'Close chat' : 'Open chat'"
+      >
+        <Transition name="icon-switch" mode="out-in">
+          <svg v-if="!isOpen" key="chat" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 drop-shadow-lg" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
+            <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z" />
+          </svg>
+          <svg v-else key="close" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+          </svg>
+        </Transition>
+        
+        <!-- Notification indicator with pulse -->
+        <span v-if="hasNewMessages && !isOpen" class="absolute -top-1 -right-1 flex h-5 w-5">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-5 w-5 bg-red-500 border-2 border-white items-center justify-center">
+            <span class="text-[10px] font-bold text-white">1</span>
+          </span>
+        </span>
+      </button>
+    </div>
     
     <!-- Chat Window -->
     <Transition name="chat-window">
@@ -629,17 +638,138 @@ export default {
   animation: bounce 1s infinite;
 }
 
+/* Floating animation */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Slow bounce for tooltip avatar */
+@keyframes bounce-slow {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 2s ease-in-out infinite;
+}
+
+/* Glow pulse effect */
+@keyframes glow {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/* Conic gradient background for spinning ring */
+.bg-gradient-conic {
+  background: conic-gradient(
+    from 0deg,
+    #6366f1,
+    #8b5cf6,
+    #a855f7,
+    #ec4899,
+    #f43f5e,
+    #f97316,
+    #eab308,
+    #22c55e,
+    #14b8a6,
+    #06b6d4,
+    #3b82f6,
+    #6366f1
+  );
+}
+
+/* Animated gradient background */
+.bg-size-200 {
+  background-size: 200% 200%;
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient {
+  animation: gradient 3s ease infinite;
+}
+
+/* Slow spin for ring */
+.animate-spin-slow {
+  animation: spin-slower 8s linear infinite;
+}
+
 /* Chat toggle button */
 .chat-toggle-btn {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .chat-toggle-btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.4);
+  transform: scale(1.1) !important;
+  box-shadow: 0 20px 40px -10px rgba(79, 70, 229, 0.5);
+  animation-play-state: paused;
 }
 
 .chat-toggle-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.95) !important;
+}
+
+/* Tooltip animations */
+.tooltip-enter-active {
+  animation: tooltip-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tooltip-leave-active {
+  animation: tooltip-out 0.3s ease forwards;
+}
+
+@keyframes tooltip-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes tooltip-out {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
 }
 </style>

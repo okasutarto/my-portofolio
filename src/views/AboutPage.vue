@@ -14,40 +14,89 @@
             <h2 class="text-2xl font-semibold mb-3 dark:text-white">Oka Sutarto Putra</h2>
             <p class="text-gray-600 dark:text-gray-300 mb-2">Fullstack Developer</p>
             <p class="mb-4 dark:text-gray-300">
-              Tech wizard with 2+ years crafting digital experiences from pixel to server! I bring websites to life with React, Vue, and Node magic while turning complex challenges into elegant solutions. Whether I'm building slick UIs or optimizing backend performance, I thrive on collaboration and delivering results that make users smile.
+              Versatile Fullstack Developer with 3+ years of experience delivering end-to-end digital solutions across the complete software development lifecycle. Expert in building high-performance user interfaces with Vue.js, React, and Angular while architecting secure, scalable backends using Node.js and SQL/NoSQL databases.
             </p>
+            <a 
+              href="/OkaSutartoCV.pdf" 
+              download="OkaSutartoCV.pdf"
+              class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-200"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Download My CV
+            </a>
           </div>
         </div>
 
         <div class="mb-8">
-          <h3 class="text-xl font-semibold mb-4 border-b pb-2 dark:text-white dark:border-gray-700">My Journey</h3>
-          <p class="dark:text-gray-300">
-            From industrial engineering graduate to coding enthusiast, I discovered my true calling in software development! After immersing myself in Hacktiv8's JavaScript bootcamp, I've rapidly climbed from junior developer to frontend engineer, crafting innovative solutions at Jublia. Along the way, I've built everything from event apps to e-commerce platforms, mastering both frontend flair and backend muscle. What drives me? A relentless curiosity to solve problems and transform ideas into digital experiences that users love.
-          </p>
+          <h3 class="text-xl font-semibold mb-4 border-b pb-2 dark:text-white dark:border-gray-700">Experiences</h3>
+          
+          <!-- Frontend Engineer -->
+          <div class="mb-6">
+            <div class="flex flex-col md:flex-row md:justify-between md:items-start mb-2">
+              <h4 class="font-medium dark:text-white">Frontend Engineer</h4>
+              <span class="text-sm text-gray-500 dark:text-gray-400">July 2023 – December 2025</span>
+            </div>
+            <p class="text-gray-600 dark:text-gray-400 text-sm mb-2">Jublia PTE LTD - SaaS and B2B Company for Event Organizer Industry - Remote (Full-time)</p>
+            <div class="mb-2">
+              <span class="text-xs font-medium text-blue-600 dark:text-blue-400">Tech Stack: </span>
+              <span class="text-xs text-gray-600 dark:text-gray-400">Vue, Angular, Typescript, Bootstrap5, Unlayer, Vuex, HTML, CSS</span>
+            </div>
+            <ul class="list-disc ml-5 space-y-1 text-sm dark:text-gray-300">
+              <li>Lead frontend development for a global B2B event networking platform, ensuring high performance for major international conferences.</li>
+              <li>Developed integrated communication modules and enhanced UI/UX performance, directly resulting in a 40% improvement in user engagement.</li>
+              <li>Proactively expanded technical contribution by taking ownership of Angular-based projects, successfully delivering features outside of core Vue.js responsibilities.</li>
+              <li>Architected scalable frontend solutions and maintained 95%+ code coverage, driving critical technical decisions for codebase architecture.</li>
+              <li>Mentored junior developers to foster coding best practices and team growth.</li>
+            </ul>
+          </div>
+
+          <!-- Backend Developer -->
+          <div class="mb-6">
+            <div class="flex flex-col md:flex-row md:justify-between md:items-start mb-2">
+              <h4 class="font-medium dark:text-white">Backend Developer</h4>
+              <span class="text-sm text-gray-500 dark:text-gray-400">March 2023 – July 2023</span>
+            </div>
+            <p class="text-gray-600 dark:text-gray-400 text-sm mb-2">Null Reborn - Software House - Remote (Part-time)</p>
+            <div class="mb-2">
+              <span class="text-xs font-medium text-blue-600 dark:text-blue-400">Tech Stack: </span>
+              <span class="text-xs text-gray-600 dark:text-gray-400">Node.js, Express, MySQL, Sequelize ORM, JWT, Postgresql, Rest APIs, Axios</span>
+            </div>
+            <ul class="list-disc ml-5 space-y-1 text-sm dark:text-gray-300">
+              <li>Lead designed, Architected and implemented secure RESTful APIs for applications, achieving 99.9% uptime.</li>
+              <li>Optimized database performance, reducing query response times by 60% through efficient indexing and query refactoring.</li>
+              <li>Built robust authentication systems with role-based access control (RBAC) to ensure strict security compliance.</li>
+              <li>Collaborated with frontend teams to ensure seamless API integration and efficient data flow.</li>
+            </ul>
+          </div>
+
+          <!-- Junior Frontend Developer -->
+          <div class="mb-6">
+            <div class="flex flex-col md:flex-row md:justify-between md:items-start mb-2">
+              <h4 class="font-medium dark:text-white">Junior Frontend Developer</h4>
+              <span class="text-sm text-gray-500 dark:text-gray-400">September 2022 – August 2023</span>
+            </div>
+            <p class="text-gray-600 dark:text-gray-400 text-sm mb-2">PT Geekseat Indonesia - Software House - Remote</p>
+            <div class="mb-2">
+              <span class="text-xs font-medium text-blue-600 dark:text-blue-400">Tech Stack: </span>
+              <span class="text-xs text-gray-600 dark:text-gray-400">HTML, CSS, React.js, Vue.js, Tailwind, Kendo UI</span>
+            </div>
+            <ul class="list-disc ml-5 space-y-1 text-sm dark:text-gray-300">
+              <li>Develop responsive web applications for an Australian-based software company using React.js and Vue.js.</li>
+              <li>Integrated real-time data systems via API connections, significantly improving application interactivity.</li>
+              <li>Collaborate within an Agile Scrum environment, working closely with UI/UX designers to ensure pixel-perfect implementation.</li>
+            </ul>
+          </div>
         </div>
 
         <div class="mb-8">
-          <h3 class="text-xl font-semibold mb-4 border-b pb-2 dark:text-white dark:border-gray-700">Skills</h3>
+          <h3 class="text-xl font-semibold mb-4 border-b pb-2 dark:text-white dark:border-gray-700">Languages</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <h4 class="font-medium mb-2 dark:text-white">Technical Skills</h4>
-              <ul class="list-disc list-inside space-y-1 dark:text-gray-300">
-                <li>JavaScript (ES6+)</li>
-                <li>Vue</li>
-                <li>React</li>
-                <li>HTML5 & CSS3</li>
-                <li>Tailwind CSS</li>
-                <li>Git & GitHub</li>
-              </ul>
-            </div>
-            <div>
-              <h4 class="font-medium mb-2 dark:text-white">Soft Skills</h4>
-              <ul class="list-disc list-inside space-y-1 dark:text-gray-300">
-                <li>Problem Solving</li>
-                <li>Communication</li>
-                <li>Team Collaboration</li>
-                <li>Time Management</li>
-                <li>Adaptability</li>
+              <ul class="list-disc ml-5 space-y-1 dark:text-gray-300">
+                <li><strong>English :</strong> Professional Working Proficiency</li>
+                <li><strong>Bahasa Indonesia :</strong> Native</li>
               </ul>
             </div>
           </div>

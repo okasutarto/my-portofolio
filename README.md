@@ -24,7 +24,7 @@ This project is a modern, responsive portfolio website built with Vue.js that sh
 - **GSAP (GreenSock):** Professional-grade animation library with ScrollTrigger
 - **JavaScript/ES6+:** Modern JavaScript features
 - **OpenAI API:** Powers the portfolio chatbot assistant
-- **EmailJS:** Contact form email service integration
+- **EmailJS:** Contact form email service integrationa
 - **Vercel:** Serverless API deployment for the chatbot backend
 
 ## Project Structure

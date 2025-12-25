@@ -3,33 +3,12 @@
     <div class="container mx-auto px-4 relative z-10">
       <h2 
         ref="sectionTitle"
-        class="text-3xl md:text-4xl font-bold mb-4 text-center dark:text-white opacity-0"
+        class="text-3xl md:text-4xl font-bold mb-16 text-center dark:text-white opacity-0"
       >My Projects</h2>
-      <p 
-        ref="sectionSubtitle"
-        class="text-gray-600 dark:text-gray-400 text-center mb-10 max-w-2xl mx-auto opacity-0"
-      >
-        A selection of projects I've worked on, from AI-powered tools to full-stack applications
-      </p>
-      
-      <!-- Filter Tabs -->
-      <div ref="filterTabs" class="flex justify-center gap-2 mb-8 opacity-0">
-        <button 
-          v-for="filter in filters" 
-          :key="filter"
-          @click="activeFilter = filter"
-          class="px-4 py-2 rounded-full text-sm font-medium transition-all duration-300"
-          :class="activeFilter === filter 
-            ? 'bg-primary text-white shadow-md' 
-            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'"
-        >
-          {{ filter }}
-        </button>
-      </div>
       
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div
-          v-for="(project, index) in filteredProjects" 
+          v-for="(project, index) in projects" 
           :key="project.id" 
           :ref="el => { if(el) projectCards[index] = el }"
           class="project-card group bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden 
@@ -137,7 +116,7 @@
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, onMounted, onUnmounted } from 'vue';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { projects as projectsData } from '@/data/projects';
@@ -159,21 +138,11 @@ export default {
     const projectTechBadges = reactive([]);
     const projectLinks = reactive([]);
     
-    // Filter state
-    const filters = ['All', 'Fullstack', 'Frontend', 'Backend'];
-    const activeFilter = ref('All');
-    
     // Store all animations for cleanup
     const animations = [];
     
     // Projects data from centralized file
     const projects = reactive(projectsData);
-    
-    // Computed filtered projects
-    const filteredProjects = computed(() => {
-      if (activeFilter.value === 'All') return projects;
-      return projects.filter(p => p.type === activeFilter.value);
-    });
 
     onMounted(() => {
       // Section title animation
@@ -339,10 +308,7 @@ export default {
       projectDescriptions, 
       projectTechBadges,
       projectLinks,
-      projects,
-      filters,
-      activeFilter,
-      filteredProjects
+      projects
     };
   }
 }

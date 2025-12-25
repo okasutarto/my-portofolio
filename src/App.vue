@@ -13,7 +13,6 @@
     </main>
     <TheFooter />
     <ChatBot />
-    <Analytics />
     <SpeedInsights />
   </div>
 </template>
@@ -27,13 +26,12 @@ import ChatBot from './components/ChatBot.vue';
 import CustomCursor from './components/CustomCursor.vue';
 import { useTheme } from './composables/useTheme';
 import { inject } from '@vercel/analytics';
-import { injectSpeedInsights } from '@vercel/speed-insights/vue';
+import { SpeedInsights } from '@vercel/speed-insights/vue';
 
 const { initTheme } = useTheme();
 
 // Initialize Vercel Analytics
 inject();
-injectSpeedInsights();
 
 onMounted(() => {
   initTheme();

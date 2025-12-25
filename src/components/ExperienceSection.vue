@@ -60,14 +60,6 @@
                     {{ experience.period}}
                   </span>
                 </div>
-                <!-- Connector Line from node to card -->
-                <div 
-                  class="connector-line hidden md:block absolute top-6 w-8 h-1 rounded-full"
-                  :class="index % 2 === 0 ? 'right-[calc(50%+1.5rem)]' : 'left-[calc(50%+1.5rem)] rotate-180'"
-                >
-                  <div class="absolute inset-0 bg-gradient-to-r from-primary via-secondary to-transparent rounded-full blur-sm"></div>
-                  <div class="absolute inset-0 bg-gradient-to-r from-primary via-secondary to-transparent rounded-full"></div>
-                </div>
               </div>
             </div>
 

@@ -1,6 +1,7 @@
 name: OKA SUTARTO PUTRA
 title: Fullstack Developer
 location: Pontianak, Indonesia
+citizenship: Indonesia
 phone / whatsapp: "+6282216418397"
 email: okasputra@gmail.com
 linkedin: https://linkedin.com/in/okasutarto
@@ -57,6 +58,7 @@ education:
     degree: Bachelor of Industrial Engineering
     date: "2010 – 2015"
 
+Certification:
   - institution: Hacktiv8
     program: Fullstack JavaScript Immersive
     date: "February 2022 – July 2022"

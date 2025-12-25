@@ -455,14 +455,15 @@ export default {
         }
       );
       
+      // Convert line breaks to <br> FIRST for proper spacing
+      formattedText = formattedText.replace(/\n/g, '<br>');
+      
       // Convert numbered lists (1. item) to proper list items
-      formattedText = formattedText.replace(/^(\d+)\.\s+(.+)$/gm, '<div class="flex gap-2 my-1"><span class="text-primary font-semibold">$1.</span><span>$2</span></div>');
+      formattedText = formattedText.replace(/(\d+)\.\s*<br>\s*(.+?)(?=<br>|$)/g, '<div class="flex gap-2 my-1"><span class="text-primary font-semibold">$1.</span><span>$2</span></div>');
+      formattedText = formattedText.replace(/^(\d+)\.\s+(.+?)(?=<br>|$)/gm, '<div class="flex gap-2 my-1"><span class="text-primary font-semibold">$1.</span><span>$2</span></div>');
       
       // Convert bullet points (- item) to proper list items
-      formattedText = formattedText.replace(/^[-•]\s+(.+)$/gm, '<div class="flex gap-2 my-1"><span class="text-primary">•</span><span>$1</span></div>');
-      
-      // Convert line breaks to <br> for proper spacing
-      formattedText = formattedText.replace(/\n/g, '<br>');
+      formattedText = formattedText.replace(/^[-•]\s+(.+?)(?=<br>|$)/gm, '<div class="flex gap-2 my-1"><span class="text-primary">•</span><span>$1</span></div>');
       
       return formattedText;
     };

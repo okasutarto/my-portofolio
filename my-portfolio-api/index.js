@@ -96,7 +96,7 @@ app.get('/api/chat/stream', async (req, res) => {
 // Voice chat endpoint - Generate ephemeral key with CV instructions
 app.post('/api/voice/session', async (req, res) => {
   try {
-    const cv = await loadCV();
+    const systemMessage = await createSystemMessage();
     
     // Generate ephemeral key using OpenAI Realtime API
     const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
@@ -122,13 +122,7 @@ app.post('/api/voice/session', async (req, res) => {
     // Return the ephemeral key and CV instructions
     res.json({ 
       ephemeralKey: data.client_secret.value,
-      instructions: `You are a helpful assistant for Oka's portfolio website. Always maintain a polite, warm, and friendly tone. Use a conversational style that feels welcoming and professional.
-
-Answer with short, concise, and informative responses. Provide clear and direct answers to questions about Oka's summary/aboutme, experiences, skills, projects, and professional background.
-
-ONLY answer questions about Oka's summary/aboutme, experiences, skills, projects, and professional background. If asked about anything unrelated, politely redirect the conversation.
-
-Here's Oka's CV information: ${cv}`,
+      instructions: systemMessage.content,
     });
   } catch (error) {
     console.error('Error creating voice session:', error);

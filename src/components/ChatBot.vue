@@ -218,9 +218,9 @@
               {{ isSpeaking ? 'Speaking...' : isConnected ? 'Listening...' : 'Connecting...' }}
             </p>
             
-            <p v-if="transcript" class="text-sm text-gray-600 dark:text-gray-400 mb-4 max-w-xs text-center italic">
+            <!-- <p v-if="transcript" class="text-sm text-gray-600 dark:text-gray-400 mb-4 max-w-xs text-center italic">
               "{{ transcript }}"
-            </p>
+            </p> -->
             
             <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
               {{ isConnected ? 'Start talking - I\'m always listening!' : 'Initializing voice chat...' }}
@@ -549,7 +549,7 @@ export default {
     watch(transcript, (newTranscript) => {
       if (newTranscript && isVoiceMode.value) {
         // Optionally show transcript in chat
-        console.log('Transcript:', newTranscript);
+        // console.log('Transcript:', newTranscript);
       }
     });
 

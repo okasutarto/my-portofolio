@@ -4,6 +4,8 @@ const dotenv = require('dotenv');
 const OpenAI = require('openai');
 const fs = require('fs').promises;
 const path = require('path');
+const http = require('http');
+const { RealtimeAgent } = require('@openai/agents/realtime');
 
 // Load environment variables
 dotenv.config();
@@ -42,7 +44,7 @@ async function createSystemMessage() {
     if the user asks "tell me about oka", "who are oka", respond with summary about oka from summary/about me section on Oka's ${cv}.
 
     ONLY answer questions about Oka's summary/aboutme, experiences, skills, projects, and professional background. If asked about anything unrelated to Oka's professional information, politely redirect the conversation back to Oka's professional background.
-    example: "I'm here to help with questions about Oka's experiences and skills. How can I assist you with that?"
+    example: "I'm sorry, i don't have that information. I'm here to help with questions about Oka's experiences and skills. How can I assist you with that?"
 
     Do not provide any personal opinions or information about Oka's personal life. Avoid discussing any unrelated topics, such as hobbies or interests outside of work.
 
@@ -90,6 +92,54 @@ app.get('/api/chat/stream', async (req, res) => {
   } catch (error) {
     console.error('OpenAI streaming error:', error);
     res.status(500).json({ error: 'Error processing your request' });
+  }
+});
+
+// Create Realtime Voice Agent
+async function createVoiceAgent() {
+  const cv = await loadCV();
+  
+  return new RealtimeAgent({
+    name: 'Oka\'s Assistant',
+    instructions: `You are a helpful assistant for Oka's portfolio website. Always maintain a polite, warm, and friendly tone. Use a conversational style that feels welcoming and professional.
+
+Answer with short, concise, and informative responses. Provide clear and direct answers to questions about Oka's summary/aboutme, experiences, skills, projects, and professional background.
+
+ONLY answer questions about Oka's summary/aboutme, experiences, skills, projects, and professional background. If asked about anything unrelated, politely redirect the conversation.
+
+Here's Oka's CV information: ${cv}`,
+    voice: 'alloy', // Options: alloy, echo, fable, onyx, nova, shimmer
+    model: 'gpt-4o-realtime-preview-2024-10-01',
+  });
+}
+
+// Voice chat endpoint - Generate ephemeral key
+app.post('/api/voice/session', async (req, res) => {
+  try {
+    // Generate ephemeral key using OpenAI API
+    const response = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        session: {
+          type: 'realtime',
+          model: 'gpt-realtime',
+        },
+      }),
+    });
+    
+    const data = await response.json();
+    
+    // Return the ephemeral key (starts with "ek_")
+    res.json({ 
+      ephemeralKey: data.value,
+    });
+  } catch (error) {
+    console.error('Error creating voice session:', error);
+    res.status(500).json({ error: 'Failed to create voice session' });
   }
 });
 

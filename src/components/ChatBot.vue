@@ -102,7 +102,7 @@
         </div>
         
         <!-- Quick Actions -->
-        <div v-if="messages.length <= 1" class="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+        <div v-if="!isVoiceMode && messages.length <= 1" class="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
           <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Quick questions:</p>
           <div class="flex flex-wrap gap-2">
             <button 
@@ -117,7 +117,7 @@
         </div>
         
         <!-- Messages Area -->
-        <div class="flex-1 overflow-y-auto p-4 space-y-4 smooth-scroll overscroll-contain bg-gray-50 dark:bg-gray-900/50" 
+        <div v-if="!isVoiceMode" class="flex-1 overflow-y-auto p-4 space-y-4 smooth-scroll overscroll-contain bg-gray-50 dark:bg-gray-900/50" 
              ref="chatMessages"
              @scroll="handleScroll">
           <TransitionGroup name="message">
@@ -167,7 +167,7 @@
         </div>
         
         <!-- Input Area -->
-        <div class="p-3 sm:p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 safe-area-bottom">
+        <div v-if="!isVoiceMode" class="p-3 sm:p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 safe-area-bottom">
           <form @submit.prevent="sendMessage" class="flex items-center gap-2">
             <input 
               v-model="userInput"
@@ -185,10 +185,65 @@
                 <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
               </svg>
             </button>
+            <!-- Voice Mode Toggle Button -->
+            <button 
+              type="button"
+              @click="toggleVoiceMode"
+              class="w-11 h-11 flex-shrink-0 bg-gray-100 dark:bg-gray-800 hover:bg-primary/10 dark:hover:bg-primary/20 text-gray-700 dark:text-gray-300 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
+              :title="'Switch to voice mode'"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+              </svg>
+            </button>
           </form>
           <p class="text-[10px] text-gray-400 dark:text-gray-500 text-center mt-2">
             Powered by AI • Responses may vary
           </p>
+        </div>
+        
+        <!-- Voice Mode Interface -->
+        <div v-if="isVoiceMode" class="flex flex-col h-full">
+          <div class="flex-1 p-6 flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 to-secondary/5">
+            <div class="text-center mb-6">
+              <div class="relative inline-block">
+                <div v-if="isSpeaking" class="absolute inset-0 w-32 h-32 rounded-full bg-primary/20 animate-ping"></div>
+                <div class="relative w-32 h-32 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-5xl">
+                  🎤
+                </div>
+              </div>
+            </div>
+            
+            <p class="text-lg font-semibold mb-2" :class="{ 'text-primary': isConnected, 'text-gray-400': !isConnected }">
+              {{ isSpeaking ? 'Speaking...' : isConnected ? 'Listening...' : 'Connecting...' }}
+            </p>
+            
+            <p v-if="transcript" class="text-sm text-gray-600 dark:text-gray-400 mb-4 max-w-xs text-center italic">
+              "{{ transcript }}"
+            </p>
+            
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              {{ isConnected ? 'Start talking - I\'m always listening!' : 'Initializing voice chat...' }}
+            </p>
+            
+            <div class="text-xs text-gray-400 dark:text-gray-500 mt-4">
+              <p>Voice mode is active</p>
+              <p class="mt-1">Microphone and audio are automatically managed</p>
+            </div>
+          </div>
+          
+          <!-- Back to Text Mode Button -->
+          <div class="p-3 sm:p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 safe-area-bottom">
+            <button 
+              @click="toggleVoiceMode"
+              class="w-full py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl flex items-center justify-center gap-2 transition-all duration-200"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+              Back to Text Chat
+            </button>
+          </div>
         </div>
       </div>
     </Transition>
@@ -196,8 +251,9 @@
 </template>
 
 <script>
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { getStreamingResponse } from '../services/openai';
+import { useVoiceChat } from '../composables/useVoiceChat';
 
 export default {
   name: 'ChatBot',
@@ -468,6 +524,39 @@ export default {
       return formattedText;
     };
 
+    // Voice chat
+    const { 
+      isConnected, 
+      isSpeaking,
+      transcript,
+      connect, 
+      disconnect
+    } = useVoiceChat();
+    
+    const isVoiceMode = ref(false);
+
+    const toggleVoiceMode = async () => {
+      isVoiceMode.value = !isVoiceMode.value;
+      
+      if (isVoiceMode.value) {
+        await connect();
+      } else {
+        await disconnect();
+      }
+    };
+
+    // Watch transcript and add to messages
+    watch(transcript, (newTranscript) => {
+      if (newTranscript && isVoiceMode.value) {
+        // Optionally show transcript in chat
+        console.log('Transcript:', newTranscript);
+      }
+    });
+
+    onUnmounted(() => {
+      disconnect();
+    });
+
     return {
       isOpen,
       messages,
@@ -488,7 +577,12 @@ export default {
       toggleChat,
       clearChat,
       askQuickQuestion,
-      quickQuestions
+      quickQuestions,
+      isVoiceMode,
+      isConnected,
+      isSpeaking,
+      transcript,
+      toggleVoiceMode,
     };
   }
 }

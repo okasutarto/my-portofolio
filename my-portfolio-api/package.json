@@ -10,9 +10,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@openai/agents": "^0.3.7",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
-    "openai": "^4.98.0"
+    "openai": "^4.98.0",
+    "zod": "^3.25.76"
   }
 }

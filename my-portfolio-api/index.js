@@ -4,8 +4,6 @@ const dotenv = require('dotenv');
 const OpenAI = require('openai');
 const fs = require('fs').promises;
 const path = require('path');
-const http = require('http');
-const { RealtimeAgent } = require('@openai/agents/realtime');
 
 // Load environment variables
 dotenv.config();
@@ -95,51 +93,46 @@ app.get('/api/chat/stream', async (req, res) => {
   }
 });
 
-// Create Realtime Voice Agent
-async function createVoiceAgent() {
-  const cv = await loadCV();
-  
-  return new RealtimeAgent({
-    name: 'Oka\'s Assistant',
-    instructions: `You are a helpful assistant for Oka's portfolio website. Always maintain a polite, warm, and friendly tone. Use a conversational style that feels welcoming and professional.
-
-Answer with short, concise, and informative responses. Provide clear and direct answers to questions about Oka's summary/aboutme, experiences, skills, projects, and professional background.
-
-ONLY answer questions about Oka's summary/aboutme, experiences, skills, projects, and professional background. If asked about anything unrelated, politely redirect the conversation.
-
-Here's Oka's CV information: ${cv}`,
-    voice: 'alloy', // Options: alloy, echo, fable, onyx, nova, shimmer
-    model: 'gpt-4o-realtime-preview-2024-10-01',
-  });
-}
-
-// Voice chat endpoint - Generate ephemeral key
+// Voice chat endpoint - Generate ephemeral key with CV instructions
 app.post('/api/voice/session', async (req, res) => {
   try {
-    // Generate ephemeral key using OpenAI API
-    const response = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
+    const cv = await loadCV();
+    
+    // Generate ephemeral key using OpenAI Realtime API
+    const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        session: {
-          type: 'realtime',
-          model: 'gpt-realtime',
-        },
+        model: 'gpt-4o-realtime-preview-2024-12-17',
+        voice: 'alloy',
       }),
     });
     
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('OpenAI API Error:', errorData);
+      return res.status(response.status).json({ error: errorData });
+    }
+    
     const data = await response.json();
     
-    // Return the ephemeral key (starts with "ek_")
+    // Return the ephemeral key and CV instructions
     res.json({ 
-      ephemeralKey: data.value,
+      ephemeralKey: data.client_secret.value,
+      instructions: `You are a helpful assistant for Oka's portfolio website. Always maintain a polite, warm, and friendly tone. Use a conversational style that feels welcoming and professional.
+
+Answer with short, concise, and informative responses. Provide clear and direct answers to questions about Oka's summary/aboutme, experiences, skills, projects, and professional background.
+
+ONLY answer questions about Oka's summary/aboutme, experiences, skills, projects, and professional background. If asked about anything unrelated, politely redirect the conversation.
+
+Here's Oka's CV information: ${cv}`,
     });
   } catch (error) {
     console.error('Error creating voice session:', error);
-    res.status(500).json({ error: 'Failed to create voice session' });
+    res.status(500).json({ error: 'Failed to create voice session', details: error.message });
   }
 });
 

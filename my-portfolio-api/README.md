@@ -174,6 +174,21 @@ A: Using `gpt-4o-mini`, a typical portfolio conversation costs less than $0.01 p
 
 ---
 
-## 📜 License
+## 📜 License & Rights
 
-Standard Commercial License. You can use this for unlimited personal or client projects. You may not resell the source code "as is."
+### 1. Standard License (Personal)
+* ✅ **Allowed:** Use this code to build **one** personal portfolio or resume bot for yourself.
+* ✅ **Allowed:** Host the bot publicly on your personal domain.
+* ❌ **Not Allowed:** Resell this code, share it publicly, or use it for client work.
+
+---
+
+### 2. 💎 Agency / Commercial License (Unlimited)
+*Purchasing the Agency License grants you the following rights:*
+
+* ✅ **Unlimited Client Projects:** You may use this boilerplate to build and deploy chatbots for an unlimited number of clients (e.g., local businesses, real estate agents, agencies).
+* ✅ **White Label Rights:** You can remove all references to this starter kit and brand the final product as your own work.
+* ✅ **Charge Your Own Fees:** You are free to charge your clients any setup fee or monthly maintenance fee you choose.
+* ❌ **No Resale of Source Code:** You **cannot** resell, redistribute, or open-source the original code template itself (e.g., you cannot put this zip file on Gumroad or GitHub). You may only deliver the *compiled/finished* application to your clients.
+
+**Disclaimer:** This software is provided "as is" without warranty of any kind. You are responsible for any OpenAI API costs incurred by your usage.

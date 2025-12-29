@@ -23,6 +23,7 @@
         <!-- Name with enhanced gradient -->
         <h1 class="text-4xl md:text-6xl lg:text-7xl font-bold mb-4 animate-slide-up">
           <span class="relative">
+            <!-- <span class="bg-clip-text text-transparent bg-gradient-to-r from-primary via-secondary to-accent bg-[length:200%_auto] animate-gradient">John Doe</span> -->
             <span class="bg-clip-text text-transparent bg-gradient-to-r from-primary via-secondary to-accent bg-[length:200%_auto] animate-gradient">Oka Sutarto Putra</span>
             <!-- Underline decoration -->
             <span class="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-primary via-secondary to-accent rounded-full transform scale-x-0 animate-scale-x"></span>

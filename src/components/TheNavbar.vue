@@ -6,6 +6,7 @@
     <nav class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
       <router-link to="/" class="text-xl font-bold text-primary">
         <span class="font-heading">okasputra</span>
+        <!-- <span class="font-heading">John Doe</span> -->
       </router-link>
       
       <!-- Desktop Menu -->

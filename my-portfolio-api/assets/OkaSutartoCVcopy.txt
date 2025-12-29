@@ -1,0 +1,121 @@
+
+name: JOHN DOE
+title: Fullstack Developer
+location: Anytown, Country
+citizenship: Country
+phone / whatsapp: "+620000000000"
+email: johndoe@email.com
+linkedin: https://linkedin.com/in/johndoe
+github: https://github.com/johndoe
+website: https://johndoe.dev/
+
+summary / about me: 
+  Motivated Fullstack Developer with 3+ years of experience delivering digital solutions across the software development lifecycle. Skilled in building user interfaces with modern JavaScript frameworks and architecting scalable backends using Node.js and SQL/NoSQL databases. Experienced in Agile methodologies, cloud deployment, and collaborating on technical initiatives for diverse platforms and services.
+
+
+experience:
+  - title: Frontend Engineer
+    company: ExampleTech Solutions
+    about company: SaaS and B2B Company
+    location: Remote
+    type: Full-time
+    start date: January 2023
+    end date: Present
+    Tech Stack : Vue, Angular, Typescript, Bootstrap, HTML, CSS
+    responsibilities:
+      ● Led frontend development for a B2B platform, ensuring high performance and reliability.
+      ● Developed communication modules and enhanced UI/UX, improving user engagement.
+      ● Delivered features across multiple JavaScript frameworks.
+      ● Maintained high code coverage and contributed to codebase architecture.
+      ● Mentored junior developers and promoted best practices.
+
+  - title: Backend Developer
+    company: DummySoft
+    location: Anytown, Country
+    type: Part-time
+    start date: "March 2022 – December 2022"
+    Tech Stack : Node.js, Express, MySQL, Sequelize ORM, JWT, PostgreSQL, REST APIs
+    responsibilities:
+      ● Designed and implemented secure RESTful APIs, achieving high uptime.
+      ● Optimized database performance through indexing and query refactoring.
+      ● Built authentication systems with role-based access control.
+      ● Collaborated with frontend teams for seamless API integration.
+
+  - title: Junior Frontend Developer
+    company: SampleCorp
+    location: Anytown, Country
+    start date: September 2021
+    end date:  June 2022
+    Tech Stack : HTML, CSS, React.js, Vue.js, Tailwind
+    responsibilities:
+      - Developed responsive web applications.
+      - Built UIs with React and Vue.js.
+      - Integrated APIs and real-time data.
+      - Collaborated with UI/UX teams.
+      - Practiced Scrum and Agile development.
+
+
+education:
+  - institution: Example University
+    degree: Bachelor of Computer Science
+    date: "2015 – 2019"
+
+
+Certification:
+  - institution: Dummy Academy
+    program: Fullstack JavaScript Immersive
+    date: "February 2020 – July 2020"
+    score: 90.0
+    description: >
+      Comprehensive program covering frontend and backend development,
+      software engineering practices, and industry-standard tools.
+
+
+languages:
+  ● English: Professional Working Proficiency
+  ● Dummy Language: Native
+
+
+projects:
+  - name: Dummy Portfolio Website
+    type: Fullstack
+    description: Interactive portfolio featuring a chatbot that provides instant, contextual responses to visitor inquiries about professional experience, technical skills, and project history. The chatbot uses RAG (Retrieval-Augmented Generation) to deliver accurate answers by querying structured resume data.
+    tech_stack: [Vue.js, OpenAI, Tailwind, AI, Vercel]
+    github: https://github.com/johndoe/dummy-portfolio
+
+  - name: Store Manager
+    type: Backend
+    description: Developed a POS backend with stock management, user management, and transaction processing modules.
+    tech_stack: [Node.js, Express, PostgreSQL, Sequelize ORM, JWT Authentication]
+
+  - name: Text Summarizer
+    type: Fullstack
+    description: AI app that summarizes text, PDFs, and images using OpenAI.
+    tech_stack: [Next.js, OpenAI, Tailwind]
+    github: https://github.com/johndoe/text-summarizer
+
+  - name: Pokédex Demo
+    type: Frontend
+    description: Explore Pokémon species with detailed info.
+    tech_stack: [Vue.js, Bootstrap, SASS, Axios, Pinia, Vite]
+    demo: https://demo-pokedex.vercel.app
+
+  - name: Event Promo
+    type: Backend
+    description: Promotional site for event invitations and souvenirs.
+    tech_stack: [Node.js, MySQL, JWT, Sequelize, Express, CORS, dotenv]
+    website: https://eventpromo.example
+
+
+references :
+  - name: Jane Smith
+    company: ExampleTech Solutions
+    role: Team Lead
+    tel : +62 800-0000-0000
+    email : jane.smith@example.com
+
+  - name: Bob Johnson
+    company: DummySoft
+    role: Senior Developer
+    tel : +62 800-0000-0001
+    email : bob.johnson@example.com

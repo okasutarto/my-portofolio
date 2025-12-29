@@ -73,6 +73,7 @@
             </div>
             <div>
               <h3 class="font-semibold">Oka's Assistant</h3>
+              <!-- <h3 class="font-semibold">AI Assistant</h3> -->
               <p class="text-xs text-white/70 flex items-center gap-1">
                 <span class="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
                 Online • Ready to help
@@ -264,6 +265,7 @@ export default {
     const isTyping = ref(false);
     const chatMessages = ref(null);
     const initialMessage = 'Hi there! 👋 I\'m Oka\'s AI assistant. I can tell you about his skills, experience, and projects. What would you like to know?';
+    // const initialMessage = 'Hi there! 👋 I\'m John Doe\'s AI assistant. I can tell you about his skills, experience, and projects. What would you like to know?';
     const hasInitialMessageShown = ref(false);
     
     const isStreaming = ref(false);

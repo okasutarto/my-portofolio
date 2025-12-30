@@ -36,7 +36,7 @@
           <div class="relative mx-4 px-4 py-2">
             <h2 class="text-xl md:text-2xl lg:text-3xl font-semibold text-gray-800 dark:text-gray-100">
               <span class="text-primary dark:text-primary-light">&lt;</span>
-              <span ref="typewriterText" class="typewriter-text">Full Stack Developer</span>
+              <span ref="typewriterText" class="typewriter-text">{{ displayedText }}</span>
               <span class="text-primary dark:text-primary-light">/&gt;</span>
             </h2>
           </div>
@@ -253,7 +253,7 @@
 </style>
 
 <script setup>
-import { nextTick, h } from 'vue';
+import { nextTick, h, ref, onMounted, onUnmounted } from 'vue';
 
 // Social media icons as functional components
 const GitHubIcon = () => h('svg', { fill: 'currentColor', viewBox: '0 0 24 24' }, [
@@ -311,4 +311,46 @@ const scrollToSection = async (sectionId) => {
     }, 500); // Adjust timing as needed
   }
 };
+
+// Typewriter effect
+const displayedText = ref('');
+const roles = ['Full Stack Developer', 'UI/UX Enthusiast', 'Problem Solver'];
+let currentRoleIndex = 0;
+let currentCharIndex = 0;
+let isDeleting = false;
+let typingSpeed = 100;
+let timeoutId = null;
+
+const typeText = () => {
+  const currentRole = roles[currentRoleIndex];
+  
+  if (isDeleting) {
+    displayedText.value = currentRole.substring(0, currentCharIndex - 1);
+    currentCharIndex--;
+    typingSpeed = 50;
+  } else {
+    displayedText.value = currentRole.substring(0, currentCharIndex + 1);
+    currentCharIndex++;
+    typingSpeed = 100;
+  }
+
+  if (!isDeleting && currentCharIndex === currentRole.length) {
+    isDeleting = true;
+    typingSpeed = 2000; // Pause at end
+  } else if (isDeleting && currentCharIndex === 0) {
+    isDeleting = false;
+    currentRoleIndex = (currentRoleIndex + 1) % roles.length;
+    typingSpeed = 500; // Pause before typing next
+  }
+
+  timeoutId = setTimeout(typeText, typingSpeed);
+};
+
+onMounted(() => {
+  typeText();
+});
+
+onUnmounted(() => {
+  if (timeoutId) clearTimeout(timeoutId);
+});
 </script>

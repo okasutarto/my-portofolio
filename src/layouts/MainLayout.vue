@@ -1,5 +1,5 @@
 <template>
-  <div class="main-layout relative h-auto min-h-screen pb-4">
+  <div class="main-layout relative min-h-screen pb-4">
     <!-- Single instance of AnimatedBackground that persists across all views -->
     <AnimatedBackground 
       :blobsVariant="currentBlobsVariant" 
@@ -9,7 +9,9 @@
     />
     
     <!-- Content slot -->
-    <slot></slot>
+    <div class="relative z-10">
+      <slot></slot>
+    </div>
   </div>
 </template>
 

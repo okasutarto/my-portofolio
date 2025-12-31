@@ -5,8 +5,8 @@ export const projects = [
     title: 'Summarizer',
     type: 'Fullstack',
     featured: true,
-    image: 'https://narrato.io/blog/wp-content/uploads/2024/04/Content_Marketing_Case_Study_Airtable_812__500_px_Presentation_169_18.jpg',
-    thumbnail: 'https://narrato.io/blog/wp-content/uploads/2024/04/Content_Marketing_Case_Study_Airtable_812__500_px_Presentation_169_18.jpg',
+    image: '/images/projects/summarizer.png',
+    thumbnail: '/images/projects/summarizer.png',
     description: 'AI-powered tool that summarizes text, PDFs, and images into clear, actionable insights.',
     
     // Case Study Details
@@ -83,8 +83,8 @@ export const projects = [
     title: 'Pokedex',
     type: 'Frontend',
     featured: true,
-    image: 'https://static.wixstatic.com/media/2e36a5_76a80b6d6fc04bd38ef398cc27b97cc4~mv2.jpg/v1/fill/w_568,h_332,al_c,q_80,usm_0.66_1.00_0.01,enc_avif,quality_auto/2e36a5_76a80b6d6fc04bd38ef398cc27b97cc4~mv2.jpg',
-    thumbnail: 'https://static.wixstatic.com/media/2e36a5_76a80b6d6fc04bd38ef398cc27b97cc4~mv2.jpg/v1/fill/w_568,h_332,al_c,q_80,usm_0.66_1.00_0.01,enc_avif,quality_auto/2e36a5_76a80b6d6fc04bd38ef398cc27b97cc4~mv2.jpg',
+    image: '/images/projects/pokedex.png',
+    thumbnail: '/images/projects/pokedex.png',
     description: 'Explore Pokémon types, stats, abilities, and evolutions with this interactive web app.',
     
     overview: 'A comprehensive Pokémon encyclopedia that allows users to explore detailed information about all Pokémon species. Built with Vue.js and powered by the PokéAPI, it features smooth animations, search functionality, and beautiful card-based layouts.',
@@ -160,8 +160,8 @@ export const projects = [
     title: 'Personal Portfolio',
     type: 'Fullstack',
     featured: true,
-    image: 'https://picsum.photos/800/450?random=10',
-    thumbnail: 'https://picsum.photos/800/450?random=10',
+    image: '/images/projects/portfolio.png',
+    thumbnail: '/images/projects/portfolio.png',
     description: 'Interactive portfolio featuring an AI chatbot powered by OpenAI for instant visitor inquiries.',
     
     overview: 'This portfolio website showcases my work and skills with an innovative twist - an AI-powered chatbot that can answer questions about my experience, projects, and background. Built with Vue.js and integrated with OpenAI\'s GPT models using RAG (Retrieval-Augmented Generation).',
@@ -237,8 +237,8 @@ export const projects = [
     title: 'Warung Upin POS',
     type: 'Backend',
     featured: false,
-    image: 'https://picsum.photos/800/450?random=7',
-    thumbnail: 'https://picsum.photos/800/450?random=7',
+    image: '/images/projects/warung-upin.png',
+    thumbnail: '/images/projects/warung-upin.png',
     description: 'Complete POS backend with stock management, multi-level user management, and transaction engine.',
     
     overview: 'Warung Upin is a comprehensive Point of Sale backend system designed for small to medium retail businesses. It handles everything from inventory management to financial reporting with a secure, role-based access system.',
@@ -313,8 +313,8 @@ export const projects = [
     title: 'Punyagawe.id',
     type: 'Backend',
     featured: false,
-    image: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=800&h=450&fit=crop',
-    thumbnail: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=800&h=450&fit=crop',
+    image: '/images/projects/punyagawe.png',
+    thumbnail: '/images/projects/punyagawe.png',
     description: 'Promotional site for wedding invitations and souvenirs.',
     
     overview: 'Punyagawe.id is a backend service powering a promotional website for wedding invitations and souvenirs. Built with Node.js and Express, it provides a robust API for managing products, orders, and customer interactions.',

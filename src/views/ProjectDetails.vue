@@ -59,8 +59,20 @@
                 </div>
               </div>
 
+              <div class="container max-w-4xl mx-auto mt-6">
+                <div class="flex flex-wrap gap-2 sm:gap-3">
+                  <span 
+                    v-for="(tech, index) in project.technologies" 
+                    :key="index"
+                    class="bg-white border-none dark:bg-gray-800 rounded-lg px-3 sm:px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-primary hover:text-primary dark:hover:text-primary hover:shadow-md flex items-center gap-2 transition-all duration-300 hover:-translate-y-1"
+                  >
+                    <span>{{ tech }}</span>
+                  </span>
+                </div>
+              </div>
+
               <!-- Action Buttons -->
-              <div class="flex flex-wrap gap-4">
+              <div class="flex flex-wrap gap-4 mt-8">
                 <a 
                   v-if="project.demoLink && project.demoLink !== '#'"
                   :href="project.demoLink" 
@@ -178,24 +190,8 @@
         </div>
       </section>
 
-      <!-- Tech Stack Section -->
-      <section class="py-16 bg-gray-50 dark:bg-gray-800">
-        <div class="container max-w-4xl mx-auto px-4">
-          <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-8">Technology Stack</h2>
-          <div class="flex flex-wrap gap-3">
-            <span 
-              v-for="(tech, index) in project.technologies" 
-              :key="index"
-              class="px-4 py-2 bg-white dark:bg-gray-900 rounded-full shadow-md text-gray-700 dark:text-gray-300 font-medium"
-            >
-              {{ tech }}
-            </span>
-          </div>
-        </div>
-      </section>
-
       <!-- Screenshots Gallery -->
-      <section v-if="project.screenshots && project.screenshots.length" class="py-16 bg-white dark:bg-gray-900">
+      <!-- <section v-if="project.screenshots && project.screenshots.length" class="py-16 bg-white dark:bg-gray-900">
         <div class="container max-w-6xl mx-auto px-4">
           <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-8">Screenshots</h2>
           <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -217,7 +213,7 @@
             </div>
           </div>
         </div>
-      </section>
+      </section> -->
 
       <!-- Results/Impact Section -->
       <section v-if="project.results" class="py-16 bg-gradient-to-br from-primary to-secondary text-white">
@@ -240,7 +236,7 @@
             <div 
               v-for="(learning, index) in project.learnings" 
               :key="index"
-              class="flex items-start gap-3 p-4"
+              class="flex items-center gap-3 p-4"
             >
               <div class="w-8 h-8 rounded-full bg-secondary/10 flex items-center justify-center flex-shrink-0">
                 <span class="text-secondary font-bold">{{ index + 1 }}</span>
@@ -252,7 +248,7 @@
       </section>
 
       <!-- Navigation to Other Projects -->
-      <section class="py-16 bg-gray-50 dark:bg-gray-800">
+      <section class="py-16">
         <div class="container max-w-4xl mx-auto px-4 text-center">
           <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-8">Explore More Projects</h2>
           <div class="flex flex-wrap justify-center gap-4">
@@ -321,7 +317,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { projects, getProjectById } from '@/data/projects';
 
@@ -337,24 +333,34 @@ const otherProjects = computed(() => {
   return projects.filter(p => p.id !== project.value.id).slice(0, 3);
 });
 
-const openLightbox = (index) => {
-  lightboxIndex.value = index;
-  lightboxOpen.value = true;
-  document.body.style.overflow = 'hidden';
-};
+
+// const openLightbox = (index) => {
+//   lightboxIndex.value = index;
+//   lightboxOpen.value = true;
+//   document.body.style.overflow = 'hidden';
+// };
 
 const closeLightbox = () => {
   lightboxOpen.value = false;
   document.body.style.overflow = '';
 };
 
-onMounted(() => {
-  const projectId = route.params.id;
-  project.value = getProjectById(projectId);
-  loading.value = false;
-  
-  // Scroll to top
+const loadProject = (id) => {
+  loading.value = true;
+  project.value = getProjectById(id);
+  // Simulate small delay for better UX or if actual API call
+  setTimeout(() => {
+    loading.value = false;
+  }, 100);
   window.scrollTo(0, 0);
+};
+
+onMounted(() => {
+  loadProject(route.params.id);
+});
+
+watch(() => route.params.id, (newId) => {
+  loadProject(newId);
 });
 </script>
 

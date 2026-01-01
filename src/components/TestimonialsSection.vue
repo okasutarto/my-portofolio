@@ -1,5 +1,5 @@
 <template>
-  <section id="testimonials" class="py-16 md:py-20 overflow-hidden bg-gray-50 dark:bg-gray-900/50">
+  <section id="testimonials" class="py-16 md:py-20 overflow-hidden">
     <div class="container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
       <h2 
         ref="sectionTitle"

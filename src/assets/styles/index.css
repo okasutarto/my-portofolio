@@ -12,7 +12,7 @@
 
 @layer base {
   html {
-    @apply scroll-smooth;
+    @apply scroll-smooth scroll-pt-24;
   }
   
   body {

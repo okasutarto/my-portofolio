@@ -32,47 +32,53 @@ This project is a modern, responsive portfolio website built with Vue.js that sh
 ```
 my-portfolio/
 ├── src/
-│   ├── components/             # Reusable UI components
-│   │   ├── AboutSection.vue    # About section with skills
-│   │   ├── AnimatedBackground.vue # Dynamic background animations
-│   │   ├── ChatBot.vue         # AI chatbot with markdown support
-│   │   ├── ContactSection.vue  # EmailJS contact form
-│   │   ├── CustomCursor.vue    # Custom cursor effect
-│   │   ├── ExperienceSection.vue # Timeline work experience
-│   │   ├── ProjectCard.vue     # Project display cards
-│   │   ├── ProjectsSection.vue # Projects grid section
-│   │   ├── TestimonialsSection.vue # Testimonials carousel
-│   │   ├── TheFooter.vue       # Footer component
-│   │   ├── TheHero.vue         # Enhanced hero section
-│   │   ├── TheNavbar.vue       # Navigation bar
-│   │   └── ThemeSwitcher.vue   # Dark/light mode toggle
+│   ├── components/
+│   │   ├── features/           # Standalone features
+│   │   │   ├── ChatBot.vue         # AI chatbot with markdown support
+│   │   │   └── ThemeSwitcher.vue   # Dark/light mode toggle
+│   │   ├── layout/             # Layout components
+│   │   │   ├── TheFooter.vue       # Footer component
+│   │   │   └── TheNavbar.vue       # Navigation bar
+│   │   ├── sections/           # Landing page sections
+│   │   │   ├── AboutSection.vue    # About section with skills
+│   │   │   ├── ContactSection.vue  # EmailJS contact form
+│   │   │   ├── ExperienceSection.vue # Timeline work experience
+│   │   │   ├── ProjectsSection.vue # Projects grid section
+│   │   │   ├── TestimonialsSection.vue # Testimonials carousel
+│   │   │   └── TheHero.vue         # Enhanced hero section
+│   │   └── ui/                 # Reusable UI elements
+│   │       ├── AnimatedBackground.vue # Dynamic background animations
+│   │       ├── CustomCursor.vue    # Custom cursor effect
+│   │       └── ProjectCard.vue     # Project display cards
 │   ├── views/                  # Page components
 │   │   ├── HomePage.vue        # Main landing page
 │   │   ├── AboutPage.vue       # About page
 │   │   ├── ContactPage.vue     # Contact page
 │   │   ├── ProjectDetails.vue  # Project case study page
 │   │   └── NotFound.vue        # 404 page
-│   ├── layouts/                # Layout components
+│   ├── layouts/                # Layout wrappers
 │   │   └── MainLayout.vue      # Main layout wrapper
 │   ├── composables/            # Reusable Vue composition functions
 │   │   ├── useDarkMode.js      # Dark mode functionality
 │   │   ├── useTheme.js         # Theme management
+│   │   ├── useVoiceChat.js     # Voice chat logic
 │   │   └── useIntersectionObserver.js # Scroll animation trigger
 │   ├── services/               # External service integrations
-│   │   └── openai.js           # OpenAI API integration
+│   │   └── openai.js           # OpenAI API client
 │   ├── config/                 # Configuration files
-│   │   └── emailjs.js          # EmailJS configuration
 │   ├── data/                   # Static data
 │   │   └── projects.js         # Projects data with case studies
 │   ├── router/                 # Vue Router configuration
-│   │   └── index.js            # Routes definition
 │   ├── assets/                 # Static assets
-│   │   └── styles/             # Global styles
-│   │       └── index.css       # Main CSS file with Tailwind
 │   ├── App.vue                 # Root Vue component
 │   └── main.js                 # Vue application entry point
 ├── my-portfolio-api/           # Serverless API (Vercel)
-│   ├── index.js                # API endpoint for chatbot
+│   ├── src/
+│   │   ├── controllers/        # Request handlers
+│   │   ├── routes/             # API route definitions
+│   │   ├── services/           # Business logic (OpenAI)
+│   │   └── utils/              # Helper functions
+│   ├── index.js                # Server entry point
 │   ├── package.json            # API dependencies
 │   ├── vercel.json             # Vercel configuration
 │   └── assets/
@@ -173,7 +179,7 @@ my-portfolio/
 To customize the chatbot for your own portfolio:
 
 1. Update the knowledge base in `src/config/knowledge.js` with your personal information
-2. Modify the chatbot appearance in the ChatBot.vue component
+2. Modify the chatbot appearance in the `src/components/features/ChatBot.vue` component
 3. Adjust the OpenAI prompt template in the services file to match your persona
 
 ## Deployment

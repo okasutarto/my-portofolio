@@ -261,7 +261,7 @@ export default {
     const userInput = ref('');
     const isTyping = ref(false);
     const chatMessages = ref(null);
-    const initialMessage = 'Hi there! 👋 I\'m Oka\'s AI assistant. I can tell you about his skills, experience, and projects. What would you like to know?';
+    const initialMessage = 'Hi there! 👋\nI\'m Oka\'s AI assistant. I can tell you about his skills, experience, and projects. What would you like to know?';
     // const initialMessage = 'Hi there! 👋 I\'m John Doe\'s AI assistant. I can tell you about his skills, experience, and projects. What would you like to know?';
     const hasInitialMessageShown = ref(false);
     

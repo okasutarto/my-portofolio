@@ -198,9 +198,6 @@
               </svg>
             </button> -->
           </form>
-          <p class="text-[10px] text-gray-400 dark:text-gray-500 text-center mt-2">
-            Powered by AI • Responses may vary
-          </p>
         </div>
         
         <!-- Voice Mode Interface -->

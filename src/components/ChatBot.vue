@@ -138,6 +138,21 @@
                 <div class="bot-message bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-2xl rounded-bl-md p-3 text-sm shadow-sm">
                   <div v-html="formatMessageWithLinks(message.text)" class="message-content"></div>
                   <span v-if="message.isTyping" class="typing-cursor"></span>
+                  
+                  <!-- Contact Action Chip -->
+                  <Transition name="message">
+                    <div v-if="message.showContactButton" class="flex justify-start animate-fade-in-up mt-2 pb-2">
+                        <button 
+                          @click="navigateToContact"
+                          class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2.5 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 text-sm font-medium"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                          Go to Contact Page
+                        </button>
+                    </div>
+                  </Transition>
                 </div>
               </div>
               
@@ -250,12 +265,14 @@
 
 <script>
 import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { getStreamingResponse } from '../services/openai';
 import { useVoiceChat } from '../composables/useVoiceChat';
 
 export default {
   name: 'ChatBot',
   setup() {
+    const router = useRouter();
     const isOpen = ref(false);
     const messages = ref([]);
     const userInput = ref('');
@@ -423,10 +440,43 @@ export default {
           let isProcessingBuffer = false;
           let hasStartedTyping = false;
           let messageIndex;
+          let isStreamComplete = false;
+
+          const checkIntent = () => {
+             // Check for contact/hiring intent in the completed message
+             const botMessage = messages.value[messageIndex].text.toLowerCase();
+             const userMessageLower = messageText.toLowerCase();
+             
+             if (
+               botMessage.includes('reach him') || 
+               botMessage.includes('via email') || 
+               botMessage.includes('linkedin') ||
+               botMessage.includes('contact') ||
+               botMessage.includes('contact page') ||
+               userMessageLower.includes('hire') ||
+               userMessageLower.includes('contact')
+             ) {
+                console.log('Contact intent detected for message:', messageIndex);
+                // Force reactivity update
+                const updatedMessage = { ...messages.value[messageIndex], showContactButton: true };
+                messages.value[messageIndex] = updatedMessage;
+                scrollToBottom();
+             }
+
+             // Finalize
+             isStreaming.value = false;
+             scrollToBottom();
+             if (!isOpen.value) {
+               hasNewMessages.value = true;
+             }
+          };
 
           const typeToken = () => {
             if (!tokenBuffer) {
               isProcessingBuffer = false;
+              if (isStreamComplete) {
+                 checkIntent();
+              }
               return;
             }
             
@@ -438,7 +488,8 @@ export default {
               // Create the message bubble with first content 
               messageIndex = messages.value.push({
                 sender: 'bot',
-                text: ''
+                text: '',
+                showContactButton: false // Initialize property for reactivity
               }) - 1;
             }
             
@@ -463,14 +514,12 @@ export default {
             }
           });
 
-          // When complete
-          isStreaming.value = false;
-          scrollToBottom();
-          
-          // Set notification if chat isn't open
-          if (!isOpen.value) {
-            hasNewMessages.value = true;
+          // Mark stream as complete and ensure typing finishes
+          isStreamComplete = true;
+          if (!isProcessingBuffer) {
+             typeToken();
           }
+
         } catch (error) {
           isWaitingForResponse.value = false;
           isStreaming.value = false;
@@ -556,6 +605,13 @@ export default {
       disconnect();
     });
 
+    // Contact Action
+    const navigateToContact = () => {
+      router.push('/contact');
+      // showContactAction.value = false; // Optional: hide after click
+      isOpen.value = false; // Close chat on navigation? Maybe better UX.
+    };
+
     return {
       isOpen,
       messages,
@@ -582,6 +638,7 @@ export default {
       isSpeaking,
       transcript,
       toggleVoiceMode,
+      navigateToContact
     };
   }
 }

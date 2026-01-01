@@ -1,174 +1,22 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const OpenAI = require('openai');
-const fs = require('fs').promises;
-const path = require('path');
 
-// Load environment variables
+// Load environment variables first
 dotenv.config();
+
+const apiRoutes = require('./src/routes/api');
 
 // Initialize Express app
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Root endpoint
 app.get("/", (req, res) => res.send("Express on Vercel"));
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-// Function to load CV data
-async function loadCV() {
-  try {
-    // const cvPath = path.join(__dirname, 'assets', 'OkaSutartoCVcopy.txt');
-    const cvPath = path.join(__dirname, 'assets', 'OkaSutartoCV.txt');
-    return await fs.readFile(cvPath, 'utf8');
-  } catch (error) {
-    console.error('Error loading CV:', error);
-    return null;
-  }
-}
-
-// Create system message with CV data
-// async function createSystemMessage() {
-//   const cv = await loadCV();
-//   return {
-//     role: 'system',
-//     content: `You are a helpful assistant for John Doe's portfolio website. Always maintain a polite, warm, and friendly tone. Use a conversational style that feels welcoming and professional.
-
-//     Answer with short, concise, and informative responses. Provide clear and direct answers to questions about John Doe's summary/about me, experiences, skills, projects, and professional background.
-
-//     If the user asks "tell me about John", "who is John Doe", respond with a summary about John Doe from the summary/about me section in John Doe's CV.
-
-//     ONLY answer questions about John Doe's summary/about me, experiences, skills, projects, and professional background. If asked about anything unrelated to John Doe's professional information, politely redirect the conversation back to John Doe's professional background.
-//     Example: "I'm sorry, I don't have that information. I'm here to help with questions about John Doe's experiences and skills. How can I assist you with that?"
-
-//     Do not provide any personal opinions or information about John Doe's personal life. Avoid discussing any unrelated topics, such as hobbies or interests outside of work.
-
-//     If you can't find the answer in the CV, say: "I'm sorry, but I don't have that information. Please contact John Doe directly for more details."
-        
-//     Here's John Doe's CV information to reference when answering questions:
-
-//     ${cv}
-        
-//     Only use this information to give accurate answers about John Doe's summary/about me, experiences, education, projects, and skills.`
-//   };
-// }
-async function createSystemMessage() {
-  const cv = await loadCV();
-  return {
-    role: 'system',
-    content: `You are a helpful assistant for Oka's portfolio website. Always maintain a polite, warm, and friendly tone. Use a conversational style that feels welcoming and professional.
-
-    Answer with short, concise, and informative responses. Provide clear and direct answers to questions about Oka's summary/aboutme, experiences, skills, projects, and professional background.
-
-    ### INSTRUCTIONS:
-
-    1. **Who is Oka:** If the user asks "tell me about oka", "who are oka", respond with a summary about Oka from the summary/about me section on Oka's ${cv}.
-
-    2. **The "Skill Hook" (Lead Qualification):** If the user asks if Oka knows a specific technology (e.g., "Can Oka do Node.js?", "Does he use React?"):
-      - First, answer strictly based on the ${cv}.
-      - Second, immediately follow up with a polite question to gauge their interest, such as: "Are you currently looking for a [Insert Technology Name] developer?"
-
-    3. **Lead Capture (Hot Leads - CRITICAL):** - **Triggers:** Use this logic if the user uses keywords like "hire", "interview", "contact", "email", "available", "rates", OR **if the user replies "Yes", "Sure", "I am", or "Definitely"** (especially after you asked them if they are looking for a developer).
-      - **Action:** Adopt an enthusiastic and encouraging tone.
-      - **Response:** IMMEDIATELY provide the best way to contact him.
-      - **Template:** "That sounds great! Oka is open to discussing new opportunities. The best way to reach him is via email at okasputra@gmail.com or through LinkedIn. Or you can also contact him through the contact page.( do not add portfolio link )"
-
-    4. **Handling "No" (Pivot):** If the user replies "No" to your question about looking for a developer:
-      - **Action:** Be polite and briefly mention Oka's actual key strengths.
-      - **Response:** "Got it. If you ever need help with Vue.js, React, or full-stack development, Oka is an expert in those fields. Let me know if you have other questions!"
-
-    5. **Scope Restriction:** ONLY answer questions about Oka's professional background.
-      - If asked about unrelated topics (hobbies, personal life), politely redirect: "I'm sorry, I don't have that information. I'm here to help with questions about Oka's experiences and skills."
-
-    6. **Missing Information:** If you can't find the answer in the CV, say: "I'm sorry, but I don't have that information. Please contact Oka directly for more details."
-
-    ### DATA SOURCE:
-
-    Here's Oka's CV information to reference when answering questions:
-
-    ${cv}
-
-    Only use this information to give accurate answers about Oka's summary/about me, experiences, education, projects, and skills.`
-  };
-}
-
-// Streaming completion endpoint
-app.get('/api/chat/stream', async (req, res) => {
-  try {
-    const { message } = req.query; // Get message from query params instead of body
-    const systemMessage = await createSystemMessage();
-    
-    // Set headers for SSE
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    
-    const stream = await openai.chat.completions.create({
-      model: 'gpt-4.1-mini',
-      messages: [
-        systemMessage,
-        { role: 'user', content: message }
-      ],
-      stream: true,
-      max_tokens: 1000,
-    });
-    
-    // Stream the response to the client
-    for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content || '';
-      if (content) {
-        res.write(`data: ${JSON.stringify({ content })}\n\n`);
-      }
-    }
-    
-    res.write('data: [DONE]\n\n');
-    res.end();
-  } catch (error) {
-    console.error('OpenAI streaming error:', error);
-    res.status(500).json({ error: 'Error processing your request' });
-  }
-});
-
-// Voice chat endpoint - Generate ephemeral key with CV instructions
-app.post('/api/voice/session', async (req, res) => {
-  try {
-    const systemMessage = await createSystemMessage();
-    
-    // Generate ephemeral key using OpenAI Realtime API
-    const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-realtime-preview-2024-12-17',
-        voice: 'alloy',
-      }),
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('OpenAI API Error:', errorData);
-      return res.status(response.status).json({ error: errorData });
-    }
-    
-    const data = await response.json();
-    
-    // Return the ephemeral key and CV instructions
-    res.json({ 
-      ephemeralKey: data.client_secret.value,
-      instructions: systemMessage.content,
-    });
-  } catch (error) {
-    console.error('Error creating voice session:', error);
-    res.status(500).json({ error: 'Failed to create voice session', details: error.message });
-  }
-});
+// API Routes
+app.use('/api', apiRoutes);
 
 // Start the server
 const PORT = process.env.PORT || 3000;

@@ -266,8 +266,8 @@
 <script>
 import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { getStreamingResponse } from '../services/openai';
-import { useVoiceChat } from '../composables/useVoiceChat';
+import { getStreamingResponse } from '../../services/openai';
+import { useVoiceChat } from '../../composables/useVoiceChat';
 
 export default {
   name: 'ChatBot',

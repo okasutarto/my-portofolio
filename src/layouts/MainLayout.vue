@@ -18,7 +18,7 @@
 <script>
 import { ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import AnimatedBackground from '../components/AnimatedBackground.vue';
+import AnimatedBackground from '../components/ui/AnimatedBackground.vue';
 
 export default {
   name: 'MainLayout',

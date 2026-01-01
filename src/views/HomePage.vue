@@ -10,10 +10,10 @@
 </template>
 
 <script setup>
-import TheHero from '../components/TheHero.vue';
-import AboutSection from '../components/AboutSection.vue';
-import ExperienceSection from '../components/ExperienceSection.vue';
-import TestimonialsSection from '../components/TestimonialsSection.vue';
-import ProjectsSection from '../components/ProjectsSection.vue';
-import ContactSection from '../components/ContactSection.vue';
+import TheHero from '../components/sections/TheHero.vue';
+import AboutSection from '../components/sections/AboutSection.vue';
+import ExperienceSection from '../components/sections/ExperienceSection.vue';
+import TestimonialsSection from '../components/sections/TestimonialsSection.vue';
+import ProjectsSection from '../components/sections/ProjectsSection.vue';
+import ContactSection from '../components/sections/ContactSection.vue';
 </script>

@@ -2,18 +2,33 @@
   <div class="fixed bottom-6 right-6 z-50">
     <!-- Tooltip/Popper -->
     <Transition name="tooltip">
-      <div v-if="showTooltip && !isOpen" class="absolute bottom-24 right-0 bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-2xl border-none w-60 backdrop-blur-sm">
+      <div
+        v-if="showTooltip && !isOpen"
+        class="absolute bottom-24 right-0 bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-2xl border-none w-60 backdrop-blur-sm">
         <div class="flex items-center gap-3">
-
           <div>
-            <p class="text-sm font-bold text-gray-900 dark:text-white">Hey! Need help? <span class="waving-hand">👋</span></p>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Chat with my assistant</p>
+            <p class="text-sm font-bold text-gray-900 dark:text-white">
+              Hey! Need help? <span class="waving-hand">👋</span>
+            </p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Chat with my assistant
+            </p>
           </div>
         </div>
-        <div class="absolute -bottom-2 right-10 w-4 h-4 bg-white dark:bg-gray-800 rotate-45"></div>
-        <button @click="dismissTooltip" class="absolute top-2 right-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+        <div
+          class="absolute -bottom-2 right-10 w-4 h-4 bg-white dark:bg-gray-800 rotate-45"></div>
+        <button
+          @click="dismissTooltip"
+          class="absolute top-2 right-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-4 w-4"
+            viewBox="0 0 20 20"
+            fill="currentColor">
+            <path
+              fill-rule="evenodd"
+              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+              clip-rule="evenodd" />
           </svg>
         </button>
       </div>
@@ -22,177 +37,250 @@
     <!-- Floating Chat Toggle Button with Minimalist Design -->
     <div class="relative">
       <!-- Main Button -->
-      <button 
+      <button
         @click="toggleChat"
         class="chat-toggle-btn relative group w-14 h-14 rounded-full bg-primary text-white shadow-xl flex items-center justify-center transition-all duration-300 focus:outline-none hover:scale-105"
         :class="{ 'animate-float': !isOpen }"
-        :aria-label="isOpen ? 'Close chat' : 'Open chat'"
-      >
+        :aria-label="isOpen ? 'Close chat' : 'Open chat'">
         <Transition name="icon-switch" mode="out-in">
-          <svg v-if="!isOpen" key="chat" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 drop-shadow-lg" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
-            <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z" />
+          <svg
+            v-if="!isOpen"
+            key="chat"
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6 drop-shadow-lg"
+            viewBox="0 0 20 20"
+            fill="currentColor">
+            <path
+              d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
+            <path
+              d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z" />
           </svg>
-          <svg v-else key="close" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+          <svg
+            v-else
+            key="close"
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6"
+            viewBox="0 0 20 20"
+            fill="currentColor">
+            <path
+              fill-rule="evenodd"
+              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+              clip-rule="evenodd" />
           </svg>
         </Transition>
-        
+
         <!-- Notification indicator with pulse -->
-        <span v-if="hasNewMessages && !isOpen" class="absolute -top-1 -right-1 flex h-5 w-5">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-          <span class="relative inline-flex rounded-full h-5 w-5 bg-red-500 border-2 border-white items-center justify-center">
+        <span
+          v-if="hasNewMessages && !isOpen"
+          class="absolute -top-1 -right-1 flex h-5 w-5">
+          <span
+            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+          <span
+            class="relative inline-flex rounded-full h-5 w-5 bg-red-500 border-2 border-white items-center justify-center">
             <span class="text-[10px] font-bold text-white">1</span>
           </span>
         </span>
       </button>
     </div>
-    
+
     <!-- Chat Window -->
     <Transition name="chat-window">
-      <div 
-        v-if="isOpen" 
-        class="fixed sm:absolute bottom-0 sm:bottom-20 right-0 left-0 sm:left-auto w-full sm:w-[380px] h-[85vh] sm:h-[500px] bg-white dark:bg-gray-800 sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col"
-      >
+      <div
+        v-if="isOpen"
+        class="fixed sm:absolute bottom-0 sm:bottom-20 right-0 left-0 sm:left-auto w-full sm:w-[380px] h-[85vh] sm:h-[500px] bg-white dark:bg-gray-800 sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col">
         <!-- Header -->
-        <div class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white p-4 flex items-center justify-between">
+        <div
+          class="bg-primary dark:bg-primary text-white p-4 flex items-center justify-between">
           <div class="flex items-center">
             <div class="relative">
-              <div class="w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center mr-3">
-                 <!-- Icon removed for simplicity -->
-                 <span class="text-lg font-bold">AI</span>
+              <div
+                class="w-10 h-10 backdrop-blur flex items-center justify-center mr-3">
+                <img
+                  :src="robotIcon"
+                  alt="AI Assistant"
+                  class="w-full h-full object-cover brightness-0 invert" />
               </div>
             </div>
             <div>
-              <h3 class="font-semibold">Oka's Assistant</h3>
+              <h3 class="font-semibold text-white">Oka's Assistant</h3>
               <!-- <h3 class="font-semibold">AI Assistant</h3> -->
-              <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+              <p class="text-xs flex items-center gap-1">
                 <span class="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
                 Online • Ready to help
               </p>
             </div>
           </div>
           <div class="flex items-center gap-1">
-            <button 
-              @click="clearChat" 
+            <button
+              @click="clearChat"
               class="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              title="Clear chat"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              title="Clear chat">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
             </button>
-            <button 
-              @click="toggleChat" 
+            <button
+              @click="toggleChat"
               class="sm:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
-              title="Close chat"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              title="Close chat">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
         </div>
-        
+
         <!-- Quick Actions -->
-        <div v-if="!isVoiceMode && messages.length <= 1" class="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-          <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Quick questions:</p>
+        <div
+          v-if="!isVoiceMode && messages.length <= 1"
+          class="px-4 py-3 dark:bg-gray-900">
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+            Quick questions:
+          </p>
           <div class="flex flex-wrap gap-2">
-            <button 
-              v-for="question in quickQuestions" 
+            <button
+              v-for="question in quickQuestions"
               :key="question"
               @click="askQuickQuestion(question)"
-              class="text-xs px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20 rounded-full text-gray-600 dark:text-gray-300 transition-colors"
-            >
+              class="text-xs px-3 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20 rounded-full text-gray-600 dark:text-gray-300 transition-colors">
               {{ question }}
             </button>
           </div>
         </div>
-        
+
         <!-- Messages Area -->
-        <div v-if="!isVoiceMode" class="flex-1 overflow-y-auto p-4 space-y-4 smooth-scroll overscroll-contain bg-gray-50 dark:bg-gray-900/50" 
-             ref="chatMessages"
-             @scroll="handleScroll">
+        <div
+          v-if="!isVoiceMode"
+          class="flex-1 overflow-y-auto p-4 space-y-4 smooth-scroll overscroll-contain bg-gray-50 dark:bg-gray-900/50"
+          ref="chatMessages"
+          @scroll="handleScroll">
           <TransitionGroup name="message">
-            <div 
-              v-for="(message, index) in messages" 
+            <div
+              v-for="(message, index) in messages"
               :key="index"
-              :class="{ 
+              :class="{
                 'flex justify-end': message.sender === 'user',
-                'flex justify-start': message.sender === 'bot'
-              }"
-            >
+                'flex justify-start': message.sender === 'bot',
+              }">
               <!-- Bot Message -->
-              <div v-if="message.sender === 'bot'" class="flex items-end gap-2 max-w-[85%]">
+              <div
+                v-if="message.sender === 'bot'"
+                class="flex items-end gap-2 max-w-[85%]">
                 <!-- Robot icon removed -->
                 <!-- <div class="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 text-xs text-white">
                   🤖
                 </div> -->
-                <div class="bot-message bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-2xl rounded-bl-md p-3 text-sm shadow-sm">
-                  <div v-html="formatMessageWithLinks(message.text)" class="message-content"></div>
+                <div
+                  class="bot-message bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-2xl rounded-bl-md p-3 text-sm shadow-sm">
+                  <div
+                    v-html="formatMessageWithLinks(message.text)"
+                    class="message-content text-gray-600 dark:text-gray-300"></div>
                   <span v-if="message.isTyping" class="typing-cursor"></span>
-                  
+
                   <!-- Contact Action Chip -->
                   <Transition name="message">
-                    <div v-if="message.showContactButton" class="flex justify-start animate-fade-in-up mt-2 pb-2">
-                        <button 
-                          @click="navigateToContact"
-                          class="bg-primary text-white px-4 py-2.5 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 text-sm font-medium"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                          </svg>
-                          Go to Contact Page
-                        </button>
+                    <div
+                      v-if="message.showContactButton"
+                      class="flex justify-start animate-fade-in-up mt-2 pb-2">
+                      <button
+                        @click="navigateToContact"
+                        class="bg-primary text-white px-4 py-2.5 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 text-sm font-medium">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          class="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor">
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        Go to Contact Page
+                      </button>
                     </div>
                   </Transition>
                 </div>
               </div>
-              
+
               <!-- User Message -->
               <div v-else class="max-w-[85%]">
-                <div class="bg-primary text-white rounded-2xl rounded-br-md p-3 text-sm shadow-sm">
+                <div
+                  class="bg-primary text-white rounded-2xl rounded-br-md p-3 text-sm shadow-sm">
                   {{ message.text }}
                 </div>
               </div>
             </div>
           </TransitionGroup>
-          
+
           <!-- Typing Indicator -->
           <Transition name="message">
-            <div v-if="isTyping || isWaitingForResponse" class="flex items-end gap-2">
+            <div
+              v-if="isTyping || isWaitingForResponse"
+              class="flex items-end gap-2">
               <!-- Robot icon removed -->
               <!-- <div class="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 text-xs text-white">
                 🤖
               </div> -->
-              <div class="bg-white dark:bg-gray-800 rounded-2xl rounded-bl-md p-3 shadow-sm">
+              <div
+                class="bg-white dark:bg-gray-800 rounded-2xl rounded-bl-md p-3 shadow-sm">
                 <div class="flex space-x-1.5">
-                  <div class="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style="animation-delay: 0ms"></div>
-                  <div class="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style="animation-delay: 150ms"></div>
-                  <div class="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style="animation-delay: 300ms"></div>
+                  <div
+                    class="w-2 h-2 rounded-full bg-gray-400 animate-bounce"
+                    style="animation-delay: 0ms"></div>
+                  <div
+                    class="w-2 h-2 rounded-full bg-gray-400 animate-bounce"
+                    style="animation-delay: 150ms"></div>
+                  <div
+                    class="w-2 h-2 rounded-full bg-gray-400 animate-bounce"
+                    style="animation-delay: 300ms"></div>
                 </div>
               </div>
             </div>
           </Transition>
         </div>
-        
+
         <!-- Input Area -->
-        <div v-if="!isVoiceMode" class="p-3 sm:p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 safe-area-bottom">
+        <div
+          v-if="!isVoiceMode"
+          class="p-3 sm:p-4 bg-white dark:bg-gray-900 safe-area-bottom">
           <form @submit.prevent="sendMessage" class="flex items-center gap-2">
-            <input 
+            <input
               v-model="userInput"
               type="text"
               placeholder="Type your message..."
               class="flex-1 min-w-0 rounded-xl border-0 bg-gray-100 dark:bg-gray-800 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 dark:text-white placeholder-gray-400"
-              :disabled="isTyping || isWaitingForResponse"
-            />
-            <button 
+              :disabled="isTyping || isWaitingForResponse" />
+            <button
               type="submit"
               class="w-11 h-11 flex-shrink-0 bg-primary hover:bg-primary-dark text-white rounded-xl flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
-              :disabled="!userInput.trim() || isTyping || isWaitingForResponse"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+              :disabled="!userInput.trim() || isTyping || isWaitingForResponse">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="currentColor">
+                <path
+                  d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
               </svg>
             </button>
             <!-- Voice Mode Toggle Button -->
@@ -208,49 +296,77 @@
             </button> -->
           </form>
         </div>
-        
+
         <!-- Voice Mode Interface -->
         <div v-if="isVoiceMode" class="flex flex-col h-full">
-          <div class="flex-1 p-6 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800/50">
+          <div
+            class="flex-1 p-6 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800/50">
             <div class="text-center mb-6">
               <div class="relative inline-block">
-                <div v-if="isSpeaking" class="absolute inset-0 w-32 h-32 rounded-full bg-primary/20 animate-ping"></div>
-                <div class="relative w-32 h-32 rounded-full bg-primary flex items-center justify-center text-white text-5xl">
+                <div
+                  v-if="isSpeaking"
+                  class="absolute inset-0 w-32 h-32 rounded-full bg-primary/20 animate-ping"></div>
+                <div
+                  class="relative w-32 h-32 rounded-full bg-primary flex items-center justify-center text-white text-5xl">
                   🎤
                 </div>
               </div>
             </div>
-            
-            <p class="text-lg font-semibold mb-2" :class="{ 'text-primary': isConnected, 'text-gray-400': !isConnected }">
-              {{ isSpeaking ? 'Speaking...' : isConnected ? 'Listening...' : 'Connecting...' }}
+
+            <p
+              class="text-lg font-semibold mb-2"
+              :class="{
+                'text-primary': isConnected,
+                'text-gray-400': !isConnected,
+              }">
+              {{
+                isSpeaking
+                  ? "Speaking..."
+                  : isConnected
+                  ? "Listening..."
+                  : "Connecting..."
+              }}
             </p>
-            
+
             <!-- <p v-if="transcript" class="text-sm text-gray-600 dark:text-gray-400 mb-4 max-w-xs text-center italic">
               "{{ transcript }}"
             </p> -->
-            
+
             <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
-              {{ isConnected ? 'Start talking - I\'m always listening!' : 'Initializing voice chat...' }}
+              {{
+                isConnected
+                  ? "Start talking - I'm always listening!"
+                  : "Initializing voice chat..."
+              }}
             </p>
-            
+
             <div class="text-xs text-gray-400 dark:text-gray-500 mt-4">
               <p>Voice mode is active</p>
               <p class="mt-1">Microphone and audio are automatically managed</p>
             </div>
           </div>
-          
+
           <!-- Back to Text Mode Button -->
-          <div class="p-3 sm:p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 safe-area-bottom">
-            <button 
+          <!-- <div
+            class="p-3 sm:p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 safe-area-bottom">
+            <button
               @click="toggleVoiceMode"
-              class="w-full py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl flex items-center justify-center gap-2 transition-all duration-200"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              class="w-full py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl flex items-center justify-center gap-2 transition-all duration-200">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 19l-7-7 7-7" />
               </svg>
               Back to Text Chat
             </button>
-          </div>
+          </div> -->
         </div>
       </div>
     </Transition>
@@ -258,37 +374,39 @@
 </template>
 
 <script>
-import { ref, watch, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { getStreamingResponse } from '../../services/openai';
-import { useVoiceChat } from '../../composables/useVoiceChat';
+import { ref, watch, onMounted, onUnmounted } from "vue";
+import { useRouter } from "vue-router";
+import { getStreamingResponse } from "../../services/openai";
+import { useVoiceChat } from "../../composables/useVoiceChat";
+import robotIcon from "@/assets/robot.png";
 
 export default {
-  name: 'ChatBot',
+  name: "ChatBot",
   setup() {
     const router = useRouter();
     const isOpen = ref(false);
     const messages = ref([]);
-    const userInput = ref('');
+    const userInput = ref("");
     const isTyping = ref(false);
     const chatMessages = ref(null);
-    const initialMessage = 'Hi there! 👋\nI\'m Oka\'s AI assistant. I can tell you about his skills, experience, and projects. What would you like to know?';
+    const initialMessage =
+      "Hi there! 👋\nI'm Oka's AI assistant. I can tell you about his skills, experience, and projects. What would you like to know?";
     // const initialMessage = 'Hi there! 👋 I\'m John Doe\'s AI assistant. I can tell you about his skills, experience, and projects. What would you like to know?';
     const hasInitialMessageShown = ref(false);
-    
+
     const isStreaming = ref(false);
     const isWaitingForResponse = ref(false);
-    
+
     // New reactive states
     const showTooltip = ref(false);
     const hasNewMessages = ref(false);
     const isUserAtBottom = ref(true);
-    
+
     // Quick questions
     const quickQuestions = ref([
       "What's his experience?",
       "Tech stack?",
-      "Recent projects?"
+      "Recent projects?",
     ]);
 
     const scrollToBottom = (force = false) => {
@@ -300,7 +418,7 @@ export default {
         }
       }, 50);
     };
-    
+
     // Toggle chat
     const toggleChat = () => {
       isOpen.value = !isOpen.value;
@@ -308,7 +426,7 @@ export default {
         showTooltip.value = false;
       }
     };
-    
+
     // Clear chat
     const clearChat = () => {
       messages.value = [];
@@ -320,7 +438,7 @@ export default {
         streamInitialMessage();
       }, 500);
     };
-    
+
     // Ask quick question
     const askQuickQuestion = (question) => {
       userInput.value = question;
@@ -332,11 +450,11 @@ export default {
       if (newVal && !hasInitialMessageShown.value) {
         // Show the typing indicator
         isTyping.value = true;
-        
+
         // After a delay, start streaming the welcome message
         setTimeout(() => {
           isTyping.value = false;
-          
+
           // Simulate streaming for the initial message (or use a real API call)
           streamInitialMessage();
         }, 1000);
@@ -344,30 +462,31 @@ export default {
         // Clear notification badge when chat is opened
         hasNewMessages.value = false;
       }
-      
+
       // Scroll to bottom when chat is opened - add a longer delay to allow rendering
-      if (newVal) {  // Only scroll when opening, not when closing
-        setTimeout(() => scrollToBottom(), 100);  // Increased delay
+      if (newVal) {
+        // Only scroll when opening, not when closing
+        setTimeout(() => scrollToBottom(), 100); // Increased delay
       }
     });
-    
+
     // Stream the initial welcome message with slower typing
     const streamInitialMessage = () => {
       isStreaming.value = true;
-      
+
       // Add an empty message first
-      const messageIndex = messages.value.push({
-        sender: 'bot',
-        text: ''
-      }) - 1;
-      
+      const messageIndex =
+        messages.value.push({
+          sender: "bot",
+          text: "",
+        }) - 1;
+
       let i = 0;
       const interval = setInterval(() => {
         if (i < initialMessage.length) {
           // Update the existing message instead of using separate streaming state
           messages.value[messageIndex].text += initialMessage[i];
           i++;
-          
         } else {
           clearInterval(interval);
           isStreaming.value = false;
@@ -395,11 +514,11 @@ export default {
         showTooltip.value = true;
       }, 1500);
     });
-    
+
     // Dismiss tooltip
     const dismissTooltip = () => {
       showTooltip.value = false;
-      localStorage.setItem('hasSeenChatTooltip', 'true');
+      localStorage.setItem("hasSeenChatTooltip", "true");
     };
 
     const handleScroll = () => {
@@ -413,91 +532,94 @@ export default {
     const sendMessage = async () => {
       const messageText = userInput.value.trim();
       if (!messageText || isTyping.value || isStreaming.value) return;
-      
+
       // Add user message immediately
       messages.value.push({
-        sender: 'user',
-        text: messageText
+        sender: "user",
+        text: messageText,
       });
-      
-      
+
       // Show loading indicator
       isWaitingForResponse.value = true;
 
-      userInput.value = ''; // Clear input field
-      
+      userInput.value = ""; // Clear input field
+
       // Scroll to bottom after user message
       setTimeout(async () => {
         try {
           // Process tokens with natural typing rhythm
-          let tokenBuffer = '';
+          let tokenBuffer = "";
           let isProcessingBuffer = false;
           let hasStartedTyping = false;
           let messageIndex;
           let isStreamComplete = false;
 
           const checkIntent = () => {
-             // Check for contact/hiring intent in the completed message
-             const botMessage = messages.value[messageIndex].text.toLowerCase();
-             const userMessageLower = messageText.toLowerCase();
-             
-             if (
-               botMessage.includes('reach him') || 
-               botMessage.includes('via email') || 
-               botMessage.includes('linkedin') ||
-               botMessage.includes('contact') ||
-               botMessage.includes('contact page') ||
-               userMessageLower.includes('hire') ||
-               userMessageLower.includes('contact')
-             ) {
-                console.log('Contact intent detected for message:', messageIndex);
-                // Force reactivity update
-                const updatedMessage = { ...messages.value[messageIndex], showContactButton: true };
-                messages.value[messageIndex] = updatedMessage;
-                scrollToBottom();
-             }
+            // Check for contact/hiring intent in the completed message
+            const botMessage = messages.value[messageIndex].text.toLowerCase();
+            const userMessageLower = messageText.toLowerCase();
 
-             // Finalize
-             isStreaming.value = false;
-             scrollToBottom();
-             if (!isOpen.value) {
-               hasNewMessages.value = true;
-             }
+            if (
+              botMessage.includes("reach him") ||
+              botMessage.includes("via email") ||
+              botMessage.includes("linkedin") ||
+              botMessage.includes("contact") ||
+              botMessage.includes("contact page") ||
+              userMessageLower.includes("hire") ||
+              userMessageLower.includes("contact")
+            ) {
+              console.log("Contact intent detected for message:", messageIndex);
+              // Force reactivity update
+              const updatedMessage = {
+                ...messages.value[messageIndex],
+                showContactButton: true,
+              };
+              messages.value[messageIndex] = updatedMessage;
+              scrollToBottom();
+            }
+
+            // Finalize
+            isStreaming.value = false;
+            scrollToBottom();
+            if (!isOpen.value) {
+              hasNewMessages.value = true;
+            }
           };
 
           const typeToken = () => {
             if (!tokenBuffer) {
               isProcessingBuffer = false;
               if (isStreamComplete) {
-                 checkIntent();
+                checkIntent();
               }
               return;
             }
-            
+
             // If this is the first token, create message bubble only now
             if (!hasStartedTyping) {
               hasStartedTyping = true;
               isWaitingForResponse.value = false; // Hide loading indicator only now
-              
-              // Create the message bubble with first content 
-              messageIndex = messages.value.push({
-                sender: 'bot',
-                text: '',
-                showContactButton: false // Initialize property for reactivity
-              }) - 1;
+
+              // Create the message bubble with first content
+              messageIndex =
+                messages.value.push({
+                  sender: "bot",
+                  text: "",
+                  showContactButton: false, // Initialize property for reactivity
+                }) - 1;
             }
-            
+
             isProcessingBuffer = true;
             const char = tokenBuffer.charAt(0);
             tokenBuffer = tokenBuffer.substring(1);
-            
+
             messages.value[messageIndex].text += char;
-            
+
             // Scroll periodically to improve performance
             if (messages.value[messageIndex].text.length % 5 === 0) {
               scrollToBottom(); // No forced scroll during typing
             }
-            
+
             setTimeout(typeToken, 10);
           };
 
@@ -511,75 +633,84 @@ export default {
           // Mark stream as complete and ensure typing finishes
           isStreamComplete = true;
           if (!isProcessingBuffer) {
-             typeToken();
+            typeToken();
           }
-
         } catch (error) {
           isWaitingForResponse.value = false;
           isStreaming.value = false;
-          console.error('Error sending message:', error);
+          console.error("Error sending message:", error);
           messages.value.push({
-            sender: 'bot',
-            text: 'Sorry, I encountered an error while processing your request.'
+            sender: "bot",
+            text: "Sorry, I encountered an error while processing your request.",
           });
         }
       }, 100);
     };
 
     const formatMessageWithLinks = (text) => {
-      if (!text) return '';
-      
+      if (!text) return "";
+
       let formattedText = text;
-      
+
       // Convert markdown bold **text** to <strong>
-      formattedText = formattedText.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-gray-900 dark:text-white">$1</strong>');
-      
+      formattedText = formattedText.replace(
+        /\*\*([^*]+)\*\*/g,
+        '<strong class="font-semibold text-gray-900 dark:text-white">$1</strong>'
+      );
+
       // Convert markdown italic *text* to <em> (but not if it's part of bold)
-      formattedText = formattedText.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
-      
+      formattedText = formattedText.replace(
+        /(?<!\*)\*([^*]+)\*(?!\*)/g,
+        "<em>$1</em>"
+      );
+
       // Convert markdown links [text](url) to anchor tags FIRST
       formattedText = formattedText.replace(
         /\[([^\]]+)\]\(([^)]+)\)/g,
         '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-primary hover:text-primary-dark underline">$1</a>'
       );
-      
+
       // Convert plain URLs to anchor tags (only if not already inside an href)
       // Use a negative lookbehind to avoid matching URLs already in href=""
       formattedText = formattedText.replace(
         /(?<!href="|">)(https?:\/\/[^\s<>"]+?)([.,;:!?])?(?=\s|$|<)/g,
-        (match, url, punctuation = '') => {
-          const cleanUrl = url.replace(/[.,;:!?]$/, '');
+        (match, url, punctuation = "") => {
+          const cleanUrl = url.replace(/[.,;:!?]$/, "");
           return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="text-primary hover:text-primary-dark underline">${cleanUrl}</a>${punctuation}`;
         }
       );
-      
+
       // Convert line breaks to <br> FIRST for proper spacing
-      formattedText = formattedText.replace(/\n/g, '<br>');
-      
+      formattedText = formattedText.replace(/\n/g, "<br>");
+
       // Convert numbered lists (1. item) to proper list items
-      formattedText = formattedText.replace(/(\d+)\.\s*<br>\s*(.+?)(?=<br>|$)/g, '<div class="flex gap-2 my-1"><span class="text-primary font-semibold">$1.</span><span>$2</span></div>');
-      formattedText = formattedText.replace(/^(\d+)\.\s+(.+?)(?=<br>|$)/gm, '<div class="flex gap-2 my-1"><span class="text-primary font-semibold">$1.</span><span>$2</span></div>');
-      
+      formattedText = formattedText.replace(
+        /(\d+)\.\s*<br>\s*(.+?)(?=<br>|$)/g,
+        '<div class="flex gap-2 my-1"><span class="text-primary font-semibold">$1.</span><span>$2</span></div>'
+      );
+      formattedText = formattedText.replace(
+        /^(\d+)\.\s+(.+?)(?=<br>|$)/gm,
+        '<div class="flex gap-2 my-1"><span class="text-primary font-semibold">$1.</span><span>$2</span></div>'
+      );
+
       // Convert bullet points (- item) to proper list items
-      formattedText = formattedText.replace(/^[-•]\s+(.+?)(?=<br>|$)/gm, '<div class="flex gap-2 my-1"><span class="text-primary">•</span><span>$1</span></div>');
-      
+      formattedText = formattedText.replace(
+        /^[-•]\s+(.+?)(?=<br>|$)/gm,
+        '<div class="flex gap-2 my-1"><span class="text-primary">•</span><span>$1</span></div>'
+      );
+
       return formattedText;
     };
 
     // Voice chat
-    const { 
-      isConnected, 
-      isSpeaking,
-      transcript,
-      connect, 
-      disconnect
-    } = useVoiceChat();
-    
+    const { isConnected, isSpeaking, transcript, connect, disconnect } =
+      useVoiceChat();
+
     const isVoiceMode = ref(false);
 
     const toggleVoiceMode = async () => {
       isVoiceMode.value = !isVoiceMode.value;
-      
+
       if (isVoiceMode.value) {
         await connect();
       } else {
@@ -601,7 +732,7 @@ export default {
 
     // Contact Action
     const navigateToContact = () => {
-      router.push('/contact');
+      router.push("/contact");
       // showContactAction.value = false; // Optional: hide after click
       isOpen.value = false; // Close chat on navigation? Maybe better UX.
     };
@@ -632,10 +763,11 @@ export default {
       isSpeaking,
       transcript,
       toggleVoiceMode,
-      navigateToContact
+      navigateToContact,
+      robotIcon,
     };
-  }
-}
+  },
+};
 </script>
 
 <style scoped>
@@ -650,12 +782,14 @@ export default {
 }
 
 /* Animation for new messages */
-.message-enter-active, .message-leave-active {
+.message-enter-active,
+.message-leave-active {
   transition: opacity 0.3s ease, transform 0.3s ease;
   position: relative;
   z-index: 1;
 }
-.message-enter-from, .message-leave-to {
+.message-enter-from,
+.message-leave-to {
   opacity: 0;
   transform: translateY(10px);
 }
@@ -710,7 +844,8 @@ export default {
     transform: scale(1);
     opacity: 0.5;
   }
-  75%, 100% {
+  75%,
+  100% {
     transform: scale(1.5);
     opacity: 0;
   }
@@ -734,8 +869,14 @@ export default {
 
 /* Typing cursor */
 @keyframes blink {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0; }
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
 }
 
 .typing-cursor {
@@ -783,14 +924,30 @@ export default {
 
 /* Waving hand */
 @keyframes wave {
-  0% { transform: rotate(0deg); }
-  10% { transform: rotate(14deg); }
-  20% { transform: rotate(-8deg); }
-  30% { transform: rotate(14deg); }
-  40% { transform: rotate(-4deg); }
-  50% { transform: rotate(10deg); }
-  60% { transform: rotate(0deg); }
-  100% { transform: rotate(0deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  10% {
+    transform: rotate(14deg);
+  }
+  20% {
+    transform: rotate(-8deg);
+  }
+  30% {
+    transform: rotate(14deg);
+  }
+  40% {
+    transform: rotate(-4deg);
+  }
+  50% {
+    transform: rotate(10deg);
+  }
+  60% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
 }
 
 .waving-hand {
@@ -801,7 +958,9 @@ export default {
 
 /* Bounce animation for typing dots */
 @keyframes bounce {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     transform: translateY(0);
   }
   30% {
@@ -815,7 +974,8 @@ export default {
 
 /* Floating animation */
 @keyframes float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -829,7 +989,8 @@ export default {
 
 /* Slow bounce for tooltip avatar */
 @keyframes bounce-slow {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -843,7 +1004,8 @@ export default {
 
 /* Glow pulse effect */
 @keyframes glow {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.3;
     transform: scale(1);
   }
@@ -961,7 +1123,7 @@ export default {
 
 .message-content br + br {
   display: block;
-  content: '';
+  content: "";
   margin-top: 0.5rem;
 }
 

@@ -17,7 +17,10 @@
           v-for="(link, index) in navLinks"
           :key="index"
           :to="link.path"
-          class="font-medium transition hover:text-primary"
+          :class="[
+            'font-medium transition hover:text-primary',
+            $route.name === 'project-details' ? 'text-primary' : '',
+          ]"
           active-class="text-primary">
           {{ link.name }}
         </router-link>

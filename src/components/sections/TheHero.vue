@@ -9,7 +9,7 @@
       <div class="text-center">
         <div>
           <p
-            class="text-base md:text-lg text-gray-500 dark:text-white font-medium">
+            class="text-base md:text-lg text-gray-600 dark:text-white font-medium">
             Hi there, I'm
           </p>
         </div>

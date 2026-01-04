@@ -10,28 +10,6 @@
         class="h-1 w-20 bg-primary mx-auto rounded-full mb-12 opacity-0"
         ref="titleUnderline"></div>
 
-      <!-- Form status messages -->
-      <div
-        v-if="submitStatus === 'success'"
-        class="max-w-2xl mx-auto mb-6 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded"
-        role="alert">
-        <p class="font-bold">Thank you!</p>
-        <p>
-          Your message has been sent successfully. I'll get back to you soon.
-        </p>
-      </div>
-
-      <div
-        v-if="submitStatus === 'error'"
-        class="max-w-2xl mx-auto mb-6 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded"
-        role="alert">
-        <p class="font-bold">Something went wrong</p>
-        <p>
-          Unable to send your message. Please try again later or contact me
-          through other channels.
-        </p>
-      </div>
-
       <div class="max-w-6xl mx-auto">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
           <!-- Contact Info -->
@@ -218,6 +196,29 @@
                   </span>
                   <span v-else>Send Message</span>
                 </button>
+              </div>
+
+              <!-- Form status messages -->
+              <div
+                v-if="submitStatus === 'success'"
+                class="max-w-2xl mx-auto bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded"
+                role="alert">
+                <p class="font-bold">Thank you!</p>
+                <p>
+                  Your message has been sent successfully. I'll get back to you
+                  soon.
+                </p>
+              </div>
+
+              <div
+                v-else-if="submitStatus === 'error'"
+                class="max-w-2xl mx-auto mb-6 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded"
+                role="alert">
+                <p class="font-bold">Something went wrong</p>
+                <p>
+                  Unable to send your message. Please try again later or contact
+                  me through other channels.
+                </p>
               </div>
             </form>
           </div>

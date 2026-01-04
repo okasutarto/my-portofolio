@@ -22,7 +22,7 @@
           class="project-card group bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden transition-all duration-500 ease-out transform hover:-translate-y-2 hover:shadow-2xl opacity-0">
           <!-- Image Container with Overlay -->
           <div class="project-image-container relative overflow-hidden">
-            <img
+            <!-- <img
               :ref="
                 (el) => {
                   if (el) projectImages[index] = el;
@@ -30,7 +30,7 @@
               "
               :src="project.image"
               :alt="project.title"
-              class="w-full h-52 object-cover object-top transition-transform duration-700 group-hover:scale-110" />
+              class="w-full h-52 object-cover transition-transform duration-700 group-hover:scale-110" /> -->
             <!-- Overlay on Hover -->
             <div
               class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4">

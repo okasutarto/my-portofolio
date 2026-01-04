@@ -9,26 +9,22 @@
       <div class="text-center">
         <div>
           <p
-            class="text-base md:text-lg text-primary dark:text-primary-light font-medium">
+            class="text-base md:text-lg text-gray-500 dark:text-white font-medium">
             Hi there, I'm
           </p>
         </div>
 
-        <!-- Name with enhanced gradient -->
+        <!-- Name with enhanced gradient & premium typography -->
         <h1
-          class="text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-bold mb-6 animate-slide-up tracking-tight text-gray-900 dark:text-white">
-          <span class="relative inline-block">
+          class="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold mb-6 animate-slide-up tracking-tighter">
+          <span class="bg-clip-text text-primary animate-gradient">
             Oka Sutarto Putra
-            <!-- Subtle underline decoration -->
-            <span
-              class="absolute -bottom-2 left-0 w-full h-1 bg-gray-900 dark:bg-white transform scale-x-0 animate-scale-x origin-left text"></span>
           </span>
         </h1>
 
         <!-- Typewriter effect for role -->
         <div
           class="flex items-center justify-center mb-8 animate-slide-up animation-delay-200">
-          <div class="h-px w-12 bg-gray-300 dark:bg-gray-700"></div>
           <div class="relative mx-4 px-4 py-2">
             <h2
               class="text-xl md:text-2xl lg:text-3xl font-medium text-gray-600 dark:text-gray-300 font-mono">
@@ -39,30 +35,30 @@
               <span class="text-gray-400 dark:text-gray-500">/&gt;</span>
             </h2>
           </div>
-          <div class="h-px w-12 bg-gray-300 dark:bg-gray-700"></div>
         </div>
 
         <!-- Description with better styling -->
         <p
-          class="max-w-xl mx-auto text-gray-600 dark:text-gray-400 mb-10 text-lg leading-relaxed animate-fade-in animation-delay-400 font-light">
-          I craft <span class="text-primary font-semibold">modern</span>,
-          <span class="text-primary font-semibold">responsive</span> web
-          applications with a focus on
-          <span class="text-primary font-semibold">user experience</span> and
-          clean code.
+          class="lg:max-w-3xl md:max-w-xl sm:max-w-lg mx-auto text-gray-600 dark:text-gray-400 mb-10 text-lg leading-relaxed animate-fade-in animation-delay-400 font-light">
+          Turning complex problems into elegant code. Currently exploring the
+          intersection of AI and Web Development.
         </p>
 
-        <!-- Enhanced CTA buttons - Minimalist -->
+        <!-- Enhanced CTA buttons - Premium & Glassmorphism -->
         <div
           class="flex flex-col sm:flex-row justify-center items-center gap-6 animate-fade-in animation-delay-600">
           <a
             href="#projects"
             @click.prevent="scrollToSection('projects')"
-            class="group relative px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 min-w-[180px]">
+            class="group relative px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-full shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 min-w-[180px] overflow-hidden">
+            <!-- Button sheen effect -->
+            <div
+              class="absolute inset-0 w-full h-full bg-white/20 skew-x-12 -translate-x-full group-hover:animate-sheen"></div>
+
             <span class="relative z-10 flex items-center justify-center gap-2">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                class="h-5 w-5"
+                class="h-5 w-5 transition-transform duration-300 group-hover:scale-110"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor">
@@ -79,10 +75,10 @@
           <a
             href="#contact"
             @click.prevent="scrollToSection('contact')"
-            class="group px-8 py-4 font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white hover:border-gray-900 dark:hover:border-white transition-all duration-300 hover:-translate-y-1 flex items-center justify-center gap-2 min-w-[180px]">
+            class="group px-8 py-4 font-bold rounded-full border-2 border-gray-200 dark:border-gray-700 hover:border-primary dark:hover:border-primary text-gray-900 dark:text-white hover:text-primary dark:hover:text-primary transition-all duration-300 hover:-translate-y-1 flex items-center justify-center gap-2 min-w-[180px] hover:shadow-lg hover:bg-primary/5">
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              class="h-5 w-5"
+              class="h-5 w-5 transition-transform duration-300 group-hover:rotate-12"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor">
@@ -93,28 +89,6 @@
                 d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
             Get In Touch
-          </a>
-        </div>
-
-        <!-- Download CV as subtle text link -->
-        <div class="mt-8 animate-fade-in animation-delay-700">
-          <a
-            href="/OkaSutartoCV.pdf"
-            download="Oka_Sutarto_Putra_CV.pdf"
-            class="inline-flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors border-b border-transparent hover:border-gray-900 dark:hover:border-white pb-0.5">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Download Resume / CV
           </a>
         </div>
 
@@ -139,15 +113,15 @@
     <a
       href="#about"
       @click.prevent="scrollToSection('about')"
-      class="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors z-10 group md:bottom-8">
+      class="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors z-10 group cursor-pointer">
       <span
-        class="text-sm mb-2 opacity-70 group-hover:opacity-100 transition-opacity"
-        >Scroll Down</span
+        class="text-xs font-medium tracking-widest uppercase mb-2 opacity-50 group-hover:opacity-100 transition-all duration-300"
+        >Scroll</span
       >
       <div
-        class="w-6 h-10 rounded-full border-2 border-current flex justify-center pt-2">
+        class="w-[30px] h-[50px] border-2 border-current rounded-full flex justify-center p-2 opacity-75 group-hover:opacity-100 transition-all duration-300">
         <div
-          class="w-1.5 h-1.5 rounded-full bg-current animate-scroll-down"></div>
+          class="w-1.5 h-1.5 bg-current rounded-full animate-scroll-mouse"></div>
       </div>
     </a>
   </section>
@@ -218,17 +192,23 @@
 }
 
 /* Gradient animation for name */
+.bg-300\% {
+  background-size: 300% auto;
+}
+
 .animate-gradient {
-  animation: gradient-shift 3s ease infinite;
+  animation: gradient-shift 8s ease infinite;
 }
 
 @keyframes gradient-shift {
-  0%,
-  100% {
+  0% {
     background-position: 0% 50%;
   }
   50% {
     background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
   }
 }
 
@@ -313,23 +293,33 @@
   }
 }
 
-/* Scroll down indicator animation */
-.animate-scroll-down {
-  animation: scroll-down 1.5s ease-in-out infinite;
+/* Scroll mouse animation */
+.animate-scroll-mouse {
+  animation: scroll-mouse 2s cubic-bezier(0.15, 0.41, 0.69, 0.94) infinite;
 }
 
-@keyframes scroll-down {
+@keyframes scroll-mouse {
   0% {
-    transform: translateY(0);
     opacity: 1;
-  }
-  50% {
-    transform: translateY(12px);
-    opacity: 0.5;
+    transform: translateY(0);
   }
   100% {
-    transform: translateY(0);
-    opacity: 1;
+    opacity: 0;
+    transform: translateY(15px);
+  }
+}
+
+/* Button sheen animation */
+.group-hover\:animate-sheen:hover {
+  animation: sheen 1s forwards;
+}
+
+@keyframes sheen {
+  0% {
+    transform: translateX(-100%) skewX(12deg);
+  }
+  100% {
+    transform: translateX(200%) skewX(12deg);
   }
 }
 

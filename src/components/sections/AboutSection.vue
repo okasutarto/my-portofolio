@@ -47,7 +47,7 @@
         <!-- Content with hero-style animations -->
         <div class="w-full lg:w-3/5 overflow-hidden" ref="contentSection">
           <h2
-            class="text-3xl sm:text-4xl font-bold mb-6 text-gray-900 dark:text-gray-50 animation-element"
+            class="text-xl sm:text-4xl font-bold mb-6 text-gray-900 dark:text-gray-50 animation-element"
             ref="headingRef">
             Building End-to-End <br class="hidden sm:block" /><span
               class="text-primary"
@@ -55,7 +55,7 @@
             >
           </h2>
           <p
-            class="mb-6 text-lg text-gray-700 dark:text-gray-300 leading-relaxed animation-element"
+            class="mb-6 text-md sm:text-lg text-gray-700 dark:text-gray-300 leading-relaxed animation-element"
             ref="descriptionRef">
             Fullstack Developer crafting seamless experiences from
             <span class="font-semibold text-primary">frontend to backend</span>.

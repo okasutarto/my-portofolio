@@ -39,7 +39,7 @@
 
         <!-- Description with better styling -->
         <p
-          class="lg:max-w-3xl md:max-w-xl sm:max-w-lg mx-auto text-gray-600 dark:text-gray-400 mb-10 text-lg leading-relaxed animate-fade-in animation-delay-400 font-light">
+          class="max-w-sm sm:max-w-3xl mx-auto text-gray-600 dark:text-gray-400 mb-10 text-md sm:text-xl leading-relaxed animate-fade-in animation-delay-400 font-light">
           Turning complex problems into elegant code. Currently exploring the
           intersection of AI and Web Development.
         </p>

@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { ref } from "vue";
 
 const isDark = ref(false);
 
@@ -11,23 +11,23 @@ export function useTheme() {
 
   function updateTheme() {
     if (isDark.value) {
-      document.documentElement.classList.add('dark');
+      document.documentElement.classList.add("dark");
     } else {
-      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.remove("dark");
     }
   }
 
   function saveThemePreference() {
-    localStorage.setItem('theme', isDark.value ? 'dark' : 'light');
+    localStorage.setItem("theme", isDark.value ? "dark" : "light");
   }
 
   function initTheme() {
-    const savedTheme = localStorage.getItem('theme');
+    const savedTheme = localStorage.getItem("theme");
     if (savedTheme) {
-      isDark.value = savedTheme === 'dark';
+      isDark.value = savedTheme === "dark";
     } else {
-      // Check user's system preference
-      isDark.value = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      // Default to dark mode if no preference is saved
+      isDark.value = true;
     }
     updateTheme();
   }
@@ -35,6 +35,6 @@ export function useTheme() {
   return {
     isDark,
     toggleTheme,
-    initTheme
+    initTheme,
   };
 }

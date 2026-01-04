@@ -109,7 +109,7 @@
                     if (el) skillElements[index] = el;
                   }
                 ">
-                <span>{{ skill.icon }}</span>
+                <span v-html="skill.icon" class="flex items-center"></span>
                 <span>{{ skill.name }}</span>
               </span>
             </div>
@@ -146,6 +146,7 @@
 import { ref, onMounted, onUnmounted, reactive } from "vue";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { skills as skillsData } from "@/data/skills";
 
 // Register ScrollTrigger plugin
 gsap.registerPlugin(ScrollTrigger);
@@ -173,17 +174,8 @@ export default {
     };
 
     // Skills array with icons - Fullstack focused
-    const skills = reactive([
-      { name: "Vue.js", icon: "🟢" },
-      { name: "React", icon: "⚛️" },
-      { name: "Angular", icon: "🅰️" },
-      { name: "Node.js", icon: "🟩" },
-      { name: "Express", icon: "⚡" },
-      { name: "PostgreSQL", icon: "🐘" },
-      { name: "MySQL", icon: "🐬" },
-      { name: "TypeScript", icon: "📘" },
-      { name: "REST APIs", icon: "🔗" },
-    ]);
+    // Skills array with icons - Fullstack focused
+    const skills = reactive(skillsData);
     const skillElements = reactive([]);
 
     // Store all animations for cleanup

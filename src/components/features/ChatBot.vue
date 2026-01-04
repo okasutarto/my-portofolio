@@ -16,7 +16,7 @@
           </div>
         </div>
         <div
-          class="absolute -bottom-2 right-10 w-4 h-4 bg-white dark:bg-gray-800 rotate-45"></div>
+          class="absolute -bottom-2 right-6 w-4 h-4 bg-white dark:bg-gray-800 rotate-45"></div>
         <button
           @click="dismissTooltip"
           class="absolute top-2 right-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">

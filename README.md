@@ -8,10 +8,9 @@ This project is a modern, responsive portfolio website built with Vue.js that sh
 - **Dark/Light Mode:** Toggle between light and dark themes based on preference
 - **Interactive UI:** GSAP-powered animations, transitions, and interactive elements
 - **Enhanced Hero Section:** Floating gradient orbs, animated name, tech stack badges, and social links
-- **Timeline Experience Section:** Standout vertical timeline with scroll-linked animations, glowing nodes, and progressive reveal
+- **Timeline Experience Section:** Standout vertical timeline with scroll-linked animations
 - **Project Showcase:** Detailed project cards with case studies, links to live demos and repositories
 - **Testimonials Carousel:** Mobile-optimized carousel with touch-friendly navigation
-- **Animated Background:** Dynamic, customizable background animations
 - **Vue Router Integration:** Smooth navigation between different sections
 - **Contact Form:** EmailJS-powered contact form for potential employers or clients
 - **AI-Powered Chatbot:** Virtual assistant with markdown rendering and mobile-optimized full-screen mode
@@ -47,13 +46,9 @@ my-portfolio/
 │   │   │   ├── TestimonialsSection.vue # Testimonials carousel
 │   │   │   └── TheHero.vue         # Enhanced hero section
 │   │   └── ui/                 # Reusable UI elements
-│   │       ├── AnimatedBackground.vue # Dynamic background animations
-│   │       ├── CustomCursor.vue    # Custom cursor effect
-│   │       └── ProjectCard.vue     # Project display cards
+│   │       └── CustomCursor.vue    # Custom cursor effect
 │   ├── views/                  # Page components
 │   │   ├── HomePage.vue        # Main landing page
-│   │   ├── AboutPage.vue       # About page
-│   │   ├── ContactPage.vue     # Contact page
 │   │   ├── ProjectDetails.vue  # Project case study page
 │   │   └── NotFound.vue        # 404 page
 │   ├── layouts/                # Layout wrappers
@@ -93,6 +88,7 @@ my-portfolio/
 ## Key Sections
 
 ### Hero Section
+
 - Floating gradient orbs and decorative shapes
 - Animated gradient name with underline effect
 - Tech stack badges (Vue.js, React, TypeScript, etc.)
@@ -101,6 +97,7 @@ my-portfolio/
 - Enhanced CTA buttons with hover effects
 
 ### Experience Timeline
+
 - Scroll-linked vertical timeline that grows as you scroll
 - Glowing timeline nodes with company colors
 - Year badges attached to timeline nodes
@@ -109,12 +106,14 @@ my-portfolio/
 - Mobile-optimized layout with badges above cards
 
 ### Testimonials
+
 - Carousel with auto-play functionality
 - Touch-friendly navigation on mobile
 - LinkedIn integration for recommendations
 - Company badges and author information
 
 ### Chatbot Assistant
+
 - Full-screen mode on mobile devices
 - Markdown rendering (bold, italic, links, lists)
 - Quick question buttons
@@ -125,18 +124,21 @@ my-portfolio/
 ## Setup Instructions
 
 1. **Clone the repository:**
+
    ```bash
    git clone <repository-url>
    cd my-portfolio
    ```
 
 2. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 3. **Set up environment variables:**
    Create a `.env` file in the root directory:
+
    ```
    VUE_APP_EMAILJS_SERVICE_ID=your_emailjs_service_id
    VUE_APP_EMAILJS_TEMPLATE_ID=your_emailjs_template_id
@@ -144,16 +146,20 @@ my-portfolio/
    ```
 
 4. **Set up the API (for chatbot):**
+
    ```bash
    cd my-portfolio-api
    npm install
    ```
+
    Create a `.env` file in the `my-portfolio-api` directory:
+
    ```
    OPENAI_API_KEY=your_openai_api_key
    ```
 
 5. **Run the application:**
+
    ```bash
    npm run serve
    ```
@@ -186,7 +192,7 @@ To customize the chatbot for your own portfolio:
 
 This application can be deployed to various platforms:
 
-- **Vercel (Recommended):** 
+- **Vercel (Recommended):**
   - Frontend: Connect your repository for automatic deployment
   - API: Deploy the `my-portfolio-api` folder as a serverless function
 - **Netlify:** Connect your repository for automatic deployment
@@ -225,5 +231,5 @@ This project is licensed under the MIT License.
 
 Oka - okasputra@gmail.com
 
-GitHub: https://github.com/okasutarto 
+GitHub: https://github.com/okasutarto
 LinkedIn: https://linkedin.com/in/okasutarto

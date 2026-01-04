@@ -60,24 +60,26 @@
           </div>
 
           <div class="p-5">
-            <!-- Project Type Badge -->
-            <div class="mb-2">
-              <span
-                class="inline-block bg-primary/10 text-primary text-xs px-2 py-1 rounded-md border border-primary/20 font-medium">
-                {{ project.type }}
-              </span>
-            </div>
+            <div class="flex items-center justify-between mb-2">
+              <!-- Title & Subtitle -->
+              <h3
+                :ref="
+                  (el) => {
+                    if (el) projectTitles[index] = el;
+                  }
+                "
+                class="text-xl font-bold mb-1 dark:text-white opacity-0 group-hover:text-primary transition-colors duration-300">
+                {{ project.title }}
+              </h3>
 
-            <!-- Title & Subtitle -->
-            <h3
-              :ref="
-                (el) => {
-                  if (el) projectTitles[index] = el;
-                }
-              "
-              class="text-xl font-bold mb-1 dark:text-white opacity-0 group-hover:text-primary transition-colors duration-300">
-              {{ project.title }}
-            </h3>
+              <!-- Project Type Badge -->
+              <div class="mb-2">
+                <span
+                  class="inline-block bg-primary/10 text-primary text-xs px-2 py-1 rounded-md font-medium">
+                  {{ project.type }}
+                </span>
+              </div>
+            </div>
 
             <p
               :ref="

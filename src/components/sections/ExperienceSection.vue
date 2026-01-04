@@ -114,7 +114,7 @@
                   v-for="(tech, techIndex) in experience.technologies"
                   :key="techIndex"
                   class="px-3 py-1 text-xs font-medium rounded-md bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-primary transition-colors">
-                  #{{ tech }}
+                  {{ tech }}
                 </span>
               </div>
             </div>

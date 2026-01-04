@@ -9,7 +9,7 @@
       <div class="text-center">
         <div>
           <p
-            class="text-base md:text-2xl text-gray-600 dark:text-white font-medium mb-4">
+            class="text-base md:text-2xl text-gray-600 dark:text-gray-300 font-medium mb-4">
             Hi there, I'm
           </p>
         </div>
@@ -50,7 +50,7 @@
           <a
             href="#projects"
             @click.prevent="scrollToSection('projects')"
-            class="group relative px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-full shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 min-w-[180px] overflow-hidden">
+            class="group relative px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-full hover:shadow-lg hover:-translate-y-1 transition-all duration-300 min-w-[180px] overflow-hidden">
             <!-- Button sheen effect -->
             <div
               class="absolute inset-0 w-full h-full bg-white/20 skew-x-12 -translate-x-full group-hover:animate-sheen"></div>

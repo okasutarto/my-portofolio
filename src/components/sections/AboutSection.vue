@@ -45,7 +45,7 @@
         </div>
 
         <!-- Content with hero-style animations -->
-        <div class="w-full lg:w-3/5 overflow-hidden" ref="contentSection">
+        <div class="w-full lg:w-3/5 overflow-hidden pl-2" ref="contentSection">
           <h2
             class="text-xl sm:text-4xl font-bold mb-6 text-gray-900 dark:text-gray-50 animation-element"
             ref="headingRef">
@@ -116,12 +116,14 @@
           </div>
 
           <!-- CTA Buttons -->
-          <div class="mt-8 flex flex-wrap gap-4 animation-element" ref="ctaRef">
+          <div
+            class="mt-8 mb-4 flex flex-wrap gap-4 animation-element"
+            ref="ctaRef">
             <a
               href="/OkaSutartoCV.pdf"
               download="OkaSutartoCV.pdf"
               class="px-8 py-3 bg-primary hover:bg-primary/70 dark:hover:bg-primary/70 text-white rounded-xl font-semibold transition-all duration-300 hover:text-gray-100 dark:hover:text-gray-300 hover:shadow-lg hover:-translate-y-1 flex items-center gap-2">
-              <span>Download CV</span>
+              <span>Resume</span>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 class="h-5 w-5"

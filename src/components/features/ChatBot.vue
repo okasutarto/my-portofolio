@@ -4,9 +4,7 @@
     <Transition name="tooltip">
       <div v-if="showTooltip && !isOpen" class="absolute bottom-24 right-0 bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-2xl border-none w-60 backdrop-blur-sm">
         <div class="flex items-center gap-3">
-          <div class="w-12 h-12 rounded-full bg-gray-900 dark:bg-white flex items-center justify-center flex-shrink-0 animate-bounce-slow text-white dark:text-gray-900">
-            <span class="text-xl">🤖</span>
-          </div>
+
           <div>
             <p class="text-sm font-bold text-gray-900 dark:text-white">Hey! Need help? <span class="waving-hand">👋</span></p>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Chat with my assistant</p>
@@ -26,7 +24,7 @@
       <!-- Main Button -->
       <button 
         @click="toggleChat"
-        class="chat-toggle-btn relative group w-14 h-14 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-xl flex items-center justify-center transition-all duration-300 focus:outline-none hover:scale-105"
+        class="chat-toggle-btn relative group w-14 h-14 rounded-full bg-primary text-white shadow-xl flex items-center justify-center transition-all duration-300 focus:outline-none hover:scale-105"
         :class="{ 'animate-float': !isOpen }"
         :aria-label="isOpen ? 'Close chat' : 'Open chat'"
       >
@@ -54,21 +52,21 @@
     <Transition name="chat-window">
       <div 
         v-if="isOpen" 
-        class="fixed sm:absolute bottom-0 sm:bottom-20 right-0 left-0 sm:left-auto w-full sm:w-[380px] h-[85vh] sm:h-[500px] bg-white dark:bg-gray-900 sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col border-none"
+        class="fixed sm:absolute bottom-0 sm:bottom-20 right-0 left-0 sm:left-auto w-full sm:w-[380px] h-[85vh] sm:h-[500px] bg-white dark:bg-gray-800 sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col"
       >
         <!-- Header -->
-        <div class="bg-gray-900 dark:bg-black text-white p-4 flex items-center justify-between">
+        <div class="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white p-4 flex items-center justify-between">
           <div class="flex items-center">
             <div class="relative">
               <div class="w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center mr-3">
-                <span class="text-xl">🤖</span>
+                 <!-- Icon removed for simplicity -->
+                 <span class="text-lg font-bold">AI</span>
               </div>
-              <span class="absolute bottom-0 right-2 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></span>
             </div>
             <div>
               <h3 class="font-semibold">Oka's Assistant</h3>
               <!-- <h3 class="font-semibold">AI Assistant</h3> -->
-              <p class="text-xs text-white/70 flex items-center gap-1">
+              <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                 <span class="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
                 Online • Ready to help
               </p>
@@ -126,9 +124,10 @@
             >
               <!-- Bot Message -->
               <div v-if="message.sender === 'bot'" class="flex items-end gap-2 max-w-[85%]">
-                <div class="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 text-xs text-white">
+                <!-- Robot icon removed -->
+                <!-- <div class="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 text-xs text-white">
                   🤖
-                </div>
+                </div> -->
                 <div class="bot-message bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-2xl rounded-bl-md p-3 text-sm shadow-sm">
                   <div v-html="formatMessageWithLinks(message.text)" class="message-content"></div>
                   <span v-if="message.isTyping" class="typing-cursor"></span>
@@ -138,7 +137,7 @@
                     <div v-if="message.showContactButton" class="flex justify-start animate-fade-in-up mt-2 pb-2">
                         <button 
                           @click="navigateToContact"
-                          class="bg-blue-600 text-white px-4 py-2.5 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 text-sm font-medium"
+                          class="bg-primary text-white px-4 py-2.5 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 text-sm font-medium"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -162,9 +161,10 @@
           <!-- Typing Indicator -->
           <Transition name="message">
             <div v-if="isTyping || isWaitingForResponse" class="flex items-end gap-2">
-              <div class="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 text-xs text-white">
+              <!-- Robot icon removed -->
+              <!-- <div class="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 text-xs text-white">
                 🤖
-              </div>
+              </div> -->
               <div class="bg-white dark:bg-gray-800 rounded-2xl rounded-bl-md p-3 shadow-sm">
                 <div class="flex space-x-1.5">
                   <div class="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style="animation-delay: 0ms"></div>
@@ -393,7 +393,7 @@ export default {
       // Show tooltip after a longer delay (10s) to be less intrusive
       setTimeout(() => {
         showTooltip.value = true;
-      }, 10000);
+      }, 1500);
     });
     
     // Dismiss tooltip

@@ -9,14 +9,14 @@ module.exports = {
     extend: {
       colors: {
         primary: {
-          light: '#6366f1', // indigo-500
-          DEFAULT: '#4f46e5', // indigo-600
-          dark: '#4338ca', // indigo-700
+          light: '#2dd4bf', // teal-400
+          DEFAULT: '#14b8a6', // teal-500
+          dark: '#0d9488', // teal-600
         },
         secondary: {
-          light: '#f43f5e', // rose-500
-          DEFAULT: '#e11d48', // rose-600
-          dark: '#be123c', // rose-700
+          light: '#22d3ee', // cyan-400
+          DEFAULT: '#06b6d4', // cyan-500
+          dark: '#0891b2', // cyan-600
         },
         dark: {
           light: '#334155', // slate-700

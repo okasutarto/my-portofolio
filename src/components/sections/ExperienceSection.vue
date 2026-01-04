@@ -1,178 +1,103 @@
 <template>
-  <section id="experience" class="py-16 md:py-24 overflow-hidden">
-    <div class="container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-      <h2 
-        ref="sectionTitle"
-        class="text-3xl md:text-4xl font-bold mb-16 text-center dark:text-white opacity-0"
-      >
-        Work Experience
-      </h2>
+  <section id="experience" class="py-8 md:py-12 overflow-hidden bg-light dark:bg-dark-dark transition-colors duration-400">
+    <div class="container max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <div class="text-center mb-16 md:mb-24">
+        <h2 
+          ref="sectionTitle"
+          class="text-3xl md:text-5xl font-bold mb-4 text-dark-dark dark:text-light opacity-0"
+        >
+          My Journey
+        </h2>
+        <div class="h-1 w-20 bg-primary mx-auto rounded-full opacity-0" ref="titleUnderline"></div>
+      </div>
 
-      <!-- Timeline Container -->
-      <div class="relative">
-        <!-- Vertical Timeline Line - Standout Design -->
+      <!-- Minimalist Timeline Container -->
+      <div class="relative pl-8 md:pl-0">
+        <!-- Vertical Hairline - Absolute center on desktop, left aligned on mobile -->
         <div 
           ref="timelineLine"
-          class="timeline-line absolute left-6 md:left-1/2 md:-translate-x-1/2 top-0 bottom-0 w-1 rounded-full opacity-0"
-        >
-          <!-- Glowing effect behind the line -->
-          <!-- Solid line color -->
-          <div class="absolute inset-0 w-1 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
-        </div>
+          class="absolute left-8 md:left-1/2 md:-translate-x-px top-2 bottom-0 w-px bg-gray-200 dark:bg-gray-800 origin-top opacity-0"
+        ></div>
+        <!-- End Dot -->
+        <div 
+          ref="timelineEndDot"
+          class="absolute left-8 -translate-x-1/2 md:left-1/2 bottom-0 w-3 h-3 rounded-full bg-gray-200 dark:bg-gray-800 border-4 border-white dark:border-dark-dark transform translate-y-1/2 opacity-0"
+        ></div>
 
         <!-- Experience Items -->
-        <div class="space-y-0">
+        <div class="space-y-12 md:space-y-24">
           <div 
             v-for="(experience, index) in experiences" 
             :key="experience.id"
             :ref="el => { if(el) experienceCards[index] = el }"
-            class="relative flex items-stretch opacity-0"
+            class="relative flex flex-col md:flex-row items-start opacity-0"
             :class="index % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'"
           >
-            <!-- Timeline Node - Enhanced Design -->
-            <div class="absolute left-6 md:left-1/2 -translate-x-1/2 flex flex-col items-center z-20">
-              <!-- Outer ring with glow -->
-              <div 
-                class="timeline-node relative"
-                :ref="el => { if(el) timelineDots[index] = el }"
-              >
-                <!-- Animated pulse ring -->
-                <div 
-                  class="absolute inset-0 rounded-full bg-white/10 dark:bg-primary/40"
-                  :class="{ 'animate-ping-slow': experience.current }"
-                ></div>
-                <!-- Outer decorative ring -->
-                <div class="w-12 h-12 rounded-full border-4 border-primary/30 dark:border-primary/30 bg-white dark:bg-gray-900 flex items-center justify-center shadow-lg shadow-primary/20">
-                  <!-- Inner colored dot -->
-                  <div 
-                    class="w-6 h-6 rounded-full shadow-inner flex items-center justify-center"
-                    :style="{ background: experience.color }"
-                  >
-                    <!-- Icon or number -->
-                    <span class="text-white text-xs font-bold">{{ experiences.length - index }}</span>
-                  </div>
-                </div>
-                <!-- Year badge attached to node - hidden on mobile, shown on desktop -->
-                <div 
-                  class="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap hidden md:block"
-                >
-                  <span class="px-3 py-1 text-xs font-bold rounded-full bg-primary text-white shadow-lg">
-                    {{ experience.period}}
-                  </span>
-                </div>
+            <!-- Timeline Dot - Minimalist Bullseye -->
+            <div 
+              class="absolute left-0 -translate-x-1/2 md:left-1/2 mt-1 md:mt-1.5 z-20"
+              :ref="el => { if(el) timelineDots[index] = el }"
+            >
+              <div class="relative w-4 h-4 flex items-center justify-center">
+                 <div class="w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-white dark:ring-gray-800 transition-all duration-500 hover:scale-125"></div>
               </div>
             </div>
 
-            <!-- Content Card - Enhanced -->
+            <!-- Date/Period - Displayed on opposite side on desktop, next to title on mobile -->
             <div 
-              class="ml-20 md:ml-0 md:w-[calc(50%-4rem)] mt-2 mb-16 group"
-              :class="index % 2 === 0 ? 'md:mr-auto md:pr-6' : 'md:ml-auto md:pl-6'"
+              class="hidden md:block w-1/2 pt-0.5"
+              :class="index % 2 === 0 ? 'text-right pr-12' : 'text-left pl-12'"
             >
-              <!-- Year badge - shown on mobile at top of card -->
-              <div class="md:hidden mb-3">
-                <span class="px-3 py-1 text-xs font-bold rounded-full bg-primary text-white shadow-lg">
-                  {{ experience.period }}
-                </span>
-              </div>
-              
-              <div class="relative p-6 bg-white dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 overflow-hidden">
-                <!-- Decorative gradient border on hover -->
-                <!-- Decorative border on hover - Solid color -->
-                <div class="absolute inset-0 rounded-2xl border-2 border-primary/0 group-hover:border-primary/10 transition-colors duration-500 pointer-events-none"></div>
+              <span class="text-sm font-semibold text-primary tracking-wide uppercase">{{ experience.period }}</span>
+            </div>
 
-                <div class="relative">
-                  <!-- Company & Role Header -->
-                  <div class="flex items-center gap-4 mb-4">
-                    <!-- Company Logo with hover effect -->
-                    <div 
-                      class="flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden shadow-lg ring-2 ring-white dark:ring-gray-700 group-hover:ring-primary/50 transition-all duration-300 transform group-hover:scale-105"
-                      :style="{ background: experience.color }"
-                    >
-                      <img 
-                        v-if="experience.logo" 
-                        :src="experience.logo" 
-                        :alt="experience.company + ' logo'"
-                        class="w-full h-full object-cover"
-                      >
-                      <div 
-                        v-else 
-                        class="w-full h-full flex items-center justify-center text-white text-lg font-bold"
-                      >
-                        {{ experience.companyInitial }}
-                      </div>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                      <h3 class="text-md font-bold text-gray-900 dark:text-white group-hover:text-primary dark:group-hover:text-primary-light transition-colors">
-                        {{ experience.role }}
-                      </h3>
-                      <a 
-                        v-if="experience.companyUrl" 
-                        :href="experience.companyUrl" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        class="text-sm text-primary dark:text-primary-light font-semibold hover:underline inline-flex items-center gap-1"
-                      >
-                        {{ experience.company }}
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                      </a>
-                      <p v-else class="text-sm text-gray-600 dark:text-gray-400 font-semibold">
-                        {{ experience.company }}
-                      </p>
-                      <p class="text-xs text-gray-500 dark:text-gray-500 flex items-center gap-1.5 mt-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        {{ experience.location }}
-                      </p>
-                    </div>
-                  </div>
+            <!-- Content Card - Clean & Minimal -->
+            <div 
+              class="w-full md:w-1/2 pl-8 md:pl-0"
+              :class="index % 2 === 0 ? 'md:pl-12' : 'md:pr-12'"
+            >
+              <div class="relative group">
+                <!-- Mobile Date -->
+                <span class="md:hidden block text-xs font-bold text-primary mb-2 uppercase tracking-wide">{{ experience.period }}</span>
+                
+                <h3 class="text-xl md:text-2xl font-bold text-dark-dark dark:text-light mb-1">{{ experience.role }}</h3>
+                
+                <div class="flex items-center gap-2 mb-4">
+                  <span class="text-lg text-gray-600 dark:text-gray-400 font-medium">{{ experience.company }}</span>
+                  <span class="text-gray-300 dark:text-gray-600">•</span>
+                  <span class="text-sm text-gray-500 dark:text-gray-500">{{ experience.location }}</span>
+                </div>
 
-                  <!-- Description -->
-                  <p class="text-sm text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">
-                    {{ experience.description }}
-                  </p>
+                <p class="text-gray-600 dark:text-gray-300 mb-6 leading-relaxed">
+                  {{ experience.description }}
+                </p>
 
-                  <!-- Achievements with better styling -->
-                  <div v-if="experience.achievements.length" class="mb-4 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl">
-                    <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Key Achievements</h4>
-                    <ul class="space-y-2">
-                      <li 
-                        v-for="(achievement, achieveIndex) in experience.achievements" 
-                        :key="achieveIndex"
-                        class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                        </svg>
-                        <span>{{ achievement }}</span>
-                      </li>
-                    </ul>
-                  </div>
+                <!-- Minimalist Achievements -->
+                <ul v-if="experience.achievements.length" class="space-y-3 mb-6">
+                  <li 
+                    v-for="(achievement, achieveIndex) in experience.achievements" 
+                    :key="achieveIndex"
+                    class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-300 group/item"
+                  >
+                    <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary group-hover/item:bg-primary transition-colors"></span>
+                    <span class="flex-1">{{ achievement }}</span>
+                  </li>
+                </ul>
 
-                  <!-- Tech Stack - Enhanced pills -->
-                  <div class="flex flex-wrap gap-2">
-                    <span 
-                      v-for="(tech, techIndex) in experience.technologies" 
-                      :key="techIndex"
-                      class="px-2.5 py-1 text-xs font-medium rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors cursor-default"
-                    >
-                      {{ tech }}
-                    </span>
-                  </div>
+                <!-- Tags - Clean Pills -->
+                <div class="flex flex-wrap gap-2">
+                  <span 
+                    v-for="(tech, techIndex) in experience.technologies" 
+                    :key="techIndex"
+                    class="px-3 py-1 text-xs font-medium rounded-full bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-transparent hover:border-primary/20 transition-colors"
+                  >
+                    {{ tech }}
+                  </span>
                 </div>
               </div>
             </div>
           </div>
         </div>
-
-        <!-- Timeline End Cap -->
-        <div 
-          ref="timelineEnd"
-          class="absolute left-6 md:left-1/2 -translate-x-1/2 -bottom-4 w-4 h-4 rounded-full bg-primary shadow-lg opacity-0"
-        ></div>
       </div>
     </div>
   </section>
@@ -194,13 +119,14 @@ export default {
   name: 'ExperienceSection',
   setup() {
     const sectionTitle = ref(null);
+    const titleUnderline = ref(null);
     const timelineLine = ref(null);
-    const timelineEnd = ref(null);
+    const timelineEndDot = ref(null);
     const experienceCards = reactive([]);
     const timelineDots = reactive([]);
     const animations = [];
 
-    // Experience data - Your actual experience
+    // Experience data
     const experiences = reactive([
       {
         id: 1,
@@ -268,28 +194,27 @@ export default {
     ]);
 
     onMounted(() => {
-      // Title animation
+      // Clean previous animations
+      animations.forEach(anim => anim.kill());
+
+      // Title & Underline
       animations.push(
-        gsap.fromTo(sectionTitle.value,
-          { opacity: 0, y: -30 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.8,
-            ease: 'power2.out',
-            scrollTrigger: {
-              trigger: sectionTitle.value,
-              start: 'top 80%',
-              toggleActions: 'play none none reverse'
-            }
+        gsap.to([sectionTitle.value, titleUnderline.value], {
+          opacity: 1,
+          y: 0,
+          duration: 1,
+          stagger: 0.2,
+          ease: 'power3.out',
+          scrollTrigger: {
+            trigger: sectionTitle.value,
+            start: 'top 80%',
+            toggleActions: 'play none none reverse'
           }
-        )
+        })
       );
 
-      // Timeline line animation - grows progressively as you scroll through experiences
-      // Set initial state
-      gsap.set(timelineLine.value, { opacity: 1, scaleY: 0, transformOrigin: 'top' });
-      
+      // Hairline drawing animation
+      gsap.set(timelineLine.value, { scaleY: 0, opacity: 1 });
       animations.push(
         gsap.to(timelineLine.value, {
           scaleY: 1,
@@ -297,73 +222,67 @@ export default {
           scrollTrigger: {
             trigger: '#experience',
             start: 'top 60%',
-            end: 'bottom 70%',
-            scrub: 0.5, // Smooth scrubbing tied to scroll position
+            end: 'bottom 80%',
+            scrub: 1
           }
         })
       );
 
-      // Timeline end cap animation - appears when line reaches the end
-      if (timelineEnd.value) {
-        animations.push(
-          gsap.fromTo(timelineEnd.value,
-            { opacity: 0, scale: 0 },
-            {
-              opacity: 1,
-              scale: 1,
-              duration: 0.5,
-              ease: 'back.out(1.7)',
-              scrollTrigger: {
-                trigger: timelineEnd.value,
-                start: 'top 85%',
-                toggleActions: 'play none none reverse'
-              }
+      // End dot animation
+      animations.push(
+        gsap.fromTo(timelineEndDot.value,
+          { scale: 0, opacity: 0 },
+          {
+            scale: 1,
+            opacity: 1,
+            scrollTrigger: {
+              trigger: '#experience',
+              start: 'bottom 85%', // Appear near the end
+              end: 'bottom 80%',
+              scrub: 1
             }
-          )
-        );
-      }
+          }
+        )
+      );
 
-      // Experience cards staggered animation
+      // Staggered Items Animation
       experienceCards.forEach((card, index) => {
-        const isEven = index % 2 === 0;
+        const dot = timelineDots[index];
+        
+        // Card fade up
         animations.push(
           gsap.fromTo(card,
-            { 
-              opacity: 0, 
-              x: isEven ? -60 : 60,
-              y: 30
-            },
+            { opacity: 0, y: 50 },
             {
               opacity: 1,
-              x: 0,
               y: 0,
-              duration: 0.9,
+              duration: 1,
               ease: 'power3.out',
               scrollTrigger: {
                 trigger: card,
                 start: 'top 85%',
-                toggleActions: 'play none none reverse'
+                end: 'top 65%',
+                scrub: 1
               }
             }
           )
         );
-      });
 
-      // Timeline dots animation with bounce effect - appears just before their card
-      timelineDots.forEach((dot, index) => {
+        // Dot scale in
         animations.push(
           gsap.fromTo(dot,
-            { scale: 0, opacity: 0, rotation: -180 },
+            { scale: 0, opacity: 0 },
             {
               scale: 1,
               opacity: 1,
-              rotation: 0,
-              duration: 0.6,
+              duration: 0.5,
+              delay: 0.2, // Slight delay after card starts
               ease: 'back.out(2)',
               scrollTrigger: {
-                trigger: experienceCards[index] || dot,
-                start: 'top 90%',
-                toggleActions: 'play none none reverse'
+                trigger: card,
+                start: 'top 85%',
+                end: 'top 70%',
+                scrub: 1
               }
             }
           )
@@ -373,17 +292,16 @@ export default {
 
     onUnmounted(() => {
       animations.forEach(animation => {
-        if (animation.scrollTrigger) {
-          animation.scrollTrigger.kill();
-        }
+        if (animation.scrollTrigger) animation.scrollTrigger.kill();
         animation.kill();
       });
     });
 
     return {
       sectionTitle,
+      titleUnderline,
       timelineLine,
-      timelineEnd,
+      timelineEndDot,
       experienceCards,
       timelineDots,
       experiences
@@ -393,53 +311,9 @@ export default {
 </script>
 
 <style scoped>
-/* Timeline line glow effect */
-.timeline-line {
-  filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.3));
-}
-
-/* Connector line glow effect */
-.connector-line {
-  filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.3));
-}
-
-/* Slow ping animation for current role */
-@keyframes ping-slow {
-  0% {
-    transform: scale(1);
-    opacity: 0.8;
-  }
-  50% {
-    transform: scale(1.5);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 0;
-  }
-}
-
-.animate-ping-slow {
-  animation: ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-
-/* Timeline node hover effect */
-.timeline-node {
-  transition: transform 0.3s ease;
-}
-
-.timeline-node:hover {
-  transform: scale(1.1);
-}
-
-/* Card hover lift effect */
-.group:hover .relative {
-  transform: translateY(-4px);
-  transition: transform 0.3s ease;
-}
-
-/* Accent colors for dark mode */
-:deep(.dark) .timeline-line {
-  filter: drop-shadow(0 0 12px rgba(96, 165, 250, 0.4));
+/* Ensure clean typography rendering */
+h2, h3, p, span {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 </style>

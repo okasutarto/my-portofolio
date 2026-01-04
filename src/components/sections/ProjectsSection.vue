@@ -3,8 +3,10 @@
     <div class="container mx-auto px-4 relative z-10">
       <h2 
         ref="sectionTitle"
-        class="text-3xl md:text-4xl font-bold mb-16 text-center dark:text-white opacity-0"
+        class="text-3xl md:text-4xl font-bold mb-4 text-center dark:text-white opacity-0"
       >My Projects</h2>
+      <div class="h-1 w-20 bg-primary mx-auto rounded-full mb-16 opacity-0" ref="titleUnderline"></div>
+      
       
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div
@@ -135,6 +137,7 @@ export default {
   setup() {
     // Element refs for animations
     const sectionTitle = ref(null);
+    const titleUnderline = ref(null);
     const sectionSubtitle = ref(null);
     const filterTabs = ref(null);
     const projectCards = reactive([]);
@@ -153,21 +156,24 @@ export default {
     onMounted(() => {
       // Section title animation
       animations.push(
-        gsap.fromTo(sectionTitle.value,
-          { opacity: 0, y: -30 },
-          { 
-            opacity: 1, 
-            y: 0, 
-            duration: 0.8,
-            ease: 'power2.out',
-            scrollTrigger: {
-              trigger: sectionTitle.value,
-              start: 'top 65%',
-              toggleActions: 'play none none reverse'
-            }
+        gsap.to([sectionTitle.value, titleUnderline.value], {
+          opacity: 1,
+          y: 0,
+          duration: 1,
+          stagger: 0.2,
+          ease: 'power3.out',
+          scrollTrigger: {
+            trigger: sectionTitle.value,
+            start: 'top 80%',
+            toggleActions: 'play none none reverse'
           }
-        )
+        })
       );
+      
+      // Initial set for underline
+      if (titleUnderline.value) {
+        gsap.set(titleUnderline.value, { y: 20 });
+      }
       
       // Project cards staggered reveal
       projectCards.forEach((card, index) => {
@@ -304,6 +310,7 @@ export default {
 
     return {
       sectionTitle,
+      titleUnderline,
       sectionSubtitle,
       filterTabs,
       projectCards,

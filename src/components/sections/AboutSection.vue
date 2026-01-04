@@ -1,5 +1,5 @@
 <template>
-  <section id="about" class="sm:py-16 md:py-20 overflow-hidden flex items-center">
+  <section id="about" class="py-8 md:py-12 transition-colors duration-300 relative overflow-hidden flex items-center">
     <div class="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
       <div class="flex flex-col lg:flex-row items-center gap-8 sm:gap-10 md:gap-12 lg:gap-16">
         <!-- Profile image with rotating ring design -->

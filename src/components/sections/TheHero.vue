@@ -1,5 +1,5 @@
 <template>
-  <section class="relative min-h-screen flex items-center justify-center overflow-hidden">
+  <section class="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 md:pt-0">
     <!-- Floating decorative elements -->
     <!-- Floating decorative elements removed for minimalist design -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none">
@@ -16,7 +16,7 @@
           <span class="relative inline-block">
             Oka Sutarto Putra
             <!-- Subtle underline decoration -->
-            <span class="absolute -bottom-2 left-0 w-full h-1 bg-gray-900 dark:bg-white transform scale-x-0 animate-scale-x origin-left"></span>
+            <span class="absolute -bottom-2 left-0 w-full h-1 bg-gray-900 dark:bg-white transform scale-x-0 animate-scale-x origin-left text"></span>
           </span>
         </h1>
         
@@ -35,9 +35,9 @@
         
         <!-- Description with better styling -->
         <p class="max-w-xl mx-auto text-gray-600 dark:text-gray-400 mb-10 text-lg leading-relaxed animate-fade-in animation-delay-400 font-light">
-          I craft <span class="text-gray-900 dark:text-white font-semibold">modern</span>, 
-          <span class="text-gray-900 dark:text-white font-semibold">responsive</span> web applications with a focus on 
-          <span class="text-gray-900 dark:text-white font-semibold">user experience</span> and clean code.
+          I craft <span class="text-primary font-semibold">modern</span>, 
+          <span class="text-primary font-semibold">responsive</span> web applications with a focus on 
+          <span class="text-primary font-semibold">user experience</span> and clean code.
         </p>
         
         <!-- Enhanced CTA buttons - Minimalist -->
@@ -82,7 +82,7 @@
         </div>
 
         <!-- Social links -->
-        <div class="flex justify-center gap-6 mt-12 animate-fade-in animation-delay-700">
+        <div class="flex justify-center gap-6 mt-12 animate-fade-in animation-delay-700 mb-16 md:mb-0">
           <a 
             v-for="social in socials" 
             :key="social.name"
@@ -102,7 +102,7 @@
     <a 
       href="#about" 
       @click.prevent="scrollToSection('about')"
-      class="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors z-10 group"
+      class="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors z-10 group md:bottom-8"
     >
       <span class="text-sm mb-2 opacity-70 group-hover:opacity-100 transition-opacity">Scroll Down</span>
       <div class="w-6 h-10 rounded-full border-2 border-current flex justify-center pt-2">

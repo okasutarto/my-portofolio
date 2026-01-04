@@ -1,7 +1,8 @@
 <template>
-  <section id="contact" class="relative py-16 overflow-hidden">
+  <section id="contact" class="relative py-8 md:py-12 overflow-hidden">
     <div class="container mx-auto px-4 relative z-10">
-      <h2 ref="sectionTitle" class="text-3xl font-bold mb-8 text-center dark:text-white opacity-0">Get In Touch</h2>
+      <h2 ref="sectionTitle" class="text-3xl font-bold mb-4 text-center dark:text-white opacity-0">Get In Touch</h2>
+      <div class="h-1 w-20 bg-primary mx-auto rounded-full mb-12 opacity-0" ref="titleUnderline"></div>
       
       <!-- Form status messages -->
       <div v-if="submitStatus === 'success'" class="max-w-2xl mx-auto mb-6 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded" role="alert">
@@ -87,6 +88,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 // Element refs
 const sectionTitle = ref(null);
+const titleUnderline = ref(null);
 const contactForm = ref(null);
 const nameField = ref(null);
 const emailField = ref(null);
@@ -225,22 +227,26 @@ const submitForm = async () => {
 // Initialize animations
 const initAnimations = () => {
   // Section title animation
+  // Section title and underline animation
   animations.push(
-    gsap.fromTo(sectionTitle.value,
-      { opacity: 0, y: -30 },
-      { 
-        opacity: 1, 
-        y: 0, 
-        duration: 0.8,
-        ease: 'power2.out',
-        scrollTrigger: {
-          trigger: '#contact',
-          start: 'top 60%',
-          toggleActions: 'play none none reverse'
-        }
+    gsap.to([sectionTitle.value, titleUnderline.value], {
+      opacity: 1,
+      y: 0,
+      duration: 1,
+      stagger: 0.2,
+      ease: 'power3.out',
+      scrollTrigger: {
+        trigger: '#contact',
+        start: 'top 60%',
+        toggleActions: 'play none none reverse'
       }
-    )
+    })
   );
+
+  // Initial set for underline
+  if (titleUnderline.value) {
+    gsap.set(titleUnderline.value, { y: 20 });
+  }
   
   // Form container reveal
   animations.push(

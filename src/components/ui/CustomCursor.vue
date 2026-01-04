@@ -160,7 +160,7 @@ onUnmounted(() => {
   left: -4px;
   width: 8px;
   height: 8px;
-  background: var(--color-primary, #3b82f6);
+  background: #14b8a6; /* Teal-500 */
   border-radius: 50%;
   pointer-events: none;
   z-index: 10001;
@@ -173,7 +173,7 @@ onUnmounted(() => {
   left: -20px;
   width: 40px;
   height: 40px;
-  border: 2px solid rgba(59, 130, 246, 0.5);
+  border: 2px solid rgba(20, 184, 166, 0.5); /* Teal */
   border-radius: 50%;
   pointer-events: none;
   z-index: 10000;
@@ -194,8 +194,8 @@ onUnmounted(() => {
   height: 60px;
   top: -30px;
   left: -30px;
-  border-color: rgba(139, 92, 246, 0.6);
-  background-color: rgba(139, 92, 246, 0.1);
+  border-color: rgba(45, 212, 191, 0.6); /* Teal-400 */
+  background-color: rgba(20, 184, 166, 0.1);
 }
 
 /* Click state */
@@ -211,16 +211,16 @@ onUnmounted(() => {
   height: 30px;
   top: -15px;
   left: -15px;
-  border-color: rgba(59, 130, 246, 0.8);
+  border-color: rgba(20, 184, 166, 0.8);
 }
 
 /* Dark mode adjustments */
 :global(.dark) .cursor-ring {
-  border-color: rgba(139, 92, 246, 0.5);
+  border-color: rgba(45, 212, 191, 0.5); /* Teal-400 */
 }
 
 :global(.dark) .cursor-ring.cursor-hover {
-  border-color: rgba(139, 92, 246, 0.7);
-  background-color: rgba(139, 92, 246, 0.15);
+  border-color: rgba(45, 212, 191, 0.7);
+  background-color: rgba(45, 212, 191, 0.15);
 }
 </style>

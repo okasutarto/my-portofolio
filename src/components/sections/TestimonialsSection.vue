@@ -1,5 +1,5 @@
 <template>
-  <section id="testimonials" class="py-16 md:py-20 overflow-hidden">
+  <section id="testimonials" class="py-8 md:py-12 overflow-hidden transition-colors duration-300">
     <div class="container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
       <h2 
         ref="sectionTitle"
@@ -7,12 +7,7 @@
       >
         What People Say
       </h2>
-      <p 
-        ref="sectionSubtitle"
-        class="text-gray-700 dark:text-gray-300 text-center mb-12 max-w-2xl mx-auto opacity-0"
-      >
-        Recommendations from colleagues I've had the pleasure of working with
-      </p>
+      <div class="h-1 w-20 bg-primary mx-auto rounded-full mb-12 opacity-0" ref="titleUnderline"></div>
 
       <!-- Testimonials Carousel -->
       <div class="relative">
@@ -157,6 +152,7 @@ export default {
   name: 'TestimonialsSection',
   setup() {
     const sectionTitle = ref(null);
+    const titleUnderline = ref(null);
     const sectionSubtitle = ref(null);
     const carouselContainer = ref(null);
     const testimonialCards = reactive([]);
@@ -221,23 +217,26 @@ export default {
     };
 
     onMounted(() => {
-      // Title animation
+      // Title and Underline Animation
       animations.push(
-        gsap.fromTo(sectionTitle.value,
-          { opacity: 0, y: -30 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.8,
-            ease: 'power2.out',
-            scrollTrigger: {
-              trigger: sectionTitle.value,
-              start: 'top 80%',
-              toggleActions: 'play none none reverse'
-            }
+        gsap.to([sectionTitle.value, titleUnderline.value], {
+          opacity: 1,
+          y: 0,
+          duration: 1,
+          stagger: 0.2,
+          ease: 'power3.out',
+          scrollTrigger: {
+            trigger: sectionTitle.value,
+            start: 'top 80%',
+            toggleActions: 'play none none reverse'
           }
-        )
+        })
       );
+
+      // Initial set for underline
+      if (titleUnderline.value) {
+        gsap.set(titleUnderline.value, { y: 20 });
+      }
 
       // Subtitle animation
       animations.push(
@@ -296,6 +295,7 @@ export default {
 
     return {
       sectionTitle,
+      titleUnderline,
       sectionSubtitle,
       carouselContainer,
       testimonialCards,

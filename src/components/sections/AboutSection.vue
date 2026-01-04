@@ -120,7 +120,7 @@
             <a
               href="/OkaSutartoCV.pdf"
               download="OkaSutartoCV.pdf"
-              class="px-8 py-3 bg-primary hover:bg-primary/70 dark:hover:bg-primary/70 text-text-white rounded-xl font-semibold transition-all duration-300 hover:text-gray-900 dark:hover:text-gray-300 hover:shadow-lg hover:-translate-y-1 flex items-center gap-2">
+              class="px-8 py-3 bg-primary hover:bg-primary/70 dark:hover:bg-primary/70 text-white rounded-xl font-semibold transition-all duration-300 hover:text-gray-100 dark:hover:text-gray-300 hover:shadow-lg hover:-translate-y-1 flex items-center gap-2">
               <span>Download CV</span>
               <svg
                 xmlns="http://www.w3.org/2000/svg"

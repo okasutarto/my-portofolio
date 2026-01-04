@@ -419,7 +419,7 @@ const scrollToSection = async (sectionId) => {
 
 // Typewriter effect
 const displayedText = ref("");
-const roles = ["Full Stack Developer", "UI/UX Enthusiast", "Problem Solver"];
+const roles = ["Full Stack Developer", "AI Enthusiast", "Problem Solver"];
 let currentRoleIndex = 0;
 let currentCharIndex = 0;
 let isDeleting = false;

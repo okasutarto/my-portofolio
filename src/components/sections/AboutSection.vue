@@ -109,7 +109,9 @@
                     if (el) skillElements[index] = el;
                   }
                 ">
-                <span v-html="skill.icon" class="flex items-center"></span>
+                <span
+                  v-html="skill.icon"
+                  class="flex items-center w-3 h-3 sm:w-4 sm:h-4 text-xs sm:text-base" />
                 <span>{{ skill.name }}</span>
               </span>
             </div>

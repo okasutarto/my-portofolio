@@ -16,8 +16,8 @@
           class="timeline-line absolute left-6 md:left-1/2 md:-translate-x-1/2 top-0 bottom-0 w-1 rounded-full opacity-0"
         >
           <!-- Glowing effect behind the line -->
-          <div class="absolute inset-0 w-1 bg-gradient-to-b from-primary via-secondary to-accent rounded-full blur-sm"></div>
-          <div class="absolute inset-0 w-1 bg-gradient-to-b from-primary via-secondary to-accent rounded-full"></div>
+          <!-- Solid line color -->
+          <div class="absolute inset-0 w-1 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
         </div>
 
         <!-- Experience Items -->
@@ -56,7 +56,7 @@
                 <div 
                   class="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap hidden md:block"
                 >
-                  <span class="px-3 py-1 text-xs font-bold rounded-full bg-gradient-to-r from-primary to-secondary text-white shadow-lg">
+                  <span class="px-3 py-1 text-xs font-bold rounded-full bg-primary text-white shadow-lg">
                     {{ experience.period}}
                   </span>
                 </div>
@@ -70,14 +70,15 @@
             >
               <!-- Year badge - shown on mobile at top of card -->
               <div class="md:hidden mb-3">
-                <span class="px-3 py-1 text-xs font-bold rounded-full bg-gradient-to-r from-primary to-secondary text-white shadow-lg">
+                <span class="px-3 py-1 text-xs font-bold rounded-full bg-primary text-white shadow-lg">
                   {{ experience.period }}
                 </span>
               </div>
               
               <div class="relative p-6 bg-white dark:bg-gray-800/90 backdrop-blur-sm rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 overflow-hidden">
                 <!-- Decorative gradient border on hover -->
-                <div class="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <!-- Decorative border on hover - Solid color -->
+                <div class="absolute inset-0 rounded-2xl border-2 border-primary/0 group-hover:border-primary/10 transition-colors duration-500 pointer-events-none"></div>
 
                 <div class="relative">
                   <!-- Company & Role Header -->
@@ -156,7 +157,7 @@
                     <span 
                       v-for="(tech, techIndex) in experience.technologies" 
                       :key="techIndex"
-                      class="px-2.5 py-1 text-xs font-medium rounded-lg bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-700 dark:to-gray-600 text-gray-700 dark:text-gray-200 transition-colors cursor-default"
+                      class="px-2.5 py-1 text-xs font-medium rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors cursor-default"
                     >
                       {{ tech }}
                     </span>
@@ -170,7 +171,7 @@
         <!-- Timeline End Cap -->
         <div 
           ref="timelineEnd"
-          class="absolute left-6 md:left-1/2 -translate-x-1/2 -bottom-4 w-4 h-4 rounded-full bg-gradient-to-br from-primary to-secondary shadow-lg opacity-0"
+          class="absolute left-6 md:left-1/2 -translate-x-1/2 -bottom-4 w-4 h-4 rounded-full bg-primary shadow-lg opacity-0"
         ></div>
       </div>
     </div>

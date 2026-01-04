@@ -216,7 +216,7 @@
       </section> -->
 
       <!-- Results/Impact Section -->
-      <section v-if="project.results" class="py-16 bg-gradient-to-br from-primary to-secondary text-white">
+      <section v-if="project.results" class="py-16 bg-gray-900 text-white">
         <div class="container max-w-4xl mx-auto px-4 text-center">
           <h2 class="text-2xl font-bold mb-12">{{ project.results.title }}</h2>
           <div class="grid grid-cols-3 gap-8">

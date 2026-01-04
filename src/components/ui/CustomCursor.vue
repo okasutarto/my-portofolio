@@ -160,7 +160,7 @@ onUnmounted(() => {
   left: -4px;
   width: 8px;
   height: 8px;
-  background: linear-gradient(135deg, var(--color-primary, #3b82f6) 0%, var(--color-secondary, #8b5cf6) 100%);
+  background: var(--color-primary, #3b82f6);
   border-radius: 50%;
   pointer-events: none;
   z-index: 10001;

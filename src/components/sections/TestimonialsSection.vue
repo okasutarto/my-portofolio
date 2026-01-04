@@ -171,7 +171,7 @@ export default {
         initials: 'RF',
         role: 'Senior Frontend Engineer',
         company: 'Jublia',
-        avatarColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        avatarColor: '#5b21b6', // Solid deep purple
         linkedIn: 'https://www.linkedin.com/in/rakishfrisky/',
         text: `Oka is one of our core team members and works with Vue 3 on a daily basis. He adapts quickly to new challenges and handles problems efficiently as they come up in our projects. One thing I really appreciate about him is his curiosity and eagerness to keep learning.
         I've worked closely with Oka since his first day on the team, and over time I've seen him grow into a truly product-minded engineer. If you're looking for someone with strong frontend skills, a solid product perspective, and a positive attitude that adds energy to the team, I would highly recommend Oka for the role.`
@@ -182,7 +182,7 @@ export default {
         initials: 'IA',
         role: 'Engineering Manager',
         company: 'Jublia',
-        avatarColor: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+        avatarColor: '#10b981', // Solid emerald green
         linkedIn: 'https://www.linkedin.com/in/irafun/',
         text: `Oka is a highly initiative Frontend Engineer who consistently demonstrates strong curiosity and a genuine drive to learn. Although his primary scope is Vue-based development at Jublia, he proactively expands beyond his core responsibilities, taking on Angular work and contributing to our microfrontend efforts with a growth mindset and strong ownership.
 

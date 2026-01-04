@@ -4,12 +4,12 @@
     <Transition name="tooltip">
       <div v-if="showTooltip && !isOpen" class="absolute bottom-24 right-0 bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-2xl border-none w-60 backdrop-blur-sm">
         <div class="flex items-center gap-3">
-          <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 animate-bounce-slow">
+          <div class="w-12 h-12 rounded-full bg-gray-900 dark:bg-white flex items-center justify-center flex-shrink-0 animate-bounce-slow text-white dark:text-gray-900">
             <span class="text-xl">🤖</span>
           </div>
           <div>
             <p class="text-sm font-bold text-gray-900 dark:text-white">Hey! Need help? <span class="waving-hand">👋</span></p>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Chat with my AI assistant!</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Chat with my assistant</p>
           </div>
         </div>
         <div class="absolute -bottom-2 right-10 w-4 h-4 bg-white dark:bg-gray-800 rotate-45"></div>
@@ -21,18 +21,12 @@
       </div>
     </Transition>
 
-    <!-- Floating Chat Toggle Button with Effects -->
+    <!-- Floating Chat Toggle Button with Minimalist Design -->
     <div class="relative">
-      <!-- Animated gradient ring -->
-      <div v-if="!isOpen" class="absolute inset-0 w-16 h-16 -m-1 rounded-full bg-gradient-conic animate-spin-slow opacity-70 blur-sm"></div>
-      
-      <!-- Glow effect -->
-      <div v-if="!isOpen" class="absolute inset-0 w-14 h-14 rounded-full bg-primary/50 blur-xl animate-glow"></div>
-      
       <!-- Main Button -->
       <button 
         @click="toggleChat"
-        class="chat-toggle-btn relative group w-14 h-14 rounded-full bg-gradient-to-br from-primary via-secondary to-primary bg-size-200 animate-gradient text-white shadow-2xl flex items-center justify-center transition-all duration-300 focus:outline-none hover:shadow-primary/50 hover:shadow-2xl"
+        class="chat-toggle-btn relative group w-14 h-14 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-xl flex items-center justify-center transition-all duration-300 focus:outline-none hover:scale-105"
         :class="{ 'animate-float': !isOpen }"
         :aria-label="isOpen ? 'Close chat' : 'Open chat'"
       >
@@ -63,7 +57,7 @@
         class="fixed sm:absolute bottom-0 sm:bottom-20 right-0 left-0 sm:left-auto w-full sm:w-[380px] h-[85vh] sm:h-[500px] bg-white dark:bg-gray-900 sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden flex flex-col border-none"
       >
         <!-- Header -->
-        <div class="bg-gradient-to-r from-primary to-secondary text-white p-4 flex items-center justify-between">
+        <div class="bg-gray-900 dark:bg-black text-white p-4 flex items-center justify-between">
           <div class="flex items-center">
             <div class="relative">
               <div class="w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center mr-3">
@@ -132,7 +126,7 @@
             >
               <!-- Bot Message -->
               <div v-if="message.sender === 'bot'" class="flex items-end gap-2 max-w-[85%]">
-                <div class="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 text-xs">
+                <div class="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 text-xs text-white">
                   🤖
                 </div>
                 <div class="bot-message bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-2xl rounded-bl-md p-3 text-sm shadow-sm">
@@ -144,7 +138,7 @@
                     <div v-if="message.showContactButton" class="flex justify-start animate-fade-in-up mt-2 pb-2">
                         <button 
                           @click="navigateToContact"
-                          class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2.5 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 text-sm font-medium"
+                          class="bg-blue-600 text-white px-4 py-2.5 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 text-sm font-medium"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -158,7 +152,7 @@
               
               <!-- User Message -->
               <div v-else class="max-w-[85%]">
-                <div class="bg-gradient-to-br from-primary to-secondary text-white rounded-2xl rounded-br-md p-3 text-sm shadow-sm">
+                <div class="bg-primary text-white rounded-2xl rounded-br-md p-3 text-sm shadow-sm">
                   {{ message.text }}
                 </div>
               </div>
@@ -168,7 +162,7 @@
           <!-- Typing Indicator -->
           <Transition name="message">
             <div v-if="isTyping || isWaitingForResponse" class="flex items-end gap-2">
-              <div class="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0 text-xs">
+              <div class="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 text-xs text-white">
                 🤖
               </div>
               <div class="bg-white dark:bg-gray-800 rounded-2xl rounded-bl-md p-3 shadow-sm">
@@ -194,7 +188,7 @@
             />
             <button 
               type="submit"
-              class="w-11 h-11 flex-shrink-0 bg-gradient-to-br from-primary to-secondary hover:from-primary-dark hover:to-secondary text-white rounded-xl flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
+              class="w-11 h-11 flex-shrink-0 bg-primary hover:bg-primary-dark text-white rounded-xl flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
               :disabled="!userInput.trim() || isTyping || isWaitingForResponse"
             >
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -217,11 +211,11 @@
         
         <!-- Voice Mode Interface -->
         <div v-if="isVoiceMode" class="flex flex-col h-full">
-          <div class="flex-1 p-6 flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 to-secondary/5">
+          <div class="flex-1 p-6 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800/50">
             <div class="text-center mb-6">
               <div class="relative inline-block">
                 <div v-if="isSpeaking" class="absolute inset-0 w-32 h-32 rounded-full bg-primary/20 animate-ping"></div>
-                <div class="relative w-32 h-32 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-5xl">
+                <div class="relative w-32 h-32 rounded-full bg-primary flex items-center justify-center text-white text-5xl">
                   🎤
                 </div>
               </div>
@@ -396,10 +390,10 @@ export default {
 
     // Check if user has seen tooltip before
     onMounted(() => {
-      // Show tooltip after a brief delay
+      // Show tooltip after a longer delay (10s) to be less intrusive
       setTimeout(() => {
         showTooltip.value = true;
-      }, 1000);
+      }, 10000);
     });
     
     // Dismiss tooltip

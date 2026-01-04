@@ -23,7 +23,7 @@
               class="w-full h-52 object-cover transition-transform duration-700 group-hover:scale-110"
             >
             <!-- Overlay on Hover -->
-            <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4">
+            <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4">
               <router-link 
                 :to="`/projects/${project.id}`"
                 class="px-4 py-2 bg-white text-gray-900 rounded-full text-sm font-medium hover:bg-primary hover:text-white transition-colors duration-300 flex items-center gap-2"
@@ -35,10 +35,7 @@
                 View Case Study
               </router-link>
             </div>
-            <!-- Project Type Badge -->
-            <span class="absolute top-3 left-3 px-2 py-1 text-xs font-semibold rounded-full bg-primary/90 text-white">
-              {{ project.type }}
-            </span>
+            <!-- Project Type Badge removed from here -->
           </div>
           
           <div class="p-5">
@@ -54,7 +51,15 @@
             >{{ project.description }}</p>
             
             <!-- Tech Stack -->
-            <div class="flex flex-wrap gap-2 mb-4">
+            <div 
+              :ref="el => { if(el) projectTechStacks[index] = el }"
+              class="flex flex-wrap gap-2 mb-4 opacity-0"
+            >
+              <!-- Project Type Badge Moved Here -->
+              <span class="tech-badge bg-primary/10 text-primary text-xs px-2 py-1 rounded-md border border-primary/20 font-medium">
+                {{ project.type }}
+              </span>
+              <div class="flex flex-wrap gap-2">
               <span 
                 v-for="(tech, techIndex) in project.technologies.slice(0, 4)" 
                 :key="techIndex"
@@ -67,6 +72,7 @@
               >
                 +{{ project.technologies.length - 4 }} more
               </span>
+              </div>
             </div>
             
             <!-- Action Links -->
@@ -135,7 +141,7 @@ export default {
     const projectImages = reactive([]);
     const projectTitles = reactive([]);
     const projectDescriptions = reactive([]);
-    const projectTechBadges = reactive([]);
+    const projectTechStacks = reactive([]);
     const projectLinks = reactive([]);
     
     // Store all animations for cleanup
@@ -263,30 +269,28 @@ export default {
             )
           );
         }
-      });
-      
-      // Technology badges staggered animation
-      projectTechBadges.forEach((badge, index) => {
-        animations.push(
-          gsap.fromTo(badge,
-            { opacity: 0, scale: 0.8 },
-            { 
-              opacity: 1, 
-              scale: 1, 
-              duration: 0.3,
-              delay: 0.03 * index, // Micro-stagger for badges
-              ease: 'back.out(1.5)',
-              scrollTrigger: {
-                trigger: badge,
-                start: 'top 75%',
-                toggleActions: 'play none none reverse'
+        if (projectTechStacks[index]) {
+          animations.push(
+            gsap.fromTo(projectTechStacks[index],
+              { opacity: 0, y: 10 },
+              { 
+                opacity: 1, 
+                y: 0, 
+                duration: 0.5,
+                delay: 0.45 + (index * 0.15), // Appears after description (0.3)
+                ease: 'power2.out',
+                scrollTrigger: {
+                  trigger: projectTechStacks[index],
+                  start: 'top 80%',
+                  toggleActions: 'play none none reverse'
+                }
               }
-            }
-          )
-        );
+            )
+          );
+        }
       });
     });
-    
+
     onUnmounted(() => {
       // Clean up all ScrollTrigger instances
       animations.forEach(animation => {
@@ -306,7 +310,7 @@ export default {
       projectImages,
       projectTitles,
       projectDescriptions, 
-      projectTechBadges,
+      projectTechStacks,
       projectLinks,
       projects
     };

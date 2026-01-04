@@ -10,36 +10,36 @@
         :alt="project.title" 
         class="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-110"
       />
-      <div class="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent to-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-between p-4">
-        <div>
+      <div class="absolute top-0 left-0 w-full h-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center p-4">
+        <div class="flex flex-col gap-3">
           <router-link 
             :to="`/projects/${project.id}`" 
-            class="text-white hover:text-primary-light text-sm font-medium mr-4"
+            class="px-4 py-2 bg-white text-gray-900 font-medium rounded-lg hover:bg-gray-100 transition-colors text-sm text-center"
           >
             View Details
           </router-link>
           <a 
             :href="project.liveUrl" 
             target="_blank" 
-            class="text-white hover:text-primary-light text-sm font-medium"
+            class="px-4 py-2 bg-transparent border border-white text-white font-medium rounded-lg hover:bg-white/10 transition-colors text-sm text-center"
           >
             Live Demo
           </a>
         </div>
       </div>
     </div>
-    <div class="p-5">
-      <h3 class="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">
+    <div class="p-6">
+      <h3 class="text-xl font-bold mb-3 text-gray-900 dark:text-white">
         {{ project.title }}
       </h3>
-      <p class="text-gray-600 dark:text-gray-300 text-sm mb-4">
+      <p class="text-gray-700 dark:text-gray-200 text-sm mb-4 leading-relaxed">
         {{ project.description }}
       </p>
       <div class="flex flex-wrap gap-2">
         <span 
           v-for="(tech, index) in project.technologies" 
           :key="index"
-          class="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary dark:bg-primary/20 dark:text-gray-200"
+          class="text-xs px-2.5 py-1 rounded border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800"
         >
           {{ tech }}
         </span>

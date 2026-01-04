@@ -1,17 +1,8 @@
 <template>
   <section class="relative min-h-screen flex items-center justify-center overflow-hidden">
     <!-- Floating decorative elements -->
+    <!-- Floating decorative elements removed for minimalist design -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none">
-      <!-- Gradient orbs -->
-      <div class="absolute top-20 left-10 w-72 h-72 bg-primary/20 rounded-full blur-3xl animate-float"></div>
-      <div class="absolute bottom-20 right-10 w-96 h-96 bg-secondary/20 rounded-full blur-3xl animate-float-delayed"></div>
-      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent/10 rounded-full blur-3xl"></div>
-      
-      <!-- Floating shapes -->
-      <div class="hidden md:block absolute top-32 right-[15%] w-16 h-16 border-2 border-primary/30 rounded-lg animate-spin-slow"></div>
-      <div class="hidden md:block absolute bottom-32 left-[15%] w-12 h-12 border-2 border-secondary/30 rounded-full animate-pulse-slow"></div>
-      <div class="hidden md:block absolute top-1/3 left-[10%] w-8 h-8 bg-gradient-to-br from-primary/40 to-secondary/40 rounded-lg rotate-45 animate-float"></div>
-      <div class="hidden md:block absolute bottom-1/3 right-[10%] w-6 h-6 bg-gradient-to-br from-secondary/40 to-accent/40 rounded-full animate-float-delayed"></div>
     </div>
 
     <div class="container mx-auto px-4 z-10">
@@ -21,83 +12,84 @@
         </div>
         
         <!-- Name with enhanced gradient -->
-        <h1 class="text-4xl md:text-6xl lg:text-7xl font-bold mb-4 animate-slide-up">
-          <span class="relative">
-            <!-- <span class="bg-clip-text text-transparent bg-gradient-to-r from-primary via-secondary to-accent bg-[length:200%_auto] animate-gradient">John Doe</span> -->
-            <span class="bg-clip-text text-transparent bg-gradient-to-r from-primary via-secondary to-accent bg-[length:200%_auto] animate-gradient">Oka Sutarto Putra</span>
-            <!-- Underline decoration -->
-            <span class="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-primary via-secondary to-accent rounded-full transform scale-x-0 animate-scale-x"></span>
+        <h1 class="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 animate-slide-up tracking-tight text-gray-900 dark:text-white">
+          <span class="relative inline-block">
+            Oka Sutarto Putra
+            <!-- Subtle underline decoration -->
+            <span class="absolute -bottom-2 left-0 w-full h-1 bg-gray-900 dark:bg-white transform scale-x-0 animate-scale-x origin-left"></span>
           </span>
         </h1>
         
         <!-- Typewriter effect for role -->
-        <div class="flex items-center justify-center mb-6 animate-slide-up animation-delay-200">
-          <div class="h-px w-12 bg-gradient-to-r from-transparent to-primary/50"></div>
+        <div class="flex items-center justify-center mb-8 animate-slide-up animation-delay-200">
+          <div class="h-px w-12 bg-gray-300 dark:bg-gray-700"></div>
           <div class="relative mx-4 px-4 py-2">
-            <h2 class="text-xl md:text-2xl lg:text-3xl font-semibold text-gray-800 dark:text-gray-100">
-              <span class="text-primary dark:text-primary-light">&lt;</span>
+            <h2 class="text-xl md:text-2xl lg:text-3xl font-medium text-gray-600 dark:text-gray-300 font-mono">
+              <span class="text-gray-400 dark:text-gray-500">&lt;</span>
               <span ref="typewriterText" class="typewriter-text">{{ displayedText }}</span>
-              <span class="text-primary dark:text-primary-light">/&gt;</span>
+              <span class="text-gray-400 dark:text-gray-500">/&gt;</span>
             </h2>
           </div>
-          <div class="h-px w-12 bg-gradient-to-l from-transparent to-secondary/50"></div>
+          <div class="h-px w-12 bg-gray-300 dark:bg-gray-700"></div>
         </div>
         
         <!-- Description with better styling -->
-        <p class="max-w-2xl mx-auto text-gray-600 dark:text-gray-300 mb-10 text-base md:text-lg leading-relaxed animate-fade-in animation-delay-400">
-          I craft <span class="text-primary dark:text-primary-light font-medium">modern</span>, 
-          <span class="text-secondary font-medium">responsive</span> web applications with a focus on 
-          <span class="text-accent font-medium">user experience</span> and clean code.
+        <p class="max-w-xl mx-auto text-gray-600 dark:text-gray-400 mb-10 text-lg leading-relaxed animate-fade-in animation-delay-400 font-light">
+          I craft <span class="text-gray-900 dark:text-white font-semibold">modern</span>, 
+          <span class="text-gray-900 dark:text-white font-semibold">responsive</span> web applications with a focus on 
+          <span class="text-gray-900 dark:text-white font-semibold">user experience</span> and clean code.
         </p>
         
-        <!-- Enhanced CTA buttons -->
-        <div class="flex flex-wrap justify-center gap-4 animate-fade-in animation-delay-600">
+        <!-- Enhanced CTA buttons - Minimalist -->
+        <div class="flex flex-col sm:flex-row justify-center items-center gap-6 animate-fade-in animation-delay-600">
           <a 
             href="#projects" 
             @click.prevent="scrollToSection('projects')" 
-            class="group relative px-8 py-3 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-full overflow-hidden shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 hover:-translate-y-1"
+            class="group relative px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 min-w-[180px]"
           >
-            <span class="relative z-10 flex items-center gap-2">
+            <span class="relative z-10 flex items-center justify-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
               View My Work
             </span>
-            <div class="absolute inset-0 bg-gradient-to-r from-secondary to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           </a>
           
           <a 
             href="#contact" 
             @click.prevent="scrollToSection('contact')"
-            class="group px-8 py-3 font-semibold rounded-full border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-primary hover:text-primary dark:hover:border-primary dark:hover:text-primary transition-all duration-300 hover:-translate-y-1 flex items-center gap-2"
+            class="group px-8 py-4 font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white hover:border-gray-900 dark:hover:border-white transition-all duration-300 hover:-translate-y-1 flex items-center justify-center gap-2 min-w-[180px]"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
             Get In Touch
           </a>
-          
-          <a 
+        </div>
+        
+        <!-- Download CV as subtle text link -->
+        <div class="mt-8 animate-fade-in animation-delay-700">
+           <a 
             href="/OkaSutartoCV.pdf" 
             download="Oka_Sutarto_Putra_CV.pdf"
-            class="group px-8 py-3 font-semibold rounded-full border-2 border-secondary text-secondary hover:bg-secondary hover:text-white dark:border-secondary dark:text-secondary dark:hover:bg-secondary dark:hover:text-white transition-all duration-300 hover:-translate-y-1 flex items-center gap-2"
+            class="inline-flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors border-b border-transparent hover:border-gray-900 dark:hover:border-white pb-0.5"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-transform group-hover:translate-y-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            Download CV
+            Download Resume / CV
           </a>
         </div>
 
         <!-- Social links -->
-        <div class="flex justify-center gap-4 mt-10 animate-fade-in animation-delay-700">
+        <div class="flex justify-center gap-6 mt-12 animate-fade-in animation-delay-700">
           <a 
             v-for="social in socials" 
             :key="social.name"
             :href="social.url" 
             target="_blank" 
             rel="noopener noreferrer"
-            class="w-12 h-12 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-primary hover:text-white dark:hover:bg-primary dark:hover:text-white transition-all duration-300 hover:scale-110 hover:-translate-y-1 shadow-lg shadow-transparent hover:shadow-primary/25"
+            class="group w-12 h-12 flex items-center justify-center rounded-full bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-900 hover:text-white dark:hover:bg-white dark:hover:text-gray-900 transition-all duration-300 hover:-translate-y-1"
             :title="social.name"
           >
             <component :is="social.icon" class="w-5 h-5" />

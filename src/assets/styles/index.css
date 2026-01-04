@@ -59,27 +59,7 @@
   }
 }
 
-/* Smooth scrollbar styling */
-::-webkit-scrollbar {
-  width: 8px;
-}
 
-::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-}
-
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
-}
-
-.dark ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-}
 
 /* Selection styling */
 ::selection {

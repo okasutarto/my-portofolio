@@ -13,8 +13,8 @@
               <div class="absolute inset-0 rounded-full border-2 border-dashed border-primary/40 animate-spin-slow"></div>
             </div>
             
-            <!-- Outer glow ring -->
-            <div class="absolute inset-0 w-64 sm:w-72 md:w-80 h-64 sm:h-72 md:h-80 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-xl"></div>
+            <!-- Outer glow ring removed for minimalist design -->
+            <!-- <div class="absolute inset-0 w-64 sm:w-72 md:w-80 h-64 sm:h-72 md:h-80 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-xl"></div> -->
             
             <!-- Circular image -->
             <div class="relative rounded-full overflow-hidden w-64 sm:w-72 md:w-80 h-64 sm:h-72 md:h-80 shadow-2xl ring-4 ring-white dark:ring-gray-800">

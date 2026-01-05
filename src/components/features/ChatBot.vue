@@ -4,16 +4,14 @@
     <Transition name="tooltip">
       <div
         v-if="showTooltip && !isOpen"
-        class="absolute bottom-24 right-0 bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-2xl border-none w-60 backdrop-blur-sm">
-        <div class="flex items-center gap-3">
-          <div>
-            <p class="text-sm font-bold text-gray-900 dark:text-white">
-              Hey! Need help? <span class="waving-hand">👋</span>
-            </p>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Chat with my assistant
-            </p>
-          </div>
+        class="absolute bottom-24 right-0 bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-2xl border-none w-48 backdrop-blur-sm">
+        <div>
+          <p class="text-sm font-bold text-gray-900 dark:text-white">
+            Hey! Need help? <span class="waving-hand">👋</span>
+          </p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Chat with my assistant
+          </p>
         </div>
         <div
           class="absolute -bottom-2 right-6 w-4 h-4 bg-white dark:bg-gray-800 rotate-45"></div>

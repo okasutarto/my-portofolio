@@ -115,7 +115,7 @@
       @click.prevent="scrollToSection('about')"
       class="absolute bottom-4 sm:bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors z-10 group cursor-pointer">
       <span
-        class="text-xs font-medium tracking-widest uppercase mb-2 opacity-50 group-hover:opacity-100 transition-all duration-300"
+        class="text-xs font-medium tracking-widest uppercase mb-2 transition-all duration-300"
         >Scroll</span
       >
       <div

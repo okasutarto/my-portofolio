@@ -7,7 +7,7 @@
         class="absolute bottom-24 right-0 bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-2xl border-none w-48 backdrop-blur-sm">
         <div>
           <p class="text-sm font-bold text-gray-900 dark:text-white">
-            Hey! Need help? <span class="waving-hand">👋</span>
+            Hey! Need help ? <span class="waving-hand">👋</span>
           </p>
           <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Chat with my assistant
@@ -17,6 +17,7 @@
           class="absolute -bottom-2 right-6 w-4 h-4 bg-white dark:bg-gray-800 rotate-45"></div>
         <button
           @click="dismissTooltip"
+          aria-label="Close tooltip"
           class="absolute top-2 right-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -270,6 +271,7 @@
               :disabled="isTyping || isWaitingForResponse" />
             <button
               type="submit"
+              aria-label="Send message"
               class="w-11 h-11 flex-shrink-0 bg-primary hover:bg-primary-dark text-white rounded-xl flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
               :disabled="!userInput.trim() || isTyping || isWaitingForResponse">
               <svg

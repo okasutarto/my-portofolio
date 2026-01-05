@@ -47,7 +47,7 @@
         <!-- Content with hero-style animations -->
         <div class="w-full lg:w-3/5 overflow-hidden pl-2" ref="contentSection">
           <h2
-            class="text-xl sm:text-4xl font-bold mb-6 text-gray-900 dark:text-gray-50 animation-element"
+            class="text-2xl sm:text-4xl font-bold mb-6 text-gray-900 dark:text-gray-50 animation-element"
             ref="headingRef">
             Building End-to-End <br class="hidden sm:block" /><span
               class="text-primary"

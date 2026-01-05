@@ -15,13 +15,11 @@ export const experiences = [
     current: false,
     type: "Full-time",
     color: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-    description:
-      "Lead frontend development for a global B2B SaaS event networking platform, ensuring high performance for major international conferences.",
     achievements: [
-      "Improved user engagement by 40% through enhanced UI/UX performance",
-      "Maintained 95%+ code coverage with scalable frontend architecture",
-      "Expanded to Angular projects beyond core Vue.js responsibilities",
-      "Mentored junior developers on coding best practices",
+      "Led end-to-end integration of a 3rd-party email editor, driving a 40% increase in user engagement.",
+      "Built modular systems for high-traffic event platforms, handling hybrid legacy-to-modern codebases.",
+      "Refactored component logic to solve rendering bottlenecks in data-heavy dashboards.",
+      "Mentored junior developers on code quality, testing standards, and agile best practices.",
     ],
     technologies: [
       "Vue.js",
@@ -44,12 +42,10 @@ export const experiences = [
     current: false,
     type: "Part-time",
     color: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)",
-    description:
-      "Architected and implemented secure RESTful APIs for applications, achieving 99.9% uptime and robust security compliance.",
     achievements: [
-      "Reduced database query response times by 60% through optimization",
-      "Built authentication systems with role-based access control (RBAC)",
-      "Achieved 99.9% API uptime through efficient architecture",
+      "Reduced database query response times by 60% through PostgreSQL indexing strategies.",
+      "Architected secure RESTful APIs (Node.js/Express) achieving 99.9% uptime.",
+      "Implemented role-based access control (RBAC) for secure authentication.",
       "Collaborated with frontend teams for seamless API integration",
     ],
     technologies: [
@@ -63,7 +59,7 @@ export const experiences = [
   },
   {
     id: 3,
-    role: "Junior Frontend Developer",
+    role: "Frontend Developer",
     company: "PT Geekseat Indonesia",
     companyInitial: "GS",
     logo: geekseatLogo,
@@ -73,10 +69,8 @@ export const experiences = [
     current: false,
     type: "Full-time",
     color: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-    description:
-      "Developed responsive web applications and built user interfaces with modern frontend frameworks in an Agile environment.",
     achievements: [
-      "Built responsive UIs with React and Vue.js",
+      "Engineered responsive, reusable component libraries using both Vue.js and React.js.",
       "Integrated APIs and real-time data features",
       "Collaborated closely with UI/UX design teams",
       "Practiced Scrum and Agile development methodologies",

@@ -1,12 +1,12 @@
 <template>
   <section
     id="experience"
-    class="py-16 md:py-20 overflow-hidden bg-light dark:bg-dark-dark transition-colors duration-400">
+    class="py-8 md:py-12 overflow-hidden bg-light dark:bg-dark-dark transition-colors duration-400">
     <div class="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
       <div class="mb-12 md:mb-16 text-center">
         <h2
           ref="sectionTitle"
-          class="text-3xl md:text-5xl font-bold mb-4 text-dark-dark dark:text-light opacity-0">
+          class="text-3xl md:text-4xl font-bold mb-4 text-dark-dark dark:text-light opacity-0">
           My Journey
         </h2>
         <div
@@ -54,7 +54,7 @@
             <!-- Content -->
             <div class="pl-12 w-full">
               <!-- Header -->
-              <div class="mb-4">
+              <div class="mb-2">
                 <span
                   class="inline-block text-primary text-sm font-bold tracking-wider uppercase mb-1">
                   {{ experience.period }}
@@ -89,10 +89,6 @@
                       clip-rule="evenodd" />
                   </svg>
                   {{ experience.location }}
-                </p>
-                <p
-                  class="text-gray-600 dark:text-gray-300 leading-relaxed max-w-2xl">
-                  {{ experience.description }}
                 </p>
               </div>
 

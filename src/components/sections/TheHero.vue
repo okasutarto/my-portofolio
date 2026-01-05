@@ -1,6 +1,6 @@
 <template>
   <section
-    class="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 pb-20 md:pt-0 md:pb-0">
+    class="relative min-h-screen flex items-center justify-center overflow-hidden pt-24 pb-12 md:pt-0 md:pb-0">
     <!-- Floating decorative elements -->
     <!-- Floating decorative elements removed for minimalist design -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none"></div>
@@ -9,14 +9,14 @@
       <div class="text-center">
         <div>
           <p
-            class="text-base md:text-2xl text-gray-600 dark:text-gray-300 font-medium mb-4">
+            class="text-sm md:text-2xl text-gray-600 dark:text-gray-300 font-medium mb-2 md:mb-4">
             Hi there, I'm
           </p>
         </div>
 
         <!-- Name with enhanced gradient & premium typography -->
         <h1
-          class="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold mb-6 animate-slide-up tracking-tighter">
+          class="text-3xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold mb-3 md:mb-6 animate-slide-up tracking-tighter">
           <span class="bg-clip-text text-primary animate-gradient">
             Oka Sutarto Putra
           </span>
@@ -24,10 +24,10 @@
 
         <!-- Typewriter effect for role -->
         <div
-          class="flex items-center justify-center mb-8 animate-slide-up animation-delay-200">
+          class="flex items-center justify-center mb-4 md:mb-8 animate-slide-up animation-delay-200">
           <div class="relative mx-4 px-4 py-2">
             <h2
-              class="text-xl md:text-2xl lg:text-3xl font-medium text-gray-600 dark:text-gray-300 font-mono">
+              class="text-lg md:text-2xl lg:text-3xl font-medium text-gray-600 dark:text-gray-300 font-mono">
               <span class="text-gray-400 dark:text-gray-500">&lt;</span>
               <span ref="typewriterText" class="typewriter-text">{{
                 displayedText
@@ -39,18 +39,18 @@
 
         <!-- Description with better styling -->
         <p
-          class="max-w-sm sm:max-w-3xl mx-auto text-gray-600 dark:text-gray-400 mb-10 text-md sm:text-xl leading-relaxed animate-fade-in animation-delay-400 font-light">
+          class="max-w-sm sm:max-w-3xl mx-auto text-gray-600 dark:text-gray-400 mb-6 md:mb-10 text-sm sm:text-xl leading-relaxed animate-fade-in animation-delay-400 font-light">
           Turning complex problems into elegant code. Currently exploring the
           intersection of AI and Web Development.
         </p>
 
         <!-- Enhanced CTA buttons - Premium & Glassmorphism -->
         <div
-          class="flex flex-col sm:flex-row justify-center items-center gap-6 animate-fade-in animation-delay-600">
+          class="flex flex-col sm:flex-row justify-center items-center gap-3 md:gap-6 animate-fade-in animation-delay-600">
           <a
             href="#projects"
             @click.prevent="scrollToSection('projects')"
-            class="group relative px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-full hover:shadow-lg hover:-translate-y-1 transition-all duration-300 min-w-[180px] overflow-hidden">
+            class="group relative px-6 py-3 md:px-8 md:py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-full hover:shadow-lg hover:-translate-y-1 transition-all duration-300 min-w-[150px] md:min-w-[180px] overflow-hidden">
             <!-- Button sheen effect -->
             <div
               class="absolute inset-0 w-full h-full bg-white/20 skew-x-12 -translate-x-full group-hover:animate-sheen"></div>
@@ -75,7 +75,7 @@
           <a
             href="#contact"
             @click.prevent="scrollToSection('contact')"
-            class="group px-8 py-4 font-bold rounded-full border-2 border-gray-200 dark:border-gray-700 hover:border-primary dark:hover:border-primary text-gray-900 dark:text-white hover:text-primary dark:hover:text-primary transition-all duration-300 hover:-translate-y-1 flex items-center justify-center gap-2 min-w-[180px] hover:shadow-lg hover:bg-primary/5">
+            class="group px-6 py-3 md:px-8 md:py-4 font-bold rounded-full border-2 border-gray-200 dark:border-gray-700 hover:border-primary dark:hover:border-primary text-gray-900 dark:text-white hover:text-primary dark:hover:text-primary transition-all duration-300 hover:-translate-y-1 flex items-center justify-center gap-2 min-w-[150px] md:min-w-[180px] hover:shadow-lg hover:bg-primary/5">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               class="h-5 w-5 transition-transform duration-300 group-hover:rotate-12"
@@ -94,7 +94,7 @@
 
         <!-- Social links -->
         <div
-          class="flex justify-center gap-6 mt-12 animate-fade-in animation-delay-700 mb-16 md:mb-0">
+          class="flex justify-center gap-6 mt-8 md:mt-12 animate-fade-in animation-delay-700 mb-12 md:mb-0">
           <a
             v-for="social in socials"
             :key="social.name"
@@ -113,7 +113,7 @@
     <a
       href="#about"
       @click.prevent="scrollToSection('about')"
-      class="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors z-10 group cursor-pointer">
+      class="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors z-10 group cursor-pointer">
       <span
         class="text-xs font-medium tracking-widest uppercase mb-2 opacity-50 group-hover:opacity-100 transition-all duration-300"
         >Scroll</span

@@ -1,5 +1,5 @@
 <template>
-  <section id="projects" class="relative py-16 overflow-hidden">
+  <section id="projects" class="relative py-8 md:py-12 overflow-hidden">
     <div class="container mx-auto px-4 relative z-10">
       <h2
         ref="sectionTitle"

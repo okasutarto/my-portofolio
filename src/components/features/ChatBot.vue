@@ -94,7 +94,7 @@
               <div
                 class="w-10 h-10 backdrop-blur flex items-center justify-center mr-3">
                 <img
-                  :src="robotIcon"
+                  src="https://rbopflmphatliijk.public.blob.vercel-storage.com/assets/robot.png"
                   alt="AI Assistant"
                   class="w-full h-full object-cover brightness-0 invert" />
               </div>
@@ -376,7 +376,6 @@ import { ref, watch, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { getStreamingResponse } from "../../services/openai";
 import { useVoiceChat } from "../../composables/useVoiceChat";
-import robotIcon from "@/assets/robot.png";
 
 export default {
   name: "ChatBot",
@@ -762,7 +761,6 @@ export default {
       transcript,
       toggleVoiceMode,
       navigateToContact,
-      robotIcon,
     };
   },
 };

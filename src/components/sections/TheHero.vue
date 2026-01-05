@@ -1,6 +1,6 @@
 <template>
   <section
-    class="relative min-h-screen flex items-center justify-center overflow-hidden pt-24 pb-12 md:pt-0 md:pb-0">
+    class="relative min-h-screen flex items-center justify-center overflow-hidden pt-12 sm:pt-24 pb-12 md:pt-0 md:pb-0">
     <!-- Floating decorative elements -->
     <!-- Floating decorative elements removed for minimalist design -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none"></div>
@@ -113,7 +113,7 @@
     <a
       href="#about"
       @click.prevent="scrollToSection('about')"
-      class="absolute bottom-4 sm:bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors z-10 group cursor-pointer">
+      class="absolute bottom-8 sm:bottom-20 left-1/2 -translate-x-1/2 flex flex-col items-center text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors z-10 group cursor-pointer">
       <span
         class="text-xs font-medium tracking-widest uppercase mb-2 transition-all duration-300"
         >Scroll</span

@@ -1,14 +1,9 @@
-import jubliaLogo from "@/assets/jublia.jpg";
-import nullrebornLogo from "@/assets/nullreborn.jpg";
-import geekseatLogo from "@/assets/geekseat.png";
-
 export const experiences = [
   {
     id: 1,
     role: "Frontend Engineer",
     company: "Jublia",
     companyInitial: "J",
-    logo: jubliaLogo,
     companyUrl: "https://www.jublia.com/",
     location: "Singapore (Remote)",
     period: "Jul 2023 - Dec 2025",
@@ -35,7 +30,6 @@ export const experiences = [
     role: "Backend Developer",
     company: "Null Reborn",
     companyInitial: "NR",
-    logo: nullrebornLogo,
     companyUrl: "https://www.linkedin.com/company/null-reborn",
     location: "Indonesia (Remote)",
     period: "Mar 2023 - Jul 2023",
@@ -62,7 +56,6 @@ export const experiences = [
     role: "Frontend Developer",
     company: "PT Geekseat Indonesia",
     companyInitial: "GS",
-    logo: geekseatLogo,
     companyUrl: "https://geekseat.com.au/",
     location: "Bandung, Indonesia",
     period: "Sep 2022 - Jun 2023",

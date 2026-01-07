@@ -23,7 +23,7 @@
               class="relative rounded-full overflow-hidden w-64 sm:w-72 md:w-80 h-64 sm:h-72 md:h-80 shadow-2xl ring-4 ring-white dark:ring-gray-800">
               <img
                 ref="profileImage"
-                src="@/assets/profile-placeholder.jpg"
+                src="https://rbopflmphatliijk.public.blob.vercel-storage.com/assets/profile-placeholder.jpg"
                 alt="Profile"
                 class="w-full h-full object-cover transition-transform duration-700 ease-out" />
             </div>
@@ -122,8 +122,9 @@
             class="mt-8 mb-4 flex flex-wrap gap-4 animation-element"
             ref="ctaRef">
             <a
-              href="/OkaSutartoCV.pdf"
-              download="OkaSutartoCV.pdf"
+              href="https://rbopflmphatliijk.public.blob.vercel-storage.com/OkaSutartoCV.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
               class="px-8 py-3 bg-primary hover:bg-primary/70 dark:hover:bg-primary/70 text-white rounded-xl font-semibold transition-all duration-300 hover:text-gray-100 dark:hover:text-gray-300 hover:shadow-lg hover:-translate-y-1 flex items-center gap-2">
               <span>Resume</span>
               <svg

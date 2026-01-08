@@ -378,10 +378,12 @@ import { ref, watch, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { getStreamingResponse } from "../../services/openai";
 import { useVoiceChat } from "../../composables/useVoiceChat";
+import { usePostHog } from '@/composables/usePostHog';
 
 export default {
   name: "ChatBot",
   setup() {
+    const { posthog } = usePostHog();
     const router = useRouter();
     const isOpen = ref(false);
     const messages = ref([]);
@@ -423,6 +425,7 @@ export default {
       isOpen.value = !isOpen.value;
       if (isOpen.value) {
         showTooltip.value = false;
+        posthog.capture('chatbot_opened');
       }
     };
 
@@ -537,6 +540,8 @@ export default {
         sender: "user",
         text: messageText,
       });
+
+      posthog.capture('chatbot_message_sent');
 
       // Show loading indicator
       isWaitingForResponse.value = true;

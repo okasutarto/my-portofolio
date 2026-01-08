@@ -102,7 +102,8 @@
             target="_blank"
             rel="noopener noreferrer"
             class="group w-12 h-12 flex items-center justify-center rounded-full bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-900 hover:text-white dark:hover:bg-white dark:hover:text-gray-900 transition-all duration-300 hover:-translate-y-1"
-            :title="social.name">
+            :title="social.name"
+            @click="trackSocialClick(social.name)">
             <component :is="social.icon" class="w-5 h-5" />
           </a>
         </div>
@@ -369,6 +370,14 @@ const socials = [
     icon: LinkedInIcon,
   },
 ];
+
+// PostHog
+import { usePostHog } from '@/composables/usePostHog';
+const { posthog } = usePostHog();
+
+const trackSocialClick = (platform) => {
+  posthog.capture('social_link_clicked', { platform });
+};
 
 // Scroll to section function
 const scrollToSection = async (sectionId) => {

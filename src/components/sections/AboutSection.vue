@@ -125,6 +125,7 @@
               href="https://rbopflmphatliijk.public.blob.vercel-storage.com/OkaSutartoCV.pdf"
               target="_blank"
               rel="noopener noreferrer"
+              @click="trackResumeDownload"
               class="px-8 py-3 bg-primary hover:bg-primary/70 dark:hover:bg-primary/70 text-white rounded-xl font-semibold transition-all duration-300 hover:text-gray-100 dark:hover:text-gray-300 hover:shadow-lg hover:-translate-y-1 flex items-center gap-2">
               <span>Resume</span>
               <svg
@@ -152,6 +153,7 @@ import { ref, onMounted, onUnmounted, reactive } from "vue";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { skills as skillsData } from "@/data/skills";
+import { usePostHog } from '@/composables/usePostHog';
 
 // Register ScrollTrigger plugin
 gsap.registerPlugin(ScrollTrigger);
@@ -176,6 +178,13 @@ export default {
       if (contactSection) {
         contactSection.scrollIntoView({ behavior: "smooth" });
       }
+    };
+
+    // PostHog
+    const { posthog } = usePostHog();
+
+    const trackResumeDownload = () => {
+      posthog.capture('resume_downloaded');
     };
 
     // Skills array with icons - Fullstack focused
@@ -402,6 +411,7 @@ export default {
       skills,
       skillElements,
       scrollToContact,
+      trackResumeDownload
     };
   },
 };

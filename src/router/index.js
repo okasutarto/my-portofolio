@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 
+
 const routes = [
   {
     path: "/",
@@ -48,5 +49,7 @@ router.beforeEach((to, from, next) => {
   document.title = to.meta.title || "Your Portfolio Name";
   next();
 });
+
+
 
 export default router;

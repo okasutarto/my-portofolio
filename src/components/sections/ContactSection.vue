@@ -46,6 +46,7 @@
                   <h3 class="font-medium dark:text-white">Email</h3>
                   <a
                     href="mailto:okasputra@gmail.com"
+                    @click="posthog.capture('email_link_clicked')"
                     class="text-primary hover:underline dark:text-primary-light"
                     >okasputra@gmail.com</a
                   >
@@ -234,6 +235,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import emailjs from "@emailjs/browser";
 import { EMAILJS_CONFIG } from "@/config/emailjs";
+import { usePostHog } from '@/composables/usePostHog';
 
 // Register ScrollTrigger plugin
 gsap.registerPlugin(ScrollTrigger);
@@ -250,6 +252,8 @@ const messageField = ref(null);
 const submitButton = ref(null);
 const decorCircle1 = ref(null);
 const decorCircle2 = ref(null);
+
+const { posthog } = usePostHog();
 
 // Form data
 const form = reactive({
@@ -366,6 +370,9 @@ const submitForm = async () => {
 
     // Success handling
     submitStatus.value = "success";
+    
+    posthog.capture('contact_form_sent');
+
     // Reset form after submission
     form.name = "";
     form.email = "";

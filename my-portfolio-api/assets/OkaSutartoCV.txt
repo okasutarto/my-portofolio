@@ -21,12 +21,10 @@ experience:
     end date: December 2025
     Tech Stack : Vue, Angular, Typescript, Bootstrap5, Unlayer, Vuex, HTML, CSS
     responsibilities:
-      ● Lead frontend development for a global B2B event networking platform, ensuring high performance for major international conferences. 
-      ● Developed integrated communication modules and enhanced UI/UX performance, directly resulting in a 40% improvement in user engagement. 
-      ● Proactively expanded technical contribution by taking ownership of Angular-based projects, successfully delivering features outside of core Vue.js responsibilities. 
-      ● Architected scalable frontend solutions and maintained 95%+ code coverage, driving critical technical decisions for codebase architecture. 
-      ● Made critical technical decisions for codebase architecture and infrastructure design. 
-      ● Mentored junior developers to foster coding best practices and team growth.
+      ● Led the end-to-end integration of a third-party email editor (Unlayer) into the core platform. Managed complex data flow between the editor and backend, driving a 40% increase in user engagement.
+      ● Architected modular frontend systems for high-traffic event platforms, ensuring feature parity and code reusability across a hybrid legacy-to-modern codebase.
+      ● Diagnosed rendering bottlenecks in data-heavy dashboards and architected scalable solutions, refactoring component logic to significantly improve load times.
+      ● Mentored junior developers on code quality, testing standards, and agile best practices.
 
   - title: Backend Developer
     company: Null Reborn
@@ -35,10 +33,9 @@ experience:
     start date: "March 2023 – July 2023"
     Tech Stack : Node.js, Express, MySQL, Sequelize ORM, JWT, Postgresql, Rest APIs, Axios
     responsibilities:
-      ● Lead designed, Architected and implemented secure RESTful APIs for applications, achieving 99.9% uptime.
-      ● Optimized database performance, reducing query response times by 60% through effi cient indexing and query refactoring.
-      ● Built robust authentication systems with role-based access control (RBAC) to ensure strict security compliance.
-      ● Collaborated with frontend teams to ensure seamless API integration and effi cient data fl ow
+      ● Analyzed slow query logs and implemented indexing strategies in PostgreSQL, slashing query response times by 60%.
+      ● Designed and deployed secure, scalable RESTful APIs using Node.js and Express, achieving 99.9% uptime.
+      ● Built robust authentication systems using JWT and Role-Based Access Control (RBAC) to secure sensitive user data.
 
   - title: Junior Frontend Developer
     company: PT Geekseat Indonesia
@@ -47,11 +44,8 @@ experience:
     end date:  June 2023
     Tech Stack : HTML, CSS, React.js, Vue.js, Tailwind, Kendo UI
     responsibilities:
-      - Developed responsive web applications.
-      - Built UIs with React and Vue.js.
-      - Integrated APIs and real-time data.
-      - Collaborated with UI/UX teams.
-      - Practiced Scrum and Agile development.
+      ● Engineered responsive component libraries using Vue.js and React.js, focusing on component reusability and optimizing rendering performance for diverse client requirements.
+      ● Implemented real-time data visualization features via API integration, enhancing the interactive experience for end-users.
 
 education:
   - institution: Telkom University
@@ -74,9 +68,11 @@ languages:
 projects:
   - name: Personal Portfolio Website
     type: Fullstack
-    description: Interactive portfolio featuring an intelligent AI chatbot powered by OpenAI that provides instant, contextual responses to visitor inquiries about my professional experience, technical skills, and project history. The chatbot uses RAG (Retrieval-Augmented Generation) to deliver accurate answers by querying structured resume data, eliminating the need for visitors to manually search through traditional CV formats.
+    ● Tech Pivot: Built a full-stack SaaS prototype using Next.js to translate my frontend expertise into the React ecosystem.
+    ● AI Implementation: Integrated OpenAI's GPT models to transform lengthy text, PDFs, and images into concise summaries, enabling 75% faster information processing for users.
+    ● Engineering Focus: Leveraged Next.js server-side rendering (SSR) for optimized performance and SEO.
     tech_stack: [Vue. Js, OpenAI, Tailwind, AI, Vercel.]
-    github: https://okasutartoputra.vercel.app/
+    github: https://okasp.dev/
 
   - name: Warung Upin
     type: Backend
@@ -100,6 +96,13 @@ projects:
     description: Promotional site for wedding invitations and souvenirs.
     tech_stack: [Node.js, MySQL, JWT, Sequelize, Express, CORS, dotenv]
     website: https://punyagawe.id
+
+technical skills:
+  - Frontend: Vue.js, React.js, Angular, TypeScript, HTML, CSS, Bootstrap, Tailwind, Unlayer, Vuex, Axios, Pinia, Vite
+  - Backend: Node.js, Express.js, MySQL, Sequelize, PostgreSQL, JWT, CORS, dotenv, Rest APIs.
+  - Database: PostgreSQL, MySQL, Sequelize ORM.
+  - AI & Emerging Tech: OpenAI API, RAG (Retrieval-Augmented Generation), Prompt Engineering.
+  - Tools: Git, Docker, Agile/Scrum, Postman, Vercel.
 
 references :
   - name: Roby Renata

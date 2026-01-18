@@ -97,7 +97,7 @@
                 <li
                   v-for="(achievement, achieveIndex) in experience.achievements"
                   :key="achieveIndex"
-                  class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-300">
+                  class="flex items-start gap-3 text-sm lg:text-base text-gray-600 dark:text-gray-300">
                   <span
                     class="mt-2 w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0"></span>
                   <span class="leading-relaxed">{{ achievement }}</span>
@@ -160,7 +160,7 @@ export default {
             start: "top 80%",
             toggleActions: "play none none reverse",
           },
-        })
+        }),
       );
 
       // Hairline drawing animation
@@ -175,7 +175,7 @@ export default {
             end: "bottom 80%",
             scrub: 1,
           },
-        })
+        }),
       );
 
       // End dot animation
@@ -192,8 +192,8 @@ export default {
               end: "bottom 80%",
               scrub: 1,
             },
-          }
-        )
+          },
+        ),
       );
 
       // Staggered Items Animation
@@ -216,8 +216,8 @@ export default {
                 end: "top 65%",
                 scrub: 1,
               },
-            }
-          )
+            },
+          ),
         );
 
         // Dot scale in
@@ -237,8 +237,8 @@ export default {
                 end: "top 70%",
                 scrub: 1,
               },
-            }
-          )
+            },
+          ),
         );
       });
     });

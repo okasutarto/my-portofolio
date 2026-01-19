@@ -26,9 +26,8 @@ const allowedOrigins = [
   'http://localhost:5173',
   'https://okasp.dev',
   'https://www.okasp.dev',
-  'https://okasutartoputra.vercel.app/',
-  'https://www.okasutartoputra.vercel.app/',
-  // Add your production frontend URL here
+  'https://okasutartoputra.vercel.app',
+  'https://www.okasutartoputra.vercel.app',
 ];
 
 app.use(cors({

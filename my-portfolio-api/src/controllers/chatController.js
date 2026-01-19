@@ -56,7 +56,7 @@ async function streamChat(req, res) {
     // ===================
     const regexValidation = validateInput(trimmedMessage);
     if (!regexValidation.isValid) {
-      const fallbackMessage = regexValidation.message || FALLBACK_RESPONSES[regexValidation.reason];
+      const fallbackMessage = FALLBACK_RESPONSES[regexValidation.reason] || FALLBACK_RESPONSES.error;
       return sendFallbackSSE(fallbackMessage);
     }
     
@@ -65,7 +65,7 @@ async function streamChat(req, res) {
     // ===================
     const aiValidation = await validateInputWithAI(openai, trimmedMessage);
     if (!aiValidation.isValid) {
-      const fallbackMessage = aiValidation.message || FALLBACK_RESPONSES.off_topic;
+      const fallbackMessage = FALLBACK_RESPONSES[aiValidation.reason] || FALLBACK_RESPONSES.off_topic;
       return sendFallbackSSE(fallbackMessage);
     }
     

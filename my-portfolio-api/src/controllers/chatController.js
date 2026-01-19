@@ -4,6 +4,35 @@ const { openai, createSystemMessage } = require('../services/openaiService');
 async function streamChat(req, res) {
   try {
     const { message } = req.query;
+    
+    // ===================
+    // INPUT VALIDATION
+    // ===================
+    
+    // Check if message exists
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+    
+    // Check message type
+    if (typeof message !== 'string') {
+      return res.status(400).json({ error: 'Message must be a string' });
+    }
+    
+    // Trim and check for empty message
+    const trimmedMessage = message.trim();
+    if (trimmedMessage.length === 0) {
+      return res.status(400).json({ error: 'Message cannot be empty' });
+    }
+    
+    // Check message length (max 2000 characters)
+    const MAX_MESSAGE_LENGTH = 2000;
+    if (trimmedMessage.length > MAX_MESSAGE_LENGTH) {
+      return res.status(400).json({ 
+        error: `Message too long. Maximum ${MAX_MESSAGE_LENGTH} characters allowed.` 
+      });
+    }
+    
     const systemMessage = await createSystemMessage();
     
     // Set headers for SSE
@@ -15,7 +44,7 @@ async function streamChat(req, res) {
       model: 'gpt-4.1-mini', // Assuming this is a valid custom model name or mapping
       messages: [
         systemMessage,
-        { role: 'user', content: message }
+        { role: 'user', content: trimmedMessage }
       ],
       stream: true,
       max_tokens: 1000,

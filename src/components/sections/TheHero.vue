@@ -9,14 +9,14 @@
       <div class="text-center">
         <div>
           <p
-            class="text-sm md:text-xl text-gray-600 dark:text-gray-300 font-medium mb-2 md:mb-3">
+            class="text-sm md:text-xl lg:text-2xl text-gray-600 dark:text-gray-300 font-medium mb-2 md:mb-3">
             Hi there, I'm
           </p>
         </div>
 
         <!-- Name with enhanced gradient & premium typography -->
         <h1
-          class="text-3xl sm:text-5xl md:text-5xl lg:text-6xl font-extrabold mb-2 animate-slide-up tracking-tighter">
+          class="text-3xl sm:text-5xl md:text-5xl lg:text-9xl font-extrabold mb-2 animate-slide-up tracking-tighter">
           <span class="bg-clip-text text-primary animate-gradient">
             Oka Sutarto Putra
           </span>
@@ -27,7 +27,7 @@
           class="flex items-center justify-center mb-3 animate-slide-up animation-delay-200">
           <div class="relative mx-4 px-4 py-2">
             <h2
-              class="text-lg md:text-lg lg:text-xl font-medium text-gray-600 dark:text-gray-300 font-mono">
+              class="text-lg md:text-lg lg:text-2xl font-medium text-gray-600 dark:text-gray-300 font-mono">
               <span class="text-gray-400 dark:text-gray-500">&lt;</span>
               <span ref="typewriterText" class="typewriter-text">{{
                 displayedText
@@ -39,7 +39,7 @@
 
         <!-- Description with better styling -->
         <p
-          class="max-w-sm sm:max-w-2xl mx-auto text-gray-600 dark:text-gray-400 mb-6 md:mb-8 text-sm sm:text-base leading-relaxed animate-fade-in animation-delay-400 font-light">
+          class="max-w-sm sm:max-w-2xl mx-auto text-gray-600 dark:text-gray-400 mb-6 md:mb-8 text-sm sm:text-base lg:text-xl leading-relaxed animate-fade-in animation-delay-400 font-light">
           Turning complex problems into elegant code. Currently exploring the
           intersection of AI and Web Development.
         </p>
@@ -372,11 +372,11 @@ const socials = [
 ];
 
 // PostHog
-import { usePostHog } from '@/composables/usePostHog';
+import { usePostHog } from "@/composables/usePostHog";
 const { posthog } = usePostHog();
 
 const trackSocialClick = (platform) => {
-  posthog.capture('social_link_clicked', { platform });
+  posthog.capture("social_link_clicked", { platform });
 };
 
 // Scroll to section function

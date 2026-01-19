@@ -268,12 +268,12 @@
               type="text"
               placeholder="Type your message..."
               class="flex-1 min-w-0 rounded-xl border-0 bg-gray-100 dark:bg-gray-800 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 dark:text-white placeholder-gray-400"
-              :disabled="isTyping || isWaitingForResponse" />
+              :disabled="isTyping || isWaitingForResponse || isStreaming" />
             <button
               type="submit"
               aria-label="Send message"
               class="w-11 h-11 flex-shrink-0 bg-primary hover:bg-primary-dark text-white rounded-xl flex items-center justify-center transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95"
-              :disabled="!userInput.trim() || isTyping || isWaitingForResponse">
+              :disabled="!userInput.trim() || isTyping || isWaitingForResponse || isStreaming">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 class="h-5 w-5"

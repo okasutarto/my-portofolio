@@ -1,4 +1,12 @@
 const { openai, createSystemMessage } = require('../services/openaiService');
+const { 
+  validateInput, 
+  validateInputWithAI,
+  validateOutput, 
+  validateOutputContent,
+  postProcessResponse, 
+  FALLBACK_RESPONSES 
+} = require('../utils/aiGuardrails');
 
 // Streaming completion handler
 async function streamChat(req, res) {
@@ -6,7 +14,7 @@ async function streamChat(req, res) {
     const { message } = req.query;
     
     // ===================
-    // INPUT VALIDATION
+    // STEP 0: BASIC VALIDATION
     // ===================
     
     // Check if message exists
@@ -33,6 +41,37 @@ async function streamChat(req, res) {
       });
     }
     
+    // Helper function to send SSE fallback response
+    const sendFallbackSSE = (fallbackMessage) => {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.write(`data: ${JSON.stringify({ content: fallbackMessage })}\n\n`);
+      res.write('data: [DONE]\n\n');
+      return res.end();
+    };
+    
+    // ===================
+    // STEP 1: REGEX GUARDRAIL (Fast - catches obvious attacks)
+    // ===================
+    const regexValidation = validateInput(trimmedMessage);
+    if (!regexValidation.isValid) {
+      const fallbackMessage = regexValidation.message || FALLBACK_RESPONSES[regexValidation.reason];
+      return sendFallbackSSE(fallbackMessage);
+    }
+    
+    // ===================
+    // STEP 2: AI VALIDATOR (Semantic - understands intent)
+    // ===================
+    const aiValidation = await validateInputWithAI(openai, trimmedMessage);
+    if (!aiValidation.isValid) {
+      const fallbackMessage = aiValidation.message || FALLBACK_RESPONSES.off_topic;
+      return sendFallbackSSE(fallbackMessage);
+    }
+    
+    // ===================
+    // STEP 3: MAIN AI RESPONSE
+    // ===================
     const systemMessage = await createSystemMessage();
     
     // Set headers for SSE
@@ -41,7 +80,7 @@ async function streamChat(req, res) {
     res.setHeader('Connection', 'keep-alive');
     
     const stream = await openai.chat.completions.create({
-      model: 'gpt-4.1-mini', // Assuming this is a valid custom model name or mapping
+      model: 'gpt-4.1-mini',
       messages: [
         systemMessage,
         { role: 'user', content: trimmedMessage }
@@ -50,11 +89,49 @@ async function streamChat(req, res) {
       max_tokens: 1000,
     });
     
+    // ===================
+    // STEP 4: OUTPUT GUARDRAIL & POST-PROCESSING
+    // ===================
+    let fullResponse = '';
+    let isCompromised = false;
+    let compromiseReason = '';
+    
     for await (const chunk of stream) {
       const content = chunk.choices[0]?.delta?.content || '';
       if (content) {
-        res.write(`data: ${JSON.stringify({ content })}\n\n`);
+        fullResponse += content;
+        
+        // Check periodically (every 200 chars) if response seems compromised
+        if (fullResponse.length % 200 < content.length) {
+          // Check for jailbreak indicators
+          const outputValidation = validateOutput(fullResponse, trimmedMessage);
+          if (!outputValidation.isValid) {
+            isCompromised = true;
+            compromiseReason = outputValidation.reason;
+            break;
+          }
+          
+          // Check for unwanted content types (code, politics, etc.)
+          const contentValidation = validateOutputContent(fullResponse);
+          if (!contentValidation.isValid) {
+            isCompromised = true;
+            compromiseReason = contentValidation.reason;
+            break;
+          }
+        }
+        
+        // Post-process and stream the content
+        const processedContent = postProcessResponse(content);
+        if (processedContent) {
+          res.write(`data: ${JSON.stringify({ content: processedContent })}\n\n`);
+        }
       }
+    }
+    
+    // If response was compromised, send fallback
+    if (isCompromised) {
+      const fallbackMsg = FALLBACK_RESPONSES[compromiseReason] || FALLBACK_RESPONSES.response_compromised;
+      res.write(`data: ${JSON.stringify({ content: '\n\n' + fallbackMsg })}\n\n`);
     }
     
     res.write('data: [DONE]\n\n');

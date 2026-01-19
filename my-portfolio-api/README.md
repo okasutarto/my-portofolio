@@ -13,9 +13,82 @@ Built with **Node.js, Express, OpenAI, and React/Next.js**.
 * **RAG Engine:** Smartly queries your custom data (PDF/Text) to answer questions.
 * **Edge Streaming:** Real-time character-by-character typing effect (Server-Sent Events).
 * **Context Awareness:** Remembers the conversation history for follow-up questions.
-* **Guardrails:** Pre-configured to strictly refuse answering non-professional questions.
+* **🛡️ Multi-Layer Security Guardrails:** Enterprise-grade protection against prompt injection, jailbreaking, and off-topic responses.
 * **Headless Architecture:** Separate Backend API that works with React, Vue, Angular, or any frontend.
 * **Ready-to-Deploy:** Includes Docker support and Vercel configuration.
+
+---
+
+## 🛡️ Security Guardrails
+
+This API implements a **multi-layer security architecture** to protect against prompt injection, jailbreaking, and off-topic responses:
+
+### Security Flow
+
+```
+USER INPUT
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Layer 1: HTTP Security                                       │
+│ • Helmet (security headers)                                  │
+│ • Rate Limiting (100 req/15min per IP)                       │
+│ • CORS Origin Whitelist                                      │
+│ • Request Body Size Limit (10kb)                             │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Layer 2: Input Validation                                    │
+│ • Message length check (max 2000 chars)                      │
+│ • Empty/null validation                                      │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Layer 3: Regex Guardrail (Fast, ~0ms)                        │
+│ • 30+ patterns for prompt injection detection                │
+│ • Catches: "ignore instructions", "DAN mode", etc.          │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Layer 4: AI Validator (gpt-4.1-nano)                         │
+│ • Semantic understanding of user intent                     │
+│ • Asks: "Is this about the portfolio? YES/NO"               │
+│ • Catches creative bypass attempts                          │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Layer 5: Main AI Response (gpt-4.1-mini)                    │
+│ • System prompt with anti-jailbreak rules                   │
+│ • Multi-language support                                    │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Layer 6: Output Guardrail                                    │
+│ • Jailbreak detection in response                           │
+│ • Political/religious content detection                     │
+│ • Unwanted code block detection                             │
+│ • Post-processing sanitization                              │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+CLEAN RESPONSE TO USER
+```
+
+### Protected Against
+
+| Attack Type | Protection |
+|-------------|------------|
+| Prompt Injection | Regex + AI validation |
+| System Prompt Extraction | Input blocking + Output sanitization |
+| Role Manipulation (DAN mode) | Multi-layer detection |
+| Off-Topic Requests | AI semantic validation |
+| DoS/Abuse | Rate limiting + body size limits |
+| XSS/Security Headers | Helmet middleware |
 
 ---
 
@@ -23,27 +96,30 @@ Built with **Node.js, Express, OpenAI, and React/Next.js**.
 
 * **Backend:** Node.js, Express, OpenAI SDK
 * **Frontend:** React (Custom Hook provided), Next.js 14+
-* **AI Logic:** GPT-4o-mini (Cost-optimized) + Vector Context Injection
+* **AI Logic:** GPT-4.1-mini (Main) + GPT-4.1-nano (Validator)
+* **Security:** Helmet, express-rate-limit, Custom AI Guardrails
 
 ---
 
 ## 📦 Project Structure
 
 ```text
-├── backend/
-│   ├── src/
-│   │   ├── controllers/   # Chat logic & OpenAI streaming
-│   │   ├── utils/         # Resume parser & Context loader
-│   │   └── routes/        # API Endpoints
-│   ├── assets/
-│   │   └── context.txt    # 📍 PUT YOUR RESUME CONTENT HERE
-│   └── server.js          # Entry point
-│
-├── frontend-example/      # (Next.js App)
-│   ├── hooks/
-│   │   └── useChatBot.ts  # 💎 The Magic Hook
-│   └── components/
-│       └── ChatWidget.tsx # Ready-to-use UI Component
+├── src/
+│   ├── config/
+│   │   └── prompts.js       # System prompt with security rules
+│   ├── controllers/
+│   │   └── chatController.js # Chat logic with guardrails integration
+│   ├── routes/
+│   │   └── api.js           # API Endpoints
+│   ├── services/
+│   │   └── openaiService.js # OpenAI client setup
+│   └── utils/
+│       ├── aiGuardrails.js  # 🛡️ Security guardrails module
+│       └── fileLoader.js    # Resume parser
+├── assets/
+│   └── context.txt          # 📍 PUT YOUR RESUME CONTENT HERE
+├── index.js                 # Entry point with security middleware
+└── .env                     # Environment variables
 ```
 
 ---
@@ -52,73 +128,39 @@ Built with **Node.js, Express, OpenAI, and React/Next.js**.
 
 ### 1. Backend Setup (The Brain)
 
-Navigate to the backend folder and install dependencies:
+Install dependencies:
 
 ```bash
-cd backend
 npm install
 ```
 
-Create a `.env` file in the backend/ root:
+Create a `.env` file:
 
 ```env
 PORT=3000
 OPENAI_API_KEY=sk-your-openai-key-here
 ```
 
-**Crucial Step:** Open `backend/assets/context.txt` and paste your Resume or Portfolio text. The bot will ONLY know what is in this file.
+**Crucial Step:** Open `assets/context.txt` and paste your Resume or Portfolio text.
 
 Start the server:
 
 ```bash
-npm run dev
+node index.js
 # Server running on http://localhost:3000
 ```
 
-### 2. Frontend Setup (The UI)
+### 2. Configure CORS Origins
 
-Navigate to the frontend folder:
+Edit `index.js` to add your frontend domains:
 
-```bash
-cd frontend-example
-npm install
-npm run dev
-```
-
-Open http://localhost:3001 to see your bot in action!
-
----
-
-## 🧩 Integration Guide (For Existing Apps)
-
-Already have a portfolio? You don't need the full frontend app. Just grab the Hook and Component.
-
-### Step 1: Copy the Hook
-
-Copy `frontend-example/hooks/useChatBot.ts` into your project.
-
-### Step 2: Use it in your Component
-
-```typescript
-import { useChatBot } from './hooks/useChatBot';
-
-export function MyPortfolio() {
-  const { messages, sendMessage, isLoading } = useChatBot('http://localhost:3000/api/chat/stream');
-
-  return (
-    <div>
-      {messages.map((msg, idx) => (
-        <div key={idx} className={msg.role === 'user' ? 'user-bubble' : 'bot-bubble'}>
-          {msg.content}
-        </div>
-      ))}
-      
-      <button onClick={() => sendMessage("Tell me about your React skills")}>
-        Ask about React
-      </button>
-    </div>
-  );
-}
+```javascript
+const allowedOrigins = [
+  'http://localhost:8081',
+  'http://localhost:3000',
+  'https://yourdomain.com',
+  'https://www.yourdomain.com',
+];
 ```
 
 ---
@@ -127,68 +169,63 @@ export function MyPortfolio() {
 
 ### Changing the "Personality"
 
-Go to `backend/src/controllers/chatController.js`. You will find the `systemPrompt` variable.
+Go to `src/config/prompts.js` and modify the system prompt.
+
+### Adjusting Rate Limits
+
+In `index.js`, modify the rate limiter:
 
 ```javascript
-// Modify this to change how the bot speaks
-const systemPrompt = `
-  You are a witty, senior software engineer. 
-  Answer briefly and use emojis. 
-  Only talk about the data provided in the context.
-`;
-```
-
-### Adjusting Strictness
-
-If you want the bot to be more creative (and less factual), increase the `temperature` in the OpenAI config (Range: 0.0 to 1.0).
-
-```javascript
-const response = await openai.chat.completions.create({
-  model: 'gpt-4o-mini',
-  temperature: 0.7, // Higher = More creative, Lower = More factual
-  // ...
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // requests per window
 });
 ```
+
+### Adding/Removing Guardrail Patterns
+
+Edit `src/utils/aiGuardrails.js` to customize:
+- `INJECTION_PATTERNS` - Regex patterns for prompt injection
+- `OFF_TOPIC_PATTERNS` - Topics to block
+- `validateInputWithAI()` - AI validator system prompt
 
 ---
 
 ## 🚢 Deployment
 
-### Deploying Backend to Render/Vercel
+### Deploying to Render/Vercel
 
-1. Push the backend folder to a GitHub repo.
-2. Connect to Render.com or Vercel.
-3. Add your `OPENAI_API_KEY` in the dashboard Environment Variables.
-
-**Important:** If using Vercel Serverless Functions, ensure you use the Edge runtime for streaming support.
+1. Push to GitHub
+2. Connect to Render.com or Vercel
+3. Add `OPENAI_API_KEY` in Environment Variables
+4. **Important:** Update `allowedOrigins` with your production domain
 
 ---
 
 ## ❓ FAQ
 
-**Q: Can I use PDF files instead of text?**  
-A: Yes! This starter kit includes a text parser for simplicity, but you can easily swap `fs.readFile` with `pdf-parse` in `utils/contextLoader.js` if you prefer raw PDFs.
+**Q: How much does the two-step validation cost?**  
+A: The AI validator uses `gpt-4.1-nano` which costs ~$0.0001 per validation. Negligible compared to main responses.
 
-**Q: How much does it cost to run?**  
-A: Using `gpt-4o-mini`, a typical portfolio conversation costs less than $0.01 per 10 visitors.
+**Q: Can attackers bypass the guardrails?**  
+A: The multi-layer approach makes it extremely difficult. Even if one layer is bypassed, others catch it.
+
+**Q: Does it support multiple languages?**  
+A: Yes! The AI responds in the same language the user writes in.
 
 ---
 
 ## 📜 License & Rights
 
 ### 1. Standard License (Personal)
-* ✅ **Allowed:** Use this code to build **one** personal portfolio or resume bot for yourself.
-* ✅ **Allowed:** Host the bot publicly on your personal domain.
-* ❌ **Not Allowed:** Resell this code, share it publicly, or use it for client work.
-
----
+* ✅ **Allowed:** Use this code for **one** personal portfolio
+* ✅ **Allowed:** Host publicly on your personal domain
+* ❌ **Not Allowed:** Resell, share publicly, or use for client work
 
 ### 2. 💎 Agency / Commercial License (Unlimited)
-*Purchasing the Agency License grants you the following rights:*
+* ✅ Unlimited client projects
+* ✅ White label rights
+* ✅ Charge your own fees
+* ❌ No resale of source code
 
-* ✅ **Unlimited Client Projects:** You may use this boilerplate to build and deploy chatbots for an unlimited number of clients (e.g., local businesses, real estate agents, agencies).
-* ✅ **White Label Rights:** You can remove all references to this starter kit and brand the final product as your own work.
-* ✅ **Charge Your Own Fees:** You are free to charge your clients any setup fee or monthly maintenance fee you choose.
-* ❌ **No Resale of Source Code:** You **cannot** resell, redistribute, or open-source the original code template itself (e.g., you cannot put this zip file on Gumroad or GitHub). You may only deliver the *compiled/finished* application to your clients.
-
-**Disclaimer:** This software is provided "as is" without warranty of any kind. You are responsible for any OpenAI API costs incurred by your usage.
+**Disclaimer:** This software is provided "as is" without warranty. You are responsible for OpenAI API costs.

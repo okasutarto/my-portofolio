@@ -26,8 +26,8 @@ export function useTheme() {
     if (savedTheme) {
       isDark.value = savedTheme === "dark";
     } else {
-      // Default to dark mode if no preference is saved
-      isDark.value = true;
+      // Default to light mode if no preference is saved
+      isDark.value = false;
     }
     updateTheme();
   }

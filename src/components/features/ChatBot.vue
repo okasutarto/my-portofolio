@@ -57,7 +57,7 @@
     <Transition name="chat-window">
       <div
         v-if="isOpen"
-        class="fixed sm:absolute bottom-0 sm:bottom-20 right-0 left-0 sm:left-auto w-full sm:w-[400px] h-[85vh] sm:h-[600px] bg-white dark:bg-background-dark border-2 border-black dark:border-primary shadow-neo-sm dark:shadow-neo flex flex-col overflow-hidden transition-colors">
+        class="fixed sm:absolute bottom-0 sm:bottom-20 right-0 left-0 sm:left-auto w-full sm:w-[400px] h-[85vh] sm:h-[600px] bg-white dark:bg-background-dark border-2 border-black dark:border-primary shadow-neo-sm dark:shadow-neo-dark flex flex-col overflow-hidden transition-colors">
         <!-- Header -->
         <div
           class="bg-secondary dark:bg-secondary p-4 border-b-2 border-black dark:border-primary flex items-center justify-between relative z-10">

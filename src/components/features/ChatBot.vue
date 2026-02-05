@@ -192,8 +192,8 @@
               <input
                 v-model="userInput"
                 type="text"
-                placeholder="TYPE YOUR MESSAGE..."
-                class="w-full h-12 bg-white dark:bg-zinc-900 border-2 border-black dark:border-primary px-4 font-bold text-base text-black dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary dark:focus:border-primary transition-all uppercase"
+                placeholder="Type your message..."
+                class="w-full h-12 bg-white dark:bg-zinc-900 border-2 border-black dark:border-primary px-4 font-bold text-base text-black dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary dark:focus:border-primary transition-all"
                 :disabled="isTyping || isWaitingForResponse || isStreaming" />
             </div>
             <button

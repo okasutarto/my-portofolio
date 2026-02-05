@@ -1,493 +1,166 @@
 <template>
   <section
     id="about"
-    class="py-8 md:py-12 transition-colors duration-300 relative overflow-hidden flex items-center">
-    <div class="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-      <div
-        class="flex flex-col lg:flex-row items-center gap-8 sm:gap-10 md:gap-12 lg:gap-16">
-        <!-- Profile image with rotating ring design -->
-        <div class="w-full lg:w-2/5 relative flex justify-center">
-          <div class="relative" ref="profileContainer">
-            <!-- Rotating dashed ring -->
-            <div
-              class="absolute inset-0 w-72 sm:w-80 md:w-96 h-72 sm:h-80 md:h-96 -m-4 sm:-m-6 md:-m-8">
-              <div
-                class="absolute inset-0 rounded-full border-2 border-dashed border-primary/40 animate-spin-slow"></div>
-            </div>
+    class="min-h-screen bg-background-light dark:bg-background-dark flex items-center justify-center py-16 px-4 sm:px-6 lg:px-8 overflow-hidden relative transition-colors duration-300 bg-grid-pattern">
+    <!-- Abstract Shapes -->
+    <div
+      class="absolute top-20 left-10 w-16 h-16 bg-accent-blue border-4 border-black dark:border-primary rounded-full opacity-50 hidden lg:block animate-bounce shadow-neo"></div>
+    <div
+      class="absolute bottom-20 right-10 w-24 h-24 bg-secondary border-4 border-black dark:border-primary transform rotate-12 opacity-50 hidden lg:block shadow-neo"></div>
 
-            <!-- Outer glow ring removed for minimalist design -->
-            <!-- <div class="absolute inset-0 w-64 sm:w-72 md:w-80 h-64 sm:h-72 md:h-80 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-xl"></div> -->
+    <div class="max-w-7xl w-full grid grid-cols-1 lg:grid-cols-12 gap-12 z-10">
+      <!-- Left Column: Vision & Portrait -->
+      <div class="lg:col-span-5 flex flex-col space-y-8">
+        <div class="text-center lg:text-left">
+          <h1
+            class="font-display text-4xl md:text-6xl font-bold uppercase tracking-tight leading-none mb-2 text-black dark:text-white">
+            About
+            <br />
+            <span
+              class="bg-black text-white px-3 py-1 dark:bg-white dark:text-black inline-block transform rotate-1"
+              >Me</span
+            >
+          </h1>
+        </div>
 
-            <!-- Circular image -->
-            <div
-              class="relative rounded-full overflow-hidden w-64 sm:w-72 md:w-80 h-64 sm:h-72 md:h-80 shadow-2xl ring-4 ring-white dark:ring-gray-800">
-              <img
-                ref="profileImage"
-                src="https://rbopflmphatliijk.public.blob.vercel-storage.com/assets/profile-placeholder.jpg"
-                alt="Profile"
-                class="w-full h-full object-cover transition-transform duration-700 ease-out" />
-            </div>
+        <!-- Identity Card -->
+        <div
+          class="bg-white dark:bg-surface-dark border-4 border-black dark:border-primary p-6 shadow-neo-sm relative">
+          <h2
+            class="font-display text-3xl font-bold mb-4 text-secondary dark:text-primary uppercase">
+            Who is this guy?
+          </h2>
+          <p
+            class="text-lg md:text-xl leading-relaxed font-bold mb-4 dark:text-white">
+            I'm
+            <span
+              class="bg-primary dark:bg-secondary text-black px-2 border-2 border-black transform inline-block -rotate-1"
+              >Oka Sutarto Putra</span
+            >. A former industrial engineer who realized code is much more fun
+            than conveyor belts.
+          </p>
+          <p
+            class="text-base md:text-lg font-medium text-gray-700 dark:text-gray-200">
+            I build responsive UIs with Vue.js, React, & Angular, and architect
+            robust APIs with Node.js. My approach? Analytical thinking meets
+            chaotic creativity.
+          </p>
+          <div
+            class="absolute top-0 right-0 w-4 h-4 bg-black dark:bg-white"></div>
+        </div>
+      </div>
 
-            <!-- Floating badges -->
+      <!-- Right Column: Content & Stats -->
+      <div class="lg:col-span-7 flex flex-col space-y-10">
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+          <div
+            class="bg-primary p-6 border-2 border-black dark:border-primary shadow-neo-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all cursor-crosshair flex flex-col items-center justify-center text-center h-full">
             <div
-              class="absolute -right-2 sm:-right-4 top-4 sm:top-8 px-3 py-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg animate-float z-10">
-              <span class="text-xl sm:text-2xl">💻</span>
+              class="text-6xl font-display font-bold text-black mb-2 drop-shadow-md">
+              3+
             </div>
             <div
-              class="absolute -left-2 sm:-left-4 bottom-12 sm:bottom-16 px-3 py-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg animate-float-delayed z-10">
-              <span class="text-xl sm:text-2xl">🚀</span>
+              class="font-bold text-black bg-white w-full border-2 border-black py-1 uppercase tracking-widest text-xs">
+              Years Exp
+            </div>
+          </div>
+          <div
+            class="bg-accent-blue p-6 border-2 border-black dark:border-primary shadow-neo-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all cursor-crosshair flex flex-col items-center justify-center text-center h-full">
+            <div
+              class="text-6xl font-display font-bold text-white mb-2 drop-shadow-md">
+              8+
             </div>
             <div
-              class="absolute right-8 sm:right-4 -bottom-2 sm:-bottom-4 px-3 py-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg animate-float z-10">
-              <span class="text-xl sm:text-2xl">⚡</span>
+              class="font-bold text-black bg-white w-full border-2 border-black py-1 uppercase tracking-widest text-xs">
+              Projects
+            </div>
+          </div>
+          <div
+            class="bg-secondary p-6 border-2 border-black dark:border-primary shadow-neo-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all cursor-crosshair flex flex-col items-center justify-center text-center h-full">
+            <div
+              class="text-6xl font-display font-bold text-black mb-2 drop-shadow-md">
+              99%
+            </div>
+            <div
+              class="font-bold text-white bg-black dark:bg-white dark:text-black w-full border-2 border-white dark:border-black py-1 uppercase tracking-widest text-xs">
+              Satisfaction
             </div>
           </div>
         </div>
 
-        <!-- Content with hero-style animations -->
-        <div class="w-full lg:w-3/5 overflow-hidden pl-2" ref="contentSection">
-          <h2
-            class="text-2xl sm:text-4xl font-bold mb-6 text-gray-900 dark:text-gray-50 animation-element"
-            ref="headingRef">
-            Building End-to-End <br class="hidden sm:block" /><span
-              class="text-primary"
-              >Digital Solutions</span
-            >
-          </h2>
-          <p
-            class="mb-6 text-md sm:text-lg text-gray-700 dark:text-gray-300 leading-relaxed animation-element"
-            ref="descriptionRef">
-            Fullstack Developer crafting seamless experiences from
-            <span class="font-semibold text-primary">frontend to backend</span>.
-            I build responsive UIs with Vue.js, React, & Angular, architect
-            robust APIs with Node.js, and design efficient databases. Former
-            industrial engineer turned developer—I bring analytical thinking and
-            fresh perspectives to every project!
-          </p>
-
-          <!-- Quick Stats -->
+        <!-- Tech Arsenal -->
+        <div
+          class="relative p-8 border-2 border-black dark:border-primary bg-white dark:bg-surface-dark border-dashed">
           <div
-            class="grid grid-cols-3 gap-3 sm:gap-4 mb-8 animation-element"
-            ref="statsRef">
-            <div
-              class="text-center p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-shadow">
-              <p class="text-2xl sm:text-3xl font-bold text-primary">3+</p>
-              <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                Years Exp.
-              </p>
-            </div>
-            <div
-              class="text-center p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-shadow">
-              <p class="text-2xl sm:text-3xl font-bold text-primary">15+</p>
-              <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                Projects
-              </p>
-            </div>
-            <div
-              class="text-center p-3 sm:p-4 bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-shadow">
-              <p class="text-2xl sm:text-3xl font-bold text-primary">99%</p>
-              <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                Satisfaction
-              </p>
-            </div>
+            class="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-neo-magenta dark:bg-primary text-white dark:text-black font-display font-bold px-6 py-2 border-2 border-black dark:border-primary -rotate-1 shadow-neo-sm">
+            TECH ARSENAL
           </div>
-
-          <div class="mt-6">
-            <h3
-              class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200 animation-element"
-              ref="skillsHeadingRef">
-              Tech Stack
-            </h3>
-            <div class="flex flex-wrap gap-2 sm:gap-3">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+            <div
+              v-for="tech in arsenal"
+              :key="tech.name"
+              class="group flex flex-col items-center justify-center p-4 border-2 border-black dark:border-primary bg-gray-50 dark:bg-zinc-800 hover:bg-primary dark:hover:bg-primary transition-all shadow-neo-sm hover:shadow-none hover:translate-x-1 hover:translate-y-1">
+              <i
+                :class="[
+                  tech.icon,
+                  'text-4xl mb-2',
+                  tech.color,
+                  'group-hover:scale-110 group-hover:text-black transition-all',
+                ]"></i>
               <span
-                v-for="(skill, index) in skills"
-                :key="skill.name"
-                class="skill-tag bg-white border-none dark:bg-gray-800 rounded-lg px-3 sm:px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-primary hover:text-primary dark:hover:text-primary hover:shadow-md animation-element flex items-center gap-2"
-                :class="`skill-tag-${index}`"
-                :ref="
-                  (el) => {
-                    if (el) skillElements[index] = el;
-                  }
-                ">
-                <span
-                  v-html="skill.icon"
-                  class="flex items-center w-3 h-3 sm:w-4 sm:h-4 text-xs sm:text-base" />
-                <span>{{ skill.name }}</span>
-              </span>
+                class="font-bold text-xs uppercase group-hover:text-black transition-colors"
+                >{{ tech.name }}</span
+              >
             </div>
           </div>
+        </div>
 
-          <!-- CTA Buttons -->
-          <div
-            class="mt-8 mb-4 flex flex-wrap gap-4 animation-element"
-            ref="ctaRef">
-            <a
-              href="https://rbopflmphatliijk.public.blob.vercel-storage.com/OkaSutartoCV.pdf"
-              target="_blank"
-              rel="noopener noreferrer"
-              @click="trackResumeDownload"
-              class="px-8 py-3 bg-primary hover:bg-primary/70 dark:hover:bg-primary/70 text-white rounded-xl font-semibold transition-all duration-300 hover:text-gray-100 dark:hover:text-gray-300 hover:shadow-lg hover:-translate-y-1 flex items-center gap-2">
-              <span>Resume</span>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </a>
-          </div>
+        <!-- Download CTA -->
+        <div class="flex justify-start pt-4">
+          <a
+            class="relative inline-block group w-full md:w-auto text-center"
+            href="https://rbopflmphatliijk.public.blob.vercel-storage.com/OkaSutartoCV.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            @click="trackResumeDownload">
+            <span
+              class="absolute inset-0 w-full h-full transition duration-200 ease-out transform translate-x-2 translate-y-2 bg-black dark:bg-secondary group-hover:translate-x-0 group-hover:translate-y-0"></span>
+            <span
+              class="absolute inset-0 w-full h-full bg-white dark:bg-surface-dark border-2 border-black dark:border-primary group-hover:bg-primary group-hover:border-black transform group-hover:-translate-x-1 group-hover:-translate-y-1 transition-all"></span>
+            <span
+              class="relative flex items-center justify-center px-8 py-4 font-display font-bold text-black dark:text-white uppercase group-hover:text-black">
+              Download Resume <i class="fas fa-download ml-3"></i>
+            </span>
+          </a>
         </div>
       </div>
     </div>
   </section>
 </template>
 
-<script>
-import { ref, onMounted, onUnmounted, reactive } from "vue";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { skills as skillsData } from "@/data/skills";
-import { usePostHog } from '@/composables/usePostHog';
+<script setup>
+import { usePostHog } from "@/composables/usePostHog";
 
-// Register ScrollTrigger plugin
-gsap.registerPlugin(ScrollTrigger);
+const { posthog } = usePostHog();
 
-export default {
-  setup() {
-    // Element refs
-    const profileContainer = ref(null);
-    const backgroundCircle = ref(null);
-    const profileImage = ref(null);
-    const contentSection = ref(null);
-    const badgeRef = ref(null);
-    const headingRef = ref(null);
-    const descriptionRef = ref(null);
-    const statsRef = ref(null);
-    const skillsHeadingRef = ref(null);
-    const ctaRef = ref(null);
-
-    // Scroll to contact function
-    const scrollToContact = () => {
-      const contactSection = document.getElementById("contact");
-      if (contactSection) {
-        contactSection.scrollIntoView({ behavior: "smooth" });
-      }
-    };
-
-    // PostHog
-    const { posthog } = usePostHog();
-
-    const trackResumeDownload = () => {
-      posthog.capture('resume_downloaded');
-    };
-
-    // Skills array with icons - Fullstack focused
-    // Skills array with icons - Fullstack focused
-    const skills = reactive(skillsData);
-    const skillElements = reactive([]);
-
-    // Store all animations for cleanup
-    const animations = [];
-
-    onMounted(() => {
-      // Profile container parallax effect
-      animations.push(
-        gsap.to(profileContainer.value, {
-          scrollTrigger: {
-            trigger: "#about",
-            start: "top bottom",
-            end: "center center",
-            scrub: true,
-          },
-          ease: "power2.out",
-        })
-      );
-
-      // Profile image scale and rotation
-      animations.push(
-        gsap.fromTo(
-          profileImage.value,
-          { opacity: 0, scale: 0.8 },
-          {
-            opacity: 1,
-            scale: 1,
-            duration: 0.8,
-            delay: 0.3,
-            ease: "back.out(1.7)",
-            scrollTrigger: {
-              trigger: profileImage.value,
-              start: "top 85%",
-              toggleActions: "play none none reverse",
-            },
-          }
-        )
-      );
-
-      // Content section parallax
-      animations.push(
-        gsap.to(contentSection.value, {
-          scrollTrigger: {
-            trigger: "#about",
-            start: "top bottom",
-            end: "center center",
-            scrub: true,
-          },
-          ease: "power2.out",
-        })
-      );
-
-      // Badge animation
-      if (badgeRef.value) {
-        animations.push(
-          gsap.fromTo(
-            badgeRef.value,
-            { opacity: 0, y: -20 },
-            {
-              opacity: 1,
-              y: 0,
-              duration: 0.5,
-              scrollTrigger: {
-                trigger: badgeRef.value,
-                start: "top 75%",
-                toggleActions: "play none none reverse",
-              },
-            }
-          )
-        );
-      }
-
-      // Heading animation
-      animations.push(
-        gsap.fromTo(
-          headingRef.value,
-          { opacity: 0, x: -30 },
-          {
-            opacity: 1,
-            x: 0,
-            duration: 0.6,
-            scrollTrigger: {
-              trigger: headingRef.value,
-              start: "top 75%",
-              toggleActions: "play none none reverse",
-            },
-          }
-        )
-      );
-
-      // Description animation
-      animations.push(
-        gsap.fromTo(
-          descriptionRef.value,
-          { opacity: 0, x: -30 },
-          {
-            opacity: 1,
-            x: 0,
-            duration: 0.6,
-            delay: 0.1,
-            scrollTrigger: {
-              trigger: descriptionRef.value,
-              start: "top 70%",
-              toggleActions: "play none none reverse",
-            },
-          }
-        )
-      );
-
-      // Stats animation
-      if (statsRef.value) {
-        animations.push(
-          gsap.fromTo(
-            statsRef.value,
-            { opacity: 0, y: 30 },
-            {
-              opacity: 1,
-              y: 0,
-              duration: 0.6,
-              delay: 0.2,
-              scrollTrigger: {
-                trigger: statsRef.value,
-                start: "top 70%",
-                toggleActions: "play none none reverse",
-              },
-            }
-          )
-        );
-      }
-
-      // Skills heading animation
-      animations.push(
-        gsap.fromTo(
-          skillsHeadingRef.value,
-          { opacity: 0, x: -20 },
-          {
-            opacity: 1,
-            x: 0,
-            duration: 0.5,
-            delay: 0.2,
-            scrollTrigger: {
-              trigger: skillsHeadingRef.value,
-              start: "top 70%",
-              toggleActions: "play none none reverse",
-            },
-          }
-        )
-      );
-
-      // Skill tags staggered animation
-      skillElements.forEach((element, index) => {
-        if (element) {
-          animations.push(
-            gsap.fromTo(
-              element,
-              { opacity: 0, y: 20, scale: 0.8 },
-              {
-                opacity: 1,
-                y: 0,
-                scale: 1,
-                duration: 0.4,
-                delay: 0.3 + index * 0.08,
-                ease: "back.out(1.7)",
-                scrollTrigger: {
-                  trigger: element,
-                  start: "top 80%",
-                  toggleActions: "play none none reverse",
-                },
-              }
-            )
-          );
-        }
-      });
-
-      // CTA animation
-      if (ctaRef.value) {
-        animations.push(
-          gsap.fromTo(
-            ctaRef.value,
-            { opacity: 0, y: 20 },
-            {
-              opacity: 1,
-              y: 0,
-              duration: 0.5,
-              delay: 0.4,
-              scrollTrigger: {
-                trigger: ctaRef.value,
-                start: "top 80%",
-                toggleActions: "play none none reverse",
-              },
-            }
-          )
-        );
-      }
-    });
-
-    onUnmounted(() => {
-      // Clean up all ScrollTrigger instances
-      animations.forEach((animation) => {
-        if (animation.scrollTrigger) {
-          animation.scrollTrigger.kill();
-        }
-      });
-
-      ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
-    });
-
-    return {
-      profileContainer,
-      backgroundCircle,
-      profileImage,
-      contentSection,
-      badgeRef,
-      headingRef,
-      descriptionRef,
-      statsRef,
-      skillsHeadingRef,
-      ctaRef,
-      skills,
-      skillElements,
-      scrollToContact,
-      trackResumeDownload
-    };
-  },
+const trackResumeDownload = () => {
+  posthog.capture("resume_downloaded");
+  // Add direct link if needed: window.open('your-cv-url', '_blank');
 };
+
+const arsenal = [
+  { name: "Vue.js", icon: "fab fa-vuejs", color: "text-green-600" },
+  { name: "React", icon: "fab fa-react", color: "text-blue-500" },
+  { name: "Angular", icon: "fab fa-angular", color: "text-red-600" },
+  { name: "Node.js", icon: "fab fa-node", color: "text-green-700" },
+  { name: "PostgreSQL", icon: "fas fa-database", color: "text-yellow-600" },
+  { name: "Docker", icon: "fab fa-docker", color: "text-blue-600" },
+  { name: "Git", icon: "fab fa-git-alt", color: "text-orange-600" },
+  { name: "TypeScript", icon: "fas fa-code", color: "text-blue-700" },
+];
 </script>
 
 <style scoped>
-section {
-  padding-top: 6rem;
-  padding-bottom: 6rem;
-}
-
-@media (min-width: 640px) {
-  section {
-    padding-top: 4rem;
-    padding-bottom: 4rem;
-  }
-}
-
-@media (min-width: 768px) {
-  section {
-    padding-top: 6rem;
-    padding-bottom: 6rem;
-  }
-}
-
-/* Rotating ring animation */
-@keyframes spin-slow {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-spin-slow {
-  animation: spin-slow 20s linear infinite;
-}
-
-/* Floating animation */
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-.animate-float {
-  animation: float 3s ease-in-out infinite;
-}
-
-.animate-float-delayed {
-  animation: float 3s ease-in-out infinite;
-  animation-delay: 1.5s;
-}
-
-/* Hide elements before animation */
-.animation-element {
-  opacity: 0;
-}
-
-/* Skill tag hover effect */
-.skill-tag {
-  transition: all 0.3s ease;
-}
-
-.skill-tag:hover {
-  transform: translateY(-3px) !important;
-}
-
-/* Image hover effect */
-.relative:hover img {
-  transform: scale(1.05) !important;
-  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
+/* Scoped styles relocated to global index.css for consistency where possible */
 </style>

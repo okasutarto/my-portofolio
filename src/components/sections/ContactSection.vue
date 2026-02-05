@@ -1,226 +1,215 @@
 <template>
-  <section id="contact" class="relative py-8 md:py-12 overflow-hidden">
-    <div class="container mx-auto px-4 relative z-10">
-      <h2
-        ref="sectionTitle"
-        class="text-3xl font-bold mb-4 text-center dark:text-white opacity-0">
-        Get In Touch
-      </h2>
-      <div
-        class="h-1 w-20 bg-primary mx-auto rounded-full mb-12 opacity-0"
-        ref="titleUnderline"></div>
+  <section
+    id="contact"
+    class="py-24 px-4 md:px-12 bg-background-light dark:bg-background-dark transition-colors duration-300 relative overflow-hidden bg-grid-pattern">
+    <div class="max-w-7xl mx-auto relative z-10">
+      <!-- Section Header -->
+      <div class="text-center mb-20 relative">
+        <h2
+          ref="sectionTitle"
+          class="text-4xl md:text-6xl font-display font-bold text-white dark:text-black uppercase tracking-tighter bg-black dark:bg-primary inline-block px-8 py-4 border-2 border-black dark:border-primary shadow-neo-sm transform rotate-[-1deg] opacity-0">
+          Get In Touch
+        </h2>
+        <div
+          class="mt-6 h-2 w-32 bg-primary mx-auto border-2 border-black dark:border-primary opacity-0 shadow-neo-sm"
+          ref="titleUnderline"></div>
+      </div>
 
-      <div class="max-w-6xl mx-auto">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          <!-- Contact Info -->
-          <div class="space-y-8 opacity-0" ref="contactInfo">
-            <div>
-              <h3 class="text-2xl font-semibold mb-4 dark:text-white">
-                Let's Connect
-              </h3>
-              <p class="text-gray-600 dark:text-gray-300 mb-6">
-                I'm always interested in new projects and opportunities. Whether
-                you have a question or just want to say hello, I'll try my best
-                to get back to you!
-              </p>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
+        <!-- Contact Information Area -->
+        <div
+          class="flex flex-col justify-center space-y-12"
+          ref="contactInfoArea">
+          <div class="space-y-6">
+            <h3
+              class="text-5xl md:text-7xl font-display font-bold text-black dark:text-white leading-none tracking-tighter drop-shadow-[4px_4px_0px_var(--color-primary)]">
+              LET'S<br />CONNECT<span class="text-primary">.</span>
+            </h3>
+            <p
+              class="text-lg md:text-xl font-bold text-gray-800 dark:text-gray-200 bg-white dark:bg-surface-dark border-2 border-black dark:border-primary p-8 shadow-neo-sm transform rotate-1">
+              I'm always interested in new projects and opportunities. Whether
+              you have a question or just want to say hello, I'll try my best to
+              get back to you!
+            </p>
+          </div>
+
+          <!-- Contact Blocks -->
+          <div class="space-y-6">
+            <!-- Email -->
+            <div
+              class="group flex items-center p-4 bg-secondary border-2 border-black dark:border-primary shadow-neo-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all cursor-pointer">
+              <div
+                class="flex-shrink-0 bg-black text-white p-4 flex items-center justify-center border-2 border-white">
+                <span class="material-icons text-3xl">email</span>
+              </div>
+              <div class="ml-6">
+                <p
+                  class="text-[10px] font-bold uppercase tracking-[0.2em] text-black dark:text-white opacity-60 mb-0.5">
+                  Email
+                </p>
+                <a
+                  href="mailto:okasputra@gmail.com"
+                  @click="posthog.capture('email_link_clicked')"
+                  class="text-lg md:text-2xl font-bold text-black dark:text-white hover:underline decoration-4 underline-offset-4">
+                  okasputra@gmail.com
+                </a>
+              </div>
             </div>
 
-            <div class="space-y-6">
-              <div class="flex items-center">
-                <div
-                  class="bg-primary/10 dark:bg-primary/20 p-3 rounded-full mr-4 shrink-0">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-6 w-6 text-primary dark:text-primary-light"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 class="font-medium dark:text-white">Email</h3>
-                  <a
-                    href="mailto:okasputra@gmail.com"
-                    @click="posthog.capture('email_link_clicked')"
-                    class="text-primary hover:underline dark:text-primary-light"
-                    >okasputra@gmail.com</a
-                  >
-                </div>
+            <!-- Phone -->
+            <div
+              class="group flex items-center p-4 bg-primary border-2 border-black dark:border-primary shadow-neo-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all cursor-pointer">
+              <div
+                class="flex-shrink-0 bg-black text-white p-4 flex items-center justify-center border-2 border-white">
+                <span class="material-icons text-3xl">phone</span>
               </div>
-
-              <div class="flex items-center">
-                <div
-                  class="bg-primary/10 dark:bg-primary/20 p-3 rounded-full mr-4 shrink-0">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-6 w-6 text-primary dark:text-primary-light"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 class="font-medium dark:text-white">Phone / WhatsApp</h3>
-                  <a
-                    href="tel:+6281234567890"
-                    class="text-primary hover:underline dark:text-primary-light"
-                    >+62 822 1641 8397</a
-                  >
-                </div>
+              <div class="ml-6">
+                <p
+                  class="text-[10px] font-bold uppercase tracking-[0.2em] text-black dark:text-white opacity-60 mb-0.5">
+                  Phone / WhatsApp
+                </p>
+                <p
+                  class="text-lg md:text-2xl font-bold text-black dark:text-white">
+                  +62 822 1641 8397
+                </p>
               </div>
+            </div>
 
-              <div class="flex items-center">
-                <div
-                  class="bg-primary/10 dark:bg-primary/20 p-3 rounded-full mr-4 shrink-0">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-6 w-6 text-primary dark:text-primary-light"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 class="font-medium dark:text-white">Location</h3>
-                  <p class="text-gray-600 dark:text-gray-300">
-                    Pontianak, Indonesia
-                  </p>
-                </div>
+            <!-- Location -->
+            <div
+              class="group flex items-center p-4 bg-neo-magenta dark:bg-white border-2 border-black dark:border-primary shadow-neo-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all cursor-pointer">
+              <div
+                class="flex-shrink-0 bg-black text-white p-4 flex items-center justify-center border-2 border-white">
+                <span class="material-icons text-3xl">map</span>
+              </div>
+              <div class="ml-6">
+                <p
+                  class="text-[10px] font-bold uppercase tracking-[0.2em] text-black dark:text-white opacity-60 mb-0.5">
+                  Location
+                </p>
+                <p
+                  class="text-lg md:text-2xl font-bold text-black dark:text-black">
+                  Pontianak, Indonesia
+                </p>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- Contact Form -->
+        <!-- Contact Form Area -->
+        <div class="relative" ref="formArea">
+          <!-- Decorative shape -->
           <div
-            class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 sm:p-8 opacity-0"
-            ref="contactFormCard">
-            <h3 class="text-xl font-semibold mb-6 dark:text-white">
-              Send a Message
-            </h3>
-            <form
-              ref="contactForm"
-              @submit.prevent="submitForm"
-              class="space-y-4">
-              <div ref="nameField" class="opacity-0">
+            class="absolute -top-12 -right-12 w-36 h-36 bg-primary rounded-full border-2 border-black hidden xl:block z-0 animate-pulse shadow-neo-sm"></div>
+
+          <div
+            class="relative z-10 bg-white dark:bg-surface-dark border-2 border-black dark:border-primary p-8 md:p-10 shadow-neo-sm dark:shadow-neo">
+            <div class="mb-8 border-b-2 border-black dark:border-primary pb-6">
+              <h3
+                class="text-3xl md:text-4xl font-display font-bold text-black dark:text-white uppercase tracking-tight">
+                Send a Message
+              </h3>
+            </div>
+
+            <form @submit.prevent="submitForm" class="space-y-8">
+              <!-- Name -->
+              <div class="space-y-3">
                 <label
+                  class="block text-base font-bold text-black dark:text-white uppercase tracking-wider"
                   for="name"
-                  class="block text-sm font-medium text-gray-700 dark:text-gray-300"
                   >Name</label
                 >
                 <input
-                  type="text"
                   id="name"
                   v-model="form.name"
-                  class="mt-1 block w-full rounded-md border-gray-300 dark:border-0 shadow-sm focus:border-primary focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white p-3 border"
-                  :class="{ 'border-red-500': errors.name }"
-                  placeholder="Your Name" />
-                <p v-if="errors.name" class="mt-1 text-sm text-red-500">
+                  type="text"
+                  placeholder="YOUR FULL NAME"
+                  class="w-full bg-gray-50 dark:bg-zinc-900 border-2 border-black dark:border-primary text-black dark:text-white p-4 font-bold placeholder-gray-400 focus:ring-0 focus:outline-none focus:border-primary dark:focus:border-primary focus:shadow-neo-sm transition-all"
+                  :class="{ 'border-red-500': errors.name }" />
+                <p
+                  v-if="errors.name"
+                  class="text-sm font-bold text-red-600 uppercase">
                   {{ errors.name }}
                 </p>
               </div>
 
-              <div ref="emailField" class="opacity-0">
+              <!-- Email -->
+              <div class="space-y-3">
                 <label
+                  class="block text-base font-bold text-black dark:text-white uppercase tracking-wider"
                   for="email"
-                  class="block text-sm font-medium text-gray-700 dark:text-gray-300"
                   >Email</label
                 >
                 <input
-                  type="email"
                   id="email"
                   v-model="form.email"
-                  class="mt-1 block w-full rounded-md border-gray-300 dark:border-0 shadow-sm focus:border-primary focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white p-3 border"
-                  :class="{ 'border-red-500': errors.email }"
-                  placeholder="your.email@example.com" />
-                <p v-if="errors.email" class="mt-1 text-sm text-red-500">
+                  type="email"
+                  placeholder="EMAIL@EXAMPLE.COM"
+                  class="w-full bg-gray-50 dark:bg-zinc-900 border-2 border-black dark:border-primary text-black dark:text-white p-4 font-bold placeholder-gray-400 focus:ring-0 focus:outline-none focus:border-secondary dark:focus:border-secondary focus:shadow-neo-sm transition-all"
+                  :class="{ 'border-red-500': errors.email }" />
+                <p
+                  v-if="errors.email"
+                  class="text-sm font-bold text-red-600 uppercase">
                   {{ errors.email }}
                 </p>
               </div>
 
-              <div ref="messageField" class="opacity-0">
+              <!-- Message -->
+              <div class="space-y-3">
                 <label
+                  class="block text-base font-bold text-black dark:text-white uppercase tracking-wider"
                   for="message"
-                  class="block text-sm font-medium text-gray-700 dark:text-gray-300"
                   >Message</label
                 >
                 <textarea
                   id="message"
                   v-model="form.message"
-                  rows="4"
-                  class="mt-1 block w-full rounded-md border-gray-300 dark:border-0 shadow-sm focus:border-primary focus:ring-primary dark:bg-gray-700 dark:border-gray-600 dark:text-white p-3 border"
-                  :class="{ 'border-red-500': errors.message }"
-                  placeholder="How can I help you?"></textarea>
-                <p v-if="errors.message" class="mt-1 text-sm text-red-500">
+                  rows="5"
+                  placeholder="TELL ME ABOUT YOUR PROJECT..."
+                  class="w-full bg-gray-50 dark:bg-zinc-900 border-2 border-black dark:border-primary text-black dark:text-white p-4 font-bold placeholder-gray-400 focus:ring-0 focus:outline-none focus:border-primary dark:focus:border-primary focus:shadow-neo-sm transition-all resize-none"
+                  :class="{ 'border-red-500': errors.message }"></textarea>
+                <p
+                  v-if="errors.message"
+                  class="text-sm font-bold text-red-600 uppercase">
                   {{ errors.message }}
                 </p>
               </div>
 
-              <div ref="submitButton" class="opacity-0 pt-2">
+              <!-- Submit Button -->
+              <div class="pt-4">
                 <button
                   type="submit"
-                  class="w-full inline-flex justify-center py-3 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:ring-offset-gray-800 transition-all duration-300 transform hover:-translate-y-1"
-                  :disabled="isSubmitting">
-                  <span v-if="isSubmitting" class="flex items-center">
-                    <svg
-                      class="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24">
-                      <circle
-                        class="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        stroke-width="4"></circle>
-                      <path
-                        class="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Sending...
-                  </span>
-                  <span v-else>Send Message</span>
+                  :disabled="isSubmitting"
+                  class="w-full bg-primary hover:bg-white dark:bg-primary dark:hover:bg-secondary text-black dark:text-black hover:text-black dark:hover:text-white font-bold text-xl md:text-2xl uppercase tracking-tight py-4 px-8 border-2 border-black dark:border-primary shadow-neo-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 group">
+                  <span
+                    v-if="isSubmitting"
+                    class="animate-spin material-icons text-2xl"
+                    >refresh</span
+                  >
+                  <span>{{
+                    isSubmitting ? "Sending..." : "Send Message"
+                  }}</span>
+                  <span
+                    v-if="!isSubmitting"
+                    class="material-icons text-3xl group-hover:translate-x-1 transition-transform"
+                    >send</span
+                  >
                 </button>
               </div>
 
-              <!-- Form status messages -->
-              <div
-                v-if="submitStatus === 'success'"
-                class="max-w-2xl mx-auto bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded"
-                role="alert">
-                <p class="font-bold">Thank you!</p>
-                <p>
-                  Your message has been sent successfully. I'll get back to you
-                  soon.
-                </p>
-              </div>
-
-              <div
-                v-else-if="submitStatus === 'error'"
-                class="max-w-2xl mx-auto mb-6 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded"
-                role="alert">
-                <p class="font-bold">Something went wrong</p>
-                <p>
-                  Unable to send your message. Please try again later or contact
-                  me through other channels.
-                </p>
-              </div>
+              <!-- Status Messages -->
+              <transition name="fade">
+                <div
+                  v-if="submitStatus === 'success'"
+                  class="bg-primary text-black border-4 border-black p-6 font-black text-xl text-center uppercase shadow-neo animate-bounce">
+                  ✓ Message Sent Successfully!
+                </div>
+                <div
+                  v-else-if="submitStatus === 'error'"
+                  class="bg-red-500 text-white border-4 border-black p-6 font-black text-xl text-center uppercase shadow-neo">
+                  × Something went wrong. Try again!
+                </div>
+              </transition>
             </form>
           </div>
         </div>
@@ -235,27 +224,21 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import emailjs from "@emailjs/browser";
 import { EMAILJS_CONFIG } from "@/config/emailjs";
-import { usePostHog } from '@/composables/usePostHog';
+import { usePostHog } from "@/composables/usePostHog";
 
-// Register ScrollTrigger plugin
 gsap.registerPlugin(ScrollTrigger);
-
-// Element refs
-const sectionTitle = ref(null);
-const titleUnderline = ref(null);
-const contactInfo = ref(null);
-const contactFormCard = ref(null);
-const contactForm = ref(null);
-const nameField = ref(null);
-const emailField = ref(null);
-const messageField = ref(null);
-const submitButton = ref(null);
-const decorCircle1 = ref(null);
-const decorCircle2 = ref(null);
 
 const { posthog } = usePostHog();
 
-// Form data
+// Refs
+const sectionTitle = ref(null);
+const titleUnderline = ref(null);
+const contactInfoArea = ref(null);
+const formArea = ref(null);
+
+const animations = [];
+
+// Form State
 const form = reactive({
   name: "",
   email: "",
@@ -269,87 +252,35 @@ const errors = reactive({
 });
 
 const isSubmitting = ref(false);
-const submitStatus = ref(null); // null, 'success', 'error'
-const animations = reactive([]);
+const submitStatus = ref(null);
 
-// Form validation
+// Validation
 const validateForm = () => {
   let isValid = true;
+  errors.name = !form.name.trim() ? "Name is required" : "";
+  errors.email = !form.email.trim()
+    ? "Email is required"
+    : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
+    ? "Invalid email"
+    : "";
+  errors.message = !form.message.trim()
+    ? "Message is required"
+    : form.message.length < 10
+    ? "Too short (min 10 chars)"
+    : "";
 
-  // Reset errors
-  errors.name = "";
-  errors.email = "";
-  errors.message = "";
-
-  // Name validation
-  if (!form.name.trim()) {
-    errors.name = "Name is required";
-    isValid = false;
-  }
-
-  // Email validation
-  if (!form.email.trim()) {
-    errors.email = "Email is required";
-    isValid = false;
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-    errors.email = "Please enter a valid email address";
-    isValid = false;
-  }
-
-  // Message validation
-  if (!form.message.trim()) {
-    errors.message = "Message is required";
-    isValid = false;
-  } else if (form.message.length < 10) {
-    errors.message = "Message must be at least 10 characters";
-    isValid = false;
-  }
-
+  if (errors.name || errors.email || errors.message) isValid = false;
   return isValid;
 };
 
-// Form submission
+// Submission
 const submitForm = async () => {
-  if (!validateForm()) {
-    // Shake fields with errors
-    Object.keys(errors).forEach((field) => {
-      if (errors[field]) {
-        const fieldRef =
-          field === "name"
-            ? nameField.value
-            : field === "email"
-            ? emailField.value
-            : field === "message"
-            ? messageField.value
-            : null;
+  if (!validateForm()) return;
 
-        if (fieldRef) {
-          gsap.to(fieldRef, {
-            x: [-5, 5, -5, 5, 0],
-            duration: 0.4,
-            ease: "power2.inOut",
-          });
-        }
-      }
-    });
-    return;
-  }
-
-  // Animate button on click
-  gsap.to(submitButton.value, {
-    scale: 1.05,
-    duration: 0.2,
-    yoyo: true,
-    repeat: 1,
-    ease: "back.out",
-  });
-
-  // Set loading state
   isSubmitting.value = true;
   submitStatus.value = null;
 
   try {
-    // Prepare template parameters for EmailJS
     const templateParams = {
       name: form.name,
       email: form.email,
@@ -358,254 +289,111 @@ const submitForm = async () => {
       to_name: "Oka Sutarto Putra",
     };
 
-    // Send email using EmailJS
-    const response = await emailjs.send(
+    await emailjs.send(
       EMAILJS_CONFIG.SERVICE_ID,
       EMAILJS_CONFIG.TEMPLATE_ID,
       templateParams,
-      EMAILJS_CONFIG.PUBLIC_KEY
+      EMAILJS_CONFIG.PUBLIC_KEY,
     );
 
-    console.log("Email sent successfully:", response);
-
-    // Success handling
     submitStatus.value = "success";
-    
-    posthog.capture('contact_form_sent');
+    posthog.capture("contact_form_sent");
 
-    // Reset form after submission
+    // Reset
     form.name = "";
     form.email = "";
     form.message = "";
 
-    // After 5 seconds, clear the success message
     setTimeout(() => {
       submitStatus.value = null;
     }, 5000);
   } catch (error) {
-    console.error("EmailJS error:", error);
+    console.error("EmailJS Error:", error);
     submitStatus.value = "error";
   } finally {
     isSubmitting.value = false;
   }
 };
 
-// Initialize animations
-const initAnimations = () => {
-  // Section title animation
-  // Section title and underline animation
+onMounted(() => {
+  // Title reveal
   animations.push(
-    gsap.to([sectionTitle.value, titleUnderline.value], {
+    gsap.to(sectionTitle.value, {
       opacity: 1,
       y: 0,
+      rotate: -1,
       duration: 1,
-      stagger: 0.2,
-      ease: "power3.out",
+      ease: "back.out(1.7)",
       scrollTrigger: {
-        trigger: "#contact",
-        start: "top 60%",
+        trigger: sectionTitle.value,
+        start: "top 85%",
         toggleActions: "play none none reverse",
       },
-    })
+    }),
   );
 
-  // Initial set for underline
-  if (titleUnderline.value) {
-    gsap.set(titleUnderline.value, { y: 20 });
-  }
-
-  // Contact Info animation
-  if (contactInfo.value) {
-    animations.push(
-      gsap.fromTo(
-        contactInfo.value,
-        { opacity: 0, x: -30 },
-        {
-          opacity: 1,
-          x: 0,
-          duration: 0.8,
-          delay: 0.2,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: "#contact",
-            start: "top 60%",
-            toggleActions: "play none none reverse",
-          },
-        }
-      )
-    );
-  }
-
-  // Form container reveal
-  if (contactFormCard.value) {
-    animations.push(
-      gsap.fromTo(
-        contactFormCard.value,
-        { opacity: 0, x: 30 },
-        {
-          opacity: 1,
-          x: 0,
-          duration: 0.8,
-          delay: 0.2,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: "#contact",
-            start: "top 60%",
-            toggleActions: "play none none reverse",
-          },
-        }
-      )
-    );
-  }
-
-  // Form content fade in
   animations.push(
-    gsap.fromTo(
-      contactForm.value,
-      { opacity: 0 },
-      {
-        opacity: 1,
-        duration: 0.8,
-        delay: 0.4,
-        ease: "power2.out",
-        scrollTrigger: {
-          trigger: "#contact",
-          start: "top 60%",
-          toggleActions: "play none none reverse",
-        },
-      }
-    )
+    gsap.to(titleUnderline.value, {
+      opacity: 1,
+      width: "192px",
+      duration: 1,
+      delay: 0.3,
+      ease: "power2.out",
+      scrollTrigger: {
+        trigger: sectionTitle.value,
+        start: "top 85%",
+      },
+    }),
   );
 
-  // Form fields staggered animation
-  const formElements = [
-    nameField.value,
-    emailField.value,
-    messageField.value,
-    submitButton.value,
-  ];
-
-  formElements.forEach((element, index) => {
-    animations.push(
-      gsap.fromTo(
-        element,
-        { opacity: 0, x: -30 },
-        {
-          opacity: 1,
-          x: 0,
-          duration: 0.6,
-          delay: 0.4 + index * 0.15,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: "#contact",
-            start: "top 50%",
-            toggleActions: "play none none reverse",
-          },
-        }
-      )
-    );
-  });
-
-  // Decorative elements parallax
-  if (decorCircle1.value) {
-    animations.push(
-      gsap.to(decorCircle1.value, {
-        x: 40,
-        y: 40,
-        scrollTrigger: {
-          trigger: "#contact",
-          start: "top bottom",
-          end: "bottom top",
-          scrub: 1.5,
-        },
-      })
-    );
-  }
-
-  if (decorCircle2.value) {
-    animations.push(
-      gsap.to(decorCircle2.value, {
-        x: -30,
-        y: -20,
-        scrollTrigger: {
-          trigger: "#contact",
-          start: "top bottom",
-          end: "bottom top",
-          scrub: 1,
-        },
-      })
-    );
-  }
-
-  // Input field focus animation
-  const inputFields = document.querySelectorAll(
-    "#contact input, #contact textarea"
+  // Content reveal
+  animations.push(
+    gsap.from(contactInfoArea.value, {
+      x: -50,
+      opacity: 0,
+      duration: 1,
+      ease: "power3.out",
+      scrollTrigger: {
+        trigger: contactInfoArea.value,
+        start: "top 80%",
+      },
+    }),
   );
-  inputFields.forEach((field) => {
-    field.addEventListener("focus", () => {
-      gsap.to(field, {
-        scale: 1.02,
-        duration: 0.3,
-        ease: "power1.out",
-      });
-    });
 
-    field.addEventListener("blur", () => {
-      gsap.to(field, {
-        scale: 1,
-        duration: 0.3,
-        ease: "power1.out",
-      });
-    });
-  });
-};
-
-// Lifecycle hooks
-onMounted(() => {
-  initAnimations();
+  animations.push(
+    gsap.from(formArea.value, {
+      x: 50,
+      opacity: 0,
+      duration: 1,
+      ease: "power3.out",
+      scrollTrigger: {
+        trigger: formArea.value,
+        start: "top 80%",
+      },
+    }),
+  );
 });
 
 onBeforeUnmount(() => {
-  // Clean up animations
-  animations.forEach((animation) => {
-    if (animation.scrollTrigger) {
-      animation.scrollTrigger.kill();
-    }
-  });
-
-  ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
+  animations.forEach((a) => a.kill());
+  ScrollTrigger.getAll().forEach((t) => t.kill());
 });
 </script>
 
 <style scoped>
-/* Optimize for animations */
-section {
-  padding-top: 6rem; /* 96px */
-  padding-bottom: 6rem; /* 96px */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
-/* Form field focus effect */
-input:focus,
-textarea:focus {
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
-  transition: all 0.2s ease;
-}
-
-/* Button hover animation */
-button {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -1px rgba(0, 0, 0, 0.06);
-}
-
-/* Input and textarea styling fixes for animation */
-input,
-textarea {
-  transform-origin: center;
-  transition: transform 0.3s ease;
+/* Material Icons vertically centered fix */
+.material-icons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

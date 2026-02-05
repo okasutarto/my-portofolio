@@ -1,26 +1,52 @@
 <template>
   <div class="custom-cursor-container" v-if="!isTouchDevice">
-    <!-- Main cursor dot -->
-    <div 
-      ref="cursorDot"
-      class="cursor-dot"
-      :class="{ 'cursor-hover': isHovering, 'cursor-click': isClicking }"
-    ></div>
-    
-    <!-- Cursor ring/outline -->
-    <div 
-      ref="cursorRing"
-      class="cursor-ring"
-      :class="{ 'cursor-hover': isHovering, 'cursor-click': isClicking }"
-    ></div>
+    <!-- Trail/Shadow Cursor (Cyan) -->
+    <div
+      ref="cursorShadow"
+      class="cursor-shadow"
+      :class="{ 'cursor-hover': isHovering, 'cursor-click': isClicking }">
+      <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg">
+        <path
+          d="M5 3L19 12L5 21V3Z"
+          fill="#00e0c6"
+          stroke="black"
+          stroke-width="2"
+          stroke-linejoin="miter" />
+      </svg>
+    </div>
+
+    <!-- Main Cursor (Yellow) -->
+    <div
+      ref="cursorMain"
+      class="cursor-main"
+      :class="{ 'cursor-hover': isHovering, 'cursor-click': isClicking }">
+      <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg">
+        <path
+          d="M5 3L19 12L5 21V3Z"
+          fill="#ffdd00"
+          stroke="black"
+          stroke-width="2"
+          stroke-linejoin="miter" />
+      </svg>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted } from "vue";
 
-const cursorDot = ref(null);
-const cursorRing = ref(null);
+const cursorMain = ref(null);
+const cursorShadow = ref(null);
 const isHovering = ref(false);
 const isClicking = ref(false);
 const isTouchDevice = ref(false);
@@ -28,10 +54,10 @@ const isTouchDevice = ref(false);
 // Cursor position with smooth follow
 let mouseX = 0;
 let mouseY = 0;
-let dotX = 0;
-let dotY = 0;
-let ringX = 0;
-let ringY = 0;
+let mainX = 0;
+let mainY = 0;
+let shadowX = 0;
+let shadowY = 0;
 let animationId = null;
 
 const onMouseMove = (e) => {
@@ -57,84 +83,79 @@ const onMouseLeaveInteractive = () => {
 
 // Smooth animation loop
 const animate = () => {
-  // Dot follows cursor directly with slight smoothing
-  dotX += (mouseX - dotX) * 0.5;
-  dotY += (mouseY - dotY) * 0.5;
-  
-  // Ring follows with more delay for trailing effect
-  ringX += (mouseX - ringX) * 0.15;
-  ringY += (mouseY - ringY) * 0.15;
-  
-  if (cursorDot.value) {
-    cursorDot.value.style.transform = `translate(${dotX}px, ${dotY}px)`;
+  // Main cursor follows tightly
+  mainX += (mouseX - mainX) * 0.4;
+  mainY += (mouseY - mainY) * 0.4;
+
+  // Shadow follows with more delay for trailing effect
+  shadowX += (mouseX - shadowX) * 0.15;
+  shadowY += (mouseY - shadowY) * 0.15;
+
+  if (cursorMain.value) {
+    cursorMain.value.style.transform = `translate(${mainX}px, ${mainY}px)`;
   }
-  
-  if (cursorRing.value) {
-    cursorRing.value.style.transform = `translate(${ringX}px, ${ringY}px)`;
+
+  if (cursorShadow.value) {
+    cursorShadow.value.style.transform = `translate(${shadowX}px, ${shadowY}px)`;
   }
-  
+
   animationId = requestAnimationFrame(animate);
 };
 
 const addInteractiveListeners = () => {
-  // Add hover effect to interactive elements
   const interactiveElements = document.querySelectorAll(
-    'a, button, input, textarea, [role="button"], .cursor-hover-target'
+    'a, button, input, textarea, [role="button"], .cursor-hover-target, .neo-card',
   );
-  
-  interactiveElements.forEach(el => {
-    el.addEventListener('mouseenter', onMouseEnterInteractive);
-    el.addEventListener('mouseleave', onMouseLeaveInteractive);
+
+  interactiveElements.forEach((el) => {
+    el.addEventListener("mouseenter", onMouseEnterInteractive);
+    el.addEventListener("mouseleave", onMouseLeaveInteractive);
   });
 };
 
 const removeInteractiveListeners = () => {
   const interactiveElements = document.querySelectorAll(
-    'a, button, input, textarea, [role="button"], .cursor-hover-target'
+    'a, button, input, textarea, [role="button"], .cursor-hover-target, .neo-card',
   );
-  
-  interactiveElements.forEach(el => {
-    el.removeEventListener('mouseenter', onMouseEnterInteractive);
-    el.removeEventListener('mouseleave', onMouseLeaveInteractive);
+
+  interactiveElements.forEach((el) => {
+    el.removeEventListener("mouseenter", onMouseEnterInteractive);
+    el.removeEventListener("mouseleave", onMouseLeaveInteractive);
   });
 };
 
 onMounted(() => {
   // Check if touch device
-  isTouchDevice.value = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  
+  isTouchDevice.value =
+    "ontouchstart" in window || navigator.maxTouchPoints > 0;
+
   if (!isTouchDevice.value) {
-    // Hide default cursor
-    document.body.style.cursor = 'none';
-    
-    // Add event listeners
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mouseup', onMouseUp);
-    
-    // Start animation loop
+    // Hide default cursor across entire body
+    document.body.style.cursor = "none";
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mouseup", onMouseUp);
+
     animate();
-    
-    // Add interactive listeners with slight delay to ensure DOM is ready
-    setTimeout(addInteractiveListeners, 100);
-    
-    // Re-add listeners on route change (for SPA)
+
+    // Add interactive listeners with mutation observer for SPA navigation
+    addInteractiveListeners();
     const observer = new MutationObserver(() => {
       addInteractiveListeners();
     });
-    
     observer.observe(document.body, { childList: true, subtree: true });
   }
 });
 
 onUnmounted(() => {
   if (!isTouchDevice.value) {
-    document.body.style.cursor = 'auto';
-    window.removeEventListener('mousemove', onMouseMove);
-    window.removeEventListener('mousedown', onMouseDown);
-    window.removeEventListener('mouseup', onMouseUp);
+    document.body.style.cursor = "auto";
+    window.removeEventListener("mousemove", onMouseMove);
+    window.removeEventListener("mousedown", onMouseDown);
+    window.removeEventListener("mouseup", onMouseUp);
     removeInteractiveListeners();
-    
+
     if (animationId) {
       cancelAnimationFrame(animationId);
     }
@@ -150,77 +171,44 @@ onUnmounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 9999;
-  overflow: hidden;
+  z-index: 99999; /* Ensure it's above everything */
 }
 
-.cursor-dot {
+.cursor-main,
+.cursor-shadow {
   position: fixed;
-  top: -4px;
-  left: -4px;
-  width: 8px;
-  height: 8px;
-  background: #14b8a6; /* Teal-500 */
-  border-radius: 50%;
+  top: 0;
+  left: 0;
   pointer-events: none;
-  z-index: 10001;
-  transition: width 0.2s ease, height 0.2s ease, top 0.2s ease, left 0.2s ease, opacity 0.2s ease;
+  will-change: transform;
 }
 
-.cursor-ring {
-  position: fixed;
-  top: -20px;
-  left: -20px;
-  width: 40px;
-  height: 40px;
-  border: 2px solid rgba(20, 184, 166, 0.5); /* Teal */
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 10000;
-  transition: width 0.3s ease, height 0.3s ease, top 0.3s ease, left 0.3s ease, border-color 0.3s ease, background-color 0.3s ease;
+.cursor-shadow {
+  z-index: 99998;
+  opacity: 0.6;
 }
 
-/* Hover state */
-.cursor-dot.cursor-hover {
-  width: 12px;
-  height: 12px;
-  top: -6px;
-  left: -6px;
-  opacity: 0.8;
+.cursor-main {
+  z-index: 99999;
 }
 
-.cursor-ring.cursor-hover {
-  width: 60px;
-  height: 60px;
-  top: -30px;
-  left: -30px;
-  border-color: rgba(45, 212, 191, 0.6); /* Teal-400 */
-  background-color: rgba(20, 184, 166, 0.1);
+/* Base scale */
+svg {
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-/* Click state */
-.cursor-dot.cursor-click {
-  width: 6px;
-  height: 6px;
-  top: -3px;
-  left: -3px;
+/* Hover state: Scale up and slight rotation */
+.cursor-hover svg {
+  transform: scale(1.5) rotate(15deg);
 }
 
-.cursor-ring.cursor-click {
-  width: 30px;
-  height: 30px;
-  top: -15px;
-  left: -15px;
-  border-color: rgba(20, 184, 166, 0.8);
+/* Click state: Scale down */
+.cursor-click svg {
+  transform: scale(0.8);
 }
 
-/* Dark mode adjustments */
-:global(.dark) .cursor-ring {
-  border-color: rgba(45, 212, 191, 0.5); /* Teal-400 */
-}
-
-:global(.dark) .cursor-ring.cursor-hover {
-  border-color: rgba(45, 212, 191, 0.7);
-  background-color: rgba(45, 212, 191, 0.15);
+/* Dark mode adjustments (if needed, but Yellow/Cyan are already bold) */
+:global(.dark) .cursor-shadow svg path {
+  stroke: white;
 }
 </style>

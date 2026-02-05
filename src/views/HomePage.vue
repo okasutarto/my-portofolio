@@ -1,6 +1,7 @@
 <template>
   <div>
-    <TheHero />
+    <NeoMarquee />
+    <HeroSection />
     <AboutSection id="about" />
     <ExperienceSection id="experience" />
     <ProjectsSection id="projects" />
@@ -10,10 +11,11 @@
 </template>
 
 <script setup>
-import TheHero from '../components/sections/TheHero.vue';
-import AboutSection from '../components/sections/AboutSection.vue';
-import ExperienceSection from '../components/sections/ExperienceSection.vue';
-import TestimonialsSection from '../components/sections/TestimonialsSection.vue';
-import ProjectsSection from '../components/sections/ProjectsSection.vue';
-import ContactSection from '../components/sections/ContactSection.vue';
+import NeoMarquee from "../components/ui/NeoMarquee.vue";
+import HeroSection from "../components/sections/HeroSection.vue";
+import AboutSection from "../components/sections/AboutSection.vue";
+import ExperienceSection from "../components/sections/ExperienceSection.vue";
+import TestimonialsSection from "../components/sections/TestimonialsSection.vue";
+import ProjectsSection from "../components/sections/ProjectsSection.vue";
+import ContactSection from "../components/sections/ContactSection.vue";
 </script>

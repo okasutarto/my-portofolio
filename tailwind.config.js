@@ -1,42 +1,54 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: [
-    "./index.html",
-    "./src/**/*.{vue,js,ts,jsx,tsx}",
-  ],
-  darkMode: 'class',
+  content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
-        primary: {
-          light: '#2dd4bf', // teal-400
-          DEFAULT: '#14b8a6', // teal-500
-          dark: '#0d9488', // teal-600
-        },
-        secondary: {
-          light: '#22d3ee', // cyan-400
-          DEFAULT: '#06b6d4', // cyan-500
-          dark: '#0891b2', // cyan-600
-        },
-        dark: {
-          light: '#334155', // slate-700
-          DEFAULT: '#1e293b', // slate-800
-          dark: '#0f172a', // slate-900
-        },
-        light: {
-          light: '#f8fafc', // slate-50
-          DEFAULT: '#f1f5f9', // slate-100
-          dark: '#e2e8f0', // slate-200
-        }
+        primary: "var(--color-primary)",
+        secondary: "var(--color-secondary)",
+        "background-light": "#f0f0f0",
+        "background-dark": "#050505",
+        "surface-light": "#FFFFFF",
+        "surface-dark": "#1a1a1a",
+        "border-black": "#000000",
+        "accent-blue": "#3B82F6",
+        "accent-yellow": "#FACC15",
+        "accent-pink": "#FF6B6B",
+        "accent-green": "#39ff14",
+        "neo-black": "#0f0f0f",
+        "neo-white": "#f8f8f8",
+        "neo-cyan": "#00E5FF",
+        "neo-pink": "#FF69B4",
+        "neo-lime": "#39ff14",
+        "neo-yellow": "#FFD700",
+        "neo-magenta": "#d946ef",
+        "neo-teal": "#14b8a6",
       },
       fontFamily: {
-        sans: ['Poppins', 'sans-serif'],
-        heading: ['Montserrat', 'sans-serif'],
+        display: ['"Lexend Mega"', "sans-serif"],
+        body: ['"Space Grotesk"', "sans-serif"],
+        sans: ['"Space Grotesk"', "sans-serif"],
       },
-      transitionDuration: {
-        '400': '400ms',
-      }
+      boxShadow: {
+        neo: "5px 5px 0px 0px var(--color-shadow)",
+        "neo-hover": "8px 8px 0px 0px var(--color-shadow)",
+        "neo-sm": "3px 3px 0px 0px var(--color-shadow)",
+        "neo-dark": "5px 5px 0px 0px #39ff14",
+        "neo-hover-dark": "8px 8px 0px 0px #39ff14",
+        "neo-pink": "8px 8px 0px 0px #FF69B4",
+        "neo-magenta": "8px 8px 0px 0px #d946ef",
+        "neo-cyan-alt": "8px 8px 0px 0px #00E5FF",
+        hard: "8px 8px 0px 0px #9d4edd",
+        "hard-hover": "4px 4px 0px 0px #9d4edd",
+        "hard-green": "4px 4px 0px 0px #39ff14",
+        "hard-black": "4px 4px 0px 0px #000000",
+      },
+      borderWidth: {
+        3: "3px",
+        4: "4px",
+      },
     },
   },
   plugins: [],
-}
+};

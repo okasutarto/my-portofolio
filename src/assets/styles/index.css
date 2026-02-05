@@ -1,20 +1,32 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Lexend+Mega:wght@700;800&family=Syne:wght@400;700;800&display=swap");
+@import url("https://fonts.googleapis.com/icon?family=Material+Icons");
+@import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css");
+
+:root {
+  --color-primary: #ffdd00;
+  --color-secondary: #00e0c6;
+  --color-shadow: #000000;
+  --color-shadow-hover: #000000;
+}
+
+.dark {
+  --color-primary: #39ff14;
+  --color-secondary: #9d4edd;
+  --color-shadow: #9d4edd;
+  --color-shadow-hover: #9d4edd;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer utilities {
-  .duration-400 {
-    transition-duration: 400ms;
-  }
-}
-
 @layer base {
   html {
-    @apply scroll-smooth scroll-pt-24;
+    @apply scroll-smooth;
   }
 
   body {
-    @apply font-sans bg-light text-dark-dark dark:bg-dark-dark dark:text-light transition-colors duration-400;
+    @apply bg-background-light dark:bg-background-dark text-black dark:text-white font-body transition-colors duration-300 min-h-screen flex flex-col overflow-x-hidden selection:bg-secondary selection:text-black;
   }
 
   h1,
@@ -23,25 +35,77 @@
   h4,
   h5,
   h6 {
-    @apply font-heading font-bold;
+    @apply font-display;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-left: 1px solid #000;
+}
+.dark ::-webkit-scrollbar-track {
+  background: #18181b;
+  border-left: 1px solid var(--color-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: #000; 
+  border: 1px solid #000;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--color-primary);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #333; 
+}
+
+/* Text Stroke Utilities */
+.text-stroke-3 {
+  -webkit-text-stroke: 1.5px black;
+}
+.dark .text-stroke-white {
+  -webkit-text-stroke: 1.5px var(--color-primary);
+}
+.text-stroke-2 {
+  -webkit-text-stroke: 1px black;
+}
+
+/* Marquee Animation */
+.marquee-container {
+  overflow: hidden;
+  white-space: nowrap;
+}
+.marquee-content {
+  display: inline-block;
+  animation: marquee 20s linear infinite;
+}
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
   }
 }
 
 @layer components {
   .btn {
-    @apply px-6 py-3 rounded-md transition duration-300 font-medium;
+    @apply px-6 py-3 border-2 border-black dark:border-primary font-display font-bold transition-all duration-200 focus:outline-none shadow-neo-sm rounded-none;
   }
 
   .btn-primary {
-    @apply bg-primary text-white hover:bg-primary-dark shadow-md;
+    @apply bg-secondary text-black hover:shadow-neo hover:translate-x-[2px] hover:translate-y-[2px];
   }
 
   .btn-outline {
-    @apply border-2 border-primary text-primary hover:bg-primary hover:text-white;
+    @apply border-2 border-black dark:border-primary bg-white dark:bg-surface-dark shadow-neo-sm hover:shadow-neo hover:translate-x-[2px] hover:translate-y-[2px];
   }
 
   .section {
-    @apply py-20 px-4 md:px-8 max-w-7xl mx-auto;
+    @apply py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto;
   }
 
   .page-enter-active,
@@ -75,4 +139,21 @@
 
 .dark ::selection {
   background: rgba(139, 92, 246, 0.4);
+}
+
+.bg-grid-pattern {
+  background-size: 40px 40px;
+  background-image: linear-gradient(
+      rgba(0, 0, 0, 0.2) 1px,
+      transparent 1px
+    ),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.2) 1px, transparent 1px);
+}
+
+.dark .bg-grid-pattern {
+  background-image: linear-gradient(
+      rgba(255, 255, 255, 0.2) 1px,
+      transparent 1px
+    ),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.2) 1px, transparent 1px);
 }

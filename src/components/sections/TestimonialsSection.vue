@@ -1,365 +1,269 @@
 <template>
   <section
     id="testimonials"
-    class="py-8 md:py-12 overflow-hidden transition-colors duration-300">
-    <div class="container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-      <h2
-        ref="sectionTitle"
-        class="text-3xl md:text-4xl font-bold mb-4 text-center dark:text-white opacity-0">
-        What People Say
-      </h2>
-      <div
-        class="h-1 w-20 bg-primary mx-auto rounded-full mb-12 opacity-0"
-        ref="titleUnderline"></div>
+    class="py-24 px-4 md:px-12 bg-background-light dark:bg-background-dark transition-colors duration-300 relative overflow-hidden bg-grid-pattern">
+    <!-- Decorative Background Elements -->
+    <div
+      class="absolute inset-0 z-0 opacity-10 pointer-events-none bg-[size:40px_40px] bg-[linear-gradient(#000_1px,transparent_1px),linear-gradient(90deg,#000_1px,transparent_1px)] dark:bg-[linear-gradient(#fff_0.5px,transparent_0.5px),linear-gradient(90deg,#fff_0.5px,transparent_0.5px)]"></div>
+    <div
+      class="absolute top-40 left-10 w-16 h-16 border-4 border-black dark:border-primary rounded-full bg-transparent opacity-20 pointer-events-none hidden lg:block animate-pulse"></div>
+    <div
+      class="absolute bottom-40 right-20 w-24 h-24 bg-primary border-4 border-black opacity-20 pointer-events-none hidden lg:block transform rotate-12"></div>
 
-      <!-- Testimonials Carousel -->
-      <div class="relative">
-        <!-- Navigation Buttons - Hidden on mobile, shown on tablet+ -->
+    <div class="max-w-6xl mx-auto relative z-10">
+      <!-- Section Header -->
+      <div class="text-center mb-16 relative">
+        <h2
+          ref="sectionTitle"
+          class="text-4xl md:text-6xl font-display font-bold uppercase tracking-tighter text-black dark:text-white transform rotate-[-1deg] opacity-0 drop-shadow-[3px_3px_0px_#ffdd00] dark:drop-shadow-[5px_5px_0px_#39ff14]">
+          What People Say
+        </h2>
+        <div
+          class="absolute -z-10 bottom-0 left-1/2 transform -translate-x-1/2 w-32 h-3 bg-secondary dark:bg-secondary hidden md:block"
+          style="left: calc(50% + 8px); bottom: -6px"></div>
+      </div>
+
+      <!-- Carousel Container -->
+      <div class="flex items-center justify-center gap-4 md:gap-8">
+        <!-- Desktop Navigation: Prev -->
         <button
           @click="prevTestimonial"
-          class="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-12 z-20 w-12 h-12 rounded-full bg-white dark:bg-gray-800 shadow-lg items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-primary hover:text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary"
-          aria-label="Previous testimonial">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 19l-7-7 7-7" />
-          </svg>
+          aria-label="Previous testimonial"
+          class="hidden md:flex items-center justify-center w-14 h-14 bg-white dark:bg-primary border-2 border-black dark:border-primary shadow-neo-sm dark:shadow-neo hover:translate-x-1 hover:translate-y-1 hover:shadow-neo transition-all active:translate-x-1 active:translate-y-1 active:shadow-none shrink-0 group">
+          <span
+            class="material-icons text-3xl font-bold text-black group-hover:scale-110 transition-transform"
+            >chevron_left</span
+          >
         </button>
 
-        <button
-          @click="nextTestimonial"
-          class="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-12 z-20 w-12 h-12 rounded-full bg-white dark:bg-gray-800 shadow-lg items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-primary hover:text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary"
-          aria-label="Next testimonial">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-
-        <!-- Cards Container -->
-        <div ref="carouselContainer" class="overflow-x-clip overflow-y-visible">
+        <!-- Main Card Area -->
+        <div class="relative w-full max-w-3xl">
+          <!-- Bouncing Quote Badge -->
           <div
-            class="flex transition-transform duration-500 ease-out"
-            :style="{ transform: `translateX(-${currentIndex * 100}%)` }">
+            class="absolute -top-8 -left-5 md:-left-8 z-20 w-16 h-16 bg-primary border-2 border-black flex items-center justify-center shadow-neo-sm transform -rotate-12 group">
+            <span
+              class="material-icons text-black text-4xl font-bold group-hover:scale-110 transition-transform"
+              >format_quote</span
+            >
+          </div>
+
+          <div
+            ref="cardContent"
+            class="bg-white dark:bg-surface-dark p-6 md:p-12 border-2 border-black dark:border-primary shadow-neo-sm dark:shadow-neo relative z-10 min-h-[380px] flex flex-col justify-center">
+            <!-- Quote Text -->
+            <p
+              class="text-lg md:text-xl font-body font-bold leading-relaxed mb-8 border-l-4 border-black dark:border-primary pl-6 dark:text-white">
+              "{{ testimonials[currentIndex].text }}"
+            </p>
+
             <div
-              v-for="(testimonial, index) in testimonials"
-              :key="testimonial.id"
-              class="w-full flex-shrink-0 px-4 pt-6">
+              class="w-full h-0.5 bg-black dark:bg-zinc-800 mb-8 border-dashed border-t-2"></div>
+
+            <!-- Author Info -->
+            <div
+              class="flex flex-col md:flex-row items-center md:items-start gap-6">
+              <!-- Avatar -->
               <div
-                :ref="
-                  (el) => {
-                    if (el) testimonialCards[index] = el;
-                  }
-                "
-                class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 md:p-8 max-w-3xl mx-auto relative">
-                <!-- Quote Icon -->
+                class="w-20 h-20 shrink-0 bg-primary border-2 border-black shadow-neo-sm overflow-hidden relative rotate-3">
                 <div
-                  class="absolute -top-4 left-8 w-10 h-10 bg-primary rounded-full flex items-center justify-center shadow-lg">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-5 w-5 text-white"
-                    fill="currentColor"
-                    viewBox="0 0 24 24">
-                    <path
-                      d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
-                  </svg>
+                  class="w-full h-full flex items-center justify-center text-2xl font-bold text-white"
+                  :style="{
+                    background: testimonials[currentIndex].avatarColor,
+                  }">
+                  {{ testimonials[currentIndex].initials }}
                 </div>
+              </div>
 
-                <!-- Testimonial Content -->
-                <div class="pt-4">
-                  <p
-                    class="text-gray-600 dark:text-gray-300 leading-relaxed text-sm md:text-base mb-6 italic">
-                    "{{ testimonial.text }}"
-                  </p>
-
-                  <!-- Author Info -->
-                  <div
-                    class="flex items-center gap-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-                    <div
-                      class="w-14 h-14 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md"
-                      :style="{ background: testimonial.avatarColor }">
-                      {{ testimonial.initials }}
-                    </div>
-                    <div class="flex-1">
-                      <p
-                        class="font-bold text-md text-gray-900 dark:text-white">
-                        {{ testimonial.name }}
-                      </p>
-                      <p class="text-sm text-gray-500 dark:text-gray-400">
-                        {{ testimonial.role }} at {{ testimonial.company }}
-                      </p>
-                      <a
-                        v-if="testimonial.linkedIn"
-                        :href="testimonial.linkedIn"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1">
-                        <svg
-                          class="h-3 w-3"
-                          fill="currentColor"
-                          viewBox="0 0 24 24">
-                          <path
-                            d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
-                        </svg>
-                        View on LinkedIn
-                      </a>
-                    </div>
-                  </div>
+              <!-- Details -->
+              <div
+                class="flex flex-col items-center md:items-start space-y-2 w-full">
+                <div
+                  class="bg-primary px-4 py-1.5 border-2 border-black shadow-neo-sm transform -rotate-1 inline-block">
+                  <h3
+                    class="text-black font-display font-bold text-lg uppercase tracking-wide">
+                    {{ testimonials[currentIndex].name }}
+                  </h3>
                 </div>
+                <p class="font-bold text-gray-800 dark:text-gray-300 text-base">
+                  {{ testimonials[currentIndex].role }} at
+                  {{ testimonials[currentIndex].company }}
+                </p>
+                <a
+                  v-if="testimonials[currentIndex].linkedIn"
+                  :href="testimonials[currentIndex].linkedIn"
+                  target="_blank"
+                  class="inline-flex items-center gap-1.5 font-bold hover:underline decoration-2 decoration-primary text-black dark:text-secondary mt-1 group text-sm">
+                  <span
+                    class="material-icons text-primary dark:text-secondary text-xl group-hover:scale-110 transition-transform"
+                    >link</span
+                  >
+                  <span class="group-hover:translate-x-0.5 transition-transform"
+                    >View on LinkedIn</span
+                  >
+                </a>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Dots Indicator with mobile navigation -->
-        <div class="flex justify-center items-center gap-3 mt-8">
-          <!-- Mobile prev button -->
-          <button
-            @click="prevTestimonial"
-            class="md:hidden w-9 h-9 rounded-full bg-white dark:bg-gray-800 shadow-md flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-primary hover:text-white transition-all duration-300"
-            aria-label="Previous testimonial">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
+        <!-- Desktop Navigation: Next -->
+        <button
+          @click="nextTestimonial"
+          aria-label="Next testimonial"
+          class="hidden md:flex items-center justify-center w-14 h-14 bg-white dark:bg-primary border-2 border-black dark:border-primary shadow-neo-sm dark:shadow-neo hover:translate-x-1 hover:translate-y-1 hover:shadow-neo transition-all active:translate-x-1 active:translate-y-1 active:shadow-none shrink-0 group">
+          <span
+            class="material-icons text-3xl font-bold text-black group-hover:scale-110 transition-transform"
+            >chevron_right</span
+          >
+        </button>
+      </div>
 
-          <!-- Dots -->
-          <div class="flex gap-2">
-            <button
-              v-for="(_, index) in testimonials"
-              :key="index"
-              @click="goToTestimonial(index)"
-              class="w-2.5 h-2.5 rounded-full transition-all duration-300 focus:outline-none"
-              :class="
-                currentIndex === index
-                  ? 'bg-primary w-8'
-                  : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'
-              "
-              :aria-label="`Go to testimonial ${index + 1}`"></button>
-          </div>
-
-          <!-- Mobile next button -->
+      <!-- Mobile Navigation -->
+      <div
+        class="flex md:hidden justify-between mt-10 w-full max-w-3xl mx-auto px-4">
+        <button
+          @click="prevTestimonial"
+          class="flex items-center justify-center w-14 h-14 bg-white dark:bg-primary border-2 border-black shadow-neo-sm active:translate-y-0.5 active:shadow-none">
+          <span class="material-icons text-3xl font-bold text-black"
+            >chevron_left</span
+          >
+        </button>
+        <div class="flex items-center gap-3">
           <button
-            @click="nextTestimonial"
-            class="md:hidden w-9 h-9 rounded-full bg-white dark:bg-gray-800 shadow-md flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-primary hover:text-white transition-all duration-300"
-            aria-label="Next testimonial">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
+            v-for="(_, index) in testimonials"
+            :key="index"
+            @click="goToTestimonial(index)"
+            class="w-5 h-5 border-2 border-black transition-all transform -rotate-12 shadow-neo-sm"
+            :class="
+              currentIndex === index
+                ? 'bg-primary scale-110'
+                : 'bg-white dark:bg-surface-dark'
+            "></button>
         </div>
+        <button
+          @click="nextTestimonial"
+          class="flex items-center justify-center w-14 h-14 bg-white dark:bg-primary border-2 border-black shadow-neo-sm active:translate-y-0.5 active:shadow-none">
+          <span class="material-icons text-3xl font-bold text-black"
+            >chevron_right</span
+          >
+        </button>
+      </div>
+
+      <!-- Desktop Indicators -->
+      <div class="hidden md:flex justify-center mt-12 gap-4">
+        <button
+          v-for="(_, index) in testimonials"
+          :key="index"
+          @click="goToTestimonial(index)"
+          class="w-8 h-5 border-2 border-black dark:border-primary shadow-neo-sm hover:translate-y-0.5 hover:shadow-none transition-all transform -skew-x-12"
+          :class="
+            currentIndex === index
+              ? 'bg-primary'
+              : 'bg-white dark:bg-surface-dark'
+          "></button>
       </div>
     </div>
   </section>
 </template>
 
-<script>
-import { ref, reactive, onMounted, onUnmounted } from "vue";
+<script setup>
+import { ref, onMounted, onUnmounted } from "vue";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { testimonials as testimonialsData } from "@/data/testimonials";
 
 gsap.registerPlugin(ScrollTrigger);
 
-export default {
-  name: "TestimonialsSection",
-  setup() {
-    const sectionTitle = ref(null);
-    const titleUnderline = ref(null);
-    const sectionSubtitle = ref(null);
-    const carouselContainer = ref(null);
-    const testimonialCards = reactive([]);
-    const currentIndex = ref(0);
-    const animations = [];
-    let autoplayInterval = null;
+const sectionTitle = ref(null);
+const cardContent = ref(null);
+const testimonials = ref(testimonialsData);
+const currentIndex = ref(0);
+const animations = [];
+let autoplayInterval = null;
 
-    const testimonials = reactive([
-      {
-        id: 1,
-        name: "Rakish Frisky",
-        initials: "RF",
-        role: "Senior Frontend Engineer",
-        company: "Jublia",
-        avatarColor: "#5b21b6", // Solid deep purple
-        linkedIn: "https://www.linkedin.com/in/rakishfrisky/",
-        text: `Oka is one of our core team members and works with Vue 3 on a daily basis. He adapts quickly to new challenges and handles problems efficiently as they come up in our projects. One thing I really appreciate about him is his curiosity and eagerness to keep learning.
-        I've worked closely with Oka since his first day on the team, and over time I've seen him grow into a truly product-minded engineer. If you're looking for someone with strong frontend skills, a solid product perspective, and a positive attitude that adds energy to the team, I would highly recommend Oka for the role.`,
-      },
-      {
-        id: 2,
-        name: "Irfan Abdurrahman",
-        initials: "IA",
-        role: "Engineering Manager",
-        company: "Jublia",
-        avatarColor: "#10b981", // Solid emerald green
-        linkedIn: "https://www.linkedin.com/in/irafun/",
-        text: `Oka is a highly initiative Frontend Engineer who consistently demonstrates strong curiosity and a genuine drive to learn. Although his primary scope is Vue-based development at Jublia, he proactively expands beyond his core responsibilities, taking on Angular work and contributing to our microfrontend efforts with a growth mindset and strong ownership.
-
-        What sets Oka apart is how deliberately he invests in leveling up. He picks up new frameworks and patterns quickly, applies them pragmatically, and actively looks for ways to contribute where the team needs support. In addition, his interest in AI is particularly noteworthy: he has been able to translate AI tooling into real usability, both in professional projects and in personal experimentation, which reflects a forward-looking mindset and strong adaptability.
-
-        I would confidently recommend Oka to any team looking for a front-end engineer who brings energy, initiative, and continuous learning; someone who will grow rapidly and raise the capability of the team around him.`,
-      },
-    ]);
-
-    const nextTestimonial = () => {
-      currentIndex.value = (currentIndex.value + 1) % testimonials.length;
-      resetAutoplay();
-    };
-
-    const prevTestimonial = () => {
-      currentIndex.value =
-        (currentIndex.value - 1 + testimonials.length) % testimonials.length;
-      resetAutoplay();
-    };
-
-    const goToTestimonial = (index) => {
-      currentIndex.value = index;
-      resetAutoplay();
-    };
-
-    const startAutoplay = () => {
-      autoplayInterval = setInterval(() => {
-        currentIndex.value = (currentIndex.value + 1) % testimonials.length;
-      }, 8000); // Change every 8 seconds
-    };
-
-    const resetAutoplay = () => {
-      if (autoplayInterval) {
-        clearInterval(autoplayInterval);
-        startAutoplay();
-      }
-    };
-
-    onMounted(() => {
-      // Title and Underline Animation
-      animations.push(
-        gsap.to([sectionTitle.value, titleUnderline.value], {
-          opacity: 1,
-          y: 0,
-          duration: 1,
-          stagger: 0.2,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: sectionTitle.value,
-            start: "top 80%",
-            toggleActions: "play none none reverse",
-          },
-        })
-      );
-
-      // Initial set for underline
-      if (titleUnderline.value) {
-        gsap.set(titleUnderline.value, { y: 20 });
-      }
-
-      // Subtitle animation
-      animations.push(
-        gsap.fromTo(
-          sectionSubtitle.value,
-          { opacity: 0, y: -20 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.8,
-            delay: 0.2,
-            ease: "power2.out",
-            scrollTrigger: {
-              trigger: sectionSubtitle.value,
-              start: "top 80%",
-              toggleActions: "play none none reverse",
-            },
-          }
-        )
-      );
-
-      // Carousel container animation
-      animations.push(
-        gsap.fromTo(
-          carouselContainer.value,
-          { opacity: 0, y: 40 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 1,
-            delay: 0.3,
-            ease: "power2.out",
-            scrollTrigger: {
-              trigger: carouselContainer.value,
-              start: "top 85%",
-              toggleActions: "play none none reverse",
-            },
-          }
-        )
-      );
-
-      // Start autoplay
-      startAutoplay();
-    });
-
-    onUnmounted(() => {
-      animations.forEach((animation) => {
-        if (animation.scrollTrigger) {
-          animation.scrollTrigger.kill();
-        }
-        animation.kill();
-      });
-
-      if (autoplayInterval) {
-        clearInterval(autoplayInterval);
-      }
-    });
-
-    return {
-      sectionTitle,
-      titleUnderline,
-      sectionSubtitle,
-      carouselContainer,
-      testimonialCards,
-      testimonials,
-      currentIndex,
-      nextTestimonial,
-      prevTestimonial,
-      goToTestimonial,
-    };
-  },
+const nextTestimonial = () => {
+  // Add quick flicker/flash animation on change
+  gsap.fromTo(
+    cardContent.value,
+    { opacity: 0, x: 20 },
+    { opacity: 1, x: 0, duration: 0.4, ease: "back.out(1.7)" },
+  );
+  currentIndex.value = (currentIndex.value + 1) % testimonials.value.length;
+  resetAutoplay();
 };
+
+const prevTestimonial = () => {
+  gsap.fromTo(
+    cardContent.value,
+    { opacity: 0, x: -20 },
+    { opacity: 1, x: 0, duration: 0.4, ease: "back.out(1.7)" },
+  );
+  currentIndex.value =
+    (currentIndex.value - 1 + testimonials.value.length) %
+    testimonials.value.length;
+  resetAutoplay();
+};
+
+const goToTestimonial = (index) => {
+  if (currentIndex.value === index) return;
+  gsap.fromTo(
+    cardContent.value,
+    { opacity: 0, scale: 0.95 },
+    { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(1.7)" },
+  );
+  currentIndex.value = index;
+  resetAutoplay();
+};
+
+const startAutoplay = () => {
+  autoplayInterval = setInterval(nextTestimonial, 10000);
+};
+
+const resetAutoplay = () => {
+  if (autoplayInterval) {
+    clearInterval(autoplayInterval);
+    startAutoplay();
+  }
+};
+
+onMounted(() => {
+  // Title animation
+  animations.push(
+    gsap.to(sectionTitle.value, {
+      opacity: 1,
+      y: 0,
+      rotate: -2,
+      duration: 1,
+      ease: "back.out(1.7)",
+      scrollTrigger: {
+        trigger: sectionTitle.value,
+        start: "top 85%",
+        toggleActions: "play none none reverse",
+      },
+    }),
+  );
+
+  startAutoplay();
+});
+
+onUnmounted(() => {
+  animations.forEach((anim) => {
+    if (anim.scrollTrigger) anim.scrollTrigger.kill();
+    anim.kill();
+  });
+  if (autoplayInterval) clearInterval(autoplayInterval);
+});
 </script>
 
 <style scoped>
-/* Smooth scrolling for carousel */
-.transition-transform {
-  will-change: transform;
+.font-body {
+  font-family: "Space Grotesk", sans-serif;
+}
+
+/* Material Icons size refinement */
+.material-icons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

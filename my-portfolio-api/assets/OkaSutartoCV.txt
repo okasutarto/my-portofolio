@@ -12,6 +12,19 @@ summary / about me:
   Versatile Fullstack Developer with 3+ years of experience delivering end-to-end digital solutions across the complete software development lifecycle. Expert in building high-performance user interfaces with Vue.js, React, and Angular while architecting secure, scalable backends using Node.js and SQL/NoSQL databases. Proven track record of optimizing system performance—improving engagement by 40% and reducing database latency by 60%. Skilled in Agile methodologies, cloud deployment, and leading technical initiatives for both global platforms and enterprise-grade IT services.
 
 experience:
+  - title: Tech & Education Content Creator
+    company: Self-Employed / Social Media
+    location: Remote
+    type: Full-time
+    start date: January 2025
+    end date: Present
+    Tech Stack : TikTok, YouTube, JavaScript, HTML, CSS
+    responsibilities:
+      ● Rapid Community Growth: Scaled a dedicated developer community from 0 to 365+ followers on TikTok in a short period through high-impact technical storytelling and consistent niche positioning.
+      ● Educational Impact: Developed a viral technical curriculum focusing on JavaScript fundamentals (Variables, Arrays, APIs), reaching over 68,000+ total views and engaging 29,000+ unique accounts organically.
+      ● High-Growth Engagement: Orchestrated a content strategy that resulted in a 203% increase in video views (35K+ in 7 days) and a 638% surge in content shares, demonstrating effective technical storytelling and community resonance.
+      ● Top-Performing Content: Produced high-authority tutorials on complex topics like Arrays (42.2K views) and APIs (12K views), maintaining a high interaction-to-view ratio with over 2,900+ total interactions.
+
   - title: Frontend Engineer
     company: Jublia
     about company: SaaS and B2B Company for Event Organizer Industry
@@ -66,17 +79,21 @@ languages:
   ● Bahasa Indonesia: Native
 
 projects:
+  - name: Gelitik
+    type: Fullstack
+    description: A unified platform to manage and track analytics across multiple social media channels from a single dashboard.
+    tech_stack: [Node.js, Express, PostgreSQL, Prisma ORM, JWT Authentication, Axios, Chart.js, Vue3, Tailwind CSS, TypeScript, Vite.]
+    github: https://github.com/okasutarto/gelitik
+
   - name: Personal Portfolio Website
     type: Fullstack
-    ● Tech Pivot: Built a full-stack SaaS prototype using Next.js to translate my frontend expertise into the React ecosystem.
-    ● AI Implementation: Integrated OpenAI's GPT models to transform lengthy text, PDFs, and images into concise summaries, enabling 75% faster information processing for users.
-    ● Engineering Focus: Leveraged Next.js server-side rendering (SSR) for optimized performance and SEO.
+    description: Personal Portfolio Website.
     tech_stack: [Vue. Js, OpenAI, Tailwind, AI, Vercel.]
-    github: https://okasp.dev/
+    github: https://github.com/okasutarto/my-portfolio
 
   - name: Warung Upin
     type: Backend
-    description: Developed a POS backend with stock management, Multi-level User Management and Store Management modules, and Designed a secure Transaction Engine to handle sales processing, history logging, and fi nancial reporting.
+    description: Developed a POS backend with stock management, Multi-level User Management and Store Management modules, and Designed a secure Transaction Engine to handle sales processing, history logging, and financial reporting.
     tech_stack: [Node.js, Express, PostgreSQL, Sequelize ORM, JWT Authentication.]
 
   - name: Summarizer
@@ -98,9 +115,9 @@ projects:
     website: https://punyagawe.id
 
 technical skills:
-  - Frontend: Vue.js, React.js, Angular, TypeScript, HTML, CSS, Bootstrap, Tailwind, Unlayer, Vuex, Axios, Pinia, Vite
+  - Frontend: Vue.js, React.js, Angular, Next.js,TypeScript, HTML, CSS, Bootstrap, Tailwind, Unlayer, Vuex, Axios, Pinia, Vite
   - Backend: Node.js, Express.js, MySQL, Sequelize, PostgreSQL, JWT, CORS, dotenv, Rest APIs.
-  - Database: PostgreSQL, MySQL, Sequelize ORM.
+  - Database: PostgreSQL, MySQL, Sequelize ORM, Prisma ORM.
   - AI & Emerging Tech: OpenAI API, RAG (Retrieval-Augmented Generation), Prompt Engineering.
   - Tools: Git, Docker, Agile/Scrum, Postman, Vercel.
 

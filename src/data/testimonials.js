@@ -20,6 +20,17 @@ export const testimonials = [
     avatar: "", // Add if available later
     avatarColor: "#10b981",
     linkedIn: "https://www.linkedin.com/in/irafun/",
-    text: "Oka is a highly initiative Frontend Engineer who consistently demonstrates strong curiosity and a genuine drive to learn. Although his primary scope is Vue-based development at Jublia, he proactively expands beyond his core responsibilities, taking on Angular work and contributing to our microfrontend efforts with a growth mindset and strong ownership.",
+    text: "Oka is a highly initiative Frontend Engineer who consistently demonstrates strong curiosity and a genuine drive to learn. Although his primary scope is Vue-based development at Jublia, he proactively expands beyond his core responsibilities, taking on Angular work and contributing to our microfrontend efforts with a growth mindset and strong ownership. What sets Oka apart is how deliberately he invests in leveling up. He picks up new frameworks and patterns quickly, applies them pragmatically, and actively looks for ways to contribute where the team needs support. In addition, his interest in AI is particularly noteworthy: he has been able to translate AI tooling into real usability, both in professional projects and in personal experimentation, which reflects a forward-looking mindset and strong adaptability. I would confidently recommend Oka to any team looking for a front-end engineer who brings energy, initiative, and continuous learning; someone who will grow rapidly and raise the capability of the team around him.",
   },
+  {
+    id: 3,
+    name: "Roby Ibrahim Renata",
+    initials: "RI",
+    role: "Tech Lead",
+    company: "Jublia",
+    avatar: "", // Add if available later
+    avatarColor: "#3B82F6",
+    linkedIn: "https://www.linkedin.com/in/robyrenata/",
+    text: "I had the pleasure of leading Oka on our team, and I can confidently say he’s one of those frontend engineers every team hopes to have. Oka is incredibly versatile! Whether it’s jumping into a new tech stack, handling unexpected changes, or adapting to tight timelines, he always finds a way to deliver solid results. On top of that, Oka is just great to work with. Easygoing, positive, and a true team player. Any team would be lucky to have him, and I’d gladly work with him again!",
+  }
 ];

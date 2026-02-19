@@ -54,7 +54,7 @@
                 class="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
                 <div>
                   <h3
-                    class="font-display text-2xl md:text-3xl font-bold text-black dark:text-white mb-2 uppercase tracking-tight">
+                    class="font-display text-xl md:text-2xl lg:text-3xl font-bold text-black dark:text-white mb-2 uppercase tracking-tight leading-tight">
                     {{ experience.role }}
                   </h3>
                   <div class="flex flex-wrap items-center gap-3">
@@ -69,7 +69,7 @@
                   </div>
                 </div>
                 <div
-                  class="bg-neo-magenta text-white dark:bg-white dark:text-black px-4 py-2 font-display font-bold text-base border-2 border-black shadow-neo-sm self-start lg:translate-x-2">
+                  class="bg-neo-magenta text-white dark:bg-white dark:text-black px-4 py-2 font-display font-bold text-base border-2 border-black shadow-neo-sm self-start lg:translate-x-2 whitespace-nowrap">
                   {{ experience.period }}
                 </div>
               </div>

@@ -71,6 +71,7 @@
             <a
               v-for="social in socials"
               :key="social.icon"
+              target="_blank"
               class="w-12 h-12 flex items-center justify-center border-2 border-black bg-white dark:bg-surface-dark dark:border-primary shadow-neo-sm hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all group"
               :href="social.link">
               <i

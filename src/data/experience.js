@@ -1,6 +1,31 @@
 export const experiences = [
   {
     id: 1,
+    role: "Tech & Education Content Creator",
+    company: "Self-Employed / Social Media",
+    companyInitial: "SE",
+    companyUrl: "https://www.tiktok.com/@okasutarto",
+    location: "Remote",
+    period: "Jan 2026 - Present",
+    current: true,
+    type: "Full-time",
+    color: "linear-gradient(135deg, #f7971e 0%, #ffd200 100%)",
+    achievements: [
+      "Scaled a developer community from 0 to 400+ followers on TikTok through high-impact technical storytelling.",
+      "Created a viral JS curriculum (Variables, Arrays, APIs) reaching 87,000+ total views and 40,000+ unique accounts.",
+      "Drove a 203% increase in video views (35K+ in 7 days) and a 638% surge in content shares.",
+      "Produced top tutorials on Arrays (42K views) and APIs (20K views) with 2,900+ total interactions.",
+    ],
+    technologies: [
+      "TikTok",
+      "YouTube",
+      "JavaScript",
+      "HTML",
+      "CSS",
+    ],
+  },
+  {
+    id: 2,
     role: "Frontend Engineer",
     company: "Jublia",
     companyInitial: "J",
@@ -26,7 +51,7 @@ export const experiences = [
     ],
   },
   {
-    id: 2,
+    id: 3,
     role: "Backend Developer",
     company: "Null Reborn",
     companyInitial: "NR",
@@ -52,7 +77,7 @@ export const experiences = [
     ],
   },
   {
-    id: 3,
+    id: 4,
     role: "Frontend Developer",
     company: "PT Geekseat Indonesia",
     companyInitial: "GS",

@@ -1,6 +1,110 @@
 // Projects data with detailed case study information
 export const projects = [
   {
+    id: "gelitik",
+    title: "Gelitik",
+    type: "Fullstack",
+    featured: true,
+    image:
+      "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=800&q=80",
+    thumbnail:
+      "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=800&q=80",
+    description:
+      "A unified platform to manage and track analytics across multiple social media channels from a single dashboard.",
+
+    overview:
+      "Gelitik is a fullstack Social Media Management Platform built to help creators and marketers control all their social accounts and monitor performance analytics from one place. With an intuitive dashboard powered by Chart.js, users get real-time insights without constantly switching between apps.",
+
+    problem: {
+      title: "The Challenge",
+      description:
+        "Content creators and social media managers struggle with fragmented workflows — logging into multiple platforms just to check analytics or schedule content eats up valuable time.",
+      points: [
+        "No single tool to monitor multiple social accounts together",
+        "Analytics scattered across different platforms",
+        "Manual, time-consuming reporting processes",
+        "Lack of a clean, developer-built alternative to costly SaaS tools",
+      ],
+    },
+
+    solution: {
+      title: "The Solution",
+      description:
+        "I built Gelitik as a centralized hub that aggregates social media data and presents it through clean, interactive charts — letting users manage and analyze all their channels in one place.",
+      points: [
+        "Unified dashboard for multi-platform analytics",
+        "Interactive Chart.js visualizations for key metrics",
+        "Secure JWT-based authentication",
+        "Modular Vue 3 frontend with Tailwind CSS",
+      ],
+    },
+
+    features: [
+      "Multi-channel social media management",
+      "Analytics dashboard with charts and metrics",
+      "Secure user authentication with JWT",
+      "RESTful API with Node.js and Express",
+      "PostgreSQL database with Prisma ORM",
+      "Responsive UI with Vue 3 and Tailwind CSS",
+      "TypeScript for type-safe development",
+    ],
+
+    technologies: [
+      "Vue 3",
+      "TypeScript",
+      "Tailwind CSS",
+      "Chart.js",
+      "Vite",
+      "Node.js",
+      "Express",
+      "PostgreSQL",
+      "Prisma ORM",
+      "JWT",
+      "Axios",
+    ],
+
+    role: "Full Stack Developer",
+    duration: "Ongoing",
+    year: "2026",
+
+    screenshots: [
+      {
+        url: "https://picsum.photos/800/450?random=20",
+        caption: "Analytics dashboard overview",
+      },
+      {
+        url: "https://picsum.photos/800/450?random=21",
+        caption: "Multi-channel management view",
+      },
+      {
+        url: "https://picsum.photos/800/450?random=22",
+        caption: "Chart.js metrics breakdown",
+      },
+    ],
+
+    results: {
+      title: "Impact & Results",
+      metrics: [
+        { value: "1", label: "Dashboard for all socials" },
+        { value: "2", label: "Technologies integrated" },
+        { value: "100%", label: "Type-safe codebase" },
+      ],
+    },
+
+    learnings: [
+      "Building a fullstack app with Vue 3 and Prisma ORM",
+      "Integrating Chart.js for real-time analytics visualizations",
+      "Designing a multi-platform data aggregation architecture",
+      "Securing APIs with JWT and role-based access",
+    ],
+
+    demoLink: "#",
+    codeLink: "https://github.com/okasutarto/gelitik",
+
+    metaDescription:
+      "Fullstack social media management and analytics platform built with Vue 3, Node.js, and PostgreSQL",
+  },
+  {
     id: "summarizer",
     title: "Summarizer",
     type: "Fullstack",
@@ -202,106 +306,106 @@ export const projects = [
     metaDescription:
       "Interactive Pokémon encyclopedia built with Vue.js and PokéAPI",
   },
-  {
-    id: "portfolio",
-    title: "Personal Portfolio",
-    type: "Fullstack",
-    featured: true,
-    image:
-      "https://rbopflmphatliijk.public.blob.vercel-storage.com/projects/portfolio.png",
-    thumbnail:
-      "https://rbopflmphatliijk.public.blob.vercel-storage.com/projects/portfolio.png",
-    description:
-      "Interactive portfolio featuring an AI chatbot powered by OpenAI for instant visitor inquiries.",
+  // {
+  //   id: "portfolio",
+  //   title: "Personal Portfolio",
+  //   type: "Fullstack",
+  //   featured: true,
+  //   image:
+  //     "https://rbopflmphatliijk.public.blob.vercel-storage.com/projects/portfolio.png",
+  //   thumbnail:
+  //     "https://rbopflmphatliijk.public.blob.vercel-storage.com/projects/portfolio.png",
+  //   description:
+  //     "Interactive portfolio featuring an AI chatbot powered by OpenAI for instant visitor inquiries.",
 
-    overview:
-      "This portfolio website showcases my work and skills with an innovative twist - an AI-powered chatbot that can answer questions about my experience, projects, and background. Built with Vue.js and integrated with OpenAI's GPT models using RAG (Retrieval-Augmented Generation).",
+  //   overview:
+  //     "This portfolio website showcases my work and skills with an innovative twist - an AI-powered chatbot that can answer questions about my experience, projects, and background. Built with Vue.js and integrated with OpenAI's GPT models using RAG (Retrieval-Augmented Generation).",
 
-    problem: {
-      title: "The Challenge",
-      description:
-        "Traditional portfolios are static and require visitors to manually search through content to find relevant information about a developer.",
-      points: [
-        "Visitors often leave without finding specific information",
-        "No instant way to answer visitor questions",
-        "Static content doesn't engage users effectively",
-        "Hard to showcase personality through traditional formats",
-      ],
-    },
+  //   problem: {
+  //     title: "The Challenge",
+  //     description:
+  //       "Traditional portfolios are static and require visitors to manually search through content to find relevant information about a developer.",
+  //     points: [
+  //       "Visitors often leave without finding specific information",
+  //       "No instant way to answer visitor questions",
+  //       "Static content doesn't engage users effectively",
+  //       "Hard to showcase personality through traditional formats",
+  //     ],
+  //   },
 
-    solution: {
-      title: "The Solution",
-      description:
-        "I integrated an AI chatbot that uses my resume and project data to provide instant, accurate responses to visitor questions. This creates a unique, interactive experience.",
-      points: [
-        "AI chatbot with knowledge of my background",
-        "RAG implementation for accurate responses",
-        "Engaging animations and transitions",
-        "Modern, responsive design",
-      ],
-    },
+  //   solution: {
+  //     title: "The Solution",
+  //     description:
+  //       "I integrated an AI chatbot that uses my resume and project data to provide instant, accurate responses to visitor questions. This creates a unique, interactive experience.",
+  //     points: [
+  //       "AI chatbot with knowledge of my background",
+  //       "RAG implementation for accurate responses",
+  //       "Engaging animations and transitions",
+  //       "Modern, responsive design",
+  //     ],
+  //   },
 
-    features: [
-      "AI-powered chatbot assistant",
-      "RAG-based knowledge retrieval",
-      "Smooth GSAP animations",
-      "Dark/Light theme toggle",
-      "Responsive design",
-      "Contact form with email integration",
-      "Project case studies",
-      "Custom animated cursor",
-    ],
+  //   features: [
+  //     "AI-powered chatbot assistant",
+  //     "RAG-based knowledge retrieval",
+  //     "Smooth GSAP animations",
+  //     "Dark/Light theme toggle",
+  //     "Responsive design",
+  //     "Contact form with email integration",
+  //     "Project case studies",
+  //     "Custom animated cursor",
+  //   ],
 
-    technologies: [
-      "Vue.js",
-      "OpenAI API",
-      "Tailwind CSS",
-      "GSAP",
-      "Node.js",
-      "Vercel",
-    ],
+  //   technologies: [
+  //     "Vue.js",
+  //     "OpenAI API",
+  //     "Tailwind CSS",
+  //     "GSAP",
+  //     "Node.js",
+  //     "Vercel",
+  //   ],
 
-    role: "Full Stack Developer",
-    duration: "Ongoing",
-    year: "2024",
+  //   role: "Full Stack Developer",
+  //   duration: "Ongoing",
+  //   year: "2024",
 
-    screenshots: [
-      {
-        url: "https://picsum.photos/800/450?random=11",
-        caption: "Hero section with animations",
-      },
-      {
-        url: "https://picsum.photos/800/450?random=12",
-        caption: "AI Chatbot in action",
-      },
-      {
-        url: "https://picsum.photos/800/450?random=13",
-        caption: "Projects showcase",
-      },
-    ],
+  //   screenshots: [
+  //     {
+  //       url: "https://picsum.photos/800/450?random=11",
+  //       caption: "Hero section with animations",
+  //     },
+  //     {
+  //       url: "https://picsum.photos/800/450?random=12",
+  //       caption: "AI Chatbot in action",
+  //     },
+  //     {
+  //       url: "https://picsum.photos/800/450?random=13",
+  //       caption: "Projects showcase",
+  //     },
+  //   ],
 
-    results: {
-      title: "Impact & Results",
-      metrics: [
-        { value: "40%", label: "More engagement" },
-        { value: "24/7", label: "AI availability" },
-        { value: "< 3s", label: "Response time" },
-      ],
-    },
+  //   results: {
+  //     title: "Impact & Results",
+  //     metrics: [
+  //       { value: "40%", label: "More engagement" },
+  //       { value: "24/7", label: "AI availability" },
+  //       { value: "< 3s", label: "Response time" },
+  //     ],
+  //   },
 
-    learnings: [
-      "Implementing RAG with OpenAI",
-      "Building conversational AI interfaces",
-      "Advanced GSAP animations",
-      "Performance optimization for animations",
-    ],
+  //   learnings: [
+  //     "Implementing RAG with OpenAI",
+  //     "Building conversational AI interfaces",
+  //     "Advanced GSAP animations",
+  //     "Performance optimization for animations",
+  //   ],
 
-    demoLink: "https://okasutartoputra.vercel.app/",
-    codeLink: "https://github.com/okasutarto",
+  //   demoLink: "https://okasutartoputra.vercel.app/",
+  //   codeLink: "https://github.com/okasutarto",
 
-    metaDescription:
-      "AI-enhanced portfolio with chatbot built with Vue.js and OpenAI",
-  },
+  //   metaDescription:
+  //     "AI-enhanced portfolio with chatbot built with Vue.js and OpenAI",
+  // },
   {
     id: "warung-upin",
     title: "Warung Upin POS",

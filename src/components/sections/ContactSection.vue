@@ -77,7 +77,7 @@
 
             <!-- Location -->
             <div
-              class="group flex items-center p-4 bg-neo-magenta dark:bg-white border-2 border-black dark:border-primary shadow-neo-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all cursor-pointer">
+              class="group flex items-center p-4 bg-neo-magenta dark:bg-[#3B82F6] border-2 border-black dark:border-primary shadow-neo-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all cursor-pointer">
               <div
                 class="flex-shrink-0 bg-black text-white p-4 flex items-center justify-center border-2 border-white">
                 <span class="material-icons text-3xl">map</span>

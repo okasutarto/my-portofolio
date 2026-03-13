@@ -1,6 +1,106 @@
 // Projects data with detailed case study information
 export const projects = [
   {
+    id: "hnda-studio",
+    title: "HNDA Studio",
+    type: "Frontend",
+    featured: true,
+    image: "https://rbopflmphatliijk.public.blob.vercel-storage.com/projects/hnda-studio",
+    thumbnail: "https://rbopflmphatliijk.public.blob.vercel-storage.com/projects/hnda-studio",
+    description:
+      "Portfolio and commission platform for an Indonesia-based architecture and interior design studio.",
+
+    overview:
+      "A professional web presence for HNDA Studio, an integrated end-to-end architecture and interior practice based in Jakarta, Indonesia. Built with Vue 3 and powered by Sanity.io as a headless CMS, the site showcases selected works with a clean, minimal aesthetic that reflects the studio's design philosophy — honest spaces, balanced in scale, measured in expression.",
+
+    problem: {
+      title: "The Challenge",
+      description:
+        "HNDA Studio needed a digital presence that matched their architectural philosophy — refined, purposeful, and free of excess — while also ensuring potential clients who reach out are never lost.",
+      points: [
+        "Generic portfolio templates didn't reflect the studio's distinct design language",
+        "No system in place to capture and follow up on incoming commissions",
+        "Content needed to be manageable by the studio team without developer involvement",
+        "The site had to feel as considered as the architecture it represents",
+      ],
+    },
+
+    solution: {
+      title: "The Solution",
+      description:
+        "A custom Vue 3 portfolio site with Sanity.io as a headless CMS for seamless content management, paired with a Fonnte-powered WhatsApp automation that instantly notifies the studio whenever a potential client submits an inquiry.",
+      points: [
+        "Minimal, context-driven UI that mirrors the studio's architectural values",
+        "Sanity.io CMS allows the team to add and update projects independently",
+        "Google Form submission triggers an automated WhatsApp message via Fonnte",
+        "Instant lead notification ensures no commission opportunity is missed",
+      ],
+    },
+
+    features: [
+      "Selected works portfolio with category filtering",
+      "Headless CMS integration via Sanity.io",
+      "Commission inquiry form with automated WhatsApp notification",
+      "Fonnte API integration for real-time lead capture",
+      "Responsive layout optimized for all devices",
+      "Minimal, architecture-inspired UI design",
+      "Open for commissions status banner",
+      "Contact and studio location information",
+    ],
+
+    technologies: [
+      "Vue 3",
+      "Sanity.io",
+      "Fonnte API",
+      "WhatsApp API",
+      "Google Forms",
+      "JavaScript",
+      "CSS3",
+      "Vite",
+    ],
+
+    role: "Full Stack Developer",
+    duration: "1 Week",
+    year: "2026",
+
+    screenshots: [
+      {
+        url: "https://picsum.photos/800/450?random=10",
+        caption: "Homepage and selected works",
+      },
+      {
+        url: "https://picsum.photos/800/450?random=11",
+        caption: "Project detail view",
+      },
+      {
+        url: "https://picsum.photos/800/450?random=12",
+        caption: "Commission inquiry and contact",
+      },
+    ],
+
+    results: {
+      title: "Impact & Results",
+      metrics: [
+        { value: "0", label: "Missed client inquiries" },
+        { value: "100%", label: "Mobile responsive" },
+        { value: "Real-time", label: "WhatsApp lead alerts" },
+      ],
+    },
+
+    learnings: [
+      "Integrating headless CMS with Vue 3 for non-technical content management",
+      "Building automated lead capture pipelines with third-party APIs",
+      "Translating a brand's design philosophy into UI decisions",
+      "Connecting Google Forms webhooks to WhatsApp via Fonnte",
+    ],
+
+    demoLink: "https://hnda.studio/",
+    codeLink: "",
+
+    metaDescription:
+    "Portfolio website for HNDA Studio — an Indonesia-based architecture and interior practice, built with Vue 3, Sanity.io, and Fonnte WhatsApp integration.",
+  },
+  {
     id: "gelitik",
     title: "Gelitik",
     type: "Fullstack",
@@ -205,107 +305,107 @@ export const projects = [
     metaDescription:
       "AI-powered summarization tool built with Next.js and OpenAI API",
   },
-  {
-    id: "pokedex",
-    title: "Pokedex",
-    type: "Frontend",
-    featured: true,
-    image:
-      "https://rbopflmphatliijk.public.blob.vercel-storage.com/projects/pokedex.png",
-    thumbnail:
-      "https://rbopflmphatliijk.public.blob.vercel-storage.com/projects/pokedex.png",
-    description:
-      "Explore Pokémon types, stats, abilities, and evolutions with this interactive web app.",
+  // {
+  //   id: "pokedex",
+  //   title: "Pokedex",
+  //   type: "Frontend",
+  //   featured: true,
+  //   image:
+  //     "https://rbopflmphatliijk.public.blob.vercel-storage.com/projects/pokedex.png",
+  //   thumbnail:
+  //     "https://rbopflmphatliijk.public.blob.vercel-storage.com/projects/pokedex.png",
+  //   description:
+  //     "Explore Pokémon types, stats, abilities, and evolutions with this interactive web app.",
 
-    overview:
-      "A comprehensive Pokémon encyclopedia that allows users to explore detailed information about all Pokémon species. Built with Vue.js and powered by the PokéAPI, it features smooth animations, search functionality, and beautiful card-based layouts.",
+  //   overview:
+  //     "A comprehensive Pokémon encyclopedia that allows users to explore detailed information about all Pokémon species. Built with Vue.js and powered by the PokéAPI, it features smooth animations, search functionality, and beautiful card-based layouts.",
 
-    problem: {
-      title: "The Challenge",
-      description:
-        "Pokémon fans needed a fast, visually appealing way to browse and discover Pokémon information without the clutter of traditional wikis.",
-      points: [
-        "Existing Pokémon databases were often slow and cluttered",
-        "Mobile experience was poor on many Pokémon sites",
-        "Difficult to compare Pokémon stats quickly",
-        "Lack of modern, visually appealing interfaces",
-      ],
-    },
+  //   problem: {
+  //     title: "The Challenge",
+  //     description:
+  //       "Pokémon fans needed a fast, visually appealing way to browse and discover Pokémon information without the clutter of traditional wikis.",
+  //     points: [
+  //       "Existing Pokémon databases were often slow and cluttered",
+  //       "Mobile experience was poor on many Pokémon sites",
+  //       "Difficult to compare Pokémon stats quickly",
+  //       "Lack of modern, visually appealing interfaces",
+  //     ],
+  //   },
 
-    solution: {
-      title: "The Solution",
-      description:
-        "I created a modern, responsive Pokedex application that focuses on speed, usability, and visual appeal. The app fetches data from PokéAPI and presents it in an engaging card-based format.",
-      points: [
-        "Fast loading with optimized API calls",
-        "Beautiful card-based UI with type-based colors",
-        "Powerful search and filter functionality",
-        "Detailed stats visualization for each Pokémon",
-      ],
-    },
+  //   solution: {
+  //     title: "The Solution",
+  //     description:
+  //       "I created a modern, responsive Pokedex application that focuses on speed, usability, and visual appeal. The app fetches data from PokéAPI and presents it in an engaging card-based format.",
+  //     points: [
+  //       "Fast loading with optimized API calls",
+  //       "Beautiful card-based UI with type-based colors",
+  //       "Powerful search and filter functionality",
+  //       "Detailed stats visualization for each Pokémon",
+  //     ],
+  //   },
 
-    features: [
-      "Browse all Pokémon with infinite scroll",
-      "Search by name or Pokédex number",
-      "Filter by Pokémon type",
-      "Detailed stats with visual charts",
-      "Evolution chain display",
-      "Abilities and moves information",
-      "Responsive grid layout",
-      "Type-based color themes",
-    ],
+  //   features: [
+  //     "Browse all Pokémon with infinite scroll",
+  //     "Search by name or Pokédex number",
+  //     "Filter by Pokémon type",
+  //     "Detailed stats with visual charts",
+  //     "Evolution chain display",
+  //     "Abilities and moves information",
+  //     "Responsive grid layout",
+  //     "Type-based color themes",
+  //   ],
 
-    technologies: [
-      "Vue.js",
-      "Pinia",
-      "Bootstrap",
-      "SASS",
-      "Axios",
-      "PokéAPI",
-      "Vite",
-    ],
+  //   technologies: [
+  //     "Vue.js",
+  //     "Pinia",
+  //     "Bootstrap",
+  //     "SASS",
+  //     "Axios",
+  //     "PokéAPI",
+  //     "Vite",
+  //   ],
 
-    role: "Frontend Developer",
-    duration: "1 week",
-    year: "2023",
+  //   role: "Frontend Developer",
+  //   duration: "1 week",
+  //   year: "2023",
 
-    screenshots: [
-      {
-        url: "https://picsum.photos/800/450?random=4",
-        caption: "Pokémon grid view",
-      },
-      {
-        url: "https://picsum.photos/800/450?random=5",
-        caption: "Detailed Pokémon stats",
-      },
-      {
-        url: "https://picsum.photos/800/450?random=6",
-        caption: "Search and filter interface",
-      },
-    ],
+  //   screenshots: [
+  //     {
+  //       url: "https://picsum.photos/800/450?random=4",
+  //       caption: "Pokémon grid view",
+  //     },
+  //     {
+  //       url: "https://picsum.photos/800/450?random=5",
+  //       caption: "Detailed Pokémon stats",
+  //     },
+  //     {
+  //       url: "https://picsum.photos/800/450?random=6",
+  //       caption: "Search and filter interface",
+  //     },
+  //   ],
 
-    results: {
-      title: "Impact & Results",
-      metrics: [
-        { value: "800+", label: "Pokémon indexed" },
-        { value: "<2s", label: "Initial load time" },
-        { value: "100%", label: "Mobile responsive" },
-      ],
-    },
+  //   results: {
+  //     title: "Impact & Results",
+  //     metrics: [
+  //       { value: "800+", label: "Pokémon indexed" },
+  //       { value: "<2s", label: "Initial load time" },
+  //       { value: "100%", label: "Mobile responsive" },
+  //     ],
+  //   },
 
-    learnings: [
-      "Working with large external APIs",
-      "State management with Pinia",
-      "Optimizing performance for large datasets",
-      "Creating engaging visual designs",
-    ],
+  //   learnings: [
+  //     "Working with large external APIs",
+  //     "State management with Pinia",
+  //     "Optimizing performance for large datasets",
+  //     "Creating engaging visual designs",
+  //   ],
 
-    demoLink: "https://pokedex-oka.vercel.app/#/",
-    codeLink: "https://github.com/okasutarto/Pokedex",
+  //   demoLink: "https://pokedex-oka.vercel.app/#/",
+  //   codeLink: "https://github.com/okasutarto/Pokedex",
 
-    metaDescription:
-      "Interactive Pokémon encyclopedia built with Vue.js and PokéAPI",
-  },
+  //   metaDescription:
+  //     "Interactive Pokémon encyclopedia built with Vue.js and PokéAPI",
+  // },
   // {
   //   id: "portfolio",
   //   title: "Personal Portfolio",

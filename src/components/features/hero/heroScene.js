@@ -1,6 +1,8 @@
-// Three.js layer behind the hero: toon shapes that float, spin, and get
-// pushed around by the cursor, then spring back to their spot.
+// Three.js layer behind the hero: developer-themed objects (keycaps with code
+// symbols, a cursor, a bolt, a gear) that float, wobble, and get pushed around by
+// the cursor, then spring back to their spot.
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 
 // Spots as fractions of the hero box, kept around the edges and the gap between columns
 const SPOTS = [
@@ -15,29 +17,92 @@ const SPOTS = [
   [0.3, 0.035, 34],
   [0.7, 0.04, 38],
 ];
-const LIGHT_PALETTE = [0xffdd00, 0x00e0c6, 0xd946ef, 0x3b82f6, 0xffffff];
-const DARK_PALETTE = [0xff7a1a, 0x8fd694, 0xf4ead5, 0xe8b04a, 0xc2562a];
+// One item per spot: a keycap with a label, or an extruded icon
+const ITEMS = [
+  { key: "{ }", tone: 0 },
+  { icon: "cursor", tone: 0 },
+  { key: "</>", tone: 1 },
+  { icon: "bolt", tone: 2 },
+  { key: "ESC", tone: 3 },
+  { key: "⌘", tone: 2 },
+  { icon: "gear", tone: 3 },
+  { key: ";", tone: 4 },
+  { key: "↵", tone: 1 },
+  { key: "$_", tone: 0 },
+];
+// [cap colour, label colour] per tone
+const LIGHT_TONES = [
+  ["#ffffff", "#111111"],
+  ["#111111", "#ffdd00"],
+  ["#ffdd00", "#111111"],
+  ["#00e0c6", "#111111"],
+  ["#3b82f6", "#ffffff"],
+];
+const DARK_TONES = [
+  ["#f4ead5", "#1a1714"],
+  ["#2b251f", "#ff7a1a"],
+  ["#ff7a1a", "#1a1714"],
+  ["#8fd694", "#1a1714"],
+  ["#c2562a", "#f4ead5"],
+];
 const MOBILE_WIDTH = 1024;
 
-function starGeometry(points = 4, outer = 1, inner = 0.42) {
+function shapeFrom(points) {
   const shape = new THREE.Shape();
-  for (let i = 0; i <= points * 2; i++) {
-    const r = i % 2 ? inner : outer;
-    const a = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
-    if (i) shape.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-    else shape.moveTo(Math.cos(a) * r, Math.sin(a) * r);
-  }
-  return new THREE.ExtrudeGeometry(shape, { depth: 0.45, bevelEnabled: false }).center();
+  points.forEach(([x, y], i) => (i ? shape.lineTo(x, y) : shape.moveTo(x, y)));
+  return shape;
 }
 
-const GEOMETRIES = [
-  () => new THREE.BoxGeometry(1, 1, 1),
-  () => new THREE.IcosahedronGeometry(0.62, 0),
-  () => new THREE.TorusGeometry(0.5, 0.2, 10, 24),
-  () => starGeometry(),
-  () => new THREE.OctahedronGeometry(0.7, 0),
-  () => new THREE.CylinderGeometry(0.45, 0.45, 0.9, 6),
-];
+function iconGeometry(icon) {
+  let shape;
+  if (icon === "cursor") {
+    shape = shapeFrom([[0, 0], [0, -1], [0.27, -0.74], [0.45, -1.1], [0.62, -1.02], [0.44, -0.67], [0.8, -0.67]]);
+  } else if (icon === "bolt") {
+    shape = shapeFrom([[0.2, 1], [-0.45, -0.08], [0.02, -0.08], [-0.15, -1], [0.5, 0.12], [0.03, 0.12]]);
+  } else {
+    // gear: 8 teeth around a ring with a hole
+    const pts = [];
+    const teeth = 8;
+    for (let i = 0; i < teeth * 4; i++) {
+      const a = (i / (teeth * 4)) * Math.PI * 2;
+      const r = i % 4 < 2 ? 0.72 : 0.54;
+      pts.push([Math.cos(a) * r, Math.sin(a) * r]);
+    }
+    shape = shapeFrom(pts);
+    const hole = new THREE.Path();
+    hole.absarc(0, 0, 0.22, 0, Math.PI * 2, true);
+    shape.holes.push(hole);
+  }
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.32, bevelEnabled: false });
+  geo.center();
+  geo.computeBoundingBox();
+  const size = geo.boundingBox.getSize(new THREE.Vector3());
+  const k = 1.15 / Math.max(size.x, size.y);
+  geo.scale(k, k, k);
+  return geo;
+}
+
+// Keycap face: a slightly dished cap with the label in the brand font
+function drawKeycap(canvas, label, [cap, ink]) {
+  const c = canvas.getContext("2d");
+  const s = canvas.width;
+  c.fillStyle = cap;
+  c.fillRect(0, 0, s, s);
+  c.fillStyle = "rgba(0,0,0,0.12)";
+  c.beginPath();
+  c.roundRect(s * 0.1, s * 0.1, s * 0.8, s * 0.8, s * 0.1);
+  c.fill();
+  c.fillStyle = cap;
+  c.beginPath();
+  c.roundRect(s * 0.12, s * 0.1, s * 0.76, s * 0.76, s * 0.09);
+  c.fill();
+  const size = label.length <= 1 ? 0.46 : label.length === 2 ? 0.34 : 0.27;
+  c.font = `800 ${Math.round(s * size)}px 'Lexend Mega', sans-serif`;
+  c.fillStyle = ink;
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.fillText(label, s / 2, s * 0.49);
+}
 
 export function createHeroScene({ container, hero, reducedMotion }) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -59,15 +124,43 @@ export function createHeroScene({ container, hero, reducedMotion }) {
   gradientMap.minFilter = gradientMap.magFilter = THREE.NearestFilter;
   gradientMap.needsUpdate = true;
   const outlineMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
-  const materials = SPOTS.map(() => new THREE.MeshToonMaterial({ color: 0xffffff, gradientMap }));
-  const geometries = SPOTS.map((_, i) => GEOMETRIES[i % GEOMETRIES.length]());
+  const keycapGeo = new RoundedBoxGeometry(1, 1, 0.55, 4, 0.14);
+  const disposables = [keycapGeo];
+
+  // Per item: geometry, a side material, and (keycaps) a face material with a canvas label
+  const items = ITEMS.map((item) => {
+    const side = new THREE.MeshToonMaterial({ color: 0xffffff, gradientMap });
+    disposables.push(side);
+    if (!item.key) {
+      const geo = iconGeometry(item.icon);
+      disposables.push(geo);
+      return { ...item, geo, side, material: side };
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 256;
+    const map = new THREE.CanvasTexture(canvas);
+    map.colorSpace = THREE.SRGBColorSpace;
+    const face = new THREE.MeshToonMaterial({ map, gradientMap });
+    disposables.push(map, face);
+    // RoundedBoxGeometry keeps BoxGeometry's face groups: index 4 is the +z face (toward us)
+    return { ...item, geo: keycapGeo, side, canvas, map, material: [side, side, side, side, face, side] };
+  });
 
   const applyTheme = () => {
     const dark = document.documentElement.classList.contains("dark");
-    const palette = dark ? DARK_PALETTE : LIGHT_PALETTE;
-    materials.forEach((m, i) => m.color.set(palette[i % palette.length]));
+    const tones = dark ? DARK_TONES : LIGHT_TONES;
+    items.forEach((item) => {
+      const tone = tones[item.tone];
+      item.side.color.set(tone[0]);
+      if (item.canvas) {
+        drawKeycap(item.canvas, item.key, tone);
+        item.map.needsUpdate = true;
+      }
+    });
     outlineMat.color.set(dark ? 0x0d0b09 : 0x000000);
   };
+  // Labels use the brand font; redraw once it's ready
+  document.fonts?.ready.then(() => applyTheme());
   const themeObserver = new MutationObserver(applyTheme);
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
 
@@ -79,14 +172,31 @@ export function createHeroScene({ container, hero, reducedMotion }) {
     // On narrow screens content is centered, so only keep spots hugging the edges
     bodies = SPOTS.map((spot, i) => ({ spot, i }))
       .filter(({ spot: [fx] }) => !mobile || fx < 0.05 || fx > 0.9)
-      .map(({ spot: [fx, fy, size], i }) => {
-        const mesh = new THREE.Mesh(geometries[i], materials[i]);
-        const outline = new THREE.Mesh(geometries[i], outlineMat);
-        outline.scale.setScalar(1.12);
+      .map(({ spot: [spotX, fy, size], i }) => {
+        // Spots are laid out for "content left, portrait right"; the desktop hero is
+        // mirrored (portrait left), so mirror them too to keep objects off the text
+        const fx = mobile ? spotX : 1 - spotX;
+        const item = items[i];
+        const mesh = new THREE.Mesh(item.geo, item.material);
+        const outline = new THREE.Mesh(item.geo, outlineMat);
+        outline.scale.setScalar(item.key ? 1.08 : 1.12);
         mesh.add(outline);
         scene.add(mesh);
-        const s = mobile ? size * 0.7 : size;
-        return { mesh, size: s, rx: fx * w, ry: fy * h, x: fx * w, y: fy * h, vx: 0, vy: 0, spin: 0.3 + (i % 4) * 0.15, order: i };
+        const s = (mobile ? size * 0.7 : size) * (item.key ? 1.15 : 1);
+        return {
+          mesh,
+          kind: item.icon || "key",
+          size: s,
+          rx: fx * w,
+          ry: fy * h,
+          x: fx * w,
+          y: fy * h,
+          vx: 0,
+          vy: 0,
+          spin: 0.3 + (i % 4) * 0.15,
+          phase: i * 1.7,
+          order: i,
+        };
       });
     applyTheme();
   };
@@ -145,10 +255,19 @@ export function createHeroScene({ container, hero, reducedMotion }) {
       if (!reducedMotion) bodies.forEach((b) => stepBody(b, elapsed, heroRect));
     }
     bodies.forEach((b) => {
+      const t = reducedMotion ? 0 : elapsed * b.spin + b.phase;
       b.mesh.position.set(b.x, -b.y, 0);
-      b.mesh.rotation.x = b.vy * 0.02 + (reducedMotion ? 0.4 : Math.sin(elapsed * b.spin) * 0.4);
-      b.mesh.rotation.y = b.vx * 0.02 + (reducedMotion ? 0.6 : elapsed * b.spin);
-      b.mesh.rotation.z = -b.vx * 0.01;
+      if (b.kind === "gear") {
+        // gears turn flat-on, like they're driving something
+        b.mesh.rotation.set(-0.35 + b.vy * 0.02, 0.3 + b.vx * 0.02, reducedMotion ? 0 : elapsed * b.spin);
+      } else {
+        // keycaps and icons only wobble so their faces stay readable; tilted to show depth
+        b.mesh.rotation.set(
+          -0.4 + Math.sin(t) * 0.18 + b.vy * 0.02,
+          0.35 + Math.sin(t * 0.8) * 0.35 + b.vx * 0.02,
+          Math.sin(t * 0.6) * 0.12 - b.vx * 0.01,
+        );
+      }
       // pop the shapes in one by one
       const grow = reducedMotion ? 1 : Math.min(1, Math.max(0, (elapsed - 0.2 - b.order * 0.12) * 3));
       b.mesh.scale.setScalar(Math.max(0.001, b.size * (1 - Math.pow(1 - grow, 3))));
@@ -177,8 +296,7 @@ export function createHeroScene({ container, hero, reducedMotion }) {
       resizeObserver.disconnect();
       themeObserver.disconnect();
       window.removeEventListener("pointermove", onPointerMove);
-      geometries.forEach((g) => g.dispose());
-      materials.forEach((m) => m.dispose());
+      disposables.forEach((d) => d.dispose());
       outlineMat.dispose();
       gradientMap.dispose();
       renderer.dispose();

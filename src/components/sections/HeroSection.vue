@@ -8,7 +8,7 @@
     <div
       class="relative z-10 max-w-7xl w-full grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-14 items-center">
       <!-- Left column -->
-      <div class="lg:col-span-7 text-center lg:text-left order-2 lg:order-none">
+      <div class="lg:col-span-7 text-center lg:text-left order-2">
         <h1 class="sr-only">
           Oka Sutarto Putra, Full Stack Developer &amp; Mobile Engineer
         </h1>
@@ -93,7 +93,7 @@
 
       <!-- Portrait -->
       <div
-        class="lg:col-span-5 relative order-1 lg:order-none"
+        class="lg:col-span-5 relative order-1"
         style="perspective: 900px">
         <div
           ref="portraitRef"
@@ -479,14 +479,19 @@ onUnmounted(() => {
   padding: 10px 16px;
   white-space: nowrap;
   min-width: 12.5ch;
-  transform: translateZ(90px) scale(0) rotate(-6deg);
+  --tilt: -6deg;
+  transform: translateZ(90px) scale(0) rotate(var(--tilt));
   transform-origin: 85% 110%;
 }
+/* Desktop: the portrait sits on the left edge, so the bubble talks out to the right */
 @media (min-width: 1024px) {
   .bubble {
-    left: -14%;
-    top: -17%;
+    left: auto;
+    right: -4%;
+    top: -19%;
     padding: 12px 18px;
+    --tilt: 6deg;
+    transform-origin: 15% 110%;
   }
 }
 .bubble::after {
@@ -501,12 +506,19 @@ onUnmounted(() => {
   border-bottom: inherit;
   transform: skewX(-25deg) rotate(45deg);
 }
+@media (min-width: 1024px) {
+  .bubble::after {
+    right: auto;
+    left: 22px;
+    transform: skewX(25deg) rotate(45deg);
+  }
+}
 .bubble.pop {
   animation: pop 0.5s cubic-bezier(0.34, 1.8, 0.64, 1) forwards;
 }
 @keyframes pop {
   to {
-    transform: translateZ(90px) scale(1) rotate(-6deg);
+    transform: translateZ(90px) scale(1) rotate(var(--tilt));
   }
 }
 .wave {

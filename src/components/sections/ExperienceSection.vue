@@ -24,10 +24,14 @@
       </div>
 
       <!-- Experience Container -->
-      <div class="relative pl-8 md:pl-12">
-        <!-- Vertical Timeline Line -->
+      <div ref="timelineRef" class="relative pl-10 md:pl-12">
+        <!-- Vertical Timeline Line (fills as you scroll) -->
         <div
-          class="absolute left-0 top-0 bottom-0 w-2 bg-black dark:bg-primary border-r-2 border-black dark:border-primary shadow-neo-sm"></div>
+          class="absolute left-0 top-0 bottom-0 w-2 bg-black/10 dark:bg-white/10 border-2 border-black dark:border-primary overflow-hidden">
+          <div
+            ref="progressRef"
+            class="absolute inset-x-0 top-0 h-full bg-primary dark:bg-primary origin-top scale-y-0"></div>
+        </div>
 
         <!-- Experience Items -->
         <div class="space-y-16">
@@ -42,26 +46,42 @@
             class="relative opacity-0 group">
             <!-- Timeline Node -->
             <div
-              class="absolute -left-[42px] md:-left-[56px] top-6 w-10 h-10 bg-white dark:bg-zinc-800 border-2 border-black dark:border-primary rounded-none flex items-center justify-center z-20 group-hover:bg-primary group-hover:rotate-45 transition-all duration-300 shadow-neo-sm">
+              class="absolute -left-[52px] md:-left-[64px] top-6 w-8 h-8 md:w-10 md:h-10 border-2 border-black dark:border-primary rounded-none flex items-center justify-center z-20 group-hover:rotate-45 transition-all duration-300 shadow-neo-sm"
+              :class="
+                activeIndex >= index
+                  ? 'bg-primary rotate-45'
+                  : 'bg-white dark:bg-zinc-800'
+              ">
               <div class="w-3 h-3 bg-black dark:bg-white"></div>
             </div>
 
             <!-- Item Card -->
             <div
-              class="bg-white dark:bg-surface-dark border-2 border-black dark:border-primary p-6 md:p-8 shadow-neo-sm dark:shadow-neo transition-all duration-300">
+              class="bg-white dark:bg-surface-dark border-2 border-black dark:border-primary p-5 md:p-8 shadow-neo-sm dark:shadow-neo hover:shadow-neo-hover hover:-translate-x-1 hover:-translate-y-1 transition-all duration-300">
               <!-- Header -->
               <div
                 class="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
                 <div>
                   <h3
-                    class="font-display text-xl md:text-2xl lg:text-3xl font-bold text-black dark:text-white mb-2 uppercase tracking-tight leading-tight">
+                    class="font-display text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-black dark:text-white mb-2 uppercase tracking-tight leading-tight break-words">
                     {{ experience.role }}
                   </h3>
                   <div class="flex flex-wrap items-center gap-3">
-                    <span
-                      class="bg-primary text-black px-2 py-0.5 font-bold border-2 border-black transform -rotate-1 text-xs uppercase">
+                    <component
+                      :is="experience.companyUrl ? 'a' : 'span'"
+                      :href="experience.companyUrl || undefined"
+                      :target="experience.companyUrl ? '_blank' : undefined"
+                      :rel="experience.companyUrl ? 'noopener noreferrer' : undefined"
+                      class="bg-primary text-black px-2 py-0.5 font-bold border-2 border-black transform -rotate-1 text-xs uppercase"
+                      :class="{
+                        'hover:bg-black hover:text-primary hover:rotate-0 transition-all':
+                          experience.companyUrl,
+                      }">
                       @{{ experience.company }}
-                    </span>
+                      <i
+                        v-if="experience.companyUrl"
+                        class="fas fa-external-link-alt text-[9px] ml-0.5"></i>
+                    </component>
                     <span
                       class="bg-secondary text-black dark:text-white px-2 py-0.5 font-bold border-2 border-black dark:border-primary transform rotate-1 text-xs uppercase">
                       {{ experience.location }}
@@ -69,7 +89,7 @@
                   </div>
                 </div>
                 <div
-                  class="bg-neo-magenta text-white dark:bg-white dark:text-black px-4 py-2 font-display font-bold text-base border-2 border-black shadow-neo-sm self-start lg:translate-x-2 whitespace-nowrap">
+                  class="bg-neo-magenta text-white dark:bg-white dark:text-black px-4 py-2 font-display font-bold text-base border-2 border-black shadow-neo-sm self-start lg:translate-x-2 text-sm md:text-base md:whitespace-nowrap">
                   {{ experience.period }}
                 </div>
               </div>
@@ -107,7 +127,7 @@
 </template>
 
 <script setup>
-import { reactive, onMounted, onUnmounted } from "vue";
+import { ref, reactive, onMounted, onUnmounted } from "vue";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { experiences } from "@/data/experience";
@@ -115,33 +135,53 @@ import { experiences } from "@/data/experience";
 gsap.registerPlugin(ScrollTrigger);
 
 const experienceCards = reactive([]);
+const timelineRef = ref(null);
+const progressRef = ref(null);
+const activeIndex = ref(-1);
 const animations = [];
 
 onMounted(() => {
+  // Fill the timeline line as the section scrolls past
+  animations.push(
+    gsap.to(progressRef.value, {
+      scaleY: 1,
+      ease: "none",
+      scrollTrigger: {
+        trigger: timelineRef.value,
+        start: "top 60%",
+        end: "bottom 60%",
+        scrub: 0.5,
+      },
+    }),
+  );
+
   experienceCards.forEach((card, index) => {
     const anim = gsap.fromTo(
       card,
-      {
-        opacity: 0,
-        x: index % 2 === 0 ? -50 : 50,
-        y: 30,
-      },
+      { opacity: 0, y: 60 },
       {
         opacity: 1,
-        x: 0,
         y: 0,
         duration: 0.8,
         ease: "power4.out",
         scrollTrigger: {
           trigger: card,
           start: "top 85%",
-          end: "top 60%",
-          scrub: 1,
           toggleActions: "play none none reverse",
         },
       },
     );
     animations.push(anim);
+
+    // Light up the node once the fill line reaches it
+    animations.push(
+      ScrollTrigger.create({
+        trigger: card,
+        start: "top 60%",
+        onEnter: () => (activeIndex.value = index),
+        onLeaveBack: () => (activeIndex.value = index - 1),
+      }),
+    );
   });
 });
 

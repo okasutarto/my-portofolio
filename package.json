@@ -22,6 +22,7 @@
     "posthog-js": "^1.315.1",
     "scrollmagic": "^2.0.8",
     "scrollmagic-plugin-gsap": "^1.0.4",
+    "three": "^0.160.0",
     "vue": "^3.2.13",
     "vue-router": "^4.0.3",
     "ws": "^8.18.3",

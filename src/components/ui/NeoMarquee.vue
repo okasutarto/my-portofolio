@@ -4,9 +4,10 @@
     <div
       class="marquee-content font-display text-xl font-bold uppercase tracking-widest">
       <slot>
-        AVAILABLE FOR WORK ✦ FULL STACK DEVELOPER ✦ AI ENTHUSIAST ✦ CONTENT
-        CREATOR ✦ AVAILABLE FOR WORK ✦ FULL STACK DEVELOPER ✦ AI ENTHUSIAST ✦
-        CONTENT CREATOR ✦
+        FULL STACK DEVELOPER ✦ MOBILE ENGINEER ✦ AI ENTHUSIAST ✦ FULL STACK
+        DEVELOPER ✦ MOBILE ENGINEER ✦ AI ENTHUSIAST ✦ FULL STACK DEVELOPER ✦
+        MOBILE ENGINEER ✦ AI ENTHUSIAST ✦ FULL STACK DEVELOPER ✦ MOBILE
+        ENGINEER ✦ AI ENTHUSIAST ✦
       </slot>
     </div>
   </div>

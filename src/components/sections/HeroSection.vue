@@ -230,7 +230,6 @@ const runTerminal = async () => {
 };
 
 const introContent = async () => {
-  await wait(150);
   shown.status = true;
   await wait(150);
   shown.headline = true;
@@ -252,6 +251,8 @@ const introPortrait = async () => {
   shown.photo = true;
   await wait(850);
   shown.bubble = true;
+  // The portrait gets the spotlight first; the rest of the hero follows once Oka says hi
+  introContent();
   await wait(250);
   await typeInto((t) => (bubbleText.value = t), GREETING, 50);
   bubbleDone.value = true;
@@ -291,7 +292,6 @@ const loadScene = async () => {
 };
 
 onMounted(() => {
-  introContent();
   introPortrait();
 
   if (!reducedMotion) {

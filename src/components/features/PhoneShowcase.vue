@@ -8,18 +8,18 @@
       <div ref="stageRef" class="absolute inset-0 z-0"></div>
 
       <div
-        class="relative z-10 h-full max-w-7xl mx-auto px-4 md:px-12 grid grid-cols-1 md:grid-cols-12 content-start md:content-center pt-[57vh] md:pt-0 pointer-events-none">
+        class="relative z-10 h-full max-w-7xl mx-auto px-4 md:px-12 grid grid-cols-1 md:grid-cols-12 content-start md:content-center md:!pt-0 pointer-events-none"
+        :style="{ paddingTop: `${textTop}px` }">
         <Transition name="swap" mode="out-in">
           <div
             :key="active.id"
             class="md:col-span-5 pointer-events-auto md:bg-white md:dark:bg-surface-dark md:border-2 md:border-black md:dark:border-primary md:shadow-neo md:p-8">
             <div
-              class="font-display font-bold leading-none text-5xl md:text-8xl text-white"
-              style="-webkit-text-stroke: 3px #000; paint-order: stroke fill; text-shadow: 6px 6px 0 var(--color-secondary)">
+              class="outlined-num relative isolate font-display font-bold leading-none text-5xl md:text-8xl text-white"
+              :data-num="String(activeIndex + 1).padStart(2, '0')">
               {{ String(activeIndex + 1).padStart(2, "0")
               }}<span
-                class="text-xl md:text-3xl text-black dark:text-white align-top ml-1"
-                style="-webkit-text-stroke: 0; text-shadow: none"
+                class="text-xl md:text-3xl text-black dark:text-white align-top ml-2"
                 >/ {{ String(projects.length).padStart(2, "0") }}</span
               >
             </div>
@@ -35,12 +35,12 @@
               {{ active.title }}
             </h3>
             <p
-              class="font-medium leading-relaxed text-sm md:text-lg text-gray-800 dark:text-gray-200 border-l-4 pl-4 max-w-md mb-4 md:mb-5 line-clamp-3 md:line-clamp-none"
+              class="font-medium leading-relaxed text-sm md:text-lg text-gray-800 dark:text-gray-200 border-l-4 pl-4 max-w-md mb-4 md:mb-5 line-clamp-3 [@media(max-width:767px)_and_(max-height:740px)]:line-clamp-2 md:line-clamp-none"
               :class="typeStyle(active.type).border">
               {{ active.description }}
             </p>
 
-            <div class="flex flex-wrap gap-2 mb-4 md:mb-6">
+            <div class="flex flex-wrap gap-2 mb-4 md:mb-6 [@media(max-width:767px)_and_(max-height:740px)]:hidden">
               <span
                 v-for="(tech, techIndex) in active.technologies.slice(0, 5)"
                 :key="tech"
@@ -79,7 +79,7 @@
 
       <!-- Progress -->
       <div
-        class="absolute left-4 md:left-12 top-[7.5rem] md:top-auto md:bottom-6 z-10 flex gap-2"
+        class="absolute left-4 bottom-4 md:left-12 md:bottom-6 z-10 flex gap-2"
         aria-hidden="true">
         <span
           v-for="(project, index) in projects"
@@ -92,7 +92,7 @@
           "></span>
       </div>
       <div
-        class="absolute right-4 md:right-12 top-28 z-10 bg-neo-magenta text-white border-2 border-black px-3 py-1 text-xs font-bold uppercase shadow-neo-sm rotate-3 pointer-events-none">
+        class="hidden md:block absolute right-12 top-28 z-10 bg-neo-magenta text-white border-2 border-black px-3 py-1 text-xs font-bold uppercase shadow-neo-sm rotate-3 pointer-events-none">
         Drag to spin ✦
       </div>
     </div>
@@ -101,6 +101,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
+import { STACKED_QUERY, topInset, stackedPhoneHeight } from "./phone/layout";
 
 const props = defineProps({
   projects: { type: Array, required: true },
@@ -118,6 +119,17 @@ const isLink = (url) => url && url !== "#";
 const trackRef = ref(null);
 const stageRef = ref(null);
 const activeIndex = ref(0);
+// Stacked layout: the text starts right under the phone (same maths as the 3D scene)
+const textTop = ref(0);
+const updateTextTop = () => {
+  if (!window.matchMedia(STACKED_QUERY).matches) {
+    textTop.value = 0;
+    return;
+  }
+  const h = window.innerHeight;
+  const inset = topInset();
+  textTop.value = Math.round(inset + stackedPhoneHeight(h, inset) + 16);
+};
 const active = computed(() => props.projects[activeIndex.value]);
 
 let phoneScene = null;
@@ -169,6 +181,8 @@ onMounted(() => {
   }
 
   window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", updateTextTop);
+  updateTextTop();
   onScroll();
 
   // Build the scene while the browser is idle (shader compile and texture upload are
@@ -193,12 +207,35 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("scroll", onScroll);
+  window.removeEventListener("resize", updateTextTop);
   if (observer) observer.disconnect();
   if (phoneScene) phoneScene.destroy();
 });
 </script>
 
 <style scoped>
+/* White number with a solid black outline and a teal offset copy behind it.
+   Built from text-shadows instead of -webkit-text-stroke + paint-order, which some
+   mobile browsers don't support (the stroke ends up thin and covered). */
+.outlined-num {
+  --o: #000;
+  text-shadow:
+    3px 0 var(--o), -3px 0 var(--o), 0 3px var(--o), 0 -3px var(--o),
+    2px 2px var(--o), -2px -2px var(--o), 2px -2px var(--o), -2px 2px var(--o);
+}
+.outlined-num::before {
+  content: attr(data-num);
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  z-index: -1;
+  color: var(--color-secondary);
+  text-shadow: inherit;
+}
+.outlined-num span {
+  text-shadow: none;
+}
+
 .swap-enter-active,
 .swap-leave-active {
   transition:

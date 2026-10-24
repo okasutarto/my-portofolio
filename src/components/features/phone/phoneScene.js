@@ -3,6 +3,7 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { drawScreen, SCREEN_W, SCREEN_H } from "./screens";
+import { STACKED_QUERY, topInset, stackedPhoneHeight } from "./layout";
 
 // Portrait phone
 const W = 1.62;
@@ -17,7 +18,6 @@ const SH = SW * (SCREEN_H / SCREEN_W);
 // shadow), so the orbit ellipse keeps every cube at least ORBIT_RZ from the phone's axis.
 const ORBIT_RZ = 2.0;
 
-const STACKED_QUERY = "(max-width: 767px)";
 
 export function createPhoneScene({ container, projects, colorFor }) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -220,11 +220,20 @@ export function createPhoneScene({ container, projects, colorFor }) {
     if (!w || !h) return;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
-    const stacked = window.matchMedia(STACKED_QUERY).matches;
-    // Phone sits in the right column on desktop, in the top area when stacked
-    camera.position.set(0, 0, stacked ? 15.5 : 8.4);
-    if (stacked) camera.setViewOffset(w, h, 0, h * 0.14, w, h);
-    else camera.setViewOffset(w, h, -w * 0.18, -h * 0.04, w, h);
+    if (window.matchMedia(STACKED_QUERY).matches) {
+      // Stacked: size the phone to fit between the navbar and the text below it,
+      // then shift the view so its top sits right under the navbar
+      const inset = topInset();
+      const phonePx = stackedPhoneHeight(h, inset);
+      const visible = (H * 1.08 * h) / phonePx; // world units visible vertically
+      camera.position.set(0, 0, visible / (2 * Math.tan(THREE.MathUtils.degToRad(15))));
+      const centerY = inset + phonePx / 2;
+      camera.setViewOffset(w, h, 0, h / 2 - centerY, w, h);
+    } else {
+      // Desktop: phone sits in the right column
+      camera.position.set(0, 0, 8.4);
+      camera.setViewOffset(w, h, -w * 0.18, -h * 0.04, w, h);
+    }
     camera.updateProjectionMatrix();
   };
   const resizeObserver = new ResizeObserver(resize);

@@ -7,6 +7,7 @@
       <!-- Section Header -->
       <div class="mb-14 text-center lg:text-left">
         <h2
+          v-title-reveal
           class="font-display text-4xl md:text-6xl font-bold uppercase tracking-tight leading-none text-black dark:text-white">
           My career
           <span

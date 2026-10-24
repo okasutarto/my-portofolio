@@ -1,217 +1,161 @@
 <template>
   <section
     id="contact"
+    ref="sectionRef"
     class="py-24 px-4 md:px-12 transition-colors duration-300 relative overflow-hidden bg-grid-pattern">
     <div class="max-w-7xl mx-auto relative z-10">
       <!-- Section Header -->
-      <div class="text-center mb-20 relative">
+      <div class="mb-12 text-center lg:text-left">
         <h2
-          ref="sectionTitle"
-          class="text-4xl md:text-6xl font-display font-bold text-white dark:text-black uppercase tracking-tighter bg-black dark:bg-primary inline-block px-8 py-4 border-2 border-black dark:border-primary shadow-neo-sm transform rotate-[-1deg] opacity-0">
-          Get In Touch
+          v-title-reveal
+          class="font-display text-4xl md:text-6xl font-bold uppercase tracking-tight leading-none text-black dark:text-white">
+          Get in
+          <span
+            class="bg-black text-white px-3 py-1 dark:bg-primary dark:text-black inline-block -rotate-1 shadow-neo-sm"
+            >Touch</span
+          >
         </h2>
-        <div
-          class="mt-6 h-2 w-32 bg-primary mx-auto border-2 border-black dark:border-primary opacity-0 shadow-neo-sm"
-          ref="titleUnderline"></div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
-        <!-- Contact Information Area -->
-        <div
-          class="flex flex-col justify-center space-y-12"
-          ref="contactInfoArea">
-          <div class="space-y-6">
-            <h3
-              class="text-5xl md:text-7xl font-display font-bold text-black dark:text-white leading-none tracking-tighter drop-shadow-[4px_4px_0px_var(--color-primary)]">
-              LET'S<br />CONNECT<span class="text-primary">.</span>
-            </h3>
-            <p
-              class="text-lg md:text-xl font-bold text-gray-800 dark:text-gray-200 bg-white dark:bg-surface-dark border-2 border-black dark:border-primary p-8 shadow-neo-sm transform rotate-1">
-              I'm always interested in new projects and opportunities. Whether
-              you have a question or just want to say hello, I'll try my best to
-              get back to you!
-            </p>
-          </div>
-
-          <!-- Contact Blocks -->
-          <div class="space-y-6">
-            <!-- Email -->
+      <div
+        class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-12 lg:gap-14 items-start">
+        <!-- Postcard -->
+        <div class="postcard-stage relative">
+          <form
+            ref="postcardRef"
+            class="postcard relative grid grid-cols-1 md:grid-cols-[1.2fr_1fr] min-h-[400px] bg-[#fffdf5] text-[#1a1714] border-[2.5px] border-black shadow-[8px_8px_0_#000]"
+            :class="{ sent: status === 'sent', shake: status === 'error' }"
+            novalidate
+            @submit.prevent="submitForm">
+            <!-- Message side -->
             <div
-              class="group flex items-center p-4 bg-secondary border-2 border-black dark:border-primary shadow-neo-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all cursor-pointer">
-              <div
-                class="flex-shrink-0 bg-black text-white p-4 flex items-center justify-center border-2 border-white">
-                <span class="material-icons text-3xl">email</span>
-              </div>
-              <div class="ml-6">
-                <p
-                  class="text-[10px] font-bold uppercase tracking-[0.2em] text-black dark:text-white opacity-60 mb-0.5">
-                  Email
-                </p>
-                <a
-                  href="mailto:okasputra@gmail.com"
-                  @click="posthog.capture('email_link_clicked')"
-                  class="text-lg md:text-2xl font-bold text-black dark:text-white hover:underline decoration-4 underline-offset-4">
-                  okasputra@gmail.com
-                </a>
-              </div>
+              class="flex flex-col p-6 md:p-7 border-b-2 md:border-b-0 md:border-r-2 border-black/25">
+              <label
+                for="contact-message"
+                class="font-display font-bold text-lg uppercase mb-3"
+                >Hi Oka,</label
+              >
+              <textarea
+                id="contact-message"
+                v-model="form.message"
+                class="lined flex-1 min-h-[200px] w-full bg-transparent border-0 outline-none resize-none font-medium text-lg text-[#1a1714] placeholder:text-black/40"
+                placeholder="Tell me about your project..."
+                :aria-invalid="!!errors.message"
+                aria-describedby="contact-message-error"></textarea>
+              <p
+                v-if="errors.message"
+                id="contact-message-error"
+                class="mt-2 text-sm font-bold text-red-600">
+                {{ errors.message }}
+              </p>
             </div>
 
-            <!-- Phone -->
-            <div
-              class="group flex items-center p-4 bg-primary border-2 border-black dark:border-primary shadow-neo-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all cursor-pointer">
-              <div
-                class="flex-shrink-0 bg-black text-white p-4 flex items-center justify-center border-2 border-white">
-                <span class="material-icons text-3xl">phone</span>
+            <!-- Address side -->
+            <div class="relative flex flex-col gap-5 p-6 md:p-7">
+              <div ref="stampRef" class="stamp self-end" aria-hidden="true">
+                <div>
+                  <i class="fas fa-mobile-alt text-3xl block mb-1"></i>
+                  PONTIANAK<br />2026
+                </div>
               </div>
-              <div class="ml-6">
-                <p
-                  class="text-[10px] font-bold uppercase tracking-[0.2em] text-black dark:text-white opacity-60 mb-0.5">
-                  Phone / WhatsApp
-                </p>
-                <p
-                  class="text-lg md:text-2xl font-bold text-black dark:text-white">
-                  +62 822 1641 8397
-                </p>
+              <div class="postmark" aria-hidden="true">
+                SENT FROM<br />OKASP.DEV<br />✦
               </div>
-            </div>
 
-            <!-- Location -->
-            <div
-              class="group flex items-center p-4 bg-neo-magenta dark:bg-[#3B82F6] border-2 border-black dark:border-primary shadow-neo-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all cursor-pointer">
-              <div
-                class="flex-shrink-0 bg-black text-white p-4 flex items-center justify-center border-2 border-white">
-                <span class="material-icons text-3xl">map</span>
-              </div>
-              <div class="ml-6">
-                <p
-                  class="text-[10px] font-bold uppercase tracking-[0.2em] text-black dark:text-white opacity-60 mb-0.5">
-                  Location
-                </p>
-                <p
-                  class="text-lg md:text-2xl font-bold text-black dark:text-black">
-                  Pontianak, Indonesia
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+              <p class="font-display font-bold text-sm md:text-base break-words">To: Oka Sutarto Putra</p>
 
-        <!-- Contact Form Area -->
-        <div class="relative" ref="formArea">
-          <!-- Decorative shape -->
-          <div
-            class="absolute -top-12 -right-12 w-36 h-36 bg-primary rounded-full border-2 border-black hidden xl:block z-0 animate-pulse shadow-neo-sm"></div>
-
-          <div
-            class="relative z-10 bg-white dark:bg-surface-dark border-2 border-black dark:border-primary p-8 md:p-10 shadow-neo-sm dark:shadow-neo">
-            <div class="mb-8 border-b-2 border-black dark:border-primary pb-6">
-              <h3
-                class="text-3xl md:text-4xl font-display font-bold text-black dark:text-white uppercase tracking-tight">
-                Send a Message
-              </h3>
-            </div>
-
-            <form @submit.prevent="submitForm" class="space-y-8">
-              <!-- Name -->
-              <div class="space-y-3">
-                <label
-                  class="block text-base font-bold text-black dark:text-white uppercase tracking-wider"
-                  for="name"
-                  >Name</label
-                >
-                <input
-                  id="name"
-                  v-model="form.name"
-                  type="text"
-                  placeholder="YOUR FULL NAME"
-                  class="w-full bg-gray-50 dark:bg-zinc-900 border-2 border-black dark:border-primary text-black dark:text-white p-4 font-bold placeholder-gray-400 focus:ring-0 focus:outline-none focus:border-primary dark:focus:border-primary focus:shadow-neo-sm transition-all"
-                  :class="{ 'border-red-500': errors.name }" />
-                <p
-                  v-if="errors.name"
-                  class="text-sm font-bold text-red-600 uppercase">
+              <div>
+                <label class="addr block" for="contact-name">
+                  <span class="addr-label">From (your name)</span>
+                  <input
+                    id="contact-name"
+                    v-model="form.name"
+                    type="text"
+                    autocomplete="name"
+                    placeholder="Jane Doe"
+                    :aria-invalid="!!errors.name" />
+                </label>
+                <p v-if="errors.name" class="mt-1 text-sm font-bold text-red-600">
                   {{ errors.name }}
                 </p>
               </div>
 
-              <!-- Email -->
-              <div class="space-y-3">
-                <label
-                  class="block text-base font-bold text-black dark:text-white uppercase tracking-wider"
-                  for="email"
-                  >Email</label
-                >
-                <input
-                  id="email"
-                  v-model="form.email"
-                  type="email"
-                  placeholder="EMAIL@EXAMPLE.COM"
-                  class="w-full bg-gray-50 dark:bg-zinc-900 border-2 border-black dark:border-primary text-black dark:text-white p-4 font-bold placeholder-gray-400 focus:ring-0 focus:outline-none focus:border-secondary dark:focus:border-secondary focus:shadow-neo-sm transition-all"
-                  :class="{ 'border-red-500': errors.email }" />
-                <p
-                  v-if="errors.email"
-                  class="text-sm font-bold text-red-600 uppercase">
+              <div>
+                <label class="addr block" for="contact-email">
+                  <span class="addr-label">Reply to (email)</span>
+                  <input
+                    id="contact-email"
+                    v-model="form.email"
+                    type="email"
+                    autocomplete="email"
+                    placeholder="jane@company.com"
+                    :aria-invalid="!!errors.email" />
+                </label>
+                <p v-if="errors.email" class="mt-1 text-sm font-bold text-red-600">
                   {{ errors.email }}
                 </p>
               </div>
 
-              <!-- Message -->
-              <div class="space-y-3">
-                <label
-                  class="block text-base font-bold text-black dark:text-white uppercase tracking-wider"
-                  for="message"
-                  >Message</label
-                >
-                <textarea
-                  id="message"
-                  v-model="form.message"
-                  rows="5"
-                  placeholder="TELL ME ABOUT YOUR PROJECT..."
-                  class="w-full bg-gray-50 dark:bg-zinc-900 border-2 border-black dark:border-primary text-black dark:text-white p-4 font-bold placeholder-gray-400 focus:ring-0 focus:outline-none focus:border-primary dark:focus:border-primary focus:shadow-neo-sm transition-all resize-none"
-                  :class="{ 'border-red-500': errors.message }"></textarea>
-                <p
-                  v-if="errors.message"
-                  class="text-sm font-bold text-red-600 uppercase">
-                  {{ errors.message }}
-                </p>
-              </div>
+              <button
+                type="submit"
+                :disabled="status === 'sending'"
+                class="mt-auto inline-flex items-center justify-center gap-3 px-6 py-3.5 font-display font-bold uppercase text-black bg-primary border-2 border-black shadow-[5px_5px_0_#000] hover:translate-x-1 hover:translate-y-1 hover:shadow-[1px_1px_0_#000] transition-all disabled:opacity-60 disabled:cursor-wait">
+                <template v-if="status === 'sending'">
+                  <i class="fas fa-circle-notch animate-spin"></i> Sending...
+                </template>
+                <template v-else>
+                  Send postcard <i class="fas fa-paper-plane"></i>
+                </template>
+              </button>
 
-              <!-- Submit Button -->
-              <div class="pt-4">
-                <button
-                  type="submit"
-                  :disabled="isSubmitting"
-                  class="w-full bg-primary hover:bg-white dark:bg-primary dark:hover:bg-secondary text-black dark:text-black hover:text-black dark:hover:text-white font-bold text-xl md:text-2xl uppercase tracking-tight py-4 px-8 border-2 border-black dark:border-primary shadow-neo-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 group">
-                  <span
-                    v-if="isSubmitting"
-                    class="animate-spin material-icons text-2xl"
-                    >refresh</span
-                  >
-                  <span>{{
-                    isSubmitting ? "Sending..." : "Send Message"
-                  }}</span>
-                  <span
-                    v-if="!isSubmitting"
-                    class="material-icons text-3xl group-hover:translate-x-1 transition-transform"
-                    >send</span
-                  >
-                </button>
-              </div>
+              <p
+                v-if="status === 'error'"
+                class="text-sm font-bold text-red-600"
+                role="alert">
+                Couldn't send it. Try again, or email me directly.
+              </p>
+            </div>
+          </form>
 
-              <!-- Status Messages -->
-              <transition name="fade">
-                <div
-                  v-if="submitStatus === 'success'"
-                  class="bg-primary text-black border-4 border-black p-6 font-black text-xl text-center uppercase shadow-neo animate-bounce">
-                  ✓ Message Sent Successfully!
-                </div>
-                <div
-                  v-else-if="submitStatus === 'error'"
-                  class="bg-red-500 text-white border-4 border-black p-6 font-black text-xl text-center uppercase shadow-neo">
-                  × Something went wrong. Try again!
-                </div>
-              </transition>
-            </form>
+          <!-- Delivered stamp shown after the card flies off -->
+          <div
+            class="delivered absolute inset-0 grid place-items-center pointer-events-none"
+            :class="{ show: status === 'sent' }"
+            role="status"
+            aria-live="polite">
+            <span v-if="status === 'sent'">DELIVERED ✓</span>
           </div>
+        </div>
+
+        <!-- Side -->
+        <div ref="sideRef" class="flex flex-col gap-4 text-center lg:text-left">
+          <h3
+            class="font-display font-bold uppercase tracking-tighter leading-none text-4xl md:text-5xl text-black dark:text-white">
+            Let's<br class="hidden lg:block" />
+            connect<span class="text-primary">.</span>
+          </h3>
+          <p
+            class="font-medium leading-relaxed text-gray-700 dark:text-gray-300 mb-2">
+            New project, an opportunity, or just want to say hello? Write it on
+            the card and it lands straight in my inbox.
+          </p>
+          <a
+            v-for="channel in channels"
+            :key="channel.label"
+            :href="channel.href"
+            :target="channel.external ? '_blank' : undefined"
+            :rel="channel.external ? 'noopener noreferrer' : undefined"
+            class="flex items-center gap-3 px-4 py-3 font-bold text-black border-2 border-black shadow-[4px_4px_0_#000] hover:-rotate-1 hover:-translate-y-0.5 transition-transform"
+            :class="channel.class"
+            @click="channel.event && posthog.capture(channel.event)">
+            <i :class="[channel.icon, 'text-xl w-6 text-center']"></i>
+            <span class="flex flex-col text-left">
+              <span class="text-[10px] uppercase tracking-[0.2em] opacity-70">{{
+                channel.label
+              }}</span>
+              <span class="text-base md:text-lg">{{ channel.value }}</span>
+            </span>
+          </a>
         </div>
       </div>
     </div>
@@ -230,170 +174,274 @@ gsap.registerPlugin(ScrollTrigger);
 
 const { posthog } = usePostHog();
 
-// Refs
-const sectionTitle = ref(null);
-const titleUnderline = ref(null);
-const contactInfoArea = ref(null);
-const formArea = ref(null);
+const channels = [
+  {
+    label: "Email",
+    value: "okasputra@gmail.com",
+    href: "mailto:okasputra@gmail.com",
+    icon: "fas fa-envelope",
+    class: "bg-secondary",
+    event: "email_link_clicked",
+  },
+  {
+    label: "WhatsApp",
+    value: "+62 822 1641 8397",
+    href: "https://wa.me/6282216418397",
+    icon: "fab fa-whatsapp",
+    class: "bg-primary",
+    event: "whatsapp_link_clicked",
+    external: true,
+  },
+  {
+    label: "Location",
+    value: "Pontianak, Indonesia",
+    href: "https://maps.google.com/?q=Pontianak,Indonesia",
+    icon: "fas fa-location-dot",
+    class: "bg-[#c4b5fd]",
+    external: true,
+  },
+];
 
-const animations = [];
+const sectionRef = ref(null);
+const postcardRef = ref(null);
+const stampRef = ref(null);
+const sideRef = ref(null);
 
-// Form State
-const form = reactive({
-  name: "",
-  email: "",
-  message: "",
-});
+const form = reactive({ name: "", email: "", message: "" });
+const errors = reactive({ name: "", email: "", message: "" });
+// idle | sending | sent | error
+const status = ref("idle");
+let resetTimer = null;
+let ctx = null;
 
-const errors = reactive({
-  name: "",
-  email: "",
-  message: "",
-});
-
-const isSubmitting = ref(false);
-const submitStatus = ref(null);
-
-// Validation
 const validateForm = () => {
-  let isValid = true;
-  errors.name = !form.name.trim() ? "Name is required" : "";
+  errors.name = !form.name.trim() ? "Tell me your name" : "";
   errors.email = !form.email.trim()
-    ? "Email is required"
+    ? "I need an email to reply to"
     : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
-    ? "Invalid email"
+    ? "That email doesn't look right"
     : "";
   errors.message = !form.message.trim()
-    ? "Message is required"
-    : form.message.length < 10
-    ? "Too short (min 10 chars)"
+    ? "The card is still empty"
+    : form.message.trim().length < 10
+    ? "A little more, please (min 10 characters)"
     : "";
-
-  if (errors.name || errors.email || errors.message) isValid = false;
-  return isValid;
+  return !errors.name && !errors.email && !errors.message;
 };
 
-// Submission
 const submitForm = async () => {
   if (!validateForm()) return;
-
-  isSubmitting.value = true;
-  submitStatus.value = null;
+  status.value = "sending";
 
   try {
-    const templateParams = {
-      name: form.name,
-      email: form.email,
-      subject: "Portfolio Contact Form",
-      message: form.message,
-      to_name: "Oka Sutarto Putra",
-    };
-
     await emailjs.send(
       EMAILJS_CONFIG.SERVICE_ID,
       EMAILJS_CONFIG.TEMPLATE_ID,
-      templateParams,
+      {
+        name: form.name,
+        email: form.email,
+        subject: "Portfolio Contact Form",
+        message: form.message,
+        to_name: "Oka Sutarto Putra",
+      },
       EMAILJS_CONFIG.PUBLIC_KEY,
     );
-
-    submitStatus.value = "success";
     posthog.capture("contact_form_sent");
+    status.value = "sent";
 
-    // Reset
-    form.name = "";
-    form.email = "";
-    form.message = "";
-
-    setTimeout(() => {
-      submitStatus.value = null;
-    }, 5000);
+    // Card flies off, "delivered" stamp shows, then a fresh card comes back
+    clearTimeout(resetTimer);
+    resetTimer = setTimeout(() => {
+      form.name = "";
+      form.email = "";
+      form.message = "";
+      status.value = "idle";
+    }, 3600);
   } catch (error) {
     console.error("EmailJS Error:", error);
-    submitStatus.value = "error";
-  } finally {
-    isSubmitting.value = false;
+    status.value = "error";
   }
 };
 
 onMounted(() => {
-  // Title reveal
-  animations.push(
-    gsap.to(sectionTitle.value, {
-      opacity: 1,
-      y: 0,
-      rotate: -1,
-      duration: 1,
-      ease: "back.out(1.7)",
-      scrollTrigger: {
-        trigger: sectionTitle.value,
-        start: "top 85%",
-        toggleActions: "play none none reverse",
-      },
-    }),
-  );
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-  animations.push(
-    gsap.to(titleUnderline.value, {
-      opacity: 1,
-      width: "192px",
-      duration: 1,
-      delay: 0.3,
-      ease: "power2.out",
-      scrollTrigger: {
-        trigger: sectionTitle.value,
-        start: "top 85%",
-      },
-    }),
-  );
-
-  // Content reveal
-  animations.push(
-    gsap.from(contactInfoArea.value, {
-      x: -50,
-      opacity: 0,
-      duration: 1,
-      ease: "power3.out",
-      scrollTrigger: {
-        trigger: contactInfoArea.value,
-        start: "top 80%",
-      },
-    }),
-  );
-
-  animations.push(
-    gsap.from(formArea.value, {
-      x: 50,
-      opacity: 0,
-      duration: 1,
-      ease: "power3.out",
-      scrollTrigger: {
-        trigger: formArea.value,
-        start: "top 80%",
-      },
-    }),
-  );
+  ctx = gsap.context(() => {
+    // The postcard gets tossed onto the table, then the stamp is slapped on
+    gsap
+      .timeline({ scrollTrigger: { trigger: postcardRef.value, start: "top 80%" } })
+      .from(postcardRef.value, {
+        y: 80,
+        rotate: -6,
+        opacity: 0,
+        duration: 0.7,
+        ease: "power3.out",
+        clearProps: "transform,opacity",
+      })
+      .from(
+        stampRef.value,
+        { scale: 2.2, rotate: -20, opacity: 0, duration: 0.45, ease: "back.out(2)" },
+        "-=0.15",
+      )
+      .from(
+        sideRef.value.children,
+        { y: 24, opacity: 0, duration: 0.5, stagger: 0.07, ease: "power3.out" },
+        "<",
+      );
+  }, sectionRef.value);
 });
 
 onBeforeUnmount(() => {
-  animations.forEach((a) => a.kill());
-  ScrollTrigger.getAll().forEach((t) => t.kill());
+  clearTimeout(resetTimer);
+  if (ctx) ctx.revert();
 });
 </script>
 
 <style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.5s;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
+/* Faint dashed border inside the card edge */
+.postcard::before {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border: 2px dashed rgba(0, 0, 0, 0.18);
+  pointer-events: none;
 }
 
-/* Material Icons vertically centered fix */
-.material-icons {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* Ruled lines that scroll with the text */
+.lined {
+  line-height: 2.1rem;
+  background-image: repeating-linear-gradient(
+    transparent 0 2.05rem,
+    rgba(0, 0, 0, 0.18) 2.05rem 2.1rem
+  );
+  background-attachment: local;
+}
+
+.stamp {
+  width: 96px;
+  height: 116px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  background: var(--color-primary);
+  color: #000;
+  border: 3px solid #000;
+  outline: 3px dotted #fffdf5;
+  outline-offset: -9px;
+  transform: rotate(4deg);
+  font: 800 0.62rem "Lexend Mega", sans-serif;
+}
+
+.postmark {
+  position: absolute;
+  right: 120px;
+  top: 30px;
+  width: 92px;
+  height: 92px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  line-height: 1.2;
+  border: 3px solid rgba(217, 70, 239, 0.7);
+  border-radius: 50%;
+  color: rgba(217, 70, 239, 0.85);
+  transform: rotate(-14deg);
+  font: 800 0.6rem "Lexend Mega", sans-serif;
+  pointer-events: none;
+}
+
+.addr {
+  border-bottom: 2px solid rgba(0, 0, 0, 0.35);
+  padding: 6px 0;
+}
+.addr:focus-within {
+  border-bottom-color: #000;
+}
+.addr-label {
+  display: block;
+  font-weight: 700;
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.addr input {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: #1a1714;
+}
+.addr input::placeholder {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+/* Sent: the card folds back and flies off */
+.postcard {
+  transform-origin: center;
+  transition:
+    transform 0.8s cubic-bezier(0.6, -0.2, 0.4, 1.2),
+    opacity 0.4s 0.5s;
+}
+.postcard.sent {
+  transform: rotateX(70deg) rotateZ(-8deg) scale(0.4) translateY(-640px);
+  opacity: 0;
+}
+.postcard-stage {
+  perspective: 1400px;
+}
+
+/* Error: a quick shake */
+.postcard.shake {
+  animation: shake 0.45s;
+}
+@keyframes shake {
+  20%,
+  60% {
+    transform: translateX(-8px) rotate(-0.5deg);
+  }
+  40%,
+  80% {
+    transform: translateX(8px) rotate(0.5deg);
+  }
+}
+
+.delivered span {
+  font: 800 2rem "Lexend Mega", sans-serif;
+  color: #22a34a;
+  border: 5px solid #22a34a;
+  padding: 10px 22px;
+  background: rgba(255, 255, 255, 0.75);
+  transform: rotate(-8deg);
+  animation: stamp-in 0.4s 0.6s cubic-bezier(0.34, 1.8, 0.64, 1) both;
+}
+@keyframes stamp-in {
+  from {
+    transform: rotate(-8deg) scale(2.2);
+    opacity: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .postmark {
+    right: auto;
+    left: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .postcard,
+  .postcard.sent {
+    transition: none;
+  }
+  .postcard.sent {
+    transform: none;
+    opacity: 0.25;
+  }
+  .postcard.shake {
+    animation: none;
+  }
 }
 </style>

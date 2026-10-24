@@ -8,6 +8,7 @@
       <div
         class="mb-10 flex flex-col md:flex-row md:items-end md:justify-between gap-4 text-center md:text-left">
         <h2
+          v-title-reveal
           class="font-display text-4xl md:text-6xl font-bold uppercase tracking-tight leading-none text-black dark:text-white">
           About
           <span

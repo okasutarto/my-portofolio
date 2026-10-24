@@ -145,6 +145,18 @@
   background: rgba(139, 92, 246, 0.4);
 }
 
+/* Section-title word mask (see directives/titleReveal.js) */
+.title-reveal-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.06em;
+  margin-bottom: -0.06em;
+}
+.title-reveal-word {
+  display: inline-block;
+}
+
 /* ---------- Background ----------
    The dot grid lives on one fixed layer behind the whole page (.page-dots), so it
    stays still while content scrolls over it. Sections are transparent (or lightly

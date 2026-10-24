@@ -2,7 +2,7 @@
   <section
     id="about"
     ref="sectionRef"
-    class="min-h-screen bg-background-light dark:bg-background-dark flex items-center justify-center py-20 px-4 sm:px-6 lg:px-8 overflow-hidden relative transition-colors duration-300 bg-grid-pattern">
+    class="min-h-screen bg-[#fff6cc] dark:bg-[#221d18] flex items-center justify-center py-20 px-4 sm:px-6 lg:px-8 overflow-hidden relative transition-colors duration-300 bg-grid-pattern">
     <!-- Abstract Shapes -->
     <div
       class="absolute top-20 left-10 w-16 h-16 bg-accent-blue border-4 border-black dark:border-primary rounded-full opacity-50 hidden lg:block animate-bounce shadow-neo"></div>

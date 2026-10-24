@@ -9,11 +9,12 @@
   --color-shadow-hover: #000000;
 }
 
+/* Dark mode: "retro terminal" palette, warm charcoal + orange + mint */
 .dark {
-  --color-primary: #39ff14;
-  --color-secondary: #9d4edd;
-  --color-shadow: #9d4edd;
-  --color-shadow-hover: #9d4edd;
+  --color-primary: #ff7a1a;
+  --color-secondary: #8fd694;
+  --color-shadow: #8fd694;
+  --color-shadow-hover: #8fd694;
 }
 
 @tailwind base;
@@ -23,6 +24,8 @@
 @layer base {
   html {
     @apply scroll-smooth;
+    /* Tilted tape dividers are slightly wider than the viewport */
+    overflow-x: clip;
   }
 
   body {
@@ -48,7 +51,7 @@
   border-left: 1px solid #000;
 }
 .dark ::-webkit-scrollbar-track {
-  background: #18181b;
+  background: #241f1a;
   border-left: 1px solid var(--color-primary);
 }
 ::-webkit-scrollbar-thumb {
@@ -141,19 +144,37 @@
   background: rgba(139, 92, 246, 0.4);
 }
 
+/* Dot grid with a cursor spotlight. --mx/--my are set per element by useSpotlight. */
 .bg-grid-pattern {
-  background-size: 40px 40px;
-  background-image: linear-gradient(
-      rgba(0, 0, 0, 0.2) 1px,
-      transparent 1px
-    ),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.2) 1px, transparent 1px);
+  --dot: rgba(0, 0, 0, 0.22);
+  --dot-hot: rgba(0, 0, 0, 0.75);
+  position: relative;
+  isolation: isolate;
+  background-size: 22px 22px;
+  background-image: radial-gradient(circle, var(--dot) 1.4px, transparent 1.6px);
 }
 
 .dark .bg-grid-pattern {
-  background-image: linear-gradient(
-      rgba(255, 255, 255, 0.2) 1px,
-      transparent 1px
-    ),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.2) 1px, transparent 1px);
+  --dot: rgba(244, 234, 213, 0.14);
+  --dot-hot: rgba(255, 122, 26, 0.85);
+}
+
+.bg-grid-pattern::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-size: 22px 22px;
+  background-image: radial-gradient(circle, var(--dot-hot) 2.2px, transparent 2.6px);
+  -webkit-mask-image: radial-gradient(
+    circle 190px at var(--mx, -999px) var(--my, -999px),
+    #000 0%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    circle 190px at var(--mx, -999px) var(--my, -999px),
+    #000 0%,
+    transparent 100%
+  );
 }

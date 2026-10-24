@@ -1,7 +1,7 @@
 <template>
   <section
     id="projects"
-    class="py-24 px-4 md:px-12 bg-background-light dark:bg-background-dark transition-colors duration-300 bg-grid-pattern overflow-x-clip">
+    class="py-24 px-4 md:px-12 bg-[#ddf7f2] dark:bg-[#1b1f19] transition-colors duration-300 bg-grid-pattern overflow-x-clip">
     <div class="max-w-7xl mx-auto">
       <!-- Section Header -->
       <div class="mb-20 text-center relative">

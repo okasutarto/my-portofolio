@@ -1,190 +1,148 @@
 <template>
   <main
     ref="heroRef"
-    class="flex-grow flex bg-background-light dark:bg-background-dark items-center justify-center relative px-4 sm:px-6 lg:px-8 py-12 lg:py-16 bg-grid-pattern overflow-hidden">
-    <!-- Draggable Stickers -->
-    <div
-      v-for="(sticker, index) in stickers"
-      :key="sticker.label"
-      :ref="
-        (el) => {
-          if (el) stickerEls[index] = el;
-        }
-      "
-      class="hero-sticker absolute z-30 hidden lg:block select-none touch-none font-display font-bold border-2 border-black dark:border-primary shadow-neo-sm px-3 py-1.5 text-xs sm:text-sm uppercase cursor-grab active:cursor-grabbing"
-      :class="[sticker.class, sticker.position]"
-      :style="{ '--r': sticker.rotate }">
-      {{ sticker.label }}
-    </div>
+    class="flex-grow flex bg-background-light dark:bg-background-dark items-center justify-center relative px-4 sm:px-6 lg:px-8 py-12 lg:py-16 bg-grid-pattern overflow-hidden min-h-[calc(100vh-74px)]">
+    <!-- three.js floating shapes, behind the content -->
+    <div ref="stageRef" class="absolute inset-0 z-0 pointer-events-none"></div>
 
     <div
-      class="max-w-7xl w-full grid grid-cols-1 lg:grid-cols-12 gap-14 items-center z-10">
-      <!-- Left Column -->
-      <div class="contents lg:flex lg:flex-col lg:col-span-7 lg:space-y-10">
-        <!-- Greeting & Name -->
-        <div class="flex flex-col space-y-6 text-center lg:text-left order-1">
-          <div class="relative w-fit mx-auto lg:mx-0">
-            <div
-              class="absolute -top-6 -left-8 w-16 h-16 bg-primary border-4 border-black dark:border-primary rounded-full hidden lg:block animate-bounce shadow-neo -z-10"></div>
-            <div
-              ref="greetingRef"
-              class="inline-block bg-black text-white dark:bg-white dark:text-black px-4 py-2 font-black font-display transform -rotate-2 w-fit border-2 border-transparent">
-              👋 Hi there, I'm
-            </div>
+      class="relative z-10 max-w-7xl w-full grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-14 items-center">
+      <!-- Left column -->
+      <div class="lg:col-span-7 text-center lg:text-left order-2 lg:order-none">
+        <h1 class="sr-only">
+          Oka Sutarto Putra, Full Stack Developer &amp; Mobile Engineer
+        </h1>
+
+        <span
+          class="hero-in inline-flex items-center gap-2.5 bg-white dark:bg-surface-dark border-2 border-black dark:border-[#f4ead5] shadow-neo-sm px-3.5 py-1.5 font-bold text-sm md:text-base text-black dark:text-white"
+          :class="{ show: shown.status }">
+          <i class="live-dot"></i> Now: Mobile Engineer @ Dusitek
+        </span>
+
+        <p
+          class="headline font-body font-bold text-black dark:text-white mx-auto lg:mx-0"
+          :class="{ show: shown.headline }">
+          <template v-for="(word, index) in headlineWords" :key="index">
+            <span class="word"
+              ><span :class="{ hl: word.highlight }">{{ word.text }}</span></span
+            >{{ " " }}
+          </template>
+        </p>
+
+        <!-- Terminal card -->
+        <div
+          class="hero-in terminal max-w-[470px] mx-auto lg:mx-0 text-left border-2 border-black dark:border-[#f4ead5] shadow-[6px_6px_0_var(--color-secondary)]"
+          :class="{ show: shown.terminal }"
+          aria-label="Roles and current focus">
+          <div
+            class="flex items-center gap-[7px] px-3 py-2 border-b-2 border-black dark:border-[#f4ead5] bg-white dark:bg-surface-dark text-black dark:text-white text-xs font-bold">
+            <i class="term-dot bg-accent-pink"></i>
+            <i class="term-dot bg-neo-yellow"></i>
+            <i class="term-dot bg-secondary"></i>
+            <span class="ml-2 opacity-70">oka@portfolio: ~</span>
           </div>
-
-          <h1
-            class="text-5xl sm:text-7xl lg:text-8xl font-display font-bold leading-[0.95] tracking-tighter text-black dark:text-white drop-shadow-[4px_4px_0px_var(--color-secondary)] dark:drop-shadow-[6px_6px_0px_var(--color-primary)]"
-            aria-label="Oka Sutarto Putra">
-            <span
-              v-for="(word, wIndex) in nameWords"
-              :key="word"
-              class="block overflow-hidden pb-1 whitespace-nowrap"
-              aria-hidden="true">
-              <span
-                v-for="(char, cIndex) in word"
-                :key="cIndex"
-                class="hero-letter inline-block hover:text-primary dark:hover:text-secondary hover:-translate-y-2 hover:-rotate-6 transition-[color,transform] duration-150"
-                :data-word="wIndex">
-                {{ char }}
-              </span>
-            </span>
-          </h1>
+          <div class="terminal-body">
+            <template v-for="(line, index) in termLines" :key="index">
+              <span :class="line.prompt ? 'text-primary' : 'text-secondary'">{{
+                line.prompt ? "$" : ">"
+              }}</span>
+              {{ line.text
+              }}<span v-if="line.caret" class="hero-caret">▌</span>{{ "\n" }}
+            </template>
+          </div>
         </div>
 
-        <!-- Badges, Description, CTAs, Socials -->
         <div
-          ref="detailsRef"
-          class="flex flex-col space-y-6 text-center lg:text-left order-3">
-          <div
-            class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 text-xl font-bold">
-            <span
-              class="bg-secondary dark:bg-primary px-3 py-1 border-2 border-black dark:border-primary shadow-neo-sm text-black">
-              &lt;Full Stack Developer /&gt;
-            </span>
-            <span
-              class="bg-white dark:bg-surface-dark px-3 py-1 border-2 border-black dark:border-primary shadow-neo-sm text-black dark:text-white min-w-[13ch]">
-              <span class="text-neo-magenta dark:text-primary">&gt;</span>
-              {{ typedRole }}<span class="hero-caret">_</span>
-            </span>
-          </div>
+          class="hero-in flex flex-col sm:flex-row gap-5 justify-center lg:justify-start mt-8"
+          :class="{ show: shown.ctas }">
+          <a
+            class="group inline-flex items-center justify-center gap-3 px-7 py-4 text-base font-bold text-black bg-primary border-2 border-black dark:border-[#f4ead5] font-display uppercase shadow-neo hover:shadow-none hover:translate-x-[5px] hover:translate-y-[5px] transition-all"
+            href="#projects">
+            View my work
+            <i
+              class="fas fa-arrow-right group-hover:translate-x-1 group-hover:-rotate-12 transition-transform"></i>
+          </a>
+          <a
+            class="group inline-flex items-center justify-center gap-3 px-7 py-4 text-base font-bold text-black bg-white border-2 border-black dark:border-[#f4ead5] font-display uppercase shadow-neo hover:shadow-none hover:translate-x-[5px] hover:translate-y-[5px] transition-all"
+            href="#contact">
+            Get in touch
+            <i
+              class="fas fa-paper-plane group-hover:translate-x-1 group-hover:-rotate-12 transition-transform"></i>
+          </a>
+        </div>
 
-          <p
-            class="text-lg sm:text-xl max-w-2xl mx-auto lg:mx-0 font-medium leading-relaxed border-l-4 border-primary dark:border-secondary pl-6 dark:text-gray-100 text-left">
-            Turning complex problems into elegant, brutalist code. Currently
-            exploring the intersection of
-            <strong
-              class="bg-primary/60 dark:bg-secondary/60 px-1 box-decoration-clone"
-              >AI, web, and mobile development</strong
-            >
-            to build the next generation of digital experiences.
-          </p>
-
-          <div
-            class="flex flex-col sm:flex-row gap-6 justify-center lg:justify-start pt-2">
-            <a
-              class="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-black transition-all duration-200 bg-primary dark:bg-secondary border-2 border-black dark:border-primary font-display focus:outline-none shadow-neo hover:shadow-none hover:translate-x-[5px] hover:translate-y-[5px]"
-              href="#projects">
-              <i
-                class="fas fa-briefcase mr-3 group-hover:-rotate-12 transition-transform"></i>
-              View My Work
-            </a>
-            <a
-              class="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-black bg-white transition-all duration-200 border-2 border-black dark:border-primary dark:bg-primary font-display focus:outline-none shadow-neo hover:shadow-none hover:translate-x-[5px] hover:translate-y-[5px]"
-              href="#contact">
-              <i
-                class="fas fa-paper-plane mr-3 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"></i>
-              Get In Touch
-            </a>
-          </div>
-
-          <div class="flex gap-4 justify-center lg:justify-start pt-4">
-            <a
-              v-for="social in socials"
-              :key="social.icon"
-              target="_blank"
-              rel="noopener noreferrer"
-              :aria-label="social.label"
-              class="w-12 h-12 flex items-center justify-center border-2 border-black bg-white dark:bg-surface-dark dark:border-primary shadow-neo-sm hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none hover:bg-primary dark:hover:bg-primary dark:hover:text-black transition-all group"
-              :href="social.link">
-              <i
-                :class="[
-                  'fab',
-                  social.icon,
-                  'text-xl group-hover:scale-110 transition-transform',
-                ]"></i>
-            </a>
-          </div>
+        <div
+          class="hero-in flex flex-wrap gap-3.5 items-center justify-center lg:justify-start mt-7"
+          :class="{ show: shown.socials }">
+          <span
+            class="font-bold text-xs uppercase tracking-[0.15em] text-black/70 dark:text-white/70 mr-1"
+            >Find me</span
+          >
+          <a
+            v-for="social in socials"
+            :key="social.icon"
+            target="_blank"
+            rel="noopener noreferrer"
+            :aria-label="social.label"
+            class="w-12 h-12 flex items-center justify-center border-2 border-black dark:border-[#f4ead5] bg-white dark:bg-surface-dark text-black dark:text-white shadow-neo-sm hover:translate-x-[3px] hover:translate-y-[3px] hover:-rotate-6 hover:shadow-none hover:bg-primary hover:text-black dark:hover:bg-primary dark:hover:text-black transition-all"
+            :href="social.link">
+            <i :class="['fab', social.icon, 'text-xl']"></i>
+          </a>
         </div>
       </div>
 
       <!-- Portrait -->
       <div
-        class="lg:col-span-5 relative mt-0 lg:mt-0 order-2 lg:order-none"
+        class="lg:col-span-5 relative order-1 lg:order-none"
         style="perspective: 900px">
         <div
           ref="portraitRef"
-          class="group/portrait relative w-full aspect-square max-w-[280px] sm:max-w-xs lg:max-w-md mx-auto mt-10 mb-8 lg:my-0 will-change-transform"
+          class="relative w-[78%] max-w-[330px] lg:w-full lg:max-w-md aspect-square mx-auto mt-16 mb-14 lg:my-0 will-change-transform"
           style="transform-style: preserve-3d">
           <div
-            class="absolute inset-0 bg-secondary dark:bg-primary translate-x-4 translate-y-4 border-2 border-black dark:border-primary shadow-neo-sm"></div>
+            class="back-block absolute inset-0 bg-secondary border-2 border-black dark:border-[#f4ead5]"
+            :class="{ show: shown.backBlock }"></div>
 
+          <!-- Frame: halftone comic panel, slapped on like a sticker -->
           <div
-            class="absolute -bottom-10 -right-8 w-24 h-24 bg-transparent border-4 border-black dark:border-primary rotate-12 hidden lg:block shadow-neo -z-10"></div>
+            class="frame portrait-halftone absolute inset-0 bg-primary border-2 border-black dark:border-[#f4ead5] shadow-neo"
+            :class="{ show: shown.frame }"></div>
 
-          <!-- Frame: halftone comic panel -->
-          <div
-            class="portrait-halftone absolute inset-0 bg-primary dark:bg-secondary border-2 border-black dark:border-primary overflow-hidden shadow-neo">
-            <div
-              class="absolute inset-0 flex items-center justify-center font-display font-bold text-[5.5rem] sm:text-[7rem] lg:text-[9rem] leading-none text-transparent select-none"
-              style="-webkit-text-stroke: 2px rgba(0, 0, 0, 0.25)"
-              aria-hidden="true">
-              HI!
-            </div>
-          </div>
-
-          <!-- Cutout photo popping out of the frame -->
-          <div
-            class="portrait-cutout absolute inset-x-0 bottom-0 h-[118%] flex justify-center pointer-events-none"
-            style="transform: translateZ(50px)">
+          <!-- Clip only below the frame's bottom edge: the photo rises from inside the frame -->
+          <div class="photo-clip absolute inset-0" style="transform: translateZ(40px)">
             <img
-              ref="photoRef"
               alt="Oka Sutarto Putra"
               width="668"
               height="900"
               fetchpriority="high"
-              class="h-full w-auto origin-bottom grayscale contrast-125 group-hover/portrait:grayscale-0 group-hover/portrait:contrast-100 [@media(hover:none)]:grayscale-0 [@media(hover:none)]:contrast-100 transition-[filter] duration-500"
+              class="photo portrait-cutout"
+              :class="{ up: shown.photo }"
               src="/images/oka-portrait.png" />
           </div>
 
+          <!-- Comic speech bubble -->
           <div
-            class="absolute -top-6 -right-6 bg-white dark:bg-surface-dark border-2 border-black dark:border-primary p-4 shadow-neo-sm rotate-3 z-20"
-            style="transform: translateZ(70px) rotate(3deg)">
-            <i class="fas fa-mobile-alt text-2xl text-black dark:text-primary"></i>
+            class="bubble font-display font-bold text-sm md:text-base text-black dark:text-white bg-white dark:bg-surface-dark border-[3px] border-black dark:border-[#f4ead5] shadow-neo"
+            :class="{ pop: shown.bubble }"
+            aria-hidden="true">
+            {{ bubbleText
+            }}<span v-if="bubbleDone" class="wave">👋</span
+            ><span v-else class="hero-caret">_</span>
           </div>
+
           <div
-            class="absolute -bottom-10 -left-6 bg-black text-white dark:text-black dark:bg-primary px-6 py-3 border-2 border-primary dark:border-primary shadow-neo font-display font-bold text-lg z-20"
-            style="transform: translateZ(80px) rotate(-3deg)">
+            class="years absolute -bottom-9 -left-6 bg-black text-white dark:bg-primary dark:text-black px-5 py-3 border-2 border-primary shadow-neo font-display font-bold text-base md:text-lg"
+            :class="{ show: shown.years }">
             3+ YEARS EXP.
           </div>
         </div>
       </div>
     </div>
-
-    <!-- Drag hint -->
-    <div
-      class="absolute bottom-4 left-1/2 -translate-x-1/2 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-black/60 dark:text-white/60 pointer-events-none hidden lg:block">
-      psst, the stickers are draggable ✦
-    </div>
   </main>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
-import gsap from "gsap";
-import { Draggable } from "gsap/Draggable";
-
-gsap.registerPlugin(Draggable);
+import { ref, reactive, onMounted, onUnmounted } from "vue";
 
 const socials = [
   { icon: "fa-github", label: "GitHub", link: "https://github.com/okasutarto" },
@@ -201,177 +159,154 @@ const socials = [
   { icon: "fa-tiktok", label: "TikTok", link: "https://tiktok.com/@okasp.dev" },
 ];
 
-const stickers = [
-  {
-    label: "Vue.js ♥",
-    class: "bg-secondary text-black",
-    position: "top-[10%] left-[46%]",
-    rotate: "-8deg",
-  },
-  {
-    label: "★ Now @Dusitek",
-    class: "bg-neo-magenta text-white",
-    position: "top-[8%] right-[6%]",
-    rotate: "6deg",
-  },
-  {
-    label: "AI ✦ Builder",
-    class: "bg-primary text-black",
-    position: "bottom-[10%] right-[38%]",
-    rotate: "-5deg",
-  },
-  {
-    label: "Flutter ✦",
-    class: "bg-white dark:bg-surface-dark text-black dark:text-white",
-    position: "bottom-[16%] left-[3%]",
-    rotate: "9deg",
-  },
+const headlineWords = [
+  { text: "Turning" },
+  { text: "complex" },
+  { text: "problems" },
+  { text: "into" },
+  { text: "elegant code.", highlight: true },
 ];
 
-const nameWords = ["OKA", "SUTARTO", "PUTRA"];
-const roles = ["Mobile Engineer", "AI Enthusiast", "Problem Solver"];
+const roles = ["Full Stack Developer", "Mobile Engineer", "AI Enthusiast"];
+const GREETING = "Hi there, I'm Oka! ";
 
 const heroRef = ref(null);
-const greetingRef = ref(null);
-const detailsRef = ref(null);
+const stageRef = ref(null);
 const portraitRef = ref(null);
-const photoRef = ref(null);
-const stickerEls = [];
-const typedRole = ref("");
+const termLines = ref([]);
+const bubbleText = ref("");
+const bubbleDone = ref(false);
+const shown = reactive({
+  status: false,
+  headline: false,
+  terminal: false,
+  ctas: false,
+  socials: false,
+  backBlock: false,
+  frame: false,
+  photo: false,
+  bubble: false,
+  years: false,
+});
 
-let draggables = [];
-let typingTimer = null;
-let ctx = null;
+let alive = true;
+let heroScene = null;
+const reducedMotion = window.matchMedia(
+  "(prefers-reduced-motion: reduce)",
+).matches;
 
-const reducedMotion = () =>
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const wait = (ms) =>
+  new Promise((resolve) => setTimeout(resolve, reducedMotion ? 0 : ms));
 
-// Typewriter loop over the roles
-const startTyping = () => {
-  let roleIndex = 0;
-  let charIndex = 0;
-  let deleting = false;
-
-  const tick = () => {
-    const role = roles[roleIndex];
-    charIndex += deleting ? -1 : 1;
-    typedRole.value = role.slice(0, charIndex);
-
-    let delay = deleting ? 40 : 90;
-    if (!deleting && charIndex === role.length) {
-      deleting = true;
-      delay = 1800;
-    } else if (deleting && charIndex === 0) {
-      deleting = false;
-      roleIndex = (roleIndex + 1) % roles.length;
-      delay = 300;
-    }
-    typingTimer = setTimeout(tick, delay);
-  };
-  tick();
+const typeInto = async (setter, text, speed = 38) => {
+  for (let i = 1; i <= text.length && alive; i++) {
+    setter(text.slice(0, i));
+    await wait(speed);
+  }
 };
 
-// Subtle 3D tilt that follows the cursor
+// Terminal: types `whoami` and `focus --now`, then keeps cycling the role line
+const runTerminal = async () => {
+  const lines = termLines.value;
+  lines.push({ prompt: true, text: "" });
+  await typeInto((t) => (lines[0].text = t), "whoami");
+  lines.push({ prompt: false, text: "", caret: true });
+  await typeInto((t) => (lines[1].text = t), roles[0]);
+  await wait(300);
+  lines.push({ prompt: true, text: "" });
+  await typeInto((t) => (lines[2].text = t), "focus --now");
+  lines.push({ prompt: false, text: "AI · Web · Mobile" });
+
+  let roleIndex = 0;
+  while (alive && !reducedMotion) {
+    await wait(2200);
+    for (let n = lines[1].text.length; n >= 0 && alive; n--) {
+      lines[1].text = lines[1].text.slice(0, n);
+      await wait(22);
+    }
+    roleIndex = (roleIndex + 1) % roles.length;
+    await typeInto((t) => (lines[1].text = t), roles[roleIndex], 60);
+  }
+};
+
+const introContent = async () => {
+  await wait(150);
+  shown.status = true;
+  await wait(150);
+  shown.headline = true;
+  await wait(700);
+  shown.terminal = true;
+  runTerminal();
+  await wait(250);
+  shown.ctas = true;
+  await wait(150);
+  shown.socials = true;
+};
+
+const introPortrait = async () => {
+  await wait(300);
+  shown.backBlock = true;
+  await wait(120);
+  shown.frame = true;
+  await wait(550);
+  shown.photo = true;
+  await wait(850);
+  shown.bubble = true;
+  await wait(250);
+  await typeInto((t) => (bubbleText.value = t), GREETING, 50);
+  bubbleDone.value = true;
+  shown.years = true;
+};
+
+// Portrait tilts toward the cursor
 const onMouseMove = (e) => {
-  if (!portraitRef.value) return;
   const rect = heroRef.value.getBoundingClientRect();
   const x = (e.clientX - rect.left) / rect.width - 0.5;
   const y = (e.clientY - rect.top) / rect.height - 0.5;
-  gsap.to(portraitRef.value, {
-    rotateY: x * 14,
-    rotateX: -y * 14,
-    duration: 0.6,
-    ease: "power2.out",
-  });
+  portraitRef.value.style.transform = `rotateY(${x * 14}deg) rotateX(${-y * 14}deg)`;
+};
+const onMouseLeave = () => {
+  portraitRef.value.style.transform = "";
 };
 
-const onMouseLeave = () => {
-  gsap.to(portraitRef.value, { rotateY: 0, rotateX: 0, duration: 0.8 });
+const supportsWebGL = () => {
+  try {
+    return !!document.createElement("canvas").getContext("webgl2");
+  } catch (e) {
+    return false;
+  }
+};
+
+const loadScene = async () => {
+  // three.js comes in after the hero content has painted
+  const { createHeroScene } = await import(
+    /* webpackChunkName: "hero-scene" */ "@/components/features/hero/heroScene"
+  );
+  if (!alive || !stageRef.value) return;
+  heroScene = createHeroScene({
+    container: stageRef.value,
+    hero: heroRef.value,
+    reducedMotion,
+  });
 };
 
 onMounted(() => {
-  if (reducedMotion()) {
-    typedRole.value = roles[0];
-    gsap.set(stickerEls, { rotate: (i) => stickers[i].rotate });
-  } else {
-    startTyping();
+  introContent();
+  introPortrait();
 
-    ctx = gsap.context(() => {
-      const tl = gsap.timeline({ defaults: { ease: "power4.out" } });
-      tl.from(greetingRef.value, {
-        y: 30,
-        opacity: 0,
-        rotate: -12,
-        duration: 0.6,
-      })
-        .from(
-          ".hero-letter",
-          {
-            yPercent: 110,
-            rotate: 8,
-            duration: 0.7,
-            stagger: 0.035,
-            clearProps: "transform",
-          },
-          "-=0.3",
-        )
-        .from(
-          detailsRef.value.children,
-          { y: 30, opacity: 0, duration: 0.6, stagger: 0.08 },
-          "-=0.4",
-        )
-        .from(
-          portraitRef.value,
-          { scale: 0.8, opacity: 0, rotate: 6, duration: 0.8 },
-          "-=0.9",
-        )
-        // Photo springs up out of the frame
-        .from(
-          photoRef.value,
-          { yPercent: 35, scaleY: 0.85, duration: 0.7, ease: "back.out(2)" },
-          "-=0.35",
-        )
-        .fromTo(
-          stickerEls,
-          { scale: 0, rotate: 0 },
-          {
-            scale: 1,
-            rotate: (i) => stickers[i].rotate,
-            duration: 0.5,
-            stagger: 0.1,
-            ease: "back.out(2.5)",
-          },
-          "-=0.4",
-        );
-    }, heroRef.value);
-
+  if (!reducedMotion) {
     heroRef.value.addEventListener("mousemove", onMouseMove);
     heroRef.value.addEventListener("mouseleave", onMouseLeave);
   }
-
-  draggables = Draggable.create(stickerEls, {
-    bounds: heroRef.value,
-    inertia: false,
-    onPress() {
-      gsap.to(this.target, { scale: 1.12, rotate: 0, duration: 0.2 });
-      this.target.style.zIndex = 40;
-    },
-    onRelease() {
-      gsap.to(this.target, {
-        scale: 1,
-        rotate: gsap.utils.random(-10, 10),
-        duration: 0.4,
-        ease: "back.out(3)",
-      });
-      this.target.style.zIndex = "";
-    },
-  });
+  if (supportsWebGL()) {
+    const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 300));
+    idle(() => loadScene());
+  }
 });
 
 onUnmounted(() => {
-  clearTimeout(typingTimer);
-  draggables.forEach((d) => d.kill());
-  if (ctx) ctx.revert();
+  alive = false;
+  if (heroScene) heroScene.destroy();
   if (heroRef.value) {
     heroRef.value.removeEventListener("mousemove", onMouseMove);
     heroRef.value.removeEventListener("mouseleave", onMouseLeave);
@@ -380,10 +315,124 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.hero-sticker {
-  transform: rotate(var(--r));
+/* ---------- Content intro ---------- */
+.hero-in {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.5s,
+    transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.hero-in.show {
+  opacity: 1;
+  transform: none;
 }
 
+.live-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: ping 1.6s infinite;
+}
+@keyframes ping {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+  }
+}
+
+/* ---------- Headline ---------- */
+.headline {
+  font-size: clamp(2.1rem, 10vw, 3rem);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  margin: 24px auto 30px;
+  max-width: 15ch;
+}
+@media (min-width: 1024px) {
+  .headline {
+    font-size: clamp(2.4rem, 4.6vw, 4.1rem);
+    margin-inline: 0;
+  }
+}
+/* Words slide up from a mask; clip only the bottom so the highlighter can overflow */
+.word {
+  display: inline-block;
+  vertical-align: top;
+  padding: 0 0.02em 0.08em;
+  clip-path: inset(-60% -30% -0.25em -30%);
+}
+.word > span {
+  display: inline-block;
+  transform: translateY(135%);
+  transition: transform 0.7s cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+.headline.show .word > span {
+  transform: none;
+}
+/* Highlighter stroke draws in from the left after the words land */
+.word > .hl {
+  padding: 0 0.04em;
+  background: linear-gradient(var(--color-primary), var(--color-primary))
+    no-repeat 0 88% / 0% 36%;
+  transition:
+    transform 0.7s cubic-bezier(0.22, 1.2, 0.36, 1),
+    background-size 0.7s 1.1s cubic-bezier(0.6, 0, 0.2, 1);
+}
+.headline.show .word > .hl {
+  background-size: 100% 36%;
+}
+
+/* ---------- Terminal ---------- */
+.terminal {
+  background: #111;
+  color: #f4ead5;
+}
+:global(.dark) .terminal {
+  background: #0d0b09;
+}
+.term-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid #000;
+}
+.terminal-body {
+  padding: 14px 18px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.95rem;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  min-height: 7.4em;
+}
+
+/* ---------- Portrait ---------- */
+.back-block {
+  opacity: 0;
+  transform: translate(0, 0);
+  transition:
+    transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 0.2s;
+}
+.back-block.show {
+  opacity: 1;
+  transform: translate(16px, 16px);
+}
+.frame {
+  opacity: 0;
+  transform: scale(0.3) rotate(-14deg);
+  transition:
+    transform 0.65s cubic-bezier(0.34, 1.7, 0.64, 1),
+    opacity 0.2s;
+}
+.frame.show {
+  opacity: 1;
+  transform: none;
+}
 .portrait-halftone {
   background-image: radial-gradient(
     circle,
@@ -392,7 +441,29 @@ onUnmounted(() => {
   );
   background-size: 12px 12px;
 }
-
+.photo-clip {
+  clip-path: inset(-40% -20% 0 -20%);
+}
+.photo {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  height: 118%;
+  width: auto;
+  max-width: none;
+  transform: translate(-50%, 102%);
+}
+.photo.up {
+  animation: rise 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes rise {
+  from {
+    transform: translate(-50%, 102%);
+  }
+  to {
+    transform: translate(-50%, 0);
+  }
+}
 /* Sticker-style cutout: thick black outline + hard offset shadow */
 .portrait-cutout {
   filter: drop-shadow(3px 0 0 #000) drop-shadow(-3px 0 0 #000)
@@ -400,13 +471,94 @@ onUnmounted(() => {
     drop-shadow(8px 8px 0 var(--color-shadow));
 }
 
+.bubble {
+  position: absolute;
+  left: -8%;
+  top: -24%;
+  z-index: 5;
+  padding: 10px 16px;
+  white-space: nowrap;
+  min-width: 12.5ch;
+  transform: translateZ(90px) scale(0) rotate(-6deg);
+  transform-origin: 85% 110%;
+}
+@media (min-width: 1024px) {
+  .bubble {
+    left: -14%;
+    top: -17%;
+    padding: 12px 18px;
+  }
+}
+.bubble::after {
+  content: "";
+  position: absolute;
+  right: 22px;
+  bottom: -19px;
+  width: 26px;
+  height: 26px;
+  background: inherit;
+  border-right: inherit;
+  border-bottom: inherit;
+  transform: skewX(-25deg) rotate(45deg);
+}
+.bubble.pop {
+  animation: pop 0.5s cubic-bezier(0.34, 1.8, 0.64, 1) forwards;
+}
+@keyframes pop {
+  to {
+    transform: translateZ(90px) scale(1) rotate(-6deg);
+  }
+}
+.wave {
+  display: inline-block;
+  transform-origin: 70% 70%;
+  animation: wave 1.6s ease-in-out infinite;
+}
+@keyframes wave {
+  0%,
+  60%,
+  100% {
+    transform: rotate(0);
+  }
+  10%,
+  30% {
+    transform: rotate(16deg);
+  }
+  20%,
+  40% {
+    transform: rotate(-8deg);
+  }
+}
+
+.years {
+  transform: translateZ(70px) rotate(-3deg) scale(0);
+  transition: transform 0.45s cubic-bezier(0.34, 1.9, 0.64, 1);
+}
+.years.show {
+  transform: translateZ(70px) rotate(-3deg) scale(1);
+}
+
 .hero-caret {
   animation: blink 1s steps(1) infinite;
 }
-
 @keyframes blink {
   50% {
     opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-in,
+  .word > span,
+  .hl,
+  .back-block,
+  .frame,
+  .years {
+    transition: none !important;
+  }
+  .photo.up,
+  .bubble.pop {
+    animation-duration: 0s;
   }
 }
 </style>

@@ -1,9 +1,14 @@
 <template>
   <div>
-    <NeoMarquee />
     <HeroSection />
+    <NeoMarquee />
     <AboutSection id="about" />
     <ExperienceSection id="experience" />
+    <NeoMarquee variant="accent">
+      ✦ 3+ YEARS ✦ VUE ✦ FLUTTER ✦ NODE ✦ AI ✦ 3+ YEARS ✦ VUE ✦ FLUTTER ✦ NODE
+      ✦ AI ✦ 3+ YEARS ✦ VUE ✦ FLUTTER ✦ NODE ✦ AI ✦ 3+ YEARS ✦ VUE ✦ FLUTTER ✦
+      NODE ✦ AI ✦
+    </NeoMarquee>
     <ProjectsSection id="projects" />
     <TestimonialsSection id="testimonials" />
     <ContactSection id="contact" />

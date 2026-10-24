@@ -255,7 +255,7 @@ export function createPhoneScene({ container, projects, colorFor }) {
     const silhouette =
       Math.abs(Math.cos(phone.rotation.y)) * (W - 0.1) + Math.abs(Math.sin(phone.rotation.y)) * D;
     shadow.scale.set((silhouette / W) * phone.scale.x * 1.03, phone.scale.y * 1.05, 1);
-    shadowMat.color.set(document.documentElement.classList.contains("dark") ? 0x9d4edd : 0x000000);
+    shadowMat.color.set(document.documentElement.classList.contains("dark") ? 0x8fd694 : 0x000000);
 
     blocks.forEach((b) => {
       const d = b.userData;

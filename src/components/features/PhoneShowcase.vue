@@ -144,7 +144,8 @@ const onScroll = () => {
 };
 
 const loadScene = async () => {
-  // three.js is loaded only once the section is about to be seen
+  if (loading || phoneScene) return;
+  loading = true;
   const { createPhoneScene } = await import(
     /* webpackChunkName: "phone-scene" */ "./phone/phoneScene"
   );
@@ -170,18 +171,23 @@ onMounted(() => {
   window.addEventListener("scroll", onScroll, { passive: true });
   onScroll();
 
-  // Load near the viewport, and only render while on screen
-  observer = new IntersectionObserver(
-    ([entry]) => {
-      visible = entry.isIntersecting;
-      if (visible && !phoneScene && !loading) {
-        loading = true;
-        loadScene();
-      }
-      else if (phoneScene) visible ? phoneScene.start() : phoneScene.stop();
-    },
-    { rootMargin: "300px 0px" },
-  );
+  // Build the scene while the browser is idle (shader compile and texture upload are
+  // the expensive part), so nothing heavy happens while the user scrolls toward it.
+  const idle =
+    window.requestIdleCallback ||
+    ((cb) => setTimeout(cb, 1500));
+  idle(() => loadScene(), { timeout: 4000 });
+
+  // Only render while the section is actually on screen
+  observer = new IntersectionObserver(([entry]) => {
+    visible = entry.isIntersecting;
+    if (!phoneScene) {
+      if (visible) loadScene();
+      return;
+    }
+    if (visible) phoneScene.start();
+    else phoneScene.stop();
+  });
   observer.observe(trackRef.value);
 });
 

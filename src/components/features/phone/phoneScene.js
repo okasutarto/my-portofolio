@@ -21,7 +21,8 @@ const STACKED_QUERY = "(max-width: 767px)";
 
 export function createPhoneScene({ container, projects, colorFor }) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  // 1.5x is visually indistinguishable here and much lighter on retina GPUs
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.domElement.className = "absolute inset-0 w-full h-full block";
   renderer.domElement.style.touchAction = "pan-y";
@@ -162,6 +163,9 @@ export function createPhoneScene({ container, projects, colorFor }) {
     return tex;
   });
 
+  // Upload textures and compile shaders up front instead of on the first visible frame
+  textures.forEach((t) => renderer.initTexture(t));
+
   let shown = -1;
   const showTexture = (i) => {
     if (i === shown) return;
@@ -226,6 +230,7 @@ export function createPhoneScene({ container, projects, colorFor }) {
   const resizeObserver = new ResizeObserver(resize);
   resizeObserver.observe(container);
   resize();
+  renderer.compile(scene, camera);
 
   // ---------- Loop ----------
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;

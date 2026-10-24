@@ -1,7 +1,7 @@
 <template>
   <section
     id="testimonials"
-    class="py-24 px-4 md:px-12 bg-background-light dark:bg-background-dark transition-colors duration-300 relative overflow-hidden bg-grid-pattern">
+    class="py-24 px-4 md:px-12 transition-colors duration-300 relative overflow-hidden bg-grid-pattern">
     <!-- Decorative Background Elements -->
     <div
       class="absolute inset-0 z-0 opacity-10 pointer-events-none bg-[size:40px_40px] bg-[linear-gradient(#000_1px,transparent_1px),linear-gradient(90deg,#000_1px,transparent_1px)] dark:bg-[linear-gradient(#fff_0.5px,transparent_0.5px),linear-gradient(90deg,#fff_0.5px,transparent_0.5px)]"></div>

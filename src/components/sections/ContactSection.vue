@@ -1,7 +1,7 @@
 <template>
   <section
     id="contact"
-    class="py-24 px-4 md:px-12 bg-background-light dark:bg-background-dark transition-colors duration-300 relative overflow-hidden bg-grid-pattern">
+    class="py-24 px-4 md:px-12 transition-colors duration-300 relative overflow-hidden bg-grid-pattern">
     <div class="max-w-7xl mx-auto relative z-10">
       <!-- Section Header -->
       <div class="text-center mb-20 relative">

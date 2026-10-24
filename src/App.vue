@@ -2,7 +2,8 @@
   <div class="min-h-screen flex flex-col">
     <CustomCursor />
     <TheNavbar />
-    <main class="flex-grow bg-grid-pattern">
+    <div class="page-dots" aria-hidden="true"></div>
+    <main class="flex-grow">
       <MainLayout>
         <router-view v-slot="{ Component }">
           <transition name="page" mode="out-in">

@@ -41,7 +41,7 @@ const GEOMETRIES = [
 
 export function createHeroScene({ container, hero, reducedMotion }) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.domElement.className = "absolute inset-0 w-full h-full block";
   container.appendChild(renderer.domElement);

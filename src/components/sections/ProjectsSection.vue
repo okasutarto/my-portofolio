@@ -1,10 +1,10 @@
 <template>
   <section
     id="projects"
-    class="py-24 px-4 md:px-12 bg-[#ddf7f2] dark:bg-[#1b1f19] transition-colors duration-300 bg-grid-pattern overflow-x-clip">
+    class="py-24 px-4 md:px-12 bg-[rgba(0,224,198,0.09)] dark:bg-[rgba(143,214,148,0.04)] transition-colors duration-300 bg-grid-pattern overflow-x-clip">
     <div class="max-w-7xl mx-auto">
       <!-- Section Header -->
-      <div class="mb-20 text-center relative">
+      <div class="mb-12 text-center relative">
         <h2
           ref="sectionTitle"
           class="text-4xl md:text-6xl font-display font-bold uppercase tracking-tighter relative z-10 inline-block bg-black text-white dark:bg-primary dark:text-black px-8 py-4 border-2 border-black dark:border-primary shadow-neo-sm transform -rotate-1 opacity-0">
@@ -23,7 +23,7 @@
     <!-- 3D phone showcase (full-bleed so the scene isn't clipped by the section padding) -->
     <template v-if="use3d">
       <PhoneShowcase
-        class="-mx-4 md:-mx-12"
+        class="-mx-4 md:-mx-12 lg:-mt-[14vh]"
         :projects="projects"
         @unsupported="use3d = false" />
       <div class="max-w-7xl mx-auto mt-12">

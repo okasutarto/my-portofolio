@@ -3,14 +3,13 @@
     <HeroSection />
     <NeoMarquee />
     <AboutSection id="about" />
+    <NeoMarquee variant="accent" text="4+ years ✦ Vue ✦ Flutter ✦ Node ✦ AI" />
     <ExperienceSection id="experience" />
-    <NeoMarquee variant="accent">
-      ✦ 3+ YEARS ✦ VUE ✦ FLUTTER ✦ NODE ✦ AI ✦ 3+ YEARS ✦ VUE ✦ FLUTTER ✦ NODE
-      ✦ AI ✦ 3+ YEARS ✦ VUE ✦ FLUTTER ✦ NODE ✦ AI ✦ 3+ YEARS ✦ VUE ✦ FLUTTER ✦
-      NODE ✦ AI ✦
-    </NeoMarquee>
+    <NeoMarquee text="Selected work ✦ Case studies ✦ Shipped" />
     <ProjectsSection id="projects" />
+    <NeoMarquee variant="accent" text="Kind words ✦ Testimonials" />
     <TestimonialsSection id="testimonials" />
+    <NeoMarquee text="Let's build something ✦ Say hello" />
     <ContactSection id="contact" />
   </div>
 </template>

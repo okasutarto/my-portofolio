@@ -24,12 +24,13 @@
 @layer base {
   html {
     @apply scroll-smooth;
-    /* Tilted tape dividers are slightly wider than the viewport */
+    /* Tilted tape dividers are slightly wider than the viewport. Keep this on html only:
+       overflow on body would turn it into a scroll container and break position: sticky. */
     overflow-x: clip;
   }
 
   body {
-    @apply bg-background-light dark:bg-background-dark text-black dark:text-white font-body transition-colors duration-300 min-h-screen flex flex-col overflow-x-hidden selection:bg-secondary selection:text-black;
+    @apply bg-background-light dark:bg-background-dark text-black dark:text-white font-body transition-colors duration-300 min-h-screen flex flex-col selection:bg-secondary selection:text-black;
   }
 
   h1,
@@ -144,28 +145,32 @@
   background: rgba(139, 92, 246, 0.4);
 }
 
-/* Dot grid with a cursor spotlight. --mx/--my are set per element by useSpotlight. */
-.bg-grid-pattern {
+/* ---------- Background ----------
+   The dot grid lives on one fixed layer behind the whole page (.page-dots), so it
+   stays still while content scrolls over it. Sections are transparent (or lightly
+   tinted) so the dots show through. A fixed layer is just composited on scroll,
+   which is far cheaper in Safari than repainting per-section patterns. */
+.page-dots,
+.page-dots::before {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-size: 22px 22px;
+}
+.page-dots {
   --dot: rgba(0, 0, 0, 0.22);
   --dot-hot: rgba(0, 0, 0, 0.75);
-  position: relative;
-  isolation: isolate;
-  background-size: 22px 22px;
+  z-index: -1;
   background-image: radial-gradient(circle, var(--dot) 1.4px, transparent 1.6px);
+  transform: translateZ(0);
 }
-
-.dark .bg-grid-pattern {
+.dark .page-dots {
   --dot: rgba(244, 234, 213, 0.14);
   --dot-hot: rgba(255, 122, 26, 0.85);
 }
-
-.bg-grid-pattern::before {
+/* Cursor spotlight: brighter dots revealed around the pointer (viewport coords) */
+.page-dots::before {
   content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background-size: 22px 22px;
   background-image: radial-gradient(circle, var(--dot-hot) 2.2px, transparent 2.6px);
   -webkit-mask-image: radial-gradient(
     circle 190px at var(--mx, -999px) var(--my, -999px),
@@ -177,4 +182,19 @@
     #000 0%,
     transparent 100%
   );
+}
+
+/* Sections sit over the fixed dots; this only sets up their stacking */
+.bg-grid-pattern {
+  position: relative;
+  isolation: isolate;
+}
+
+/* Dots that move with their element (e.g. the About sticker board) */
+.bg-dot-grid {
+  background-size: 22px 22px;
+  background-image: radial-gradient(circle, rgba(0, 0, 0, 0.22) 1.4px, transparent 1.6px);
+}
+.dark .bg-dot-grid {
+  background-image: radial-gradient(circle, rgba(244, 234, 213, 0.14) 1.4px, transparent 1.6px);
 }

@@ -1,7 +1,7 @@
 <template>
   <main
     ref="heroRef"
-    class="flex-grow flex bg-background-light dark:bg-background-dark items-center justify-center relative px-4 sm:px-6 lg:px-8 py-12 lg:py-16 bg-grid-pattern overflow-hidden min-h-[calc(100vh-74px)]">
+    class="flex-grow flex items-center justify-center relative px-4 sm:px-6 lg:px-8 py-12 lg:py-16 bg-grid-pattern overflow-hidden min-h-[calc(100vh-74px)]">
     <!-- three.js floating shapes, behind the content -->
     <div ref="stageRef" class="absolute inset-0 z-0 pointer-events-none"></div>
 
@@ -133,7 +133,7 @@
           <div
             class="years absolute -bottom-9 -left-6 bg-black text-white dark:bg-primary dark:text-black px-5 py-3 border-2 border-primary shadow-neo font-display font-bold text-base md:text-lg"
             :class="{ show: shown.years }">
-            3+ YEARS EXP.
+            4+ YEARS EXP.
           </div>
         </div>
       </div>

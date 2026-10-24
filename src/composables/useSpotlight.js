@@ -1,40 +1,44 @@
 import { onMounted, onUnmounted } from "vue";
 
-// Feeds the cursor position into every `.bg-grid-pattern` element as --mx/--my
-// (element-local px), which the dot-grid spotlight mask in index.css reads.
+// Moves the dot-grid spotlight (see .page-dots in index.css) to the cursor.
+// The dot layer is fixed to the viewport, so viewport coords are all it needs and
+// scrolling never triggers an update.
 export function useSpotlight() {
   let frame = null;
   let pointer = null;
+  let layer = null;
 
   function update() {
     frame = null;
-    document.querySelectorAll(".bg-grid-pattern").forEach((el) => {
-      const rect = el.getBoundingClientRect();
-      if (rect.bottom < 0 || rect.top > window.innerHeight) return;
-      el.style.setProperty("--mx", `${pointer.x - rect.left}px`);
-      el.style.setProperty("--my", `${pointer.y - rect.top}px`);
-    });
+    if (!layer) layer = document.querySelector(".page-dots");
+    if (!layer) return;
+    layer.style.setProperty("--mx", pointer ? `${pointer.x}px` : "-999px");
+    layer.style.setProperty("--my", pointer ? `${pointer.y}px` : "-999px");
+  }
+
+  function schedule() {
+    if (frame === null) frame = requestAnimationFrame(update);
   }
 
   function onPointerMove(e) {
     if (e.pointerType !== "mouse") return;
     pointer = { x: e.clientX, y: e.clientY };
-    if (frame === null) frame = requestAnimationFrame(update);
+    schedule();
   }
 
-  // Keep the spotlight under a still cursor while the page scrolls
-  function onScroll() {
-    if (pointer && frame === null) frame = requestAnimationFrame(update);
+  function onPointerLeave() {
+    pointer = null;
+    schedule();
   }
 
   onMounted(() => {
     window.addEventListener("pointermove", onPointerMove, { passive: true });
-    window.addEventListener("scroll", onScroll, { passive: true });
+    document.documentElement.addEventListener("pointerleave", onPointerLeave);
   });
 
   onUnmounted(() => {
     window.removeEventListener("pointermove", onPointerMove);
-    window.removeEventListener("scroll", onScroll);
+    document.documentElement.removeEventListener("pointerleave", onPointerLeave);
     if (frame !== null) cancelAnimationFrame(frame);
   });
 }

@@ -1,203 +1,242 @@
 <template>
   <section
     id="experience"
-    class="min-h-screen py-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden transition-colors duration-300 bg-background-light dark:bg-background-dark bg-grid-pattern">
+    ref="sectionRef"
+    class="py-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden transition-colors duration-300 bg-grid-pattern">
     <div class="max-w-5xl mx-auto relative z-10">
       <!-- Section Header -->
-      <div class="mb-20 text-center lg:text-left">
+      <div class="mb-14 text-center lg:text-left">
         <h2
-          class="font-display text-5xl md:text-7xl font-bold uppercase tracking-tight leading-none mb-4 text-black dark:text-white drop-shadow-[4px_4px_0px_var(--color-secondary)]">
-          My
-          <span
-            class="text-stroke-2 text-transparent"
-            style="-webkit-text-stroke: 1px currentColor; color: transparent"
-            >Career</span
-          >
-          <br />
+          class="font-display text-4xl md:text-6xl font-bold uppercase tracking-tight leading-none text-black dark:text-white">
+          My career
           <span
             class="bg-black text-white px-3 py-1 dark:bg-primary dark:text-black inline-block transform -rotate-1 shadow-neo-sm"
             >Timeline</span
           >
         </h2>
-        <div
-          class="w-32 h-3 bg-secondary border-2 border-black dark:border-primary mt-6 mx-auto lg:mx-0 shadow-neo-sm transform rotate-1"></div>
       </div>
 
-      <!-- Experience Container -->
-      <div ref="timelineRef" class="relative pl-10 md:pl-12">
-        <!-- Vertical Timeline Line (fills as you scroll) -->
-        <div
-          class="absolute left-0 top-0 bottom-0 w-2 bg-black/10 dark:bg-white/10 border-2 border-black dark:border-primary overflow-hidden">
-          <div
-            ref="progressRef"
-            class="absolute inset-x-0 top-0 h-full bg-primary dark:bg-primary origin-top scale-y-0"></div>
-        </div>
+      <!-- Folders -->
+      <div class="flex flex-col gap-5">
+        <article
+          v-for="experience in experiences"
+          :key="experience.id"
+          class="xp-row bg-white dark:bg-surface-dark border-2 border-black dark:border-[#f4ead5] shadow-neo"
+          :class="{ open: openId === experience.id }">
+          <button
+            :id="`xp-head-${experience.id}`"
+            class="row-head w-full grid items-center gap-x-5 gap-y-2 px-5 md:px-6 py-4 md:py-5 text-left text-black dark:text-white group/row"
+            :aria-expanded="openId === experience.id"
+            :aria-controls="`xp-body-${experience.id}`"
+            @click="toggle(experience.id)">
+            <span
+              class="period font-bold text-xs md:text-sm uppercase tracking-wider opacity-80"
+              >{{ experience.period }}</span
+            >
+            <span class="min-w-0">
+              <span
+                class="block font-display font-bold uppercase tracking-tight text-lg md:text-2xl leading-tight"
+                >{{ experience.role }}</span
+              >
+              <span class="block font-bold text-sm mt-1">
+                <a
+                  v-if="experience.companyUrl"
+                  :href="experience.companyUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="underline decoration-2 decoration-primary underline-offset-2 hover:bg-primary hover:text-black"
+                  @click.stop
+                  >@{{ experience.company }}</a
+                >
+                <template v-else>@{{ experience.company }}</template>
+                · {{ experience.location }}
+                <span
+                  v-if="experience.current"
+                  class="ml-1.5 bg-[#22c55e] text-black border-2 border-black px-1.5 text-[10px] align-middle"
+                  >NOW</span
+                >
+              </span>
+            </span>
+            <span
+              v-if="experience.metric"
+              class="metric font-display font-bold text-sm md:text-base px-3 py-1.5 border-2 border-black text-black shadow-neo-sm whitespace-nowrap -rotate-2 justify-self-start"
+              :class="toneClass(experience.metric.tone)"
+              >{{ experience.metric.label }}</span
+            >
+            <span
+              class="toggle w-11 h-11 border-2 border-black dark:border-[#f4ead5] grid place-items-center text-lg group-hover/row:bg-primary group-hover/row:text-black"
+              aria-hidden="true">
+              <i class="fas fa-plus"></i>
+            </span>
+          </button>
 
-        <!-- Experience Items -->
-        <div class="space-y-16">
           <div
-            v-for="(experience, index) in experiences"
-            :key="experience.id"
-            :ref="
-              (el) => {
-                if (el) experienceCards[index] = el;
-              }
-            "
-            class="relative opacity-0 group">
-            <!-- Timeline Node -->
-            <div
-              class="absolute -left-[52px] md:-left-[64px] top-6 w-8 h-8 md:w-10 md:h-10 border-2 border-black dark:border-primary rounded-none flex items-center justify-center z-20 group-hover:rotate-45 transition-all duration-300 shadow-neo-sm"
-              :class="
-                activeIndex >= index
-                  ? 'bg-primary rotate-45'
-                  : 'bg-white dark:bg-zinc-800'
-              ">
-              <div class="w-3 h-3 bg-black dark:bg-white"></div>
-            </div>
-
-            <!-- Item Card -->
-            <div
-              class="bg-white dark:bg-surface-dark border-2 border-black dark:border-primary p-5 md:p-8 shadow-neo-sm dark:shadow-neo hover:shadow-neo-hover hover:-translate-x-1 hover:-translate-y-1 transition-all duration-300">
-              <!-- Header -->
+            :id="`xp-body-${experience.id}`"
+            class="row-body"
+            role="region"
+            :aria-labelledby="`xp-head-${experience.id}`">
+            <div class="overflow-hidden">
               <div
-                class="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-                <div>
-                  <h3
-                    class="font-display text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-black dark:text-white mb-2 uppercase tracking-tight leading-tight break-words">
-                    {{ experience.role }}
-                  </h3>
-                  <div class="flex flex-wrap items-center gap-3">
-                    <component
-                      :is="experience.companyUrl ? 'a' : 'span'"
-                      :href="experience.companyUrl || undefined"
-                      :target="experience.companyUrl ? '_blank' : undefined"
-                      :rel="experience.companyUrl ? 'noopener noreferrer' : undefined"
-                      class="bg-primary text-black px-2 py-0.5 font-bold border-2 border-black transform -rotate-1 text-xs uppercase"
-                      :class="{
-                        'hover:bg-black hover:text-primary hover:rotate-0 transition-all':
-                          experience.companyUrl,
-                      }">
-                      @{{ experience.company }}
-                      <i
-                        v-if="experience.companyUrl"
-                        class="fas fa-external-link-alt text-[9px] ml-0.5"></i>
-                    </component>
+                class="mx-5 md:mx-6 pt-5 pb-6 border-t-2 border-dashed border-black dark:border-[#f4ead5] grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6 md:gap-8">
+                <!-- Big numbers -->
+                <div class="flex flex-row md:flex-col flex-wrap gap-3.5">
+                  <div
+                    v-for="stat in experience.stats"
+                    :key="stat.label"
+                    class="px-4 py-3 border-2 border-black text-black shadow-[4px_4px_0_#000] flex-1 md:flex-none min-w-[130px]"
+                    :class="toneClass(stat.tone)">
+                    <b
+                      class="block font-display font-bold leading-none tracking-tighter"
+                      :class="
+                        stat.value.length > 5
+                          ? 'text-xl md:text-3xl'
+                          : 'text-3xl md:text-4xl'
+                      "
+                      >{{ stat.value }}</b
+                    >
                     <span
-                      class="bg-secondary text-black dark:text-white px-2 py-0.5 font-bold border-2 border-black dark:border-primary transform rotate-1 text-xs uppercase">
-                      {{ experience.location }}
-                    </span>
+                      class="block mt-1.5 font-bold text-[11px] uppercase tracking-wider"
+                      >{{ stat.label }}</span
+                    >
                   </div>
                 </div>
-                <div
-                  class="bg-neo-magenta text-white dark:bg-white dark:text-black px-4 py-2 font-display font-bold text-base border-2 border-black shadow-neo-sm self-start lg:translate-x-2 text-sm md:text-base md:whitespace-nowrap">
-                  {{ experience.period }}
+
+                <div>
+                  <ul class="flex flex-col gap-3">
+                    <li
+                      v-for="(achievement, aIndex) in experience.achievements"
+                      :key="aIndex"
+                      class="flex items-start gap-3 text-gray-800 dark:text-gray-200">
+                      <span
+                        class="mt-2 w-2.5 h-2.5 bg-primary border border-black flex-shrink-0 rotate-45"></span>
+                      <p class="font-medium text-base leading-relaxed">
+                        <template
+                          v-for="(part, pIndex) in splitNumbers(achievement)"
+                          :key="pIndex">
+                          <strong
+                            v-if="part.number"
+                            class="bg-primary/60 text-black dark:text-white px-1"
+                            >{{ part.text }}</strong
+                          >
+                          <template v-else>{{ part.text }}</template>
+                        </template>
+                      </p>
+                    </li>
+                  </ul>
+                  <div class="flex flex-wrap gap-2 mt-5">
+                    <span
+                      v-for="tech in experience.technologies"
+                      :key="tech"
+                      class="px-2.5 py-0.5 border-2 border-black dark:border-[#f4ead5] text-xs font-bold uppercase tracking-wider text-black dark:text-white"
+                      >{{ tech }}</span
+                    >
+                  </div>
                 </div>
-              </div>
-
-              <!-- Achievements -->
-              <ul class="space-y-3 mb-8">
-                <li
-                  v-for="(achievement, aIndex) in experience.achievements"
-                  :key="aIndex"
-                  class="flex items-start gap-3 text-gray-800 dark:text-gray-200">
-                  <span
-                    class="mt-1.5 w-2 h-2 bg-primary border border-black flex-shrink-0 transform rotate-45"></span>
-                  <p class="font-medium text-base leading-relaxed">
-                    {{ achievement }}
-                  </p>
-                </li>
-              </ul>
-
-              <!-- Tech Stack Tags -->
-              <div
-                class="flex flex-wrap gap-2 pt-6 border-t-2 border-black/10 dark:border-white/10">
-                <span
-                  v-for="(tech, tIndex) in experience.technologies"
-                  :key="tIndex"
-                  class="px-3 py-1 bg-gray-100 dark:bg-zinc-800 border-2 border-black dark:border-primary text-xs font-bold uppercase tracking-wider hover:bg-primary hover:text-black transition-all">
-                  {{ tech }}
-                </span>
               </div>
             </div>
           </div>
-        </div>
+        </article>
       </div>
     </div>
   </section>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { experiences } from "@/data/experience";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const experienceCards = reactive([]);
-const timelineRef = ref(null);
-const progressRef = ref(null);
-const activeIndex = ref(-1);
-const animations = [];
+const TONES = {
+  primary: "bg-primary",
+  secondary: "bg-secondary",
+  pink: "bg-accent-pink",
+  violet: "bg-[#c4b5fd]",
+};
+const toneClass = (tone) => TONES[tone] || TONES.primary;
+
+// Split text so percentages ("40%", "99.9%") can be highlighted
+const splitNumbers = (text) =>
+  text
+    .split(/([+−-]?\d+(?:\.\d+)?%)/)
+    .filter(Boolean)
+    .map((part) => ({ text: part, number: /\d%$/.test(part) }));
+
+const sectionRef = ref(null);
+const openId = ref(experiences[0]?.id);
+const toggle = (id) => {
+  openId.value = openId.value === id ? null : id;
+};
+
+let ctx = null;
 
 onMounted(() => {
-  // Fill the timeline line as the section scrolls past
-  animations.push(
-    gsap.to(progressRef.value, {
-      scaleY: 1,
-      ease: "none",
-      scrollTrigger: {
-        trigger: timelineRef.value,
-        start: "top 60%",
-        end: "bottom 60%",
-        scrub: 0.5,
-      },
-    }),
-  );
-
-  experienceCards.forEach((card, index) => {
-    const anim = gsap.fromTo(
-      card,
-      { opacity: 0, y: 60 },
-      {
-        opacity: 1,
-        y: 0,
-        duration: 0.8,
-        ease: "power4.out",
-        scrollTrigger: {
-          trigger: card,
-          start: "top 85%",
-          toggleActions: "play none none reverse",
-        },
-      },
-    );
-    animations.push(anim);
-
-    // Light up the node once the fill line reaches it
-    animations.push(
-      ScrollTrigger.create({
-        trigger: card,
-        start: "top 60%",
-        onEnter: () => (activeIndex.value = index),
-        onLeaveBack: () => (activeIndex.value = index - 1),
-      }),
-    );
-  });
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  ctx = gsap.context(() => {
+    // Calm fade-up: tilt + overshoot here read as the section shaking while scrolling
+    gsap.from(".xp-row", {
+      y: 32,
+      opacity: 0,
+      duration: 0.6,
+      stagger: 0.08,
+      ease: "power3.out",
+      clearProps: "transform,opacity",
+      scrollTrigger: { trigger: sectionRef.value, start: "top 70%" },
+    });
+  }, sectionRef.value);
 });
 
 onUnmounted(() => {
-  animations.forEach((anim) => {
-    if (anim.scrollTrigger) anim.scrollTrigger.kill();
-    anim.kill();
-  });
+  if (ctx) ctx.revert();
 });
 </script>
 
 <style scoped>
-.text-stroke-2 {
-  -webkit-text-stroke: 2px black;
+.row-head {
+  grid-template-columns: 1fr 44px;
 }
-.dark .text-stroke-2 {
-  -webkit-text-stroke: 2px white;
+.row-head .period {
+  grid-column: 1 / -1;
+}
+.row-head .metric {
+  grid-column: 1;
+}
+.row-head .toggle {
+  grid-column: 2;
+  grid-row: 2 / span 2;
+}
+@media (min-width: 768px) {
+  .row-head {
+    grid-template-columns: 170px 1fr auto 44px;
+  }
+  .row-head .period,
+  .row-head .metric,
+  .row-head .toggle {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+
+.toggle {
+  transition:
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background 0.2s;
+}
+.xp-row.open .toggle {
+  transform: rotate(45deg);
+  background: var(--color-primary);
+  color: #000;
+}
+
+/* Smooth open/close without measuring heights */
+.row-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.xp-row.open .row-body {
+  grid-template-rows: 1fr;
 }
 </style>

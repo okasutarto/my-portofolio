@@ -32,8 +32,12 @@
               v-for="(link, index) in navLinks"
               :key="index"
               :to="link.path"
-              class="text-lg font-bold transition-all relative group text-black dark:text-white hover:underline"
-              active-class="decoration-primary decoration-4 underline-offset-8">
+              class="text-lg font-bold transition-all relative px-2 py-0.5 border-2"
+              :class="
+                activeSection === link.id
+                  ? 'bg-primary text-black border-black dark:border-primary shadow-neo-sm -rotate-2'
+                  : 'border-transparent text-black dark:text-white hover:underline decoration-primary decoration-4 underline-offset-8'
+              ">
               {{ link.name }}
             </router-link>
           </template>
@@ -78,8 +82,12 @@
               v-for="(link, index) in navLinks"
               :key="index"
               :to="link.path"
-              class="text-2xl font-bold p-2 hover:bg-primary/20 transition-colors"
-              active-class="text-primary"
+              class="text-2xl font-bold p-2 border-2 transition-colors"
+              :class="
+                activeSection === link.id
+                  ? 'bg-primary text-black border-black dark:border-primary shadow-neo-sm'
+                  : 'border-transparent hover:bg-primary/20'
+              "
               @click="mobileMenuOpen = false">
               {{ link.name }}
             </router-link>
@@ -91,7 +99,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
 import ThemeSwitcher from "../features/ThemeSwitcher.vue";
 
@@ -101,12 +109,35 @@ const mobileMenuOpen = ref(false);
 const isProjectPage = computed(() => route.path.startsWith("/projects/"));
 
 const navLinks = [
-  { name: "Home", path: "/" },
-  { name: "About", path: "/#about" },
-  { name: "Experience", path: "/#experience" },
-  { name: "Projects", path: "/#projects" },
-  { name: "Contact", path: "/#contact" },
+  { name: "Home", path: "/", id: "home" },
+  { name: "About", path: "/#about", id: "about" },
+  { name: "Experience", path: "/#experience", id: "experience" },
+  { name: "Projects", path: "/#projects", id: "projects" },
+  { name: "Contact", path: "/#contact", id: "contact" },
 ];
+
+// Scroll-spy: highlight the section currently under the navbar.
+// Router active-class can't do this since every link resolves to "/".
+const activeSection = ref("home");
+
+const updateActiveSection = () => {
+  const offset = window.innerHeight * 0.35;
+  let current = "home";
+  navLinks.forEach((link) => {
+    const el = document.getElementById(link.id);
+    if (el && el.getBoundingClientRect().top <= offset) current = link.id;
+  });
+  activeSection.value = current;
+};
+
+onMounted(() => {
+  window.addEventListener("scroll", updateActiveSection, { passive: true });
+  updateActiveSection();
+});
+
+onUnmounted(() => {
+  window.removeEventListener("scroll", updateActiveSection);
+});
 
 const toggleMobileMenu = () => {
   mobileMenuOpen.value = !mobileMenuOpen.value;

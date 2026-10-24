@@ -442,9 +442,13 @@ export default {
       return formattedText;
     };
 
+    // Show the tooltip once, then get out of the way so it doesn't cover content
     onMounted(() => {
       setTimeout(() => {
         showTooltip.value = true;
+        setTimeout(() => {
+          showTooltip.value = false;
+        }, 6000);
       }, 5000);
     });
 

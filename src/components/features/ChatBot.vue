@@ -310,83 +310,86 @@ export default {
       isWaitingForResponse.value = true;
       userInput.value = "";
 
-      setTimeout(async () => {
-        try {
-          let tokenBuffer = "";
-          let isProcessingBuffer = false;
-          let hasStartedTyping = false;
-          let messageIndex;
-          let isStreamComplete = false;
+      try {
+        let tokenBuffer = "";
+        let isProcessingBuffer = false;
+        let hasStartedTyping = false;
+        let messageIndex;
+        let isStreamComplete = false;
 
-          const checkIntent = () => {
-            const botMessage = messages.value[messageIndex].text.toLowerCase();
-            const userMessageLower = messageText.toLowerCase();
-
-            if (
-              botMessage.includes("reach him") ||
-              botMessage.includes("via email") ||
-              botMessage.includes("linkedin") ||
-              botMessage.includes("contact") ||
-              botMessage.includes("contact page") ||
-              userMessageLower.includes("hire") ||
-              userMessageLower.includes("contact")
-            ) {
-              messages.value[messageIndex].showContactButton = true;
-              scrollToBottom();
-            }
-
+        const checkIntent = () => {
+          // The stream ended without any text
+          if (messageIndex === undefined) {
+            isWaitingForResponse.value = false;
             isStreaming.value = false;
-            if (!isOpen.value) {
-              hasNewMessages.value = true;
-            }
-          };
+            return;
+          }
+          const botMessage = messages.value[messageIndex].text.toLowerCase();
+          const userMessageLower = messageText.toLowerCase();
 
-          const typeToken = () => {
-            if (!tokenBuffer) {
-              isProcessingBuffer = false;
-              if (isStreamComplete) checkIntent();
-              return;
-            }
+          if (
+            botMessage.includes("reach him") ||
+            botMessage.includes("via email") ||
+            botMessage.includes("linkedin") ||
+            botMessage.includes("contact") ||
+            botMessage.includes("contact page") ||
+            userMessageLower.includes("hire") ||
+            userMessageLower.includes("contact")
+          ) {
+            messages.value[messageIndex].showContactButton = true;
+            scrollToBottom();
+          }
 
-            if (!hasStartedTyping) {
-              hasStartedTyping = true;
-              isWaitingForResponse.value = false;
-              messageIndex =
-                messages.value.push({
-                  sender: "bot",
-                  text: "",
-                  showContactButton: false,
-                }) - 1;
-            }
-
-            isProcessingBuffer = true;
-            const char = tokenBuffer.charAt(0);
-            tokenBuffer = tokenBuffer.substring(1);
-            messages.value[messageIndex].text += char;
-
-            if (messages.value[messageIndex].text.length % 5 === 0) {
-              scrollToBottom();
-            }
-
-            setTimeout(typeToken, 5);
-          };
-
-          await getStreamingResponse(messageText, (token) => {
-            tokenBuffer += token;
-            if (!isProcessingBuffer) typeToken();
-          });
-
-          isStreamComplete = true;
-          if (!isProcessingBuffer) typeToken();
-        } catch (error) {
-          isWaitingForResponse.value = false;
           isStreaming.value = false;
-          messages.value.push({
-            sender: "bot",
-            text: "Sorry, I encountered an error. Please try again later.",
-          });
-        }
-      }, 100);
+          if (!isOpen.value) {
+            hasNewMessages.value = true;
+          }
+        };
+
+        const typeToken = () => {
+          if (!tokenBuffer) {
+            isProcessingBuffer = false;
+            if (isStreamComplete) checkIntent();
+            return;
+          }
+
+          if (!hasStartedTyping) {
+            hasStartedTyping = true;
+            isWaitingForResponse.value = false;
+            messageIndex =
+              messages.value.push({
+                sender: "bot",
+                text: "",
+                showContactButton: false,
+              }) - 1;
+          }
+
+          isProcessingBuffer = true;
+          // Reveal a few characters per frame, more when the buffer backs up, so the
+          // typing effect keeps pace with the stream instead of trailing seconds behind it
+          const step = Math.max(2, Math.ceil(tokenBuffer.length / 8));
+          messages.value[messageIndex].text += tokenBuffer.slice(0, step);
+          tokenBuffer = tokenBuffer.slice(step);
+          scrollToBottom();
+
+          requestAnimationFrame(typeToken);
+        };
+
+        await getStreamingResponse(messageText, (token) => {
+          tokenBuffer += token;
+          if (!isProcessingBuffer) typeToken();
+        });
+
+        isStreamComplete = true;
+        if (!isProcessingBuffer) typeToken();
+      } catch (error) {
+        isWaitingForResponse.value = false;
+        isStreaming.value = false;
+        messages.value.push({
+          sender: "bot",
+          text: "Sorry, I encountered an error. Please try again later.",
+        });
+      }
     };
 
     const formatMessageWithLinks = (text) => {

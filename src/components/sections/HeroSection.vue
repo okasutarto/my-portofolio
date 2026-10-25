@@ -1,6 +1,7 @@
 <template>
   <main
     ref="heroRef"
+    :class="{ 'intro-paused': !introReady }"
     class="flex-grow flex items-center justify-center relative px-4 sm:px-6 lg:px-8 py-12 lg:py-16 bg-grid-pattern overflow-hidden min-h-[calc(100vh-74px)]">
     <!-- three.js floating shapes, behind the content -->
     <div ref="stageRef" class="absolute inset-0 z-0 pointer-events-none"></div>
@@ -35,7 +36,8 @@
         <!-- Headline: words land one by one, "complex" gets scribbled out, the code gets shipped -->
         <p
           class="headline font-body font-bold text-black dark:text-white mx-auto lg:mx-0"
-          :class="{ show: shown.headline }">
+          :class="{ show: shown.headline }"
+          @animationstart="onHeadlineAnimation">
           <span class="w" style="--i: 0">Turning</span>{{ " " }}
           <span class="w scribbled" style="--i: 1"
             >complex<svg class="scribble" viewBox="0 0 300 100" preserveAspectRatio="none" aria-hidden="true">
@@ -171,7 +173,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, nextTick, onMounted, onUnmounted } from "vue";
+import { ref, reactive, inject, watch, nextTick, onMounted, onUnmounted } from "vue";
 import { sfx } from "@/composables/useSfx";
 import { projects } from "@/data/projects";
 
@@ -193,6 +195,7 @@ const socials = [
 const STATUSES = ["Now: Mobile Engineer @ Dusitek", "Shipping Flutter apps", "Open to a chat ☕", "Based in Pontianak, ID"];
 const GREETING = "Hi there, I'm Oka! ";
 
+const introReady = inject("introReady", ref(true));
 const heroRef = ref(null);
 const stageRef = ref(null);
 const portraitRef = ref(null);
@@ -344,17 +347,42 @@ const bootTerminal = async () => {
   say({ t: "psst… this terminal works. type ", c: "dim" }, { t: "help", c: "text-primary" }, { t: " ↵", c: "dim" });
 };
 
+// Follow CSS animation events so sound stays in sync with the actual word/marker timing.
+const heroSound = (name, options) => {
+  if (!alive || !introReady.value || !heroRef.value || reducedMotion) return;
+  const rect = heroRef.value.getBoundingClientRect();
+  if (rect.bottom <= 0 || rect.top >= window.innerHeight) return;
+  sfx[name](options);
+};
+const onHeadlineAnimation = (event) => {
+  const name = event.animationName;
+  if (name.startsWith("word-in")) {
+    const word = Number(event.target.style.getPropertyValue("--i")) || 0;
+    heroSound("tick", { pitch: 0.7 + word * 0.1 });
+  } else if (name.startsWith("scribble")) {
+    heroSound("scribble", { duration: 0.8 });
+  } else if (name.startsWith("highlight")) {
+    heroSound("paper");
+  } else if (name.startsWith("tag-in")) {
+    heroSound("stamp");
+  }
+};
+
 const introContent = async () => {
   shown.status = true;
+  heroSound("pop", { pitch: 0.8 });
   await wait(150);
   shown.headline = true;
   await wait(900);
   shown.terminal = true;
+  heroSound("key");
   bootTerminal();
   await wait(250);
   shown.ctas = true;
+  heroSound("slap");
   await wait(150);
   shown.socials = true;
+  heroSound("pop", { pitch: 1.15 });
 };
 
 const introPortrait = async () => {
@@ -364,15 +392,16 @@ const introPortrait = async () => {
   shown.frame = true;
   await wait(550);
   shown.photo = true;
-  sfx.whoosh({ duration: 0.45, up: false });
+  heroSound("whoosh", { duration: 0.45, up: false });
   await wait(850);
   // Oka says hi (the whole line at once), then the rest of the hero follows
   bubbleText.value = GREETING;
   bubbleDone.value = true;
   shown.bubble = true;
-  sfx.whoosh({ duration: 0.35 });
+  heroSound("whoosh", { duration: 0.35 });
   await wait(450);
   shown.years = true;
+  heroSound("stamp");
   await wait(200);
   introContent();
 };
@@ -409,9 +438,31 @@ const loadScene = async () => {
   });
 };
 
+watch(introReady, async (ready) => {
+  if (!ready || !alive || new URLSearchParams(location.search).has("file")) return;
+  Object.keys(shown).forEach((key) => { shown[key] = false; });
+  termLines.value = [];
+  bubbleText.value = "";
+  bubbleDone.value = false;
+  await nextTick();
+  await new Promise(requestAnimationFrame);
+  if (alive) introPortrait();
+});
+
 let timers = [];
 onMounted(() => {
-  introPortrait();
+  if (new URLSearchParams(location.search).has("file")) {
+    // A link opens a project file further down: show the hero as it ends, without replaying
+    // its intro and sounds off-screen.
+    Object.keys(shown).forEach((key) => { shown[key] = true; });
+    bubbleText.value = GREETING;
+    bubbleDone.value = true;
+    say({ t: "$ ", c: "text-primary" }, "whoami");
+    out("Oka Sutarto Putra, Mobile Engineer @ Dusitek");
+  } else if (introReady.value) {
+    introPortrait();
+  }
+  // Otherwise the hero stays empty behind the sound dialog; the intro starts once it's answered
   tickClock();
   timers.push(setInterval(tickClock, 10000));
   if (!reducedMotion) timers.push(setInterval(nextStatus, 3200));
@@ -438,6 +489,12 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* Keep the real hero visible behind the overlay without consuming its intro. */
+/* Nothing of the hero shows behind the sound dialog; its intro plays once that's answered */
+.intro-paused .w, .intro-paused .scribble-note, .intro-paused .code-tag { animation: none !important; opacity: 0; }
+.intro-paused .scribble path { animation: none !important; }
+.intro-paused .code .hl { animation: none !important; }
+
 /* ---------- Content intro ---------- */
 .hero-in {
   opacity: 0;

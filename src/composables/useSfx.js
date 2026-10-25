@@ -1,6 +1,5 @@
 // Synthesized sound effects (WebAudio, no audio files).
-// Browsers only allow audio after a user gesture, so the context is created on the first
-// click/key/touch; anything played before that is silently skipped.
+// Try autoplay when allowed; otherwise the first user gesture unlocks the context.
 import { ref } from "vue";
 
 const STORAGE_KEY = "sfx-muted";
@@ -37,14 +36,42 @@ function createContext() {
   return ctx;
 }
 
-const unlock = () => {
-  if (!ctx) createContext();
-  if (ctx && ctx.state === "suspended") ctx.resume();
+const unlock = async () => {
+  try {
+    const needsStart = !ctx || ctx.state !== "running";
+    if (!ctx || ctx.state === "closed") {
+      createContext();
+      Object.keys(lastPlayed).forEach((name) => delete lastPlayed[name]);
+    }
+    if (!ctx) return false;
+    if (needsStart) {
+      // Start a source before yielding to resume(), including during a gesture retry.
+      // This primes WebKit's audio output as well as resuming the context.
+      const resumed = ctx.resume();
+      const primer = ctx.createBufferSource();
+      primer.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+      primer.connect(out);
+      primer.onended = () => primer.disconnect();
+      primer.start(0);
+      await resumed;
+    }
+    return ctx.state === "running";
+  } catch {
+    return false;
+  }
 };
-// Safari only lets audio start from click/touchend/key events (not pointerdown), so listen
-// to all of them; Chrome is happy with the earliest one
-["pointerdown", "pointerup", "click", "touchend", "keydown"].forEach((ev) =>
-  window.addEventListener(ev, unlock, { capture: true, passive: true }),
+// Never await this during page rendering: browsers can leave resume() pending
+// until a user gesture when autoplay isn't permitted.
+export function initializeAudio() {
+  return muted.value ? Promise.resolve(false) : unlock();
+}
+
+// First interaction enables audio if autoplay was blocked.
+// Later gestures also recover Safari audio after an interruption.
+["click", "touchend", "keydown"].forEach((event) =>
+  window.addEventListener(event, () => {
+    if (!muted.value && (!ctx || ctx.state !== "running")) void unlock();
+  }, { capture: true, passive: true }),
 );
 
 // ---------- building blocks ----------
@@ -225,18 +252,21 @@ export function hush(fn) {
   }
 }
 
+// Called directly by the entry buttons, before mounting any animated content.
+export async function setSoundEnabled(enabled) {
+  if (enabled && !(await unlock())) return false;
+  muted.value = !enabled;
+  try {
+    localStorage.setItem(STORAGE_KEY, muted.value ? "1" : "0");
+  } catch {
+    // The choice still applies for this visit when storage is unavailable.
+  }
+  return true;
+}
+
 export function useSfx() {
-  const toggleMute = () => {
-    muted.value = !muted.value;
-    try {
-      localStorage.setItem(STORAGE_KEY, muted.value ? "1" : "0");
-    } catch {
-      // Storage can be unavailable (private mode); the toggle still works for this visit
-    }
-    if (!muted.value) {
-      unlock();
-      play("click");
-    }
+  const toggleMute = async () => {
+    if (await setSoundEnabled(muted.value)) play("click");
   };
   return { muted, toggleMute };
 }

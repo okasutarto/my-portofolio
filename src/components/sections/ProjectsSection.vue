@@ -20,8 +20,8 @@
 
     </div>
 
-    <!-- Sticky phone showcase (full-bleed so the colour bands reach the edges) -->
-    <PhoneShowcase class="-mx-4 md:-mx-12" :projects="projects" />
+    <!-- A drawer of project files: flip through them by scrolling, open one right here -->
+    <FileDrawer class="-mx-4 md:-mx-12" :projects="projects" />
     <div class="max-w-7xl mx-auto mt-12">
       <article
         class="flex flex-col md:flex-row justify-between items-center gap-6 bg-primary border-2 border-black dark:border-primary shadow-neo p-8 relative overflow-hidden group text-center md:text-left">
@@ -45,5 +45,5 @@
 
 <script setup>
 import { projects } from "@/data/projects";
-import PhoneShowcase from "@/components/features/PhoneShowcase.vue";
+import FileDrawer from "@/components/features/FileDrawer.vue";
 </script>

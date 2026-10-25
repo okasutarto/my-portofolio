@@ -91,9 +91,10 @@
                 <button
                   v-for="question in quickQuestions"
                   :key="question.label"
+                  :style="{ backgroundColor: question.color }"
                   @click="askQuickQuestion(question)"
-                  class="chip inline-flex items-center gap-1.5 bg-white dark:bg-surface-dark border-2 border-black dark:border-[#f4ead5] px-3 py-1.5 text-xs font-bold shadow-neo-sm hover:bg-primary hover:text-black dark:hover:bg-primary transition-all">
-                  <span aria-hidden="true">{{ question.emoji }}</span>{{ question.label }}
+                  class="chip inline-flex items-center gap-1.5 text-black border-2 border-black dark:border-[#f4ead5] px-3 py-1.5 text-xs font-bold shadow-neo-sm transition-all">
+                  <svg class="question-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="miter" aria-hidden="true"><path :d="question.icon" /></svg>{{ question.label }}
                 </button>
               </div>
             </div>
@@ -156,9 +157,10 @@
             <button
               v-for="question in followUps"
               :key="question.label"
+                  :style="{ backgroundColor: question.color }"
               @click="askQuickQuestion(question)"
-              class="chip shrink-0 inline-flex items-center gap-1.5 bg-[#f6f3ea] dark:bg-[#0d0b09] border-2 border-black dark:border-[#f4ead5] px-2.5 py-1 text-xs font-bold hover:bg-primary hover:text-black dark:hover:bg-primary transition-colors">
-              <span aria-hidden="true">{{ question.emoji }}</span>{{ question.label }}
+              class="chip shrink-0 inline-flex items-center gap-1.5 text-black border-2 border-black dark:border-[#f4ead5] px-2.5 py-1 text-xs font-bold transition-colors">
+              <svg class="question-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="miter" aria-hidden="true"><path :d="question.icon" /></svg>{{ question.label }}
             </button>
           </div>
         </Transition>
@@ -220,10 +222,10 @@ export default {
 
     // Quick questions
     const quickQuestions = [
-      { emoji: "💼", label: "Experience", text: "What is Oka's work experience?" },
-      { emoji: "🛠", label: "Tech stack", text: "What is Oka's tech stack?" },
-      { emoji: "🚀", label: "Projects", text: "What projects has Oka built?" },
-      { emoji: "🤝", label: "Hire Oka", text: "How can I contact Oka to hire him?" },
+      { icon: "M3 7h18v14H3z M8 7V3h8v4 M3 12h18 M10 12v4h4v-4", label: "Experience", color: "var(--color-primary)", text: "What is Oka's work experience?" },
+      { icon: "m8 5-6 7 6 7 M16 5l6 7-6 7 M14 3l-4 18", label: "Tech stack", color: "var(--color-secondary)", text: "What is Oka's tech stack?" },
+      { icon: "M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z", label: "Projects", color: "#ff6b6b", text: "What projects has Oka built?" },
+      { icon: "M2 5h20v14H2z m0 0 10 8L22 5", label: "Hire Oka", color: "#3b82f6", text: "How can I contact Oka to hire him?" },
     ];
 
     // Suggestions shown above the input after an answer, skipping what was already asked
@@ -459,6 +461,9 @@ export default {
 </script>
 
 <style scoped>
+.chip:hover { transform: translate(-2px, -2px); }
+.chip:focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
+.question-icon { width: 15px; height: 15px; flex: none; }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

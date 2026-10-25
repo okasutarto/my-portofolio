@@ -1,0 +1,754 @@
+<template>
+  <div ref="trackRef" class="relative" :style="{ height: `${projects.length * 100 + 20}vh`, marginTop: `${-pullUp}px` }">
+    <div ref="stageRef" class="stage" :style="{ '--nav-h': `${navH}px` }">
+      <span class="hint" :class="{ gone: openIndex !== -1 }">Scroll to flip through the drawer</span>
+      <!-- Clicking anywhere around an open file puts it back -->
+      <div v-if="openIndex !== -1" class="catcher" @click="closeFile"></div>
+
+      <div ref="drawerRef" class="drawer">
+        <div class="box"></div>
+        <div ref="foldersRef" class="folders">
+          <div
+            v-for="(project, index) in projects"
+            :key="project.id"
+            :ref="(el) => el && (folderEls[index] = el)"
+            class="folder"
+            :class="{ shut: isShut(index) }"
+            :style="folderStyle(index)">
+            <button
+              type="button"
+              class="tab"
+              :style="{ left: tabLeft(index), backgroundColor: colorOf(index) }"
+              :aria-label="`Show ${project.title}`"
+              @click="goTo(index)">
+              <b class="font-display">{{ pad(index + 1) }}</b><span class="tab-name">{{ project.title }}</span>
+            </button>
+            <div class="face" :style="{ backgroundColor: colorOf(index) }" :inert="index !== shownIndex || openIndex !== -1 || undefined">
+              <FileCover :project="project" @open="openFile(index)" />
+            </div>
+          </div>
+        </div>
+        <div ref="frontRef" class="front">
+          <span class="label font-display"><small>Drawer A</small>Projects {{ pad(1) }}–{{ pad(projects.length) }}</span>
+          <span class="handle" aria-hidden="true"></span>
+          <span class="label font-display hidden sm:inline-block"><small>Status</small>Shipped</span>
+        </div>
+      </div>
+
+      <!-- The opened file, lifted out of the drawer -->
+      <div
+        v-if="openIndex !== -1"
+        ref="fileRef"
+        class="file"
+        :class="{ opened: fileOpened }"
+        :style="fileBox"
+        role="dialog"
+        :aria-label="`${openProject.title} case file`">
+        <span class="tab" :style="{ left: tabLeft(openIndex), backgroundColor: colorOf(openIndex) }">
+          <b class="font-display">{{ pad(openIndex + 1) }}</b><span class="tab-name">{{ openProject.title }}</span>
+        </span>
+        <div ref="boardRef" class="board" :style="{ backgroundColor: colorOf(openIndex) }"></div>
+        <div class="leaves">
+          <div v-for="page in PAGES.length" :key="page" ref="leafEls" class="leaf" :class="{ top: order[0] === page - 1 }">
+            <FileSheet
+              :project="openProject"
+              :index="openIndex"
+              :page="page - 1"
+              :color="colorOf(openIndex)"
+              :next-color="colorOf(openIndex + 1)" />
+          </div>
+        </div>
+        <div class="note">
+          <button type="button" aria-label="Previous sheet" @click="flip(-1)">‹</button>
+          <span class="font-display" aria-live="polite"><small>Sheet</small>{{ order[0] + 1 }} / {{ PAGES.length }} · {{ PAGES[order[0]] }}</span>
+          <button type="button" aria-label="Next sheet" @click="flip(1)">›</button>
+        </div>
+        <button type="button" class="close font-display" @click="closeFile">Close file ✕</button>
+        <div ref="coverRef" class="cover">
+          <div class="cover-out" :style="{ backgroundColor: colorOf(openIndex) }">
+            <FileCover :project="openProject" decorative />
+          </div>
+          <div class="cover-in" :style="{ backgroundColor: colorOf(openIndex) }">
+            <span class="font-display"><small>Case file</small>No. {{ pad(openIndex + 1) }} · {{ openProject.title }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, watch, inject, nextTick, onMounted, onUnmounted } from "vue";
+import { useRoute } from "vue-router";
+import gsap from "gsap";
+import { sfx } from "@/composables/useSfx";
+import FileCover from "./files/FileCover.vue";
+import FileSheet from "./files/FileSheet.vue";
+
+const props = defineProps({
+  projects: { type: Array, required: true },
+});
+
+// Each project's folder colour (deliberately not the yellow/blue/teal of the site accents)
+const COLORS = ["#ff9ec4", "#ffb35c", "#c4b5fd", "#bef264", "#f0abfc"];
+const PAGES = ["Overview", "Challenge", "Features", "How it works", "Stack"];
+const colorOf = (index) => COLORS[index % COLORS.length];
+const pad = (n) => String(n).padStart(2, "0");
+const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const route = useRoute();
+
+const trackRef = ref(null);
+const stageRef = ref(null);
+const drawerRef = ref(null);
+const foldersRef = ref(null);
+const frontRef = ref(null);
+const folderEls = [];
+const n = computed(() => props.projects.length);
+
+// ---------- the drawer follows the scroll ----------
+// Position across the projects (0..n-1), held on each one for a moment
+const progress = ref(0);
+const shownIndex = computed(() => Math.round(progress.value));
+const navH = ref(72);
+const isPhone = ref(false);
+
+// Folders further back sit higher and a bit smaller, so every tab peeks over the one in front.
+// A folder you've flipped past is lifted out and refiled at the back (the stack wraps around).
+const depthOf = (index) => (((index - progress.value) % n.value) + n.value) % n.value;
+const isShut = (index) => {
+  const d = depthOf(index);
+  return d >= 1 && d <= n.value - 1;
+};
+const folderStyle = (index) => {
+  const d = depthOf(index);
+  const step = isPhone.value ? 26 : 42;
+  const fh = foldersRef.value?.offsetHeight || 400;
+  if (d > n.value - 1) {
+    // Being refiled: up out of the drawer, carried back, dropped in behind the rest
+    const f = n.value - d;
+    const depth = f * (n.value - 1);
+    const up = Math.sin(Math.PI * Math.min(f * 1.15, 1)) * fh * 0.95;
+    return {
+      transform: `translateY(${-depth * step - up - (1 - f) * 22}px) scale(${1 - depth * 0.04}) rotate(${Math.sin(Math.PI * f) * -4}deg)`,
+      zIndex: f < 0.55 ? 300 : 0,
+    };
+  }
+  const lift = Math.max(0, 1 - d) * 22; // the front folder is pulled up to be read
+  return {
+    transform: `translateY(${-d * step - lift}px) scale(${1 - d * 0.04})`,
+    zIndex: 200 - Math.round(d * 10),
+    visibility: openIndex.value === index ? "hidden" : "visible",
+  };
+};
+// Tabs step across the top so they never hide each other
+const tabLeft = (index) => `${2 + index * (76 / Math.max(n.value - 1, 1))}%`;
+
+const smooth = (x) => x * x * (3 - 2 * x);
+let frame = 0;
+const onScroll = () => {
+  if (frame || openIndex.value !== -1) return;
+  frame = requestAnimationFrame(() => {
+    frame = 0;
+    if (!trackRef.value) return;
+    const rect = trackRef.value.getBoundingClientRect();
+    const raw = Math.min(Math.max(-rect.top / (rect.height - window.innerHeight), 0), 1) * (n.value - 1);
+    const i = Math.floor(raw);
+    const f = raw - i;
+    const before = shownIndex.value;
+    progress.value = Math.min(i + (f < 0.2 ? 0 : f > 0.8 ? 1 : smooth((f - 0.2) / 0.6)), n.value - 1);
+    // Paper as a folder comes out, a soft thump as it drops in at the back
+    if (shownIndex.value !== before) {
+      sfx.paper();
+      sfx.thud({ strength: 0.25, delay: 0.18 });
+    }
+  });
+};
+
+const trackTop = () => {
+  let top = 0;
+  for (let el = trackRef.value; el; el = el.offsetParent) top += el.offsetTop;
+  return top;
+};
+const positionOf = (index) => trackTop() + ((trackRef.value.offsetHeight - window.innerHeight) * index) / Math.max(n.value - 1, 1);
+const goTo = (index) => {
+  sfx.tick();
+  window.scrollTo({ top: positionOf(index), behavior: reduced ? "auto" : "smooth" });
+};
+
+// On tall screens the drawer sits low in its (full-height) stage, which would leave a big gap
+// under the section title; the track is pulled up so the back folder's tab starts just below it
+const pullUp = ref(0);
+const measure = () => {
+  const nav = document.querySelector("nav");
+  navH.value = nav ? nav.offsetHeight : 72;
+  isPhone.value = window.innerWidth < 640;
+  if (!stageRef.value || !foldersRef.value || openIndex.value !== -1) return;
+  const fh = foldersRef.value.offsetHeight;
+  const step = isPhone.value ? 26 : 42;
+  const foldersTop = foldersRef.value.getBoundingClientRect().top - stageRef.value.getBoundingClientRect().top;
+  const backTabTop = foldersTop + (n.value - 1) * (fh * 0.04 - step) - 34;
+  pullUp.value = Math.max(0, Math.round(backTabTop - 32));
+};
+
+// ---------- opening a file right here ----------
+const openIndex = ref(-1);
+const openProject = computed(() => props.projects[openIndex.value]);
+const fileRef = ref(null);
+const boardRef = ref(null);
+const coverRef = ref(null);
+const leafEls = ref([]);
+const fileOpened = ref(false);
+const fileBox = ref({});
+let busy = false;
+let target = { x: 0, y: 0 };
+let previousOverflow = "";
+const EASE = "power3.inOut";
+
+// While the file moves in or out of the drawer, the part below the drawer front's top edge is
+// hidden, exactly as it is for the folders standing in the drawer
+const hideBehindFront = () => {
+  const file = fileRef.value;
+  if (!file || !frontRef.value) return;
+  const cut = file.getBoundingClientRect().bottom - frontRef.value.getBoundingClientRect().top;
+  file.style.clipPath = cut > 0 ? `inset(-80px -80px ${cut}px -2000px)` : "";
+};
+
+// Sheets in the pile, top first; lower sheets sit a little askew so their edges show
+const order = ref([0, 1, 2, 3, 4]);
+const SKEW = [0, -0.9, 0.7, -0.5, 1];
+const restOf = (depth) => ({ x: depth * 3, y: depth * 3, rotation: SKEW[depth] || 0, xPercent: 0, yPercent: 0 });
+// Every sheet has to be read whole, without scrolling: a sheet whose content is taller than
+// the file is scaled down (laid out wider by the same factor, so it rewraps into fewer lines)
+const fitSheets = () => {
+  leafEls.value.forEach((leaf) => {
+    const sheet = leaf.firstElementChild;
+    // natural height: let the sheet grow to its content for a moment
+    Object.assign(sheet.style, { transform: "", width: "", height: "auto", bottom: "auto" });
+    const scale = Math.min(1, leaf.clientHeight / sheet.offsetHeight);
+    Object.assign(sheet.style, { height: "", bottom: "" });
+    if (scale < 1) {
+      Object.assign(sheet.style, { transformOrigin: "0 0", transform: `scale(${scale})`, width: `${100 / scale}%`, height: `${100 / scale}%` });
+    }
+  });
+};
+const layoutSheets = () => {
+  order.value.forEach((page, depth) => {
+    gsap.set(leafEls.value[page], { ...restOf(depth), zIndex: 10 - depth });
+  });
+};
+
+const openFile = async (index) => {
+  if (busy || openIndex.value !== -1) return;
+  busy = true;
+  const stageRect = stageRef.value.getBoundingClientRect();
+  const face = folderEls[index].querySelector(".face").getBoundingClientRect();
+  previousOverflow = document.documentElement.style.overflow;
+  document.documentElement.style.overflow = "hidden"; // the drawer stays on this file while it's open
+  fileBox.value = { left: `${face.left - stageRect.left}px`, top: `${face.top - stageRect.top}px`, width: `${face.width}px`, height: `${face.height}px` };
+  order.value = [0, 1, 2, 3, 4];
+  openIndex.value = index;
+  fileOpened.value = false;
+  await nextTick();
+  layoutSheets();
+  addInputs();
+
+  fitSheets();
+  // Lifted to the middle, a little right of centre so the open cover fits on the left.
+  // It keeps exactly the folder's size the whole way.
+  const shift = Math.max(0, Math.min(face.width * 0.3, (stageRect.width - face.width) / 2 - 30));
+  target = {
+    x: (stageRect.width - face.width) / 2 + shift - (face.left - stageRect.left),
+    y: navH.value + (stageRect.height - navH.value - face.height) / 2 + 10 - (face.top - stageRect.top),
+  };
+  if (reduced) {
+    gsap.set(drawerRef.value, { y: "62vh" });
+    gsap.set(fileRef.value, { x: target.x, y: target.y });
+    gsap.set(coverRef.value, { rotationY: -180 });
+    fileOpened.value = true;
+    busy = false;
+    return;
+  }
+  const tl = gsap.timeline({ onComplete: () => { fileOpened.value = true; busy = false; } });
+  tl.to(drawerRef.value, { y: "62vh", duration: 0.7, ease: EASE }, 0)
+    .to(fileRef.value, {
+      keyframes: [{ x: target.x, y: target.y - 40, rotation: -1, duration: 0.5 }, { y: target.y, rotation: 0, duration: 0.2 }],
+      ease: EASE,
+      onUpdate: hideBehindFront,
+      onComplete: () => (fileRef.value.style.clipPath = ""),
+    }, 0)
+    // The cover swings over to the left and lies flat
+    .to(coverRef.value, { rotationY: -180, duration: 0.8, ease: "power2.inOut" }, 0.75);
+  tl.call(() => sfx.whoosh({ duration: 0.6 }), null, 0)
+    .call(() => sfx.thud({ strength: 0.35 }), null, 0.62)
+    .call(() => sfx.rustle({ duration: 0.75 }), null, 0.75)
+    .call(() => sfx.slap(), null, 1.5);
+};
+
+const closeFile = async () => {
+  if (busy || openIndex.value === -1) return;
+  busy = true;
+  fileOpened.value = false;
+  const index = openIndex.value;
+  const done = () => {
+    gsap.set(drawerRef.value, { clearProps: "transform" });
+    removeInputs();
+    openIndex.value = -1;
+    document.documentElement.style.overflow = previousOverflow;
+    busy = false;
+    nextTick(() => {
+      if (!reduced) gsap.fromTo(folderEls[index].querySelector(".face"), { scaleY: 0.97 }, { scaleY: 1, duration: 0.3, ease: "back.out(3)", transformOrigin: "50% 100%", clearProps: "transform" });
+    });
+  };
+  if (reduced) {
+    done();
+    return;
+  }
+  const tl = gsap.timeline({ onComplete: done });
+  // Cover shuts first, then the file goes back down as the drawer comes back up
+  tl.to(coverRef.value, { rotationY: 0, duration: 0.6, ease: "power2.inOut" }, 0)
+    .to(drawerRef.value, { y: 0, duration: 0.72, ease: "power2.inOut" }, 0.6)
+    .to(boardRef.value, { boxShadow: "0 0 0 #000", duration: 0.72, ease: "power2.inOut" }, 0.6)
+    .to(fileRef.value, {
+      keyframes: [{ x: target.x * 0.08, y: -18, duration: 0.58 }, { x: 0, y: 0, duration: 0.14 }],
+      ease: "power2.inOut",
+      onUpdate: hideBehindFront,
+    }, 0.6);
+  tl.call(() => sfx.rustle({ duration: 0.55 }), null, 0)
+    .call(() => sfx.slap(), null, 0.56)
+    .call(() => sfx.whoosh({ duration: 0.6, up: false }), null, 0.6)
+    .call(() => sfx.thud({ strength: 0.5 }), null, 1.3);
+};
+
+// ---------- flipping through the sheets ----------
+// Next: the top sheet slides out and is tucked under the pile. Back: the bottom one comes out on top.
+let flipping = false;
+const flip = (dir) => {
+  if (flipping || !fileOpened.value) return;
+  flipping = true;
+  const page = dir > 0 ? order.value[0] : order.value[order.value.length - 1];
+  const moving = leafEls.value[page];
+  sfx.paper();
+  gsap.to(moving, {
+    xPercent: 62,
+    yPercent: -6,
+    rotation: 7,
+    duration: 0.23,
+    ease: "power2.in",
+    onComplete: () => {
+      order.value = dir > 0 ? [...order.value.slice(1), page] : [page, ...order.value.slice(0, -1)];
+      order.value.forEach((p, depth) => {
+        gsap.set(leafEls.value[p], { zIndex: 10 - depth });
+        if (p !== page) gsap.to(leafEls.value[p], { ...restOf(depth), duration: 0.2 });
+      });
+      sfx.paper({ delay: 0.12 });
+      gsap.to(moving, { ...restOf(order.value.indexOf(page)), duration: 0.32, ease: "back.out(1.4)", onComplete: () => (flipping = false) });
+    },
+  });
+};
+
+let wheelLock = 0;
+const onWheel = (e) => {
+  e.preventDefault();
+  if (Math.abs(e.deltaY) < 6 || performance.now() < wheelLock) return;
+  wheelLock = performance.now() + 450;
+  flip(e.deltaY > 0 ? 1 : -1);
+};
+let touchY = 0;
+const onTouchStart = (e) => (touchY = e.touches[0].clientY);
+const onTouchMove = (e) => e.preventDefault();
+const onTouchEnd = (e) => {
+  const dy = touchY - e.changedTouches[0].clientY;
+  if (Math.abs(dy) > 40) flip(dy > 0 ? 1 : -1);
+};
+const onKey = (e) => {
+  if (e.key === "Escape") closeFile();
+  else if (e.key === "ArrowRight" || e.key === "ArrowDown") flip(1);
+  else if (e.key === "ArrowLeft" || e.key === "ArrowUp") flip(-1);
+  else return;
+  e.preventDefault();
+};
+const addInputs = () => {
+  window.addEventListener("wheel", onWheel, { passive: false });
+  window.addEventListener("touchstart", onTouchStart, { passive: true });
+  window.addEventListener("touchmove", onTouchMove, { passive: false });
+  window.addEventListener("touchend", onTouchEnd, { passive: true });
+  window.addEventListener("keydown", onKey);
+};
+const removeInputs = () => {
+  window.removeEventListener("wheel", onWheel);
+  window.removeEventListener("touchstart", onTouchStart);
+  window.removeEventListener("touchmove", onTouchMove);
+  window.removeEventListener("touchend", onTouchEnd);
+  window.removeEventListener("keydown", onKey);
+};
+
+// /projects/:id links land here with ?file=id: go to that folder and open it
+// The site opens with a "sound on?" dialog; the file opens once it has been answered
+const introReady = inject("introReady", ref(true));
+const openFromLink = async () => {
+  const index = props.projects.findIndex((p) => p.id === route.query.file);
+  if (index < 0) return;
+  if (!introReady.value) {
+    await new Promise((resolve) => {
+      const stop = watch(introReady, (ready) => ready && (stop(), resolve()));
+    });
+  }
+  await document.fonts?.ready;
+  measure();
+  window.scrollTo({ top: positionOf(index), behavior: "instant" });
+  progress.value = index;
+  setTimeout(() => openFile(index), 450);
+};
+
+const onResize = () => {
+  measure();
+  onScroll();
+};
+
+onMounted(() => {
+  measure();
+  window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", onResize);
+  if (route.query.file) openFromLink();
+  else onScroll();
+});
+
+onUnmounted(() => {
+  window.removeEventListener("scroll", onScroll);
+  window.removeEventListener("resize", onResize);
+  removeInputs();
+  cancelAnimationFrame(frame);
+  if (openIndex.value !== -1) document.documentElement.style.overflow = previousOverflow;
+});
+</script>
+
+<style scoped>
+.stage {
+  --fw: min(680px, calc(100vw - 110px));
+  --fh: clamp(250px, calc(100svh - var(--nav-h) - 330px), 420px);
+  --front-h: 100px;
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+  display: grid;
+  place-items: end center;
+  padding-bottom: 4vh;
+  color: #111;
+}
+.hint {
+  position: absolute;
+  top: calc(var(--nav-h) + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  font: 700 0.68rem "JetBrains Mono", monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0.55;
+  transition: opacity 0.3s;
+}
+:global(.dark) .hint {
+  color: #f4ead5;
+}
+.hint.gone {
+  opacity: 0;
+}
+.catcher {
+  position: absolute;
+  inset: 0;
+  z-index: 800;
+}
+
+/* ---------- the drawer ---------- */
+.drawer {
+  position: relative;
+  width: calc(var(--fw) + 70px);
+  height: calc(var(--fh) + 150px);
+}
+.box {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 64%;
+  background: #2b2b2b;
+  border: 4px solid #000;
+  border-radius: 6px 6px 0 0;
+  box-shadow: inset 0 18px 0 #1c1c1c;
+}
+.front {
+  position: absolute;
+  z-index: 400;
+  left: -14px;
+  right: -14px;
+  bottom: 0;
+  height: var(--front-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 36px;
+  background: #ffdd00;
+  border: 4px solid #000;
+  box-shadow: 10px 10px 0 #000;
+}
+.label {
+  padding: 7px 14px;
+  background: #fffdf5;
+  border: 3px solid #000;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+}
+.label small {
+  display: block;
+  font: 700 0.56rem "JetBrains Mono", monospace;
+  letter-spacing: 0.1em;
+  opacity: 0.6;
+}
+.handle {
+  position: relative;
+  width: 130px;
+  height: 24px;
+  background: #111;
+  border: 4px solid #000;
+  border-top: 0;
+  border-radius: 0 0 16px 16px;
+}
+.handle::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 6px;
+  height: 4px;
+  background: #ffdd00;
+  border-radius: 2px;
+  opacity: 0.6;
+}
+
+/* ---------- folders ---------- */
+.folders {
+  position: absolute;
+  left: 35px;
+  right: 35px;
+  bottom: 54px;
+  height: var(--fh);
+  --front-cover: calc(var(--front-h) - 54px + 12px);
+}
+.folder {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 100%;
+  will-change: transform;
+}
+.tab {
+  position: absolute;
+  top: -34px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 3.5px solid #000;
+  border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+  font: 700 0.68rem "JetBrains Mono", monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #111;
+}
+.tab b {
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+.face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border: 3.5px solid #000;
+  border-radius: 0 10px 4px 4px;
+}
+/* Folders further back only show their tab and a strip of cover */
+.folder.shut .face > * {
+  visibility: hidden;
+}
+
+/* ---------- an opened file ---------- */
+.file {
+  position: absolute;
+  z-index: 900;
+  perspective: 1800px;
+  --front-cover: 20px;
+}
+.board {
+  position: absolute;
+  inset: 0;
+  border: 3.5px solid #000;
+  border-radius: 0 10px 4px 4px;
+  box-shadow: 10px 10px 0 #000;
+}
+.leaves {
+  position: absolute;
+  inset: 8px 22px 22px 10px;
+}
+.leaf {
+  position: absolute;
+  inset: 0;
+  background: #fffdf5;
+  border: 3px solid #000;
+}
+.leaf:nth-child(2) { background: #fbf7ea; }
+.leaf:nth-child(3) { background: #fdfaf0; }
+.leaf:nth-child(4) { background: #f9f4e4; }
+.leaf:nth-child(5) { background: #fcf8ec; }
+/* sits below the middle of the file: clear of the folder's tab and the chat button */
+.note {
+  position: absolute;
+  z-index: 30;
+  left: 50%;
+  bottom: -60px;
+  margin-left: -9.5em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  background: #ffdd00;
+  border: 3px solid #000;
+  box-shadow: 3px 3px 0 #000;
+  transform: rotate(-2deg);
+  visibility: hidden;
+}
+.file.opened .note {
+  visibility: visible;
+}
+.note > span {
+  min-width: 9.5em;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+.note small {
+  display: block;
+  font: 700 0.54rem "JetBrains Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+.note button {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  border: 2.5px solid #000;
+  font: 800 1rem "Lexend Mega", sans-serif;
+}
+.note button:hover {
+  background: #111;
+  color: #ffdd00;
+}
+.close {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  bottom: -54px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 3px solid #000;
+  box-shadow: 3px 3px 0 #000;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #111;
+}
+.close:hover {
+  background: #111;
+  color: #fff;
+}
+/* The cover swings open to the left and lies flat */
+.cover {
+  position: absolute;
+  z-index: 50;
+  inset: 0;
+  transform-origin: 0 50%;
+  transform-style: preserve-3d;
+}
+.cover > div {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border: 3.5px solid #000;
+  border-radius: 0 10px 4px 4px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.cover-in {
+  display: grid;
+  place-items: center;
+  transform: rotateY(180deg);
+  filter: brightness(1.08);
+}
+.cover-in span {
+  padding: 10px 16px;
+  background: #fffdf5;
+  border: 3px solid #000;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  transform: rotate(-3deg);
+}
+.cover-in small {
+  display: block;
+  font: 700 0.58rem "JetBrains Mono", monospace;
+  letter-spacing: 0.1em;
+  opacity: 0.6;
+}
+
+/* ---------- phones ---------- */
+@media (max-width: 639px) {
+  .stage {
+    --fw: calc(100vw - 56px);
+    --fh: clamp(230px, calc(100svh - var(--nav-h) - 250px), 420px);
+    --front-h: 80px;
+  }
+  .drawer {
+    width: calc(var(--fw) + 28px);
+    height: calc(var(--fh) + 120px);
+  }
+  .folders {
+    left: 14px;
+    right: 14px;
+    bottom: 44px;
+    --front-cover: calc(var(--front-h) - 44px + 10px);
+  }
+  .front {
+    left: -8px;
+    right: -8px;
+    gap: 18px;
+  }
+  .handle {
+    width: 90px;
+  }
+  .tab {
+    padding: 0 9px;
+  }
+  .tab-name {
+    display: none;
+  }
+  .note {
+    left: auto;
+    right: 4px;
+    margin-left: 0;
+  }
+  .note > span {
+    min-width: 7.5em;
+    font-size: 0.68rem;
+  }
+}
+</style>

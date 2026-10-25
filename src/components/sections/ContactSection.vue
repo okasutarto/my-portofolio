@@ -329,14 +329,17 @@ onMounted(() => {
       .to(flapRef.value, { rotateX: 180, duration: 0.45, ease: "power2.inOut" }, "+=0.05")
       .call(() => sfx.rustle({ duration: 0.45 }), null, "<")
       .set(flapRef.value, { zIndex: 5 }, "-=0.22")
-      // 3. Card slides up out of the envelope...
-      .to(card, { yPercent: -42, scale: 1, duration: 0.55, ease: "power2.out" })
-      .call(() => sfx.paper(), null, "<")
-      // 4. ...the envelope drops away, and the card lands on the table
-      .to(envelope, { yPercent: 70, rotate: 5, opacity: 0, duration: 0.5, ease: "power2.in" }, "<+0.25")
-      .call(() => sfx.whoosh({ duration: 0.5, up: false }), null, "<")
-      .to(card, { yPercent: 0, duration: 0.65, ease: "bounce.out" })
-      .call(() => sfx.thud({ strength: 0.6 }), null, "<+0.24")
+      // 3. Card slides all the way up out of the envelope...
+      .addLabel("out")
+      .to(card, { yPercent: -52, scale: 1, duration: 0.75, ease: "power2.inOut" }, "out")
+      .call(() => sfx.paper(), null, "out")
+      // 4. ...once it's clear, the envelope drops away under it and the card settles on the table
+      .to(envelope, { yPercent: 80, rotate: 4, duration: 0.6, ease: "power2.in" }, "out+=0.55")
+      .to(envelope, { opacity: 0, duration: 0.2 }, "out+=0.95")
+      .call(() => sfx.whoosh({ duration: 0.5, up: false }), null, "out+=0.55")
+      .to(card, { yPercent: 0, duration: 0.6, ease: "power3.inOut" }, "out+=0.8")
+      .to(card, { keyframes: { scaleY: [1, 0.97, 1], scaleX: [1, 1.012, 1] }, duration: 0.28, transformOrigin: "50% 100%" }, "out+=1.4")
+      .call(() => sfx.thud({ strength: 0.6 }), null, "out+=1.4")
       .set(card, { clearProps: "transform,opacity" })
       // 5. Stamp slapped on, then the side column
       .from(stampRef.value, { scale: 2.2, rotate: -20, opacity: 0, duration: 0.45, ease: "back.out(2)" })
@@ -357,6 +360,7 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  will-change: transform;
 }
 .envelope-back {
   z-index: 0;

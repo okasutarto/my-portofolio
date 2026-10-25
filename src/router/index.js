@@ -1,4 +1,7 @@
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createWebHistory, START_LOCATION } from "vue-router";
+
+// Let the router own scroll restoration, including the explicit return to a project.
+window.history.scrollRestoration = "manual";
 
 
 const routes = [
@@ -9,11 +12,16 @@ const routes = [
     meta: { title: "Oka Sutarto Putra" },
   },
   {
+    // Projects open as files inside the Projects drawer; old links land there with the file open
     path: "/projects/:id",
     name: "project-details",
-    component: () => import("../views/ProjectDetails.vue"),
-    props: true,
-    meta: { title: "Project Details | okasputra" },
+    redirect: (to) => ({ path: "/", hash: "#projects", query: { file: to.params.id } }),
+  },
+  {
+    path: "/desk",
+    name: "desk",
+    component: () => import("../views/DeskPage.vue"),
+    meta: { title: "The Desk | okasputra", immersive: true },
   },
   {
     path: "/:pathMatch(.*)*",
@@ -27,6 +35,9 @@ const router = createRouter({
   history: createWebHistory(process.env.BASE_URL),
   routes,
   scrollBehavior(to, from, savedPosition) {
+    // The drawer scrolls to (and opens) the linked file itself
+    if (to.path === "/" && to.query.file) return false;
+    if (to.path === "/" && from === START_LOCATION) return { top: 0, behavior: "instant" };
     if (savedPosition) {
       return savedPosition;
     }

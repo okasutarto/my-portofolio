@@ -650,6 +650,12 @@ export const projects = [
 
     caseFile: {
       client: "Small retail shops",
+      // A sample call, printed on the file's "How it works" sheet
+      api: {
+        request: "POST /transactions",
+        status: "201 Created",
+        body: '{\n  "id": 1042,\n  "total": 58000,\n  "stock": "updated",\n  "receipt": "R-1042"\n}',
+      },
       highlight: "Point of Sale backend system",
       quote: "every sale, every item, accounted for",
       caption: "warung upin — cashier app",
@@ -760,6 +766,11 @@ export const projects = [
 
     caseFile: {
       client: "Wedding invitation vendor",
+      api: {
+        request: "GET /products?cat=souvenir",
+        status: "200 OK",
+        body: '[\n  { "name": "Mug", "price": 25000 },\n  { "name": "Fan", "price": 12000 }\n]',
+      },
       highlight: "wedding invitations and souvenirs",
       quote: "from catalog to order, minus the chaos",
       caption: "punyagawe.id — catalog",

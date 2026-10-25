@@ -116,6 +116,14 @@ const SOUNDS = {
     }
     noise(t, { freq: 1200, q: 0.5, attack: duration * 0.4, peak: 0.06, decay: duration * 0.6 });
   },
+  // Paper torn along a perforation: fibres snapping faster and faster over the rip itself
+  tear(t, { duration = 0.32 } = {}) {
+    for (let at = t; at < t + duration; at += 0.006 + Math.random() * 0.012) {
+      const p = (at - t) / duration;
+      noise(at, { filter: "highpass", freq: vary(2600 - 1000 * p, 0.3), q: 0.9, attack: 0.001, peak: 0.12 + 0.18 * Math.sin(Math.PI * p), decay: 0.01 + Math.random() * 0.012 });
+    }
+    noise(t, { freq: 2200, to: 900, q: 0.7, attack: 0.02, peak: 0.22, decay: duration });
+  },
   // Air rushing past something thrown
   whoosh(t, { duration = 0.45, up = true } = {}) {
     noise(t, { freq: up ? 350 : 2600, to: up ? 2600 : 350, q: 1.4, attack: duration * 0.5, peak: 0.35, decay: duration * 0.5 });
@@ -188,7 +196,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3 };
+const MIN_GAP = { tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || ctx.state !== "running" || document.hidden) return;

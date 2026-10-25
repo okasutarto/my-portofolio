@@ -240,7 +240,11 @@ const splitNumbers = (text) =>
 const sectionRef = ref(null);
 const openId = ref(null);
 const toggle = (id) => {
-  openId.value = openId.value === id ? null : id;
+  const opening = openId.value !== id;
+  openId.value = opening ? id : null;
+  // Tearing the stub off rips; putting it back is just a rustle of paper
+  if (opening) sfx.tear();
+  else sfx.paper();
 };
 
 let ctx = null;

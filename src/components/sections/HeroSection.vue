@@ -364,14 +364,13 @@ const introPortrait = async () => {
   shown.frame = true;
   await wait(550);
   shown.photo = true;
+  sfx.whoosh({ duration: 0.45, up: false });
   await wait(850);
   // Oka says hi (the whole line at once), then the rest of the hero follows
   bubbleText.value = GREETING;
   bubbleDone.value = true;
   shown.bubble = true;
-  sfx.pop();
-  sfx.talk({ delay: 0.05 });
-  sfx.talk({ delay: 0.16 });
+  sfx.whoosh({ duration: 0.35 });
   await wait(450);
   shown.years = true;
   await wait(200);

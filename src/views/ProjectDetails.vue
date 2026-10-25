@@ -10,7 +10,7 @@
       <router-link to="/#projects" class="next-file !inline-flex !mt-0 px-6">← Back to all projects</router-link>
     </div>
 
-    <div v-else class="max-w-6xl mx-auto px-4 sm:px-6 pt-6 md:pt-8 pb-10">
+    <div v-else class="max-w-6xl mx-auto px-4 sm:px-6 pt-5 pb-10">
       <!-- Previous / next file, visible without scrolling -->
       <nav class="file-nav" aria-label="Project files">
         <router-link :to="`/projects/${prevProject.id}`" class="file-link" @click="markDir(-1)">
@@ -332,8 +332,11 @@ const fitFolder = () => {
     body.style.removeProperty("--fit-h");
     return;
   }
-  const top = body.getBoundingClientRect().top + window.scrollY;
-  body.style.setProperty("--fit-h", `${Math.max(440, window.innerHeight - top - 28)}px`);
+  // offsetTop ignores transforms; getBoundingClientRect would be thrown off by the
+  // page-enter transition and the intro drop, which are running when this first measures
+  let top = 0;
+  for (let el = body; el; el = el.offsetParent) top += el.offsetTop;
+  body.style.setProperty("--fit-h", `${Math.max(360, window.innerHeight - top - 24)}px`);
 };
 const resetStageScroll = () => stageRef.value && (stageRef.value.scrollTop = 0);
 
@@ -478,10 +481,12 @@ const enter = (key, tl = gsap.timeline(), at = 0) => {
 const openFile = (tl) => {
   const vals = sheetRef.value.querySelectorAll(".val");
   const tCover = tl.duration() + 0.2;
-  tl.to(coverRef.value, { rotationY: -168, duration: 0.85, ease: "power2.inOut" }, tCover)
-    .to(coverRef.value, { autoAlpha: 0, duration: 0.15 }, "-=0.15")
+  // The cover swings all the way over and stays open, lying flat to the left of the papers
+  // (it may run off the edge of the screen; that's fine)
+  tl.to(coverRef.value, { rotationY: -180, duration: 0.9, ease: "power2.inOut" }, tCover)
     .from(sheetRef.value, { y: 30, duration: 0.5, ease: "back.out(2)", clearProps: "transform" }, "-=0.5");
   sound(tl, tCover, () => sfx.rustle({ duration: 0.8 }));
+  sound(tl, tCover + 0.86, () => sfx.slap());
   const tTitle = tl.duration() - 0.25;
   tl.fromTo(titleRef.value, { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.5, ease: "steps(11)", clearProps: "clipPath" }, tTitle);
   sound(tl, tTitle, () => sfx.printer({ duration: 0.5, steps: 11 }));
@@ -578,9 +583,8 @@ const switchProject = (next) => {
   window.scrollTo({ top: 0, behavior: "smooth" });
   const folder = folderRef.value;
   const tl = (mainTl = gsap.timeline());
-  tl.set(coverRef.value, { autoAlpha: 1 }, 0.2)
-    // The cover swings shut over the current file
-    .to(coverRef.value, { rotationY: 0, duration: 0.6, ease: "power2.inOut" }, 0.2)
+  // The open cover swings back over and shuts on the current file
+  tl.to(coverRef.value, { rotationY: 0, duration: 0.6, ease: "power2.inOut" }, 0.2)
     .to(folder, { keyframes: { scaleY: [0.98, 1] }, duration: 0.15, clearProps: "transform" }, 0.8)
     // Filed away, like going back into the cabinet
     .to(folder, { x: `${-115 * dir}vw`, y: 40, rotation: -10 * dir, duration: 0.55, ease: "power2.in" }, 1);
@@ -637,7 +641,7 @@ onMounted(() => {
   fitFolder();
   if (!shown.value) return;
   if (reduced) {
-    gsap.set(coverRef.value, { autoAlpha: 0 });
+    gsap.set(coverRef.value, { rotationY: -180 });
     return;
   }
   playIntro();
@@ -706,7 +710,7 @@ onBeforeUnmount(() => {
   padding: clamp(10px, 3vw, 30px);
 }
 
-/* Cover: two faces so the inside shows while it swings */
+/* Cover: two faces; once open it lies flat to the left with its plain inside showing */
 .cover {
   position: absolute;
   inset: -2.5px;
@@ -1387,7 +1391,7 @@ onBeforeUnmount(() => {
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 12px;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
 }
 .file-link {
   display: inline-flex;

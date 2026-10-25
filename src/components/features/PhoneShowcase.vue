@@ -160,11 +160,13 @@ watch(activeIndex, () => sfx.whoosh({ duration: 0.3 }));
 const offset = ref(0);
 // The card slides aside, tilts and fades like a sheet being pulled out, then the next
 // one comes in from the other side (deliberately different from the phone's spin)
+// The card flips over like a desk-calendar page (around X, unlike the phone's spin).
+// At the halfway point it's edge-on, which is exactly when the content swaps, so no fade
+// is needed to hide it.
 const cardStyle = computed(() => {
   const o = offset.value;
   return {
-    transform: `translate(${-o * 90}px, ${Math.abs(o) * 36}px) rotate(${-o * 10}deg)`,
-    opacity: Math.max(0, 1 - Math.abs(o) * 1.8),
+    transform: `perspective(1400px) rotateX(${o * 180}deg) scale(${1 - Math.abs(o) * 0.12})`,
   };
 });
 

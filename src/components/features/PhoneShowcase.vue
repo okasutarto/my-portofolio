@@ -102,7 +102,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { sfx } from "@/composables/useSfx";
 import gsap from "gsap";
 import { STACKED_QUERY, topInset, stackedPhoneHeight } from "./phone/layout";
 
@@ -127,6 +128,9 @@ const playIntro = () => {
   if (introPlayed || !cardIntroRef.value) return;
   introPlayed = true;
   if (phoneScene) phoneScene.playIntro();
+  sfx.whoosh({ duration: 0.4, up: false });
+  sfx.thud({ delay: 0.4 });
+  sfx.paper({ delay: 0.5 });
   gsap.to(cardIntroRef.value, {
     x: 0,
     rotate: 0,
@@ -151,6 +155,7 @@ const updateTextTop = () => {
   textTop.value = Math.round(inset + stackedPhoneHeight(h, inset) + 16);
 };
 const active = computed(() => props.projects[activeIndex.value]);
+watch(activeIndex, () => sfx.whoosh({ duration: 0.3 }));
 // -0.5..0.5: how far the scroll is from the current project
 const offset = ref(0);
 // The card slides aside, tilts and fades like a sheet being pulled out, then the next

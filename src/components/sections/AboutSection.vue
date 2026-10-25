@@ -108,6 +108,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
 import gsap from "gsap";
+import { sfx } from "@/composables/useSfx";
 import { Draggable } from "gsap/Draggable";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { usePostHog } from "@/composables/usePostHog";
@@ -239,6 +240,7 @@ const pinParts = (card) => {
 // Pin pops out of the board: head lifts and tilts, the needle shows, shadow drifts away
 const pullPin = (card) => {
   const { pin, head, needle, shadow } = pinParts(card);
+  sfx.pop({ pitch: 1.4 });
   gsap.killTweensOf([pin, head, needle, shadow]);
   gsap.to(pin, { y: -34, x: 8, rotation: -28, duration: 0.25, ease: "back.out(2.5)" });
   gsap.to(needle, { scaleY: 1, duration: 0.15, ease: "power2.out" });
@@ -249,6 +251,7 @@ const pullPin = (card) => {
 // Pin drops and sticks: needle sinks in, the head squashes on impact, a ring ripples out
 const pushPin = (card) => {
   const { pin, head, needle, shadow, ring } = pinParts(card);
+  sfx.tick({ pitch: 0.55, delay: 0.32 });
   gsap.killTweensOf([pin, head, needle, shadow, ring]);
   gsap
     .timeline({ delay: 0.12 })
@@ -275,7 +278,7 @@ onMounted(() => {
     if (!reduced) {
       // Stickers get slapped onto the board one by one, then pinned
       const pins = els.map((el) => el.querySelector(".pin"));
-      gsap
+      const intro = gsap
         .timeline({ scrollTrigger: { trigger: boardRef.value, start: "top 75%" } })
         .from(els, {
           scale: 0,
@@ -289,6 +292,11 @@ onMounted(() => {
           { y: -60, opacity: 0, duration: 0.45, stagger: 0.07, ease: "bounce.out" },
           "-=0.3",
         );
+      // Each sticker slaps onto the board, then its pin clicks in
+      els.forEach((_, i) => {
+        intro.call(() => sfx.slap(), null, 0.25 + i * 0.08);
+        intro.call(() => sfx.tick({ pitch: 0.55 }), null, 0.33 + els.length * 0.08 + i * 0.07);
+      });
     }
   }, sectionRef.value);
 

@@ -143,6 +143,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted } from "vue";
+import { sfx } from "@/composables/useSfx";
 
 const socials = [
   { icon: "fa-github", label: "GitHub", link: "https://github.com/okasutarto" },
@@ -198,9 +199,10 @@ const reducedMotion = window.matchMedia(
 const wait = (ms) =>
   new Promise((resolve) => setTimeout(resolve, reducedMotion ? 0 : ms));
 
-const typeInto = async (setter, text, speed = 38) => {
+const typeInto = async (setter, text, speed = 38, sound = true) => {
   for (let i = 1; i <= text.length && alive; i++) {
     setter(text.slice(0, i));
+    if (sound && text[i - 1] !== " ") sfx.key();
     await wait(speed);
   }
 };
@@ -225,7 +227,7 @@ const runTerminal = async () => {
       await wait(22);
     }
     roleIndex = (roleIndex + 1) % roles.length;
-    await typeInto((t) => (lines[1].text = t), roles[roleIndex], 60);
+    await typeInto((t) => (lines[1].text = t), roles[roleIndex], 60, false);
   }
 };
 
@@ -251,6 +253,7 @@ const introPortrait = async () => {
   shown.photo = true;
   await wait(850);
   shown.bubble = true;
+  sfx.pop();
   // The portrait gets the spotlight first; the rest of the hero follows once Oka says hi
   introContent();
   await wait(250);

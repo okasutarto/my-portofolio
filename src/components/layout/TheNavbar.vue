@@ -41,11 +41,13 @@
               {{ link.name }}
             </router-link>
           </template>
+          <SoundToggle />
           <ThemeSwitcher />
         </div>
 
         <!-- Mobile Menu Button -->
-        <div class="md:hidden flex items-center space-x-4">
+        <div class="md:hidden flex items-center space-x-3">
+          <SoundToggle />
           <ThemeSwitcher />
           <button
             @click="toggleMobileMenu"
@@ -102,6 +104,7 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
 import ThemeSwitcher from "../features/ThemeSwitcher.vue";
+import SoundToggle from "../features/SoundToggle.vue";
 
 const route = useRoute();
 const mobileMenuOpen = ref(false);

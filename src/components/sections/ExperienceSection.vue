@@ -182,6 +182,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
 import gsap from "gsap";
+import { sfx } from "@/composables/useSfx";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { experiences } from "@/data/experience";
 
@@ -317,6 +318,12 @@ onMounted(() => {
       ticket.querySelectorAll(".flap").forEach((el, k) => {
         tl.add(scramble(el, 0.7 + k * 0.15), at + 0.35);
       });
+
+      // Sounds: thrown, lands, letters clatter, stamp
+      tl.call(() => sfx.whoosh({ duration: 0.45 }), null, at)
+        .call(() => sfx.slap(), null, at + 0.48)
+        .call(() => sfx.printer({ duration: 0.7, steps: 10 }), null, at + 0.35)
+        .call(() => sfx.stamp(), null, at + 1.68);
     });
   }, sectionRef.value);
 });

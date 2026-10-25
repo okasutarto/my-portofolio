@@ -1,6 +1,9 @@
 <template>
   <button
-    @click="toggleTheme"
+    @click="
+      toggleTheme();
+      sfx.click();
+    "
     class="p-3 border-4 border-black dark:border-primary bg-white dark:bg-zinc-900 shadow-neo-sm hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all active:bg-secondary group"
     :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'">
     <i
@@ -14,6 +17,7 @@
 
 <script setup>
 import { useTheme } from "../../composables/useTheme";
+import { sfx } from "../../composables/useSfx";
 
 const { isDark, toggleTheme } = useTheme();
 </script>

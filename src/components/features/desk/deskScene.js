@@ -35,11 +35,15 @@ import {
   drawScrapPage,
   drawScrapInsideFlipped,
   loadPortrait,
+  drawKeyLabel,
+  drawQuoteBubble,
+  SIP_QUOTES,
 } from "./textures";
 
 const PALETTES = {
   light: { desk: "#a388ee", shadow: "#000000" },
-  dark: { desk: "#4a3f35", shadow: "#8fd694" },
+  // Night: the same lavender, dimmed, so it still reads against the dark page
+  dark: { desk: "#6b5bc4", shadow: "#000000" },
 };
 // Props that stand for a section of the 2D site
 export const SECTIONS = ["hero", "about", "experience", "projects", "contact"];
@@ -61,10 +65,11 @@ export function createDeskScene({ container, projects, experiences, skills = [],
   const scene = new THREE.Scene();
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
 
-  // Light from back-left so every shadow falls down-right on screen, like box-shadow: 6px 6px
+  // Light from almost straight above, a touch back-left: shadows stay short and all fall the
+  // same way (down-right on screen), like the 2D site's box-shadow: 6px 6px
   scene.add(new THREE.AmbientLight(0xffffff, 1.35));
   const sun = new THREE.DirectionalLight(0xffffff, 1.9);
-  sun.position.set(-4, 12, -3.5);
+  sun.position.set(-1.6, 14, -1.3);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 14, bottom: -14, near: 1, far: 40 });
@@ -272,6 +277,112 @@ export function createDeskScene({ container, projects, experiences, skills = [],
   });
   shadowCatcher(14, 8.4, 0.003);
   shadowCatcher(80, 80, -3.7);
+
+  // A rod between two points (lamp arms, plant stems)
+  const UP = new THREE.Vector3(0, 1, 0);
+  function rod(a, b, radius, material, outline = 0.025) {
+    const dir = new THREE.Vector3().subVectors(b, a);
+    const m = mesh(new THREE.CylinderGeometry(radius, radius, dir.length(), 12), material, { outline });
+    m.position.copy(a).addScaledVector(dir, 0.5);
+    m.quaternion.setFromUnitVectors(UP, dir.normalize());
+    return m;
+  }
+
+  // ---------- desk lamp (back-left): a light switch for the night shift ----------
+  const lamp = new THREE.Group();
+  scene.add(lamp);
+  const lampMat = toon("#ffdd00");
+  const jointMat = toon("#1a1714");
+  const LAMP_BASE = new THREE.Vector3(-6.0, 0, -3.45);
+  const ELBOW = new THREE.Vector3(-5.55, 3.1, -3.45);
+  const WRIST = new THREE.Vector3(-4.45, 3.75, -3.1);
+  const AIM = new THREE.Vector3(-3.9, 0, -2.2);
+  const lampBase = mesh(new THREE.CylinderGeometry(0.5, 0.6, 0.2, 24), jointMat, { outline: 0.04 });
+  lampBase.position.copy(LAMP_BASE).setY(0.1);
+  lamp.add(lampBase, rod(LAMP_BASE.clone().setY(0.2), ELBOW, 0.08, lampMat), rod(ELBOW, WRIST, 0.08, lampMat));
+  [ELBOW, WRIST].forEach((p) => {
+    const joint = mesh(new THREE.SphereGeometry(0.15, 14, 10), jointMat, { outline: 0.025 });
+    joint.position.copy(p);
+    lamp.add(joint);
+  });
+  // The head looks at the desk; the shade opens toward it (+z after lookAt)
+  const lampHead = new THREE.Group();
+  lampHead.position.copy(WRIST);
+  lampHead.lookAt(AIM);
+  const shade = mesh(new THREE.ConeGeometry(0.6, 0.85, 28), lampMat, { outline: 0.04 });
+  shade.rotation.x = -Math.PI / 2;
+  shade.position.z = 0.35;
+  const bulbMat = track(new THREE.MeshBasicMaterial({ color: "#d9d4c7" }));
+  const bulb = new THREE.Mesh(track(new THREE.SphereGeometry(0.22, 16, 12)), bulbMat);
+  bulb.position.z = 0.72;
+  // Beam: a soft flat cone down to the desk, only at night
+  const beamLength = WRIST.distanceTo(AIM);
+  const beam = new THREE.Mesh(
+    track(new THREE.ConeGeometry(1.7, beamLength, 32, 1, true)),
+    track(new THREE.MeshBasicMaterial({ color: "#fff1a8", transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide })),
+  );
+  beam.rotation.x = -Math.PI / 2;
+  beam.position.z = beamLength / 2 + 0.3;
+  beam.raycast = noRaycast;
+  beam.visible = false;
+  lampHead.add(shade, bulb, beam);
+  lamp.add(lampHead);
+  const setLamp = (on) => {
+    bulbMat.color.set(on ? "#fff6c2" : "#d9d4c7");
+    beam.visible = on;
+  };
+  register(lamp, {
+    onHover: (on) => gsap.to(lampHead.rotation, { z: on ? 0.12 : 0, duration: 0.3, ease: "back.out(3)" }),
+    onClick: () => {
+      sfx.click();
+      onEvent("nightShift", { dark: !darkNow });
+    },
+  });
+
+  // ---------- potted plant (back-right, decor) ----------
+  const plant = new THREE.Group();
+  plant.position.set(5.45, 0, -3.2);
+  scene.add(plant);
+  const potProfile = [
+    [0, 0],
+    [0.48, 0],
+    [0.58, 0.95],
+    [0.66, 0.95],
+    [0.66, 1.12],
+    [0.52, 1.12],
+    [0.5, 1.0],
+    [0, 1.0],
+  ].map(([x, y]) => new THREE.Vector2(x, y));
+  const pot = mesh(new THREE.LatheGeometry(potProfile, 28), toon("#ff7a1a"), { outline: 0.045 });
+  const soil = mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.04, 24), toon("#3b2a1a"), { outline: 0, cast: false });
+  soil.position.y = 1.02;
+  const foliage = new THREE.Group();
+  foliage.position.y = 1.02;
+  plant.add(pot, soil, foliage);
+  const stemMat = toon("#166534");
+  const leafMats = [toon("#16a34a"), toon("#8fd694")];
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2 + 0.3;
+    const reach = 0.4 + (i % 2) * 0.18;
+    const tip = new THREE.Vector3(Math.cos(a) * reach, 1.0 + ((i * 3) % 4) * 0.42, Math.sin(a) * reach);
+    foliage.add(rod(new THREE.Vector3(0, 0, 0), tip, 0.035, stemMat, 0.015));
+    const leafGeo = new THREE.SphereGeometry(1, 18, 10);
+    leafGeo.scale(0.32, 0.05, 0.62);
+    leafGeo.translate(0, 0, 0.5);
+    const leaf = mesh(leafGeo, leafMats[i % 2], { outline: 0.03 });
+    leaf.position.copy(tip);
+    // Point the leaf (its length runs along +z) outward and a little up, then let it droop
+    leaf.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(Math.cos(a), 0.5, Math.sin(a)).normalize());
+    leaf.rotateX(0.35);
+    foliage.add(leaf);
+  }
+  register(plant, {
+    onHover: (on) => on && gsap.fromTo(foliage.rotation, { z: 0.06 }, { z: 0, duration: 1.2, ease: "elastic.out(1, 0.3)" }),
+    onClick: () => {
+      gsap.fromTo(foliage.rotation, { z: 0.15 }, { z: 0, duration: 1.4, ease: "elastic.out(1, 0.25)" });
+      sfx.rustle({ duration: 0.5 });
+    },
+  });
 
   // ---------- monitor + terminal ----------
   const monitor = new THREE.Group();
@@ -597,11 +708,34 @@ export function createDeskScene({ container, projects, experiences, skills = [],
   });
   const spacebar = mesh(rbox(7 * 0.34 - 0.05, 0.18, 0.29, 0.05), toon("#ffffff"), { outline: 0.03 });
   spacebar.position.set(colX(6), 0.34, rowZ(ROWS));
+  // Shortcut keys, printed on their keycaps: digits fly to the sections, T to the terminal,
+  // C to the chat. They work from your own keyboard too.
+  const SHORTCUTS = {
+    1: { shot: "hero", key: 1, color: "#ffdd00" },
+    2: { shot: "about", key: 2, color: "#ff90e8" },
+    3: { shot: "experience", key: 3, color: "#00e0c6" },
+    4: { shot: "projects", key: 4, color: "#f5c76b" },
+    5: { shot: "contact", key: 5, color: "#e9c48a" },
+    t: { shot: "monitor", key: COLS + 5, color: "#8fd694" },
+    c: { shot: "chat", key: 2 * COLS + 3, color: "#7fb2ff" },
+  };
+  const shortcutByKey = new Map(Object.values(SHORTCUTS).map((sc) => [sc.key, sc]));
+  const keyLabels = new Map(); // key id -> printed label riding on that keycap
+  const addKeyLabel = (id, label, color) => {
+    const plane = printed(0.25, 0.25, 400, (c, w, h) => drawKeyLabel(c, w, h, label, color));
+    plane.rotation.x = -Math.PI / 2;
+    plane.userData.keyId = id;
+    keyboard.add(plane);
+    keyLabels.set(id, plane);
+  };
+  Object.entries(SHORTCUTS).forEach(([label, sc]) => addKeyLabel(sc.key, label.toUpperCase(), sc.color));
+  addKeyLabel(0, "ESC", "#ff6b6b");
   const updateKey = (id) => {
     dummy.position.copy(keyPos[id]);
     dummy.position.y -= keyDepth[id];
     dummy.updateMatrix();
     keys.setMatrixAt(id, dummy.matrix);
+    keyLabels.get(id)?.position.set(dummy.position.x, dummy.position.y + 0.092, dummy.position.z);
   };
   for (let id = 0; id < KEY_COUNT; id++) updateKey(id);
   keyboard.add(keys, keyHull, spacebar);
@@ -626,12 +760,24 @@ export function createDeskScene({ container, projects, experiences, skills = [],
     if (sound) id === SPACE ? sfx.thud({ strength: 0.25 }) : sfx.key();
     onEvent("keys", { count: ++keysPressed });
   }
-  const hitKey = (hit) => pressKey(hit.object === spacebar ? SPACE : hit.instanceId ?? Math.floor(Math.random() * KEY_COUNT));
+  const hitKey = (hit) => {
+    const id = hit.object === spacebar ? SPACE : hit.object.userData.keyId ?? hit.instanceId ?? Math.floor(Math.random() * KEY_COUNT);
+    pressKey(id);
+    if (id === 0) return timers.push(setTimeout(back, 200));
+    const sc = shortcutByKey.get(id);
+    if (sc) timers.push(setTimeout(() => setFocus(sc.shot), 200));
+  };
   register(keyboard, { focus: "keyboard", onClick: hitKey });
   const onKeyDown = (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest?.("input, textarea, [contenteditable]")) return;
     if (e.key === "Escape") return back();
     if (byFocus.get(focus.name)?.onKey?.(e)) return e.preventDefault();
+    // Shortcuts (not while the terminal has the keyboard: there they're just typing)
+    const sc = focus.name !== "monitor" && !e.repeat && SHORTCUTS[e.key.toLowerCase()];
+    if (sc) {
+      pressKey(sc.key);
+      return setFocus(sc.shot);
+    }
     if (e.key.length !== 1 && e.key !== "Enter" && e.key !== "Backspace") return;
     const keyId = e.key === " " ? SPACE : e.key.toLowerCase().charCodeAt(0) % (COLS * ROWS);
     if (focus.name === "monitor") {
@@ -658,11 +804,13 @@ export function createDeskScene({ container, projects, experiences, skills = [],
   const wheel = mesh(rbox(0.07, 0.06, 0.14, 0.02), toon("#e11d48"), { outline: 0.015, cast: false });
   wheel.position.set(0, 0.27, -0.2);
   mouse.add(mouseBody, seam, wheel);
+  // It follows your real cursor around the pad, and clicks when you click
+  const PAD = { x: 3.7, z: 0.45 };
+  const mouseAim = { x: 3.75, z: 0.5 };
+  const pressMouse = () => gsap.fromTo(mouseBody.position, { y: 0.09 }, { y: 0.13, duration: 0.2, ease: "back.out(3)" });
   register(mouse, {
     onHover: hoverScale(mouse, 1.06),
     onClick: () => {
-      gsap.fromTo(mouse.position, { y: 0.0 }, { y: 0.04, duration: 0.2, ease: "back.out(4)" });
-      gsap.to(mouse.position, { x: 3.75 + (Math.random() - 0.5) * 0.3, z: 0.5 + (Math.random() - 0.5) * 0.25, duration: 0.25, ease: "power2.out" });
       sfx.click();
       timers.push(setTimeout(() => sfx.click(), 110));
     },
@@ -1171,14 +1319,15 @@ export function createDeskScene({ container, projects, experiences, skills = [],
   const mug = new THREE.Group();
   mug.position.set(5.6, 0, -0.6);
   scene.add(mug);
-  // Hollow cup (lathe profile with a wall), so the coffee sits visibly below the rim
+  // Hollow cup (lathe profile with a wall), deep enough for the coffee level to drop
+  const CUP_FLOOR = 0.12;
   const mugProfile = [
     [0, 0],
     [0.45, 0],
     [0.5, 1.1],
     [0.43, 1.1],
-    [0.4, 0.9],
-    [0, 0.9],
+    [0.39, CUP_FLOOR],
+    [0, CUP_FLOOR],
   ].map(([x, y]) => new THREE.Vector2(x, y));
   const mugBody = mesh(new THREE.LatheGeometry(mugProfile, 32), toon("#3b82f6"), { outline: 0.05 });
   const coffee = mesh(new THREE.CylinderGeometry(0.405, 0.405, 0.02, 32), toon("#5b3a1e"), { outline: 0, cast: false });
@@ -1192,9 +1341,11 @@ export function createDeskScene({ container, projects, experiences, skills = [],
   // Steam: little puffs drifting up and shrinking away, forever
   const puffGeo = track(new THREE.SphereGeometry(0.09, 12, 8));
   const puffMat = toon("#ffffff");
+  const puffs = [];
   for (let i = 0; i < 3; i++) {
     const puff = mesh(puffGeo, puffMat, { outline: 0.02, cast: false });
     puff.raycast = noRaycast;
+    puffs.push(puff);
     mug.add(puff);
     gsap.fromTo(
       puff.position,
@@ -1204,19 +1355,78 @@ export function createDeskScene({ container, projects, experiences, skills = [],
     gsap.fromTo(puff.scale, { x: 0.4, y: 0.4, z: 0.4 }, { keyframes: [{ x: 1.2, y: 1.2, z: 1.2, duration: 1.1 }, { x: 0.01, y: 0.01, z: 0.01, duration: 1.1 }], delay: i * 0.73, repeat: -1 });
   }
   mug.add(mugBody, coffee, crema, handle);
+
+  // Sipping: each click drinks a bit and a quote pops up over the mug. Finish the cup and the
+  // desk switches to the night shift (or back to day), then it's refilled.
+  const SIPS = 4;
+  let sipsLeft = SIPS;
+  let sipping = false;
+  function setCoffee(level, duration = 0.5) {
+    const y = CUP_FLOOR + 0.02 + level * (0.93 - CUP_FLOOR - 0.02);
+    const r = 0.39 + (0.04 * (y - CUP_FLOOR)) / (1.1 - CUP_FLOOR) - 0.005;
+    gsap.to(coffee.position, { y, duration });
+    gsap.to(coffee.scale, { x: r / 0.405, z: r / 0.405, duration });
+    gsap.to(crema.position, { y: y + 0.015, duration });
+    gsap.to(crema.scale, { x: r / 0.405, y: r / 0.405, duration });
+    puffs.forEach((puff) => (puff.visible = level > 0));
+  }
+  const bubbleTex = canvasTexture(760, 400);
+  track(bubbleTex.texture);
+  const bubble = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: bubbleTex.texture, depthTest: false, transparent: true })));
+  bubble.position.set(mug.position.x - 0.75, 1.95, mug.position.z);
+  bubble.scale.set(0.001, 0.001, 1);
+  bubble.renderOrder = 10;
+  bubble.raycast = noRaycast;
+  scene.add(bubble);
+  let lastQuote = -1;
+  let bubbleTimer = null;
+  function say(quote) {
+    drawQuoteBubble(bubbleTex.ctx, 760, 400, quote);
+    bubbleTex.texture.needsUpdate = true;
+    gsap.fromTo(bubble.scale, { x: 0.3, y: 0.15 }, { x: 1.9, y: 1.0, duration: 0.4, ease: "back.out(2)" });
+    clearTimeout(bubbleTimer);
+    bubbleTimer = setTimeout(() => gsap.to(bubble.scale, { x: 0.001, y: 0.001, duration: 0.25, ease: "power2.in" }), 4200);
+  }
+  function sip() {
+    if (sipping || sipsLeft === 0) return;
+    sipping = true;
+    // Lift and tip the rim toward you, then put it back down
+    gsap
+      .timeline({ onComplete: () => (sipping = false) })
+      .to(mug.position, { y: 0.7, duration: 0.3, ease: "power2.out" })
+      .to(mug.rotation, { x: 0.55, duration: 0.3, ease: "power2.out" }, 0)
+      .to(mug.rotation, { x: 0, duration: 0.3, ease: "power2.inOut" }, 0.95)
+      .to(mug.position, { y: 0, duration: 0.35, ease: "bounce.out" }, 1.0);
+    // The slurp starts as the rim reaches your lips; the mug is set down after the gulp
+    sfx.slurp({ delay: 0.25 });
+    timers.push(setTimeout(() => sfx.thud({ strength: 0.35 }), 1200));
+    sipsLeft--;
+    timers.push(setTimeout(() => setCoffee(sipsLeft / SIPS, 0.4), 350));
+    if (sipsLeft > 0) {
+      let i;
+      do i = Math.floor(Math.random() * SIP_QUOTES.length);
+      while (i === lastQuote && SIP_QUOTES.length > 1);
+      lastQuote = i;
+      say(SIP_QUOTES[i]);
+    } else {
+      const toNight = !darkNow;
+      say(toNight ? { text: "Cup's empty. Night shift it is.", by: "oka" } : { text: "Last sip. Good morning, world!", by: "oka" });
+      timers.push(setTimeout(() => onEvent("nightShift", { dark: toNight }), 1300));
+      // Refill
+      timers.push(
+        setTimeout(() => {
+          sipsLeft = SIPS;
+          setCoffee(1, 1.2);
+          sfx.rustle({ duration: 1 });
+        }, 2600),
+      );
+    }
+    onEvent("mug");
+  }
   register(mug, {
     focus: "mug",
-    onClick: () => {
-      gsap
-        .timeline()
-        .to(mug.position, { y: 0.8, duration: 0.18, ease: "power2.out" })
-        .to(mug.rotation, { z: 0.35, duration: 0.18, ease: "power2.out" }, 0)
-        .to(mug.position, { y: 0, duration: 0.3, ease: "bounce.out" })
-        .to(mug.rotation, { z: 0, duration: 0.35, ease: "elastic.out(1, 0.4)" }, "<");
-      sfx.pop();
-      timers.push(setTimeout(() => sfx.thud({ strength: 0.6 }), 420));
-      onEvent("mug");
-    },
+    onArrive: sip,
+    onClick: sip,
   });
 
   // ---------- textures (redrawn once the web fonts are in, and every minute for the clocks) ----------
@@ -1242,7 +1452,10 @@ export function createDeskScene({ container, projects, experiences, skills = [],
   }, 60000);
 
   // ---------- theme ----------
+  let darkNow = dark;
   function setTheme(isDark) {
+    darkNow = isDark;
+    setLamp(isDark);
     const p = isDark ? PALETTES.dark : PALETTES.light;
     deskMat.color.set(p.desk);
     shadowFill.color.set(p.shadow);
@@ -1276,9 +1489,16 @@ export function createDeskScene({ container, projects, experiences, skills = [],
     const rect = renderer.domElement.getBoundingClientRect();
     parallax.tx = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
     parallax.ty = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
-    if (e.pointerType === "mouse") setHover(pick(e)?.entry || null);
+    if (e.pointerType === "mouse") {
+      setHover(pick(e)?.entry || null);
+      mouseAim.x = PAD.x + parallax.tx * 0.6;
+      mouseAim.z = PAD.z + parallax.ty * 0.45;
+    }
   };
-  const onPointerDown = (e) => (downAt = { x: e.clientX, y: e.clientY });
+  const onPointerDown = (e) => {
+    downAt = { x: e.clientX, y: e.clientY };
+    if (e.pointerType === "mouse") pressMouse();
+  };
   const onPointerUp = (e) => {
     if (!downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 8) return;
     downAt = null;
@@ -1334,7 +1554,8 @@ export function createDeskScene({ container, projects, experiences, skills = [],
     },
     monitor: () => ({ target: [-0.2, 2.4, -2.6], dir: [0.1, 0.32, 1], fit: [5.2, 3.4] }),
     keyboard: () => ({ target: [0.2, 0.3, 0.75], dir: [0.1, 1, 0.75], fit: [5.4, 2.6] }),
-    mug: () => ({ target: [5.6, 0.65, -0.6], dir: [0.35, 0.55, 1], fit: [2.6, 2.6] }),
+    // Room above the mug for the quote bubble
+    mug: () => ({ target: [5.1, 1.3, -0.6], dir: [0.35, 0.55, 1], fit: [3.6, 3.4] }),
   };
   const cam = { tx: 0, ty: 0, tz: 0, dx: 0, dy: 1, dz: 1, zoom: 1 };
 
@@ -1458,6 +1679,9 @@ export function createDeskScene({ container, projects, experiences, skills = [],
       camera.updateProjectionMatrix();
     }
     badgePivot.rotation.z = Math.sin(now / 900) * 0.03;
+    plant.rotation.z = Math.sin(now / 1400) * 0.015;
+    mouse.position.x += (mouseAim.x - mouse.position.x) * 0.18;
+    mouse.position.z += (mouseAim.z - mouse.position.z) * 0.18;
     if (now - lastBlink > 530) {
       lastBlink = now;
       cursorOn = !cursorOn;
@@ -1500,6 +1724,7 @@ export function createDeskScene({ container, projects, experiences, skills = [],
       cancelAnimationFrame(frame);
       timers.forEach(clearTimeout);
       clearTimeout(arriveTimer);
+      clearTimeout(bubbleTimer);
       clearInterval(clockTimer);
       clearInterval(buzzTimer);
       intro.kill();

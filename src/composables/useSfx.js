@@ -200,6 +200,47 @@ const SOUNDS = {
   pop(t, { pitch = 1 } = {}) {
     tone(t, { freq: vary(320 * pitch), to: 950 * pitch, peak: 0.35, decay: 0.11 });
   },
+  // Sipping a hot drink: air pulled in over the liquid (a rising hiss the liquid breaks into
+  // a flutter, with little bubbles in it), a gulp, then a soft "ahh"
+  slurp(t, { duration = 0.7 } = {}) {
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer;
+    src.loop = true;
+    const band = ctx.createBiquadFilter();
+    band.type = "bandpass";
+    band.Q.value = 1.4;
+    band.frequency.setValueAtTime(800, t);
+    band.frequency.exponentialRampToValueAtTime(2400, t + duration);
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.0001, t);
+    env.gain.exponentialRampToValueAtTime(0.32, t + 0.08);
+    env.gain.setValueAtTime(0.32, t + duration - 0.12);
+    env.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+    // Flutter: the liquid keeps breaking the airflow up
+    const flutter = ctx.createGain();
+    flutter.gain.value = 0.55;
+    const lfo = ctx.createOscillator();
+    lfo.type = "triangle";
+    lfo.frequency.setValueAtTime(18, t);
+    lfo.frequency.linearRampToValueAtTime(34, t + duration);
+    const depth = ctx.createGain();
+    depth.gain.value = 0.45;
+    lfo.connect(depth).connect(flutter.gain);
+    src.connect(band).connect(env).connect(flutter).connect(out);
+    src.start(t, Math.random() * 0.5);
+    src.stop(t + duration + 0.05);
+    lfo.start(t);
+    lfo.stop(t + duration + 0.05);
+    // Bubbles: tiny rising chirps scattered through it
+    for (let at = t + 0.05; at < t + duration - 0.05; at += 0.03 + Math.random() * 0.06) {
+      tone(at, { freq: vary(450, 0.3), to: vary(1300, 0.3), peak: 0.05 + Math.random() * 0.06, decay: 0.025 });
+    }
+    // Gulp, then the "ahh"
+    const gulp = t + duration + 0.12;
+    tone(gulp, { freq: 230, to: 85, peak: 0.4, decay: 0.12 });
+    noise(gulp, { filter: "lowpass", freq: 380, peak: 0.25, decay: 0.08 });
+    noise(gulp + 0.22, { freq: 1100, to: 650, q: 0.8, attack: 0.06, peak: 0.07, decay: 0.35 });
+  },
   // Notification chime
   ping(t) {
     tone(t, { freq: 1318, peak: 0.25, decay: 0.5 });

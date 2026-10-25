@@ -113,8 +113,8 @@ const { muted, toggleMute } = useSfx();
 const hint = computed(() => {
   if (introPlaying.value) return "";
   if (focus.value === "monitor") return isDesktop.value ? "Type a command and hit Enter. Try: help" : "Tap a command, or tap the screen";
-  if (focus.value === "keyboard") return "Mash the keys (yours work too)";
-  if (focus.value === "mug") return "Fresh coffee. Click the mug for a sip";
+  if (focus.value === "keyboard") return "1–5 jump to a section · T terminal · C chat · Esc back";
+  if (focus.value === "mug") return "Click the mug for a sip. Finish the cup for the night shift";
   if (focus.value === "experience") return isDesktop.value ? "Click a pass to hold it up, again to flip it (← → to browse)" : "Tap a pass to hold it, tap again to flip it";
   if (focus.value === "projects") return isDesktop.value ? "Click a case file to open it, then click its pages (or ← →)" : "Tap a case file, then tap its pages to turn them";
   if (focus.value === "contact") return isDesktop.value ? "Write on the card (Tab moves along), then hit the SEND stamp" : "Tap the card to write, then tap the SEND stamp";
@@ -122,11 +122,13 @@ const hint = computed(() => {
   if (focus.value === "hero") return "Click the badge to flip it. The links are on the back";
   if (focus.value === "about") return isDesktop.value ? "Click a page (or ← →) to turn it" : "Tap the right page to turn, left to go back";
   if (zoomed.value) return "";
-  return "Click anything on the desk to take a closer look";
+  return isDesktop.value ? "Click anything on the desk, or press 1–5" : "Tap anything on the desk to take a closer look";
 });
 
 function onEvent(name, payload = {}) {
   if (name === "hover") hovered.value = payload.name;
+  // An empty coffee cup flips the desk to the night shift (dark theme) or back to day
+  else if (name === "nightShift" && payload.dark !== isDark.value) toggleTheme();
   else if (name === "focus") {
     focus.value = payload.name;
   }

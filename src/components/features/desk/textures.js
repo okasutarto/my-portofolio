@@ -1142,6 +1142,76 @@ export function drawScrapInsideFlipped(c, w, h) {
   c.restore();
 }
 
+// ---------- keycap labels (the shortcut keys) ----------
+export function drawKeyLabel(c, w, h, label, color = "#fff") {
+  c.fillStyle = color;
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = "#000";
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  fitFont(c, label, 800, DISPLAY, Math.round(h * 0.55), w - 14);
+  c.fillText(label, w / 2, h / 2 + 3);
+  c.textAlign = "left";
+  c.textBaseline = "alphabetic";
+}
+
+// ---------- speech bubble over the mug: a quote per sip ----------
+export const SIP_QUOTES = [
+  { text: "First, solve the problem. Then, write the code.", by: "John Johnson" },
+  { text: "Simplicity is prerequisite for reliability.", by: "Edsger W. Dijkstra" },
+  { text: "Make it work, make it right, make it fast.", by: "Kent Beck" },
+  { text: "Talk is cheap. Show me the code.", by: "Linus Torvalds" },
+  { text: "Code is like humor. When you have to explain it, it's bad.", by: "Cory House" },
+  { text: "Programs must be written for people to read.", by: "Harold Abelson" },
+  { text: "It works on my machine. Ship the machine?", by: "every dev ever" },
+  { text: "Coffee in, features out.", by: "oka" },
+  { text: "One more sip, one less bug.", by: "oka" },
+];
+export function drawQuoteBubble(c, w, h, quote) {
+  c.clearRect(0, 0, w, h);
+  if (!quote) return;
+  const tail = 46;
+  const box = { x: 14, y: 14, w: w - 40, h: h - tail - 40 };
+  // hard shadow, then the bubble with its tail pointing down-right to the mug
+  const shape = (dx, dy) => {
+    c.beginPath();
+    c.moveTo(box.x + dx, box.y + dy);
+    c.lineTo(box.x + box.w + dx, box.y + dy);
+    c.lineTo(box.x + box.w + dx, box.y + box.h + dy);
+    c.lineTo(box.x + box.w * 0.78 + dx, box.y + box.h + dy);
+    c.lineTo(box.x + box.w * 0.86 + dx, box.y + box.h + tail + dy);
+    c.lineTo(box.x + box.w * 0.62 + dx, box.y + box.h + dy);
+    c.lineTo(box.x + dx, box.y + box.h + dy);
+    c.closePath();
+  };
+  shape(12, 12);
+  c.fillStyle = "#000";
+  c.fill();
+  shape(0, 0);
+  c.fillStyle = "#fff";
+  c.fill();
+  c.lineWidth = 7;
+  c.strokeStyle = "#000";
+  c.stroke();
+  // quote + attribution, centred as a block
+  c.font = `700 32px ${BODY}`;
+  const lines = wrap(c, quote.text, box.w - 100, 3);
+  const blockH = lines.length * 42 + 50;
+  const top = box.y + (box.h - blockH) / 2;
+  c.fillStyle = "#000";
+  c.textBaseline = "top";
+  lines.forEach((line, i) => c.fillText(line, box.x + 64, top + i * 42));
+  c.font = `800 60px ${DISPLAY}`;
+  c.fillStyle = "#ff90e8";
+  c.fillText("“", box.x + 18, top - 8);
+  c.fillStyle = "rgba(0,0,0,.6)";
+  c.font = `600 32px 'Caveat', cursive`;
+  c.textAlign = "right";
+  c.fillText(`— ${quote.by}`, box.x + box.w - 28, top + lines.length * 42 + 8);
+  c.textAlign = "left";
+  c.textBaseline = "alphabetic";
+}
+
 // Retro terminal on the monitor: lines of text plus an optional blinking cursor
 export function drawTerminal(c, w, h, lines, cursor) {
   c.fillStyle = "#1a1714";

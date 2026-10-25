@@ -1,218 +1,185 @@
 <template>
-  <div class="fixed bottom-8 right-8 z-50">
-    <!-- Tooltip/Popper -->
+  <div class="chatbot fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-50">
+    <!-- Comic speech bubble, same style as the hero greeting -->
     <Transition name="tooltip">
       <div
         v-if="showTooltip && !isOpen"
-        class="absolute bottom-[20px] mb-20 right-0 bg-white dark:bg-surface-dark p-4 border-2 border-black dark:border-primary shadow-neo w-64 z-10 transition-colors">
-        <div class="relative z-10">
-          <p
-            class="text-xs font-display font-bold text-black dark:text-white uppercase tracking-tight leading-tight">
-            Hey! Need help? <span class="waving-hand">👋</span>
-          </p>
-          <p
-            class="text-[10px] font-bold text-primary dark:text-secondary mt-2 uppercase tracking-widest">
-            Chat with my assistant
-          </p>
-        </div>
-        <!-- Decorative arrow bit -->
-        <div
-          class="absolute -bottom-2 right-6 w-4 h-4 bg-white dark:bg-surface-dark border-r-2 border-b-2 border-black dark:border-primary transform rotate-45 z-0"></div>
+        class="tip absolute bottom-[88px] right-0 w-60 bg-white dark:bg-surface-dark text-black dark:text-white border-[3px] border-black dark:border-[#f4ead5] shadow-neo px-4 py-3">
+        <p class="font-display font-bold text-sm leading-tight">
+          Got questions? <span class="waving-hand">👋</span>
+        </p>
+        <p class="text-xs font-medium mt-1 opacity-75">Ask my AI assistant anything about me.</p>
         <button
           @click="dismissTooltip"
           aria-label="Close tooltip"
-          class="absolute -top-2 -right-2 w-6 h-6 bg-black text-white border border-white flex items-center justify-center hover:bg-primary hover:text-black transition-all transform hover:rotate-12">
-          <span class="material-icons text-[10px] font-bold">close</span>
+          class="absolute -top-3 -right-3 w-7 h-7 bg-black text-white dark:bg-[#f4ead5] dark:text-black border-2 border-black flex items-center justify-center hover:rotate-90 transition-transform">
+          <span class="material-icons text-sm">close</span>
         </button>
       </div>
     </Transition>
 
-    <!-- Floating Chat Toggle Button -->
-    <div class="relative">
-      <button
-        @click="toggleChat"
-        class="relative w-16 h-16 bg-primary hover:bg-white dark:bg-primary dark:hover:bg-secondary border-2 border-black dark:border-primary flex items-center justify-center shadow-neo-sm dark:shadow-neo active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all z-20 group"
-        :aria-label="isOpen ? 'Close chat' : 'Open chat'">
-        <span
-          class="material-icons text-black text-3xl font-bold transition-transform duration-500"
-          :class="{ 'rotate-[360deg]': isOpen }">
-          {{ isOpen ? "close" : "smart_toy" }}
-        </span>
+    <!-- Launcher: a little robot face that blinks and looks around -->
+    <button
+      @click="toggleChat"
+      class="launcher relative w-16 h-16 bg-primary border-[3px] border-black dark:border-[#f4ead5] flex items-center justify-center shadow-neo transition-all z-20"
+      :class="{ 'is-open': isOpen }"
+      :aria-label="isOpen ? 'Close chat' : 'Open chat'">
+      <span v-if="isOpen" class="material-icons text-black text-3xl font-bold">close</span>
+      <svg v-else class="bot-face w-10 h-10" viewBox="0 0 40 40" aria-hidden="true">
+        <line x1="20" y1="3" x2="20" y2="9" stroke="#000" stroke-width="3" stroke-linecap="round" />
+        <circle class="antenna" cx="20" cy="4" r="3" fill="#ff5c8a" stroke="#000" stroke-width="2" />
+        <rect x="5" y="9" width="30" height="25" rx="5" fill="#fff" stroke="#000" stroke-width="3" />
+        <g class="eyes">
+          <rect class="eye" x="12" y="16" width="5" height="7" rx="1.5" fill="#000" />
+          <rect class="eye" x="23" y="16" width="5" height="7" rx="1.5" fill="#000" />
+        </g>
+        <path d="M15 28 Q20 31 25 28" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" />
+      </svg>
 
-        <!-- Notification indicator -->
-        <span
-          v-if="hasNewMessages && !isOpen"
-          class="absolute -top-1 -right-1 flex h-6 w-6">
-          <span
-            class="animate-ping absolute inline-flex h-full w-full bg-secondary opacity-75 rounded-full border border-black"></span>
-          <span
-            class="relative inline-flex h-6 w-6 bg-secondary border-2 border-black items-center justify-center">
-            <span class="text-[10px] font-bold text-white px-1">!</span>
-          </span>
-        </span>
-      </button>
-    </div>
+      <!-- Unread reply while the window was closed -->
+      <span
+        v-if="hasNewMessages && !isOpen"
+        class="absolute -top-2.5 -right-2.5 w-6 h-6 bg-[#ff5c8a] border-2 border-black flex items-center justify-center text-xs font-bold text-black">
+        1
+      </span>
+    </button>
 
-    <!-- Chat Window -->
+    <!-- Chat window -->
     <Transition name="chat-window">
       <div
         v-if="isOpen"
-        class="fixed sm:absolute bottom-0 sm:bottom-20 right-0 left-0 sm:left-auto w-full sm:w-[400px] h-[85vh] sm:h-[600px] bg-white dark:bg-background-dark border-2 border-black dark:border-primary shadow-neo-sm dark:shadow-neo-dark flex flex-col overflow-hidden transition-colors">
+        class="chat-window fixed inset-x-0 bottom-0 h-[88dvh] sm:absolute sm:inset-x-auto sm:right-0 sm:bottom-[88px] sm:w-[400px] sm:h-[min(620px,calc(100vh-140px))] bg-white dark:bg-background-dark text-black dark:text-white border-[3px] border-black dark:border-[#f4ead5] flex flex-col overflow-hidden z-30">
         <!-- Header -->
         <div
-          class="bg-secondary dark:bg-secondary p-4 border-b-2 border-black dark:border-primary flex items-center justify-between relative z-10">
-          <div class="flex items-center gap-3">
+          class="flex items-center justify-between gap-3 px-4 py-3 bg-primary text-black border-b-[3px] border-black dark:border-[#f4ead5]">
+          <div class="flex items-center gap-3 min-w-0">
             <div
-              class="w-10 h-10 bg-primary border-2 border-black flex items-center justify-center shrink-0 shadow-neo-sm transform rotate-6">
-              <span class="material-icons text-black text-2xl font-bold"
-                >smart_toy</span
-              >
+              class="w-11 h-11 shrink-0 bg-white border-[2.5px] border-black flex items-center justify-center -rotate-6 shadow-[3px_3px_0_#000]">
+              <svg class="bot-face w-8 h-8" viewBox="0 0 40 40" aria-hidden="true">
+                <line x1="20" y1="3" x2="20" y2="9" stroke="#000" stroke-width="3" stroke-linecap="round" />
+                <circle class="antenna" cx="20" cy="4" r="3" fill="#ff5c8a" stroke="#000" stroke-width="2" />
+                <rect x="5" y="9" width="30" height="25" rx="5" fill="#fff" stroke="#000" stroke-width="3" />
+                <g class="eyes">
+                  <rect class="eye" x="12" y="16" width="5" height="7" rx="1.5" fill="#000" />
+                  <rect class="eye" x="23" y="16" width="5" height="7" rx="1.5" fill="#000" />
+                </g>
+                <path d="M15 28 Q20 31 25 28" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" />
+              </svg>
             </div>
-            <div class="flex flex-col">
-              <h2
-                class="text-white dark:text-black font-display font-bold text-lg uppercase tracking-tight">
+            <div class="min-w-0">
+              <h2 class="font-display font-bold text-base uppercase tracking-tight leading-none truncate">
                 Oka's Assistant
               </h2>
-              <div class="flex items-center gap-1.5 mt-0.5">
-                <span
-                  class="block w-2 h-2 bg-primary border border-black rounded-none animate-pulse"></span>
-                <span
-                  class="text-[9px] font-bold text-primary dark:text-black uppercase tracking-wider"
-                  >Online • Ready</span
-                >
-              </div>
+              <p class="flex items-center gap-1.5 mt-1.5 text-[11px] font-bold uppercase tracking-wider">
+                <span class="status-dot w-2 h-2 rounded-full bg-[#16a34a] border border-black"></span>
+                {{ isWaitingForResponse || isStreaming ? "Typing…" : "Online" }}
+              </p>
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <button
-              @click="clearChat"
-              class="w-8 h-8 flex items-center justify-center border border-transparent hover:border-white dark:hover:border-black hover:bg-white/10 dark:hover:bg-black/10 transition-all group"
-              title="Clear chat">
-              <span
-                class="material-icons text-white dark:text-black group-hover:scale-110 transition-transform text-lg"
-                >delete</span
-              >
+            <button @click="clearChat" class="head-btn" title="New chat" aria-label="Start a new chat">
+              <span class="material-icons text-lg">refresh</span>
             </button>
-            <button
-              @click="toggleChat"
-              class="w-8 h-8 flex items-center justify-center border border-transparent hover:border-white dark:hover:border-black hover:bg-white/10 dark:hover:bg-black/10 transition-all group"
-              title="Close chat">
-              <span
-                class="material-icons text-white dark:text-black group-hover:scale-110 transition-transform text-lg"
-                >close</span
-              >
+            <button @click="toggleChat" class="head-btn" title="Close chat" aria-label="Close chat">
+              <span class="material-icons text-lg">close</span>
             </button>
           </div>
         </div>
 
-        <!-- Messages Area -->
+        <!-- Messages -->
         <div
-          class="flex-1 overflow-y-auto p-4 space-y-6 bg-background-light dark:bg-background-dark relative no-scrollbar transition-colors"
+          class="flex-1 overflow-y-auto px-4 py-5 space-y-4 bg-dot-grid no-scrollbar"
           ref="chatMessages"
           @scroll="handleScroll">
-          <!-- Quick Actions (Only shown if no user messages yet) -->
-          <div v-if="messages.length <= 1" class="space-y-3 mb-6 relative z-10">
-            <p
-              class="text-[10px] font-bold text-gray-800 dark:text-gray-200 uppercase tracking-widest">
-              Quick questions:
-            </p>
+          <!-- Quick questions, until the visitor has asked something -->
+          <div v-if="messages.length <= 1" class="pb-1">
+            <p class="text-[11px] font-bold uppercase tracking-widest opacity-60 mb-2.5">Try asking</p>
             <div class="flex flex-wrap gap-2">
               <button
                 v-for="question in quickQuestions"
-                :key="question"
-                @click="askQuickQuestion(question)"
-                class="bg-white dark:bg-surface-dark text-black dark:text-white border-2 border-black dark:border-primary px-3 py-1.5 text-[10px] font-bold uppercase shadow-neo-sm hover:bg-primary dark:hover:bg-primary hover:text-black dark:hover:text-black active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all">
-                {{ question }}
+                :key="question.label"
+                @click="askQuickQuestion(question.text)"
+                :disabled="isStreaming"
+                class="chip inline-flex items-center gap-1.5 bg-white dark:bg-surface-dark border-2 border-black dark:border-[#f4ead5] px-3 py-1.5 text-xs font-bold shadow-neo-sm hover:bg-primary hover:text-black dark:hover:bg-primary transition-all disabled:opacity-50">
+                <span aria-hidden="true">{{ question.emoji }}</span>{{ question.label }}
               </button>
             </div>
           </div>
 
-          <!-- Message Bubbles -->
           <TransitionGroup name="message">
             <div
               v-for="(message, index) in messages"
               :key="index"
-              class="flex w-full"
-              :class="
-                message.sender === 'user' ? 'justify-end' : 'justify-start'
-              ">
+              class="flex items-end gap-2"
+              :class="message.sender === 'user' ? 'justify-end' : 'justify-start'">
+              <span
+                v-if="message.sender === 'bot'"
+                class="w-7 h-7 shrink-0 bg-primary border-2 border-black dark:border-[#f4ead5] flex items-center justify-center text-[11px] font-display font-bold text-black"
+                aria-hidden="true"
+                >AI</span
+              >
               <div
-                class="max-w-[90%] border-2 border-black dark:border-primary p-4 shadow-neo-sm transform transition-all"
-                :class="[
+                class="bubble max-w-[82%] px-3.5 py-2.5 border-2 border-black dark:border-[#f4ead5]"
+                :class="
                   message.sender === 'user'
-                    ? 'bg-secondary text-white rotate-1'
-                    : 'bg-white dark:bg-surface-dark text-black dark:text-white -rotate-1',
-                  message.sender === 'bot'
-                    ? 'dark:shadow-neo'
-                    : 'shadow-neo-sm',
-                ]">
+                    ? 'bubble-user bg-secondary text-black'
+                    : 'bubble-bot bg-white dark:bg-surface-dark'
+                ">
                 <div
                   v-html="formatMessageWithLinks(message.text)"
-                  class="message-content font-bold text-sm leading-relaxed"></div>
+                  class="message-content text-sm font-medium leading-relaxed"></div>
                 <span v-if="message.isTyping" class="typing-cursor"></span>
 
-                <!-- Contact Action Button -->
                 <button
                   v-if="message.showContactButton"
                   @click="navigateToContact"
-                  class="mt-4 w-full bg-primary text-black font-bold uppercase tracking-wider py-2 border-2 border-black shadow-neo-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all flex items-center justify-center gap-2 text-xs">
-                  <span class="material-icons text-lg">alternate_email</span>
-                  Go to Contact Page
+                  class="mt-3 w-full bg-primary text-black font-bold uppercase tracking-wider py-2 border-2 border-black shadow-[3px_3px_0_#000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all flex items-center justify-center gap-2 text-xs">
+                  <span class="material-icons text-base">mail</span>
+                  Send Oka a postcard
                 </button>
               </div>
             </div>
           </TransitionGroup>
 
-          <!-- Typing Indicator -->
-          <div
-            v-if="isTyping || isWaitingForResponse"
-            class="flex justify-start">
+          <!-- Typing indicator -->
+          <div v-if="isTyping || isWaitingForResponse" class="flex items-end gap-2">
+            <span
+              class="w-7 h-7 shrink-0 bg-primary border-2 border-black dark:border-[#f4ead5] flex items-center justify-center text-[11px] font-display font-bold text-black"
+              aria-hidden="true"
+              >AI</span
+            >
             <div
-              class="bg-white dark:bg-zinc-800 border-2 border-black dark:border-primary p-4 shadow-neo-sm -rotate-1">
-              <div class="flex space-x-1.5">
-                <div
-                  class="w-2 h-2 bg-black dark:bg-white animate-bounce"
-                  style="animation-delay: 0ms"></div>
-                <div
-                  class="w-2 h-2 bg-black dark:bg-white animate-bounce"
-                  style="animation-delay: 150ms"></div>
-                <div
-                  class="w-2 h-2 bg-black dark:bg-white animate-bounce"
-                  style="animation-delay: 300ms"></div>
+              class="bubble bubble-bot bg-white dark:bg-surface-dark border-2 border-black dark:border-[#f4ead5] px-4 py-3.5">
+              <div class="flex gap-1.5">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
               </div>
             </div>
           </div>
+
         </div>
 
-        <!-- Input Area -->
-        <div
-          class="p-4 bg-secondary dark:bg-secondary border-t-4 border-black dark:border-primary relative z-10">
-          <form @submit.prevent="sendMessage" class="flex gap-3">
-            <div class="relative flex-1">
-              <input
-                v-model="userInput"
-                type="text"
-                placeholder="Type your message..."
-                class="w-full h-12 bg-white dark:bg-zinc-900 border-2 border-black dark:border-primary px-4 font-bold text-base text-black dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary dark:focus:border-primary transition-all"
-                :disabled="isTyping || isWaitingForResponse || isStreaming" />
-            </div>
-            <button
-              type="submit"
-              aria-label="Send message"
-              class="h-12 w-14 bg-primary hover:bg-secondary dark:hover:bg-secondary border-2 border-black dark:border-primary flex items-center justify-center shadow-neo-sm dark:shadow-neo active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all group disabled:opacity-50 disabled:grayscale"
-              :disabled="
-                !userInput.trim() ||
-                isTyping ||
-                isWaitingForResponse ||
-                isStreaming
-              ">
-              <span
-                class="material-icons text-black group-hover:translate-x-1 transition-all font-bold text-2xl"
-                >send</span
-              >
-            </button>
-          </form>
-        </div>
+        <!-- Input -->
+        <form
+          @submit.prevent="sendMessage"
+          class="flex items-center gap-2 p-3 bg-white dark:bg-surface-dark border-t-[3px] border-black dark:border-[#f4ead5]">
+          <input
+            v-model="userInput"
+            type="text"
+            placeholder="Ask me anything about Oka…"
+            aria-label="Message"
+            class="flex-1 min-w-0 h-11 bg-[#f6f3ea] dark:bg-[#0d0b09] border-2 border-black dark:border-[#f4ead5] px-3.5 text-base sm:text-sm font-medium text-black dark:text-white placeholder-black/40 dark:placeholder-white/40 focus:outline-none focus:shadow-[3px_3px_0_var(--color-primary)] transition-shadow"
+            :disabled="isTyping || isWaitingForResponse || isStreaming" />
+          <button
+            type="submit"
+            aria-label="Send message"
+            class="send h-11 w-12 shrink-0 bg-primary border-2 border-black dark:border-[#f4ead5] flex items-center justify-center shadow-neo-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all disabled:opacity-40 disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0"
+            :disabled="!userInput.trim() || isTyping || isWaitingForResponse || isStreaming">
+            <span class="material-icons text-black text-xl">arrow_upward</span>
+          </button>
+        </form>
+        <p class="px-3 pb-2 -mt-1 bg-white dark:bg-surface-dark text-[10px] font-medium opacity-50 text-center">
+          AI answers can be imperfect. For anything important, contact Oka directly.
+        </p>
       </div>
     </Transition>
   </div>
@@ -247,7 +214,12 @@ export default {
     const isUserAtBottom = ref(true);
 
     // Quick questions
-    const quickQuestions = ref(["Experience?", "Tech stack?", "Projects?"]);
+    const quickQuestions = [
+      { emoji: "💼", label: "Experience", text: "What is Oka's work experience?" },
+      { emoji: "🛠", label: "Tech stack", text: "What is Oka's tech stack?" },
+      { emoji: "🚀", label: "Projects", text: "What projects has Oka built?" },
+      { emoji: "🤝", label: "Hire Oka", text: "How can I contact Oka to hire him?" },
+    ];
 
     const scrollToBottom = (force = false) => {
       setTimeout(() => {
@@ -424,19 +396,19 @@ export default {
       // Bold markdown
       formattedText = formattedText.replace(
         /\*\*([^*]+)\*\*/g,
-        '<strong class="font-black text-black dark:text-white">$1</strong>',
+        '<strong class="font-bold">$1</strong>',
       );
       // Markdown links
       formattedText = formattedText.replace(
         /\[([^\]]+)\]\(([^)]+)\)/g,
-        '<a href="$2" target="_blank" class="text-primary dark:text-secondary font-black underline decoration-4">$1</a>',
+        '<a href="$2" target="_blank" rel="noopener noreferrer" class="font-bold underline decoration-[3px] decoration-primary underline-offset-2">$1</a>',
       );
       // Line breaks
       formattedText = formattedText.replace(/\n/g, "<br>");
       // Bullet points
       formattedText = formattedText.replace(
         /^[-•]\s+(.+?)(?=<br>|$)/gm,
-        '<div class="flex gap-2 my-1"><span class="text-primary font-black">•</span><span>$1</span></div>',
+        '<div class="flex gap-2 my-1"><span class="font-bold">•</span><span>$1</span></div>',
       );
 
       return formattedText;
@@ -457,7 +429,8 @@ export default {
     };
 
     const navigateToContact = () => {
-      router.push("/contact");
+      // The contact form lives on the home page, not on its own route
+      router.push({ path: "/", hash: "#contact" });
       isOpen.value = false;
     };
 
@@ -496,119 +469,249 @@ export default {
   scrollbar-width: none;
 }
 
-/* Tooltip animations */
-.tooltip-enter-active {
-  animation: tooltip-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+/* ---------- Launcher ---------- */
+.launcher {
+  transform: rotate(-4deg);
+  animation: bob 3.2s ease-in-out infinite;
 }
-.tooltip-leave-active {
-  animation: tooltip-out 0.3s ease forwards;
+.launcher:hover {
+  transform: rotate(3deg) scale(1.06);
+  animation-play-state: paused;
 }
-
-@keyframes tooltip-in {
-  0% {
-    opacity: 0;
-    transform: translateY(10px) scale(0.9);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+.launcher:active {
+  transform: translate(3px, 3px);
+  box-shadow: none;
 }
-@keyframes tooltip-out {
-  0% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(10px) scale(0.9);
-  }
+.launcher.is-open {
+  animation: none;
+  transform: rotate(0deg);
 }
-
-/* Chat window animation */
-.chat-window-enter-active {
-  animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  transform-origin: bottom right;
-}
-.chat-window-leave-active {
-  animation: slide-down 0.3s ease-in forwards;
-  transform-origin: bottom right;
-}
-
-@keyframes slide-up {
-  0% {
-    opacity: 0;
-    transform: translateY(20px) scale(0.9) rotate(2deg);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1) rotate(0deg);
-  }
-}
-@keyframes slide-down {
-  0% {
-    opacity: 1;
-    transform: translateY(0) scale(1) rotate(0deg);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(20px) scale(0.9) rotate(2deg);
-  }
-}
-
-/* Message animation */
-.message-enter-active {
-  transition: all 0.3s ease;
-}
-.message-enter-from {
-  opacity: 0;
-  transform: translateY(15px) rotate(1deg);
-}
-
-@keyframes wave {
+@keyframes bob {
   0%,
   100% {
-    transform: rotate(0deg);
+    translate: 0 0;
   }
-  25% {
-    transform: rotate(15deg);
+  50% {
+    translate: 0 -5px;
   }
-  75% {
-    transform: rotate(-10deg);
+}
+
+/* Robot face: blinks every few seconds and glances side to side */
+.bot-face .eyes {
+  animation: glance 6s ease-in-out infinite;
+}
+.bot-face .eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: blink 4s infinite;
+}
+.bot-face .antenna {
+  animation: antenna 2s ease-in-out infinite;
+}
+@keyframes blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+@keyframes glance {
+  0%,
+  30%,
+  100% {
+    transform: translateX(0);
+  }
+  38%,
+  55% {
+    transform: translateX(-3px);
+  }
+  63%,
+  80% {
+    transform: translateX(3px);
+  }
+}
+@keyframes antenna {
+  0%,
+  100% {
+    fill: #ff5c8a;
+  }
+  50% {
+    fill: #ffdd00;
+  }
+}
+
+/* ---------- Tooltip bubble ---------- */
+.tip {
+  transform: rotate(-3deg);
+  transform-origin: 85% 120%;
+}
+.tip::after {
+  content: "";
+  position: absolute;
+  right: 22px;
+  bottom: -17px;
+  width: 22px;
+  height: 22px;
+  background: inherit;
+  border-right: inherit;
+  border-bottom: inherit;
+  transform: skewX(-25deg) rotate(45deg);
+}
+.tooltip-enter-active {
+  animation: tip-pop 0.5s cubic-bezier(0.34, 1.8, 0.64, 1);
+}
+.tooltip-leave-active {
+  animation: tip-pop 0.25s ease-in reverse;
+}
+@keyframes tip-pop {
+  from {
+    opacity: 0;
+    transform: rotate(-3deg) scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-3deg) scale(1);
   }
 }
 .waving-hand {
   display: inline-block;
+  transform-origin: 70% 70%;
   animation: wave 2s infinite;
 }
-
-@keyframes bounce {
+@keyframes wave {
   0%,
+  60%,
+  100% {
+    transform: rotate(0deg);
+  }
+  10%,
+  30% {
+    transform: rotate(16deg);
+  }
+  20%,
+  40% {
+    transform: rotate(-10deg);
+  }
+}
+
+/* ---------- Window ---------- */
+.chat-window {
+  box-shadow: 8px 8px 0 var(--color-shadow);
+  transform-origin: bottom right;
+}
+@media (max-width: 639px) {
+  .chat-window {
+    box-shadow: none;
+    border-left-width: 0;
+    border-right-width: 0;
+    border-bottom-width: 0;
+    transform-origin: bottom center;
+  }
+}
+.chat-window-enter-active {
+  animation: window-in 0.45s cubic-bezier(0.34, 1.5, 0.64, 1);
+}
+.chat-window-leave-active {
+  animation: window-in 0.22s ease-in reverse;
+}
+@keyframes window-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.6) rotate(3deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.head-btn {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  color: #000;
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0 #000;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.head-btn:hover {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+
+.status-dot {
+  animation: status 1.8s ease-in-out infinite;
+}
+@keyframes status {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ---------- Messages ---------- */
+.bubble {
+  position: relative;
+  box-shadow: 3px 3px 0 var(--color-shadow);
+}
+.bubble-bot {
+  border-bottom-left-radius: 0;
+}
+.bubble-user {
+  box-shadow: 3px 3px 0 #000;
+}
+
+.message-enter-active {
+  transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.34, 1.6, 0.64, 1);
+}
+.message-enter-from {
+  opacity: 0;
+  transform: translateY(12px) scale(0.92);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  background: currentColor;
+  animation: dot 0.9s ease-in-out infinite;
+}
+.dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes dot {
+  0%,
+  60%,
   100% {
     transform: translateY(0);
   }
-  50% {
+  30% {
     transform: translateY(-5px);
   }
 }
-.animate-bounce {
-  animation: bounce 0.6s infinite;
+
+.chip:active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
 }
 
 .typing-cursor {
   display: inline-block;
   width: 2px;
-  height: 1.2em;
+  height: 1.1em;
   background-color: currentColor;
   margin-left: 2px;
-  animation: blink 0.8s infinite;
+  animation: cursor 0.8s infinite;
   vertical-align: middle;
 }
-@keyframes blink {
-  0%,
-  100% {
-    opacity: 1;
-  }
+@keyframes cursor {
   50% {
     opacity: 0;
   }
@@ -616,5 +719,17 @@ export default {
 
 .message-content {
   word-break: break-word;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .launcher,
+  .bot-face .eyes,
+  .bot-face .eye,
+  .bot-face .antenna,
+  .waving-hand,
+  .status-dot,
+  .dot {
+    animation: none;
+  }
 }
 </style>

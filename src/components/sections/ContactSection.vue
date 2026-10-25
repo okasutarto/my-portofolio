@@ -20,7 +20,7 @@
       <div
         class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-12 lg:gap-14 items-start">
         <!-- Postcard -->
-        <div class="postcard-stage relative">
+        <div class="postcard-stage relative pt-12 pb-10">
           <!-- Envelope the card arrives in (intro only): back panel sits behind the card,
                the front pocket and the flap sit in front of it -->
           <template v-if="showEnvelope">
@@ -231,8 +231,8 @@ const status = ref("idle");
 // The fly-away transition is only switched on after the intro, otherwise it would
 // also delay every value GSAP sets while tossing the card in
 const introDone = ref(false);
-// Envelope only exists for the intro (skipped with reduced motion)
-const showEnvelope = ref(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+// The envelope remains visible as a background wrapper for the postcard
+const showEnvelope = ref(true);
 const envelopeBackRef = ref(null);
 const envelopeFrontRef = ref(null);
 const flapRef = ref(null);
@@ -298,6 +298,9 @@ const submitForm = async () => {
 onMounted(() => {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
     introDone.value = true;
+    gsap.set(postcardRef.value, { zIndex: 35, y: -6 });
+    gsap.set([envelopeBackRef.value, envelopeFrontRef.value], { y: 32, rotate: 1.5, opacity: 1 });
+    gsap.set(flapRef.value, { y: 32, rotate: 1.5, rotateX: 180, zIndex: 5, opacity: 1 });
     return;
   }
 
@@ -311,14 +314,13 @@ onMounted(() => {
     gsap.set(card, { opacity: 0, yPercent: 4, scale: 0.95 });
     gsap.set(side, { y: 24, opacity: 0 });
 
-    // The postcard arrives in an envelope, slides out, and gets stamped; only then
-    // does the "Let's connect" column follow, so the eye lands on the card first
+    // The postcard arrives in an envelope, slides out, and settles on top of it;
+    // only then does the "Let's connect" column follow.
     gsap
       .timeline({
         scrollTrigger: { trigger: card, start: "top 80%" },
         onComplete: () => {
           introDone.value = true;
-          showEnvelope.value = false;
         },
       })
       // 1. Envelope slides in
@@ -329,18 +331,19 @@ onMounted(() => {
       .to(flapRef.value, { rotateX: 180, duration: 0.45, ease: "power2.inOut" }, "+=0.05")
       .call(() => sfx.slide({ duration: 0.4 }), null, "<")
       .set(flapRef.value, { zIndex: 5 }, "-=0.22")
-      // 3. Card slides all the way up out of the envelope...
+      // 3. Card slides all the way up, until its bottom edge has cleared the pocket's top
+      //    corners: only then can it pass in front of the envelope without cutting through it
       .addLabel("out")
-      .to(card, { yPercent: -52, scale: 1, duration: 0.75, ease: "power2.inOut" }, "out")
-      .call(() => sfx.slide({ duration: 0.7 }), null, "out")
-      // 4. ...once it's clear, the envelope drops away under it and the card settles on the table
-      .to(envelope, { yPercent: 80, rotate: 4, duration: 0.6, ease: "power2.in" }, "out+=0.55")
-      .to(envelope, { opacity: 0, duration: 0.2 }, "out+=0.95")
-      .call(() => sfx.whoosh({ duration: 0.5, up: false }), null, "out+=0.55")
-      .to(card, { yPercent: 0, duration: 0.6, ease: "power3.inOut" }, "out+=0.8")
-      .to(card, { keyframes: { scaleY: [1, 0.97, 1], scaleX: [1, 1.012, 1] }, duration: 0.28, transformOrigin: "50% 100%" }, "out+=1.4")
-      .call(() => sfx.flop({ strength: 0.6 }), null, "out+=1.4")
-      .set(card, { clearProps: "transform,opacity" })
+      .to(card, { yPercent: -106, scale: 1, duration: 0.95, ease: "power2.inOut" }, "out")
+      .call(() => sfx.slide({ duration: 0.8 }), null, "out")
+      // 4. Clear of the envelope, the card moves in front of it
+      .set(card, { zIndex: 35 }, "out+=0.95")
+      // Envelope settles into resting background position under the card
+      .to(envelope, { y: 32, rotate: 1.5, duration: 0.6, ease: "power2.inOut" }, "out+=0.7")
+      // Card comes down to rest on top of the envelope
+      .to(card, { yPercent: 0, y: -6, duration: 0.75, ease: "power2.inOut" }, "out+=0.95")
+      .to(card, { keyframes: { scaleY: [1, 0.98, 1], scaleX: [1, 1.01, 1] }, duration: 0.28, transformOrigin: "50% 100%" }, "out+=1.7")
+      .call(() => sfx.flop({ strength: 0.6 }), null, "out+=1.7")
       // 5. Stamp slapped on, then the side column
       .from(stampRef.value, { scale: 2.2, rotate: -20, opacity: 0, duration: 0.45, ease: "back.out(2)" })
       .call(() => sfx.stamp(), null, "<+0.08")
@@ -386,14 +389,16 @@ onBeforeUnmount(() => {
 }
 .par-avion {
   position: absolute;
-  left: 22px;
-  bottom: 18px;
-  padding: 4px 10px;
+  left: 20px;
+  bottom: 8px;
+  padding: 3px 8px;
+  background: #fff;
   border: 2px solid #1d4ed8;
+  box-shadow: 2px 2px 0 #1d4ed8;
   color: #1d4ed8;
-  font: 800 0.75rem "Lexend Mega", sans-serif;
+  font: 800 0.72rem "Lexend Mega", sans-serif;
   text-transform: uppercase;
-  transform: rotate(-4deg);
+  transform: rotate(-3deg);
 }
 .envelope-flap-wrap {
   z-index: 30;
@@ -492,6 +497,7 @@ onBeforeUnmount(() => {
   transform-origin: center;
 }
 .postcard.ready {
+  z-index: 35;
   transition:
     transform 0.8s cubic-bezier(0.6, -0.2, 0.4, 1.2),
     opacity 0.4s 0.5s;
@@ -519,6 +525,9 @@ onBeforeUnmount(() => {
   }
 }
 
+.delivered {
+  z-index: 40;
+}
 .delivered span {
   font: 800 2rem "Lexend Mega", sans-serif;
   color: #22a34a;

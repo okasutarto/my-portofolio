@@ -15,7 +15,7 @@
     <TheFooter v-if="!immersive" />
     <ChatBot v-if="!immersive" />
     <SpeedInsights />
-    <dialog ref="soundDialog" class="sound-dialog" aria-labelledby="sound-title" aria-describedby="sound-description" @cancel.prevent="chooseSound(false)">
+    <dialog ref="soundDialog" tabindex="-1" class="sound-dialog" aria-labelledby="sound-title" aria-describedby="sound-description" @cancel.prevent="chooseSound(false)">
       <span class="sound-label">BEFORE WE START</span>
       <h2 id="sound-title">Sound on?</h2>
       <p id="sound-description">A few sound effects bring the animations to life. Your call.</p>
@@ -86,6 +86,8 @@ const askForSound = () => {
   previousOverflow = document.documentElement.style.overflow;
   document.documentElement.style.overflow = "hidden";
   soundDialog.value.showModal();
+  // Start on the dialog itself, not the first button, so no focus ring shows until someone tabs
+  soundDialog.value.focus();
 };
 onMounted(async () => {
   initTheme();
@@ -116,7 +118,11 @@ onBeforeUnmount(() => { document.documentElement.style.overflow = previousOverfl
 .sound-actions button { cursor: pointer; display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border: 3px solid #000; box-shadow: 4px 4px 0 #000; font-weight: 800; font-size: 13px; text-align: left; }
 .sound-enable { background: var(--color-primary); }.sound-muted { background: #fff; }
 .sound-actions button:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 #000; }
-.sound-actions button:focus-visible { outline: 3px solid #111; outline-offset: 5px; }
+.sound-dialog:focus { outline: none; }
+/* The dialog sits in the browser's top layer, above the custom cursor, so it uses the real one */
+.sound-dialog, .sound-dialog * { cursor: auto !important; }
+.sound-actions button, .sound-actions button * { cursor: pointer !important; }
+.sound-actions button:focus-visible { outline: 3px solid #000; outline-offset: 2px; }
 .sound-actions button:disabled { opacity: .6; }
 .sound-dialog small { font-size: 11px; color: #555; }.sound-dialog .sound-error { margin-bottom: 14px; }
 </style>

@@ -428,7 +428,7 @@ export default {
 
     const navigateToContact = () => {
       // The contact form lives on the home page, not on its own route
-      router.push({ path: "/", hash: "#contact" });
+      router.push({ path: "/2d", hash: "#contact" });
       isOpen.value = false;
     };
 

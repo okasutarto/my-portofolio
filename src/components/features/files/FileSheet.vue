@@ -95,6 +95,7 @@
 </template>
 
 <script setup>
+import { FILE_PAGES } from "@/data/projectFiles";
 import { computed } from "vue";
 import ClipSheet from "./ClipSheet.vue";
 
@@ -106,7 +107,7 @@ const props = defineProps({
   nextColor: { type: String, required: true },
 });
 
-const TITLES = ["Overview", "Challenge → Solution", "Features", "How it works", "Stack & results"];
+const TITLES = FILE_PAGES.map((page) => page.title);
 const TILTS = [-2, 1.5, -1, 2, -2.5, 1];
 const pad = (n) => String(n).padStart(2, "0");
 const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -149,6 +150,7 @@ h4 {
   align-items: center;
   gap: 10px;
   margin: 0;
+  padding-right: 95px;
   font-size: 1.2rem;
   font-weight: 800;
   letter-spacing: -0.06em;
@@ -161,12 +163,7 @@ h4 {
   letter-spacing: 0.04em;
 }
 h4 small {
-  margin-left: auto;
-  font: 700 0.58rem "JetBrains Mono", monospace;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  opacity: 0.5;
-  white-space: nowrap;
+  display: none;
 }
 .fill {
   flex: 1;

@@ -24,10 +24,16 @@
         </p>
       </div>
 
-      <!-- Sticker board -->
-      <div
-        ref="boardRef"
-        class="board relative bg-white dark:bg-surface-dark border-2 border-black dark:border-[#f4ead5] bg-dot-grid overflow-hidden">
+      <!-- Cork Pinboard -->
+      <div class="cork-frame relative">
+        <span class="frame-corner frame-tl" aria-hidden="true"></span>
+        <span class="frame-corner frame-tr" aria-hidden="true"></span>
+        <span class="frame-corner frame-bl" aria-hidden="true"></span>
+        <span class="frame-corner frame-br" aria-hidden="true"></span>
+
+        <div
+          ref="boardRef"
+          class="board relative overflow-hidden">
         <component
           :is="sticker.href ? 'a' : 'div'"
           v-for="sticker in stickers"
@@ -102,6 +108,7 @@
         </component>
       </div>
     </div>
+    </div>
   </section>
 </template>
 
@@ -112,6 +119,7 @@ import { sfx } from "@/composables/useSfx";
 import { Draggable } from "gsap/Draggable";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { usePostHog } from "@/composables/usePostHog";
+import { ABOUT_STACK as stack, ABOUT_NOTES as stickers } from "@/data/about";
 
 gsap.registerPlugin(Draggable, ScrollTrigger);
 
@@ -119,106 +127,6 @@ const { posthog } = usePostHog();
 const trackResumeDownload = () => {
   posthog.capture("resume_downloaded");
 };
-
-const stack = [
-  { label: "Web", items: ["Vue", "React", "Angular", "TypeScript", "Tailwind"] },
-  { label: "Mobile", items: ["Flutter", "Dart"] },
-  { label: "Backend", items: ["Node.js", "Express", "PostgreSQL", "MySQL"] },
-  { label: "Tools", items: ["Docker", "Git"] },
-];
-
-// pos / mobile: top-left corner as % of the board, rotate: resting tilt in degrees
-const stickers = [
-  {
-    id: "who",
-    pin: "#ff6b6b",
-    title: "Who is this guy?",
-    body: 'Hi, I\'m <mark class="name-mark">Oka Sutarto Putra</mark>, a Pontianak-based engineer who builds for web and mobile. I started out in industrial engineering, so I still hunt for bottlenecks, just in code now.',
-    class: "bg-white",
-    width: "340px",
-    mobileWidth: "88%",
-    pos: [3, 6],
-    mobile: [6, 1.5],
-    rotate: -3,
-  },
-  {
-    id: "years",
-    pin: "#3b82f6",
-    type: "stat",
-    value: "4+",
-    label: "Years exp",
-    class: "bg-primary",
-    pos: [40, 8],
-    mobile: [6, 21],
-    rotate: 4,
-  },
-  {
-    id: "projects",
-    pin: "#ff6b6b",
-    type: "stat",
-    value: "8+",
-    label: "Projects",
-    class: "bg-secondary",
-    pos: [57, 4],
-    mobile: [52, 20],
-    rotate: -5,
-  },
-  {
-    id: "companies",
-    pin: "#ffdd00",
-    type: "stat",
-    value: "4",
-    label: "Companies",
-    class: "bg-accent-blue",
-    pos: [76, 9],
-    mobile: [26, 32],
-    rotate: 3,
-  },
-  {
-    id: "stack",
-    pin: "#00e0c6",
-    type: "stack",
-    class: "bg-accent-pink",
-    width: "320px",
-    mobileWidth: "90%",
-    pos: [64, 44],
-    mobile: [5, 44.5],
-    rotate: 3,
-  },
-  {
-    id: "now",
-    pin: "#ffdd00",
-    title: "Now building ✦",
-    body: "Flutter apps at Dusitek, AI-powered tools on the side, and this very portfolio.",
-    class: "bg-[#c4b5fd]",
-    width: "260px",
-    mobileWidth: "70%",
-    pos: [36, 50],
-    mobile: [26, 70],
-    rotate: -2,
-  },
-  {
-    id: "location",
-    pin: "#d946ef",
-    title: "Pontianak",
-    icon: "fas fa-location-dot",
-    body: "Indonesia · GMT+7",
-    class: "bg-white",
-    pos: [6, 60],
-    mobile: [5, 84],
-    rotate: 6,
-  },
-  {
-    id: "resume",
-    pin: "#ffdd00",
-    title: "Download resume ↓",
-    class: "!bg-black !text-white",
-    href: "https://rbopflmphatliijk.public.blob.vercel-storage.com/OkaSutartoCV.pdf",
-    pos: [20, 82],
-    mobile: [38, 92],
-    rotate: -4,
-  },
-];
 
 const sectionRef = ref(null);
 const boardRef = ref(null);
@@ -333,8 +241,71 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* ---------- Cork Pinboard Frame ---------- */
+.cork-frame {
+  padding: 12px;
+  background: linear-gradient(135deg, #b87c46 0%, #995c2c 50%, #b87c46 100%);
+  border: 3.5px solid #000;
+  box-shadow: 8px 8px 0 #000;
+  transition: box-shadow 0.2s;
+}
+:global(.dark .cork-frame) {
+  background: linear-gradient(135deg, #6b4020 0%, #4f2d14 50%, #6b4020 100%);
+  border-color: #000;
+  box-shadow: 8px 8px 0 #000;
+}
+
+@media (min-width: 1024px) {
+  .cork-frame {
+    padding: 18px;
+    box-shadow: 12px 12px 0 #000;
+  }
+}
+
+/* Corner metal brackets with rivet */
+.frame-corner {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  background: #ffdd00;
+  border: 2px solid #000;
+  z-index: 5;
+  pointer-events: none;
+}
+.frame-corner::after {
+  content: "";
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  background: #000;
+  border-radius: 50%;
+}
+.frame-tl { top: -2px; left: -2px; clip-path: polygon(0 0, 100% 0, 0 100%); }
+.frame-tl::after { top: 5px; left: 5px; }
+.frame-tr { top: -2px; right: -2px; clip-path: polygon(0 0, 100% 0, 100% 100%); }
+.frame-tr::after { top: 5px; right: 5px; }
+.frame-bl { bottom: -2px; left: -2px; clip-path: polygon(0 0, 0 100%, 100% 100%); }
+.frame-bl::after { bottom: 5px; left: 5px; }
+.frame-br { bottom: -2px; right: -2px; clip-path: polygon(100% 0, 0 100%, 100% 100%); }
+.frame-br::after { bottom: 5px; right: 5px; }
+
+/* Cork Board Surface */
 .board {
   height: 1250px;
+  border: 2.5px solid #000;
+  background-color: #cb9b67;
+  background-image:
+    radial-gradient(ellipse at 50% 50%, rgba(255, 235, 195, 0.16), rgba(60, 35, 10, 0.24)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.45  0 0 0 0 0.28  0 0 0 0 0.12  0 0 0 0.35 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  box-shadow: inset 0 4px 14px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+:global(.dark .board) {
+  background-color: #3d281a;
+  background-image:
+    radial-gradient(ellipse at 50% 50%, rgba(180, 120, 80, 0.08), rgba(0, 0, 0, 0.4)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.15  0 0 0 0 0.09  0 0 0 0 0.04  0 0 0 0.45 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)'/%3E%3C/svg%3E");
+  box-shadow: inset 0 4px 16px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(0, 0, 0, 0.4);
 }
 .sticker {
   left: var(--sx-m);

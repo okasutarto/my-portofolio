@@ -11,26 +11,26 @@
     </div>
 
     <div v-else class="max-w-6xl mx-auto px-4 sm:px-6 pt-5 pb-10">
-      <!-- Previous / next file, visible without scrolling -->
-      <nav class="file-nav" aria-label="Project files">
-        <router-link :to="`/projects/${prevProject.id}`" class="file-link" @click="markDir(-1)">
-          <span class="file-arrow" aria-hidden="true">←</span>
-          <span class="min-w-0">
-            <small>Prev · #{{ pad(projects.indexOf(prevProject) + 1) }}</small>
-            <b>{{ prevProject.title }}</b>
-          </span>
-        </router-link>
-        <p class="file-count" aria-live="polite">File {{ fileNo }} / {{ pad(projects.length) }}</p>
-        <router-link :to="`/projects/${nextProject.id}`" class="file-link file-link-next" @click="markDir(1)">
-          <span class="min-w-0">
-            <small>Next · #{{ pad(projects.indexOf(nextProject) + 1) }}</small>
-            <b>{{ nextProject.title }}</b>
-          </span>
-          <span class="file-arrow" aria-hidden="true">→</span>
-        </router-link>
-      </nav>
-
       <div ref="folderRef" class="folder">
+        <!-- Previous / next file, visible without scrolling -->
+        <nav class="file-nav" aria-label="Project files">
+          <router-link :to="`/projects/${prevProject.id}`" class="file-link" @click="markDir(-1)">
+            <span class="file-arrow" aria-hidden="true">←</span>
+            <span class="min-w-0">
+              <small>Prev · #{{ pad(projects.indexOf(prevProject) + 1) }}</small>
+              <b>{{ prevProject.title }}</b>
+            </span>
+          </router-link>
+          <p class="file-count" aria-live="polite">File {{ fileNo }} / {{ pad(projects.length) }}</p>
+          <router-link :to="`/projects/${nextProject.id}`" class="file-link file-link-next" @click="markDir(1)">
+            <span class="min-w-0">
+              <small>Next · #{{ pad(projects.indexOf(nextProject) + 1) }}</small>
+              <b>{{ nextProject.title }}</b>
+            </span>
+            <span class="file-arrow" aria-hidden="true">→</span>
+          </router-link>
+        </nav>
+
         <!-- Section tabs, like folder dividers -->
         <div class="tabs" role="tablist" aria-label="Case file sections">
           <button
@@ -70,139 +70,143 @@
           <div ref="stackRef" class="sheet-stack">
             <div class="sheet-under"></div>
             <article ref="sheetRef" class="sheet">
-              <header class="file-head">
-                <div class="min-w-0">
-                  <p class="file-no">Case file #{{ fileNo }} · {{ shown.type }}</p>
-                  <h1 ref="titleRef" class="file-title font-display">{{ shown.title }}</h1>
-                </div>
-                <div ref="stampRef" class="stamp font-display">{{ stamp }}</div>
-              </header>
+              <div class="sheet-head">
+                <header class="file-head">
+                  <div class="min-w-0">
+                    <p class="file-no">Case file #{{ fileNo }} · {{ shown.type }}</p>
+                    <h1 ref="titleRef" class="file-title font-display">{{ shown.title }}</h1>
+                  </div>
+                  <div ref="stampRef" class="stamp font-display">{{ stamp }}</div>
+                </header>
 
-              <dl class="form-row">
-                <div v-for="[label, value] in fields" :key="label" class="field">
-                  <dt>{{ label }}</dt>
-                  <dd class="val">{{ value }}</dd>
-                </div>
-              </dl>
+                <dl class="form-row">
+                  <div v-for="[label, value] in fields" :key="label" class="field">
+                    <dt>{{ label }}</dt>
+                    <dd class="val">{{ value }}</dd>
+                  </div>
+                </dl>
+              </div>
 
               <!-- Each tab mounts a different artifact here -->
               <div id="case-panel" ref="stageRef" class="stage" role="tabpanel" :aria-label="tabLabel">
-                <!-- Overview: memo, polaroid of the app, sticky note -->
-                <div v-if="tab === 'overview'" class="ov">
-                  <div>
-                    <h2 class="stage-h font-display">Overview</h2>
-                    <p class="memo">
-                      <template v-for="(part, i) in overviewParts" :key="i">
-                        <span v-if="part.hl" class="hl">{{ part.text }}</span>
-                        <template v-else>{{ part.text }}</template>
-                      </template>
-                    </p>
-                    <div v-if="cf.quote" class="sticky-note">"{{ cf.quote }}"</div>
-                  </div>
-                  <div class="ov-side">
-                    <figure class="polaroid">
-                      <span class="clip" aria-hidden="true"></span>
-                      <canvas ref="shotRef" width="600" height="760" :aria-label="`${shown.title} illustration`"></canvas>
-                      <figcaption>{{ cf.caption || shown.title }}</figcaption>
-                    </figure>
-                    <div class="flex flex-wrap gap-3">
-                      <a v-for="link in links" :key="link.href" :href="link.href" target="_blank" rel="noopener noreferrer" class="paper-btn" :class="link.class">
-                        {{ link.label }}
-                      </a>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Challenge: issue cards slapped on the desk -->
-                <div v-else-if="tab === 'challenge'">
-                  <h2 class="stage-h font-display">
-                    The challenge <span class="marker">{{ issues.length }} issues found</span>
-                  </h2>
-                  <p class="lead">{{ shown.problem.description }}</p>
-                  <div class="issues">
-                    <div v-for="(issue, i) in issues" :key="i" class="issue" :style="{ '--r': `${TILTS[i % 3]}deg` }">
-                      <span class="tape" aria-hidden="true"></span>
-                      <small>Issue #{{ i + 1 }}</small>
-                      <b class="font-display">{{ issue.title }}</b>
-                      <p>{{ issue.text }}</p>
-                      <span class="x font-display" aria-hidden="true">✕</span>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Solution: blueprint with the system's flows -->
-                <div v-else-if="tab === 'solution'">
-                  <h2 class="stage-h font-display">The solution</h2>
-                  <p class="lead">{{ shown.solution.description }}</p>
-                  <div class="blueprint">
-                    <p class="bp-title">System blueprint · {{ shown.title }} · rev. 1</p>
-                    <div v-for="(flow, r) in cf.flows || []" :key="flow.label" class="flow">
-                      <p class="bp-label">{{ r + 1 }} · {{ flow.label }}</p>
-                      <div class="flow-row" :data-row="r">
-                        <template v-for="(node, i) in flow.nodes" :key="node">
-                          <span v-if="i" class="flow-arrow" aria-hidden="true"></span>
-                          <span class="flow-node" :class="{ 'ping-node': flow.ping === i }">
-                            {{ node }}
-                            <em v-if="flow.ping === i" class="bp-ping font-display">{{ flow.pingText }}</em>
-                          </span>
+                <div ref="stageInnerRef" class="stage-inner">
+                  <!-- Overview: memo, polaroid of the app, sticky note -->
+                  <div v-if="tab === 'overview'" class="ov">
+                    <div>
+                      <h2 class="stage-h font-display">Overview</h2>
+                      <p class="memo">
+                        <template v-for="(part, i) in overviewParts" :key="i">
+                          <span v-if="part.hl" class="hl">{{ part.text }}</span>
+                          <template v-else>{{ part.text }}</template>
                         </template>
+                      </p>
+                      <div v-if="cf.quote" class="sticky-note">"{{ cf.quote }}"</div>
+                    </div>
+                    <div class="ov-side">
+                      <figure class="polaroid">
+                        <span class="clip" aria-hidden="true"></span>
+                        <canvas ref="shotRef" width="600" height="760" :aria-label="`${shown.title} illustration`"></canvas>
+                        <figcaption>{{ cf.caption || shown.title }}</figcaption>
+                      </figure>
+                      <div class="flex flex-wrap gap-3">
+                        <a v-for="link in links" :key="link.href" :href="link.href" target="_blank" rel="noopener noreferrer" class="paper-btn" :class="link.class">
+                          {{ link.label }}
+                        </a>
                       </div>
                     </div>
-                    <div v-if="cf.notes" class="bp-notes">
-                      <span v-for="note in cf.notes" :key="note">✓ {{ note }}</span>
-                    </div>
                   </div>
-                </div>
 
-                <!-- Features: printed receipt -->
-                <div v-else-if="tab === 'features'" class="ft">
-                  <div class="printer" aria-hidden="true"><span></span></div>
-                  <div class="receipt">
-                    <div class="rc-head">
-                      <b class="font-display">{{ shown.title.toUpperCase() }}</b>
-                      <span>FEATURE RECEIPT #00{{ fileNo }}</span>
-                      <span>{{ shown.year }} · {{ shown.duration.toUpperCase() }}</span>
+                  <!-- Challenge: issue cards slapped on the desk -->
+                  <div v-else-if="tab === 'challenge'">
+                    <h2 class="stage-h font-display">
+                      The challenge <span class="marker">{{ issues.length }} issues found</span>
+                    </h2>
+                    <p class="lead">{{ shown.problem.description }}</p>
+                    <div class="issues">
+                      <div v-for="(issue, i) in issues" :key="i" class="issue" :style="{ '--r': `${TILTS[i % 3]}deg` }">
+                        <span class="tape" aria-hidden="true"></span>
+                        <small>Issue #{{ i + 1 }}</small>
+                        <b class="font-display">{{ issue.title }}</b>
+                        <p>{{ issue.text }}</p>
+                        <span class="x font-display" aria-hidden="true">✕</span>
+                      </div>
                     </div>
-                    <div class="rc-line"></div>
-                    <div v-for="feature in shown.features" :key="feature" class="rc-item">
-                      <span>{{ feature }}</span><i aria-hidden="true"></i><em>✓</em>
-                    </div>
-                    <div class="rc-line"></div>
-                    <div class="rc-total"><span>TOTAL</span><b>{{ shown.features.length }} ITEMS</b></div>
-                    <div class="rc-tech">{{ shown.technologies.join(" · ") }}</div>
-                    <div class="rc-bar" aria-hidden="true"></div>
-                    <div class="rc-thanks">*** THANK YOU ***</div>
                   </div>
-                </div>
 
-                <!-- Results: taped score cards + what I learned -->
-                <div v-else-if="tab === 'results'">
-                  <h2 class="stage-h font-display">Results</h2>
-                  <div class="scores">
-                    <div
-                      v-for="(score, i) in scores"
-                      :key="score.label"
-                      class="score"
-                      :style="{ '--bg': SCORE_COLORS[i % 3], '--r': `${[-3, 2, -1.5][i % 3]}deg` }">
-                      <span class="tape" aria-hidden="true"></span>
-                      <b
-                        class="font-display"
-                        :class="{ wordy: score.word && score.word.length > 5 }"
-                        :data-to="score.word ? null : score.to"
-                        :data-decimals="score.decimals"
-                        :data-suffix="score.suffix"
-                        :data-word="score.word || null"
-                        >{{ score.value }}</b
-                      >
-                      <span>{{ score.label }}</span>
+                  <!-- Solution: blueprint with the system's flows -->
+                  <div v-else-if="tab === 'solution'">
+                    <h2 class="stage-h font-display">The solution</h2>
+                    <p class="lead">{{ shown.solution.description }}</p>
+                    <div class="blueprint">
+                      <p class="bp-title">System blueprint · {{ shown.title }} · rev. 1</p>
+                      <div v-for="(flow, r) in cf.flows || []" :key="flow.label" class="flow">
+                        <p class="bp-label">{{ r + 1 }} · {{ flow.label }}</p>
+                        <div class="flow-row" :data-row="r">
+                          <template v-for="(node, i) in flow.nodes" :key="node">
+                            <span v-if="i" class="flow-arrow" aria-hidden="true"></span>
+                            <span class="flow-node" :class="{ 'ping-node': flow.ping === i }">
+                              {{ node }}
+                              <em v-if="flow.ping === i" class="bp-ping font-display">{{ flow.pingText }}</em>
+                            </span>
+                          </template>
+                        </div>
+                      </div>
+                      <div v-if="cf.notes" class="bp-notes">
+                        <span v-for="note in cf.notes" :key="note">✓ {{ note }}</span>
+                      </div>
                     </div>
-                    <div class="verified font-display" aria-hidden="true">Verified ✓</div>
                   </div>
-                  <div class="learned">
-                    <small>What I learned</small>
-                    <ul>
-                      <li v-for="item in shown.learnings.slice(0, 3)" :key="item">{{ item }}</li>
+
+                  <!-- Features: a sheet of numbered stickers -->
+                  <div v-else-if="tab === 'features'">
+                    <h2 class="stage-h font-display">
+                      Features <span class="marker">{{ shown.features.length }} shipped</span>
+                    </h2>
+                    <ul class="stickers">
+                      <li
+                        v-for="(feature, i) in shown.features"
+                        :key="feature"
+                        class="sticker"
+                        :style="{ '--bg': STICKER_COLORS[i % STICKER_COLORS.length], '--r': `${STICKER_TILTS[i % STICKER_TILTS.length]}deg` }">
+                        <b class="font-display">{{ pad(i + 1) }}</b>
+                        <span>{{ feature }}</span>
+                      </li>
                     </ul>
+                    <p class="built-with">
+                      <small>Built with</small>
+                      <span v-for="tech in shown.technologies" :key="tech" class="tech">{{ tech }}</span>
+                    </p>
+                  </div>
+
+                  <!-- Results: taped score cards + what I learned -->
+                  <div v-else-if="tab === 'results'">
+                    <h2 class="stage-h font-display">Results</h2>
+                    <div class="scores">
+                      <div
+                        v-for="(score, i) in scores"
+                        :key="score.label"
+                        class="score"
+                        :style="{ '--bg': SCORE_COLORS[i % 3], '--r': `${[-3, 2, -1.5][i % 3]}deg` }">
+                        <span class="tape" aria-hidden="true"></span>
+                        <b
+                          class="font-display"
+                          :class="{ wordy: score.word && score.word.length > 5 }"
+                          :data-to="score.word ? null : score.to"
+                          :data-decimals="score.decimals"
+                          :data-suffix="score.suffix"
+                          :data-word="score.word || null"
+                          >{{ score.value }}</b
+                        >
+                        <span>{{ score.label }}</span>
+                      </div>
+                      <div class="verified font-display" aria-hidden="true">Verified ✓</div>
+                    </div>
+                    <div class="learned">
+                      <small>What I learned</small>
+                      <ul>
+                        <li v-for="item in shown.learnings.slice(0, 3)" :key="item">{{ item }}</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -234,6 +238,8 @@ const TABS = [
   { key: "results", label: "Results" },
 ];
 const TILTS = [-4, 3, -2];
+const STICKER_COLORS = ["#ffdd00", "#00e0c6", "#ffb4c8", "#c4b5fd", "#fffdf5"];
+const STICKER_TILTS = [-2, 1.5, -1, 2, -1.5, 1];
 const SCORE_COLORS = ["#ffdd00", "#00e0c6", "#ffb4c8"];
 
 const route = useRoute();
@@ -306,6 +312,7 @@ const sheetRef = ref(null);
 const titleRef = ref(null);
 const stampRef = ref(null);
 const stageRef = ref(null);
+const stageInnerRef = ref(null);
 const shotRef = ref(null);
 const tabEls = {};
 
@@ -318,8 +325,8 @@ watch(shotRef, drawShot);
 watch(shown, () => nextTick(drawShot));
 document.fonts?.ready.then(() => {
   drawShot();
-  // Web fonts change the height of everything above the folder
-  fitFolder();
+  // Web fonts change the height of everything, so measure again
+  fitAll();
 });
 
 // ---------- fit the folder to the screen (desktop) ----------
@@ -339,6 +346,47 @@ const fitFolder = () => {
   body.style.setProperty("--fit-h", `${Math.max(360, window.innerHeight - top - 24)}px`);
 };
 const resetStageScroll = () => stageRef.value && (stageRef.value.scrollTop = 0);
+
+// The tab content must always be seen whole: no scrolling inside the sheet, no cropping.
+// Layouts are sized for the space, and on short screens the content is scaled down to fit.
+// (Measured before the entrance runs: offsetHeight ignores the entrance transforms.)
+const fitStage = () => {
+  const stage = stageRef.value;
+  const inner = stageInnerRef.value;
+  if (!stage || !inner) return;
+  inner.style.transform = "";
+  inner.style.width = "";
+  if (!window.matchMedia(FIT_QUERY).matches) {
+    stage.style.removeProperty("--stage-h");
+    return;
+  }
+  stage.style.setProperty("--stage-h", `${stage.clientHeight}px`);
+  // The sticker sheet may also grow to fill spare room; everything else only shrinks.
+  // Scaling changes the layout width (and so the wrapping), so test each candidate at its
+  // own width and binary-search the largest scale whose content still fits.
+  const room = stage.clientHeight;
+  const fits = (scale) => {
+    inner.style.width = `${100 / scale}%`;
+    return inner.offsetHeight * scale <= room;
+  };
+  let lo = 0.55;
+  let hi = tab.value === "features" ? 1.3 : 1;
+  if (fits(hi)) lo = hi;
+  else
+    for (let i = 0; i < 7; i++) {
+      const mid = (lo + hi) / 2;
+      if (fits(mid)) lo = mid;
+      else hi = mid;
+    }
+  inner.style.width = lo === 1 ? "" : `${100 / lo}%`;
+  inner.style.transform = lo === 1 ? "" : `scale(${lo})`;
+};
+const fitAll = () => {
+  fitFolder();
+  fitStage();
+};
+// Also covers the reduced-motion paths, which swap content without an animation
+watch([tab, shown], () => nextTick(fitStage));
 
 // ---------- animation helpers ----------
 let busy = false;
@@ -430,16 +478,23 @@ const ENTER = {
     sound(tl, t, () => sfx.ping());
   },
   features(tl, at, root) {
-    // Printed out of the slot line by line, then each item gets ticked
-    tl.fromTo(root.querySelector(".receipt"), { clipPath: "inset(0 0 100% 0)", y: -40 }, { clipPath: "inset(0 0 -20px 0)", y: 0, duration: 1.1, ease: "steps(18)", clearProps: "clipPath,transform" }, at)
-      .fromTo(root.querySelector(".printer span"), { scaleX: 1 }, { keyframes: { scaleX: [1, 0.6, 1, 0.6, 1] }, duration: 1.1, ease: "none" }, at);
-    sound(tl, at, () => sfx.printer({ duration: 1.1, steps: 18 }));
-    root.querySelectorAll(".rc-item em").forEach((em, i) => {
-      tl.fromTo(em, { scale: 0, rotation: -30 }, { scale: 1, rotation: 0, duration: 0.25, ease: "back.out(3)" }, at + 1.1 + i * 0.09);
-      sound(tl, at + 1.1 + i * 0.09, () => sfx.tick({ pitch: 1 + i * 0.06 }));
+    tl.from(root.querySelector(".stage-h"), { x: -18, opacity: 0, duration: 0.3 }, at)
+      .from(root.querySelector(".marker"), { scale: 0, rotation: -20, duration: 0.4, ease: "back.out(3)" }, at + 0.25);
+    sound(tl, at + 0.25, () => sfx.scribble({ duration: 0.35 }));
+    // Stickers are peeled off and slapped onto the page one after another
+    root.querySelectorAll(".sticker").forEach((sticker, i) => {
+      const t = at + 0.3 + i * 0.12;
+      tl.fromTo(
+        sticker,
+        { scale: 1.5, rotation: tilt(sticker) + (i % 2 ? 14 : -14), y: -30, opacity: 0 },
+        { scale: 1, rotation: tilt(sticker), y: 0, opacity: 1, duration: 0.28, ease: "power3.in" },
+        t,
+      );
+      sound(tl, t + 0.26, () => sfx.slap());
     });
-    sound(tl, at + 1.9, () => sfx.pop({ pitch: 1.3 }));
-    tl.fromTo(root.querySelector(".rc-total b"), { scale: 1.6, color: "#d6336c" }, { scale: 1, color: "#111", duration: 0.4, ease: "back.out(2)", clearProps: "color,transform" }, at + 1.9);
+    const techT = at + 0.45 + root.querySelectorAll(".sticker").length * 0.12;
+    tl.from(root.querySelectorAll(".built-with > *"), { y: 10, opacity: 0, duration: 0.25, stagger: 0.04 }, techT);
+    root.querySelectorAll(".built-with .tech").forEach((_, i) => sound(tl, techT + i * 0.04, () => sfx.tick({ pitch: 1 + i * 0.05 })));
   },
   results(tl, at, root) {
     tl.from(root.querySelector(".stage-h"), { x: -18, opacity: 0, duration: 0.3 }, at);
@@ -555,6 +610,7 @@ const switchTab = (key) => {
       tab.value = key;
       await nextTick();
       resetStageScroll();
+      fitStage();
       enterTl = enter(key, gsap.timeline({ delay: 0.4 }));
     }, 0.05)
     .to(pages, { rotationX: dir > 0 ? -100 : 100, y: dir > 0 ? -20 : 20, duration: 0.26, stagger: 0.07, ease: "power2.in" }, 0.05)
@@ -596,6 +652,7 @@ const switchProject = (next) => {
       tab.value = "overview";
       await nextTick();
       resetStageScroll();
+      fitStage();
       // The next file arrives from the other side, lands with a thud and opens
       const tl2 = (mainTl = gsap.timeline({ onComplete: () => (busy = false) }));
       tl2.fromTo(folder, { x: `${115 * dir}vw`, y: -30, rotation: 9 * dir }, { x: 0, y: 0, rotation: 0, duration: 0.65, ease: "power3.out" })
@@ -636,9 +693,9 @@ onMounted(() => {
   ScrollTrigger.clearScrollMemory();
   window.scrollTo(0, 0);
   window.addEventListener("keydown", onKey);
-  window.addEventListener("resize", fitFolder);
+  window.addEventListener("resize", fitAll);
   // Measure before the intro moves the folder around
-  fitFolder();
+  fitAll();
   if (!shown.value) return;
   if (reduced) {
     gsap.set(coverRef.value, { rotationY: -180 });
@@ -649,7 +706,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKey);
-  window.removeEventListener("resize", fitFolder);
+  window.removeEventListener("resize", fitAll);
   stopWaiting();
   settle();
 });
@@ -836,7 +893,7 @@ onBeforeUnmount(() => {
   opacity: 0.6;
 }
 .file-title {
-  font-size: clamp(2rem, 6vw, 3.2rem);
+  font-size: clamp(1.8rem, 4.4vw, 2.7rem);
   line-height: 0.95;
   margin-top: 6px;
   letter-spacing: -0.05em;
@@ -859,8 +916,8 @@ onBeforeUnmount(() => {
   display: grid;
   /* Two columns even on a phone, four on desktop */
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 14px 16px;
-  margin: 18px 0 22px;
+  gap: 10px 16px;
+  margin: 12px 0 16px;
 }
 .field dt {
   font: 700 0.62rem "Space Grotesk", sans-serif;
@@ -869,7 +926,7 @@ onBeforeUnmount(() => {
   opacity: 0.55;
 }
 .val {
-  font: 600 1.55rem/1.1 "Caveat", cursive;
+  font: 600 1.35rem/1.1 "Caveat", cursive;
   color: #1d4ed8;
   border-bottom: 1.5px solid #000;
   padding-bottom: 2px;
@@ -905,24 +962,48 @@ onBeforeUnmount(() => {
     min-width: 0;
     min-height: 0;
   }
+  .folder-body {
+    padding: 14px;
+  }
   .sheet {
     display: flex;
     flex-direction: column;
     height: 100%;
-    padding: 24px 32px 0;
+    padding: 16px 24px 14px;
   }
+  .sheet-head {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    align-items: end;
+    gap: 6px 26px;
+    margin-bottom: 14px;
+  }
+  .sheet-head .form-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0;
+    gap: 6px 16px;
+  }
+  .sheet-head .stamp {
+    position: absolute;
+    top: 12px;
+    right: 18px;
+    font-size: 0.78rem;
+    z-index: 2;
+  }
+  .val {
+    font-size: 1.2rem;
+  }
+  /* Never scrolls: fitStage() scales the content down when it's taller than the space */
   .stage {
     flex: 1;
     min-height: 0;
-    overflow-y: auto;
-    /* room for card shadows and the paper-clip, plus space at the end of the scroll */
-    padding: 4px 10px 28px 2px;
-    margin-right: -10px;
-    scrollbar-width: thin;
-    scrollbar-color: #00000055 transparent;
-    /* Fade at the bottom edge hints that the sheet scrolls */
-    -webkit-mask-image: linear-gradient(#000 calc(100% - 36px), transparent);
-    mask-image: linear-gradient(#000 calc(100% - 36px), transparent);
+  }
+  .stage-inner {
+    transform-origin: top left;
+  }
+  /* The polaroid is sized from the space left on the sheet (it's ~1.27x taller than wide) */
+  .ov-side .polaroid {
+    width: clamp(130px, calc((var(--stage-h, 520px) - 150px) * 0.78), 250px);
   }
   .polaroid {
     max-width: 250px;
@@ -1222,98 +1303,56 @@ onBeforeUnmount(() => {
   font-size: 0.9rem;
 }
 
-/* ---------- Features receipt ---------- */
-.ft {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-bottom: 10px;
-}
-.printer {
-  position: relative;
-  z-index: 2;
-  width: min(380px, 94%);
-  height: 26px;
+/* ---------- Features: sticker sheet ---------- */
+.stickers {
   display: grid;
-  place-items: center;
-  background: #111;
-  border: 2.5px solid #000;
-  border-radius: 8px 8px 4px 4px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px 20px;
+  margin: 0;
+  padding: 4px 6px 4px 0;
+  list-style: none;
 }
-.printer span {
-  width: 82%;
-  height: 6px;
-  background: #444;
-  border-radius: 3px;
-}
-.receipt {
-  width: min(340px, 86%);
-  margin-top: -4px;
-  background: #fff;
+.sticker {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--bg);
   border: 2px solid #000;
-  border-top: 0;
-  padding: 20px 18px 26px;
-  font: 500 0.85rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
-  box-shadow: 5px 5px 0 #0003;
-  /* Torn zig-zag bottom edge */
-  -webkit-mask: linear-gradient(#000 0 0) top / 100% calc(100% - 10px) no-repeat,
-    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 16px 10px repeat-x;
-  mask: linear-gradient(#000 0 0) top / 100% calc(100% - 10px) no-repeat,
-    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 16px 10px repeat-x;
-}
-.rc-head {
-  display: flex;
-  flex-direction: column;
-  text-align: center;
-}
-.rc-head b {
-  font-size: 1.05rem;
-  letter-spacing: -0.04em;
-}
-.rc-line {
-  border-top: 2px dashed #000;
-  margin: 12px 0;
-}
-.rc-item {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-.rc-item i {
-  flex: 1;
-  min-width: 12px;
-  border-bottom: 2px dotted #0006;
-  transform: translateY(-4px);
-}
-.rc-item em,
-.rc-total b {
-  display: inline-block;
-  font-style: normal;
-  font-weight: 800;
-}
-.rc-item em {
-  color: #16a34a;
-}
-.rc-total {
-  display: flex;
-  justify-content: space-between;
-  font-weight: 800;
+  border-radius: 6px;
+  box-shadow: 3px 3px 0 #000;
+  transform: rotate(var(--r));
+  font-weight: 600;
   font-size: 1rem;
+  line-height: 1.35;
 }
-.rc-tech {
-  margin-top: 10px;
-  font-size: 0.72rem;
-  text-align: center;
-  opacity: 0.7;
+.sticker b {
+  flex-shrink: 0;
+  min-width: 2ch;
+  font-size: 0.95rem;
+  letter-spacing: -0.04em;
+  padding-top: 1px;
 }
-.rc-bar {
-  height: 40px;
-  margin: 14px 0 8px;
-  background: repeating-linear-gradient(90deg, #000 0 2px, transparent 2px 4px, #000 4px 7px, transparent 7px 9px, #000 9px 10px, transparent 10px 13px);
+.built-with {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
 }
-.rc-thanks {
-  text-align: center;
+.built-with small {
+  font: 700 0.62rem "Space Grotesk", sans-serif;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  margin-right: 4px;
+}
+.built-with .tech {
+  font-size: 0.8rem;
   font-weight: 700;
+  padding: 3px 10px;
+  border: 1.5px solid #000;
+  background: #fff;
 }
 
 /* ---------- Results ---------- */
@@ -1457,6 +1496,32 @@ onBeforeUnmount(() => {
   }
   .file-link b {
     font-size: 0.78rem;
+  }
+}
+
+/* Wide screens: prev/next sit on the right end of the tabs row to save height */
+@media (min-width: 900px) {
+  .file-nav {
+    position: absolute;
+    z-index: 3;
+    top: -6px;
+    right: 0;
+    display: flex;
+    gap: 10px;
+    margin: 0;
+  }
+  .file-count {
+    display: none;
+  }
+  .file-link {
+    padding: 6px 12px;
+  }
+  .file-link b {
+    max-width: 150px;
+    font-size: 0.82rem;
+  }
+  .tabs {
+    margin-right: 360px;
   }
 }
 

@@ -199,10 +199,11 @@ const reducedMotion = window.matchMedia(
 const wait = (ms) =>
   new Promise((resolve) => setTimeout(resolve, reducedMotion ? 0 : ms));
 
-const typeInto = async (setter, text, speed = 38, sound = true) => {
+// `sound` plays per typed character: keyboard keys for the terminal, "speech" for the bubble
+const typeInto = async (setter, text, speed = 38, sound = sfx.key) => {
   for (let i = 1; i <= text.length && alive; i++) {
     setter(text.slice(0, i));
-    if (sound && text[i - 1] !== " ") sfx.key();
+    if (sound && text[i - 1] !== " ") sound();
     await wait(speed);
   }
 };
@@ -227,7 +228,7 @@ const runTerminal = async () => {
       await wait(22);
     }
     roleIndex = (roleIndex + 1) % roles.length;
-    await typeInto((t) => (lines[1].text = t), roles[roleIndex], 60, false);
+    await typeInto((t) => (lines[1].text = t), roles[roleIndex], 60, null);
   }
 };
 
@@ -254,12 +255,13 @@ const introPortrait = async () => {
   await wait(850);
   shown.bubble = true;
   sfx.pop();
-  // The portrait gets the spotlight first; the rest of the hero follows once Oka says hi
-  introContent();
   await wait(250);
-  await typeInto((t) => (bubbleText.value = t), GREETING, 50);
+  await typeInto((t) => (bubbleText.value = t), GREETING, 50, sfx.talk);
   bubbleDone.value = true;
   shown.years = true;
+  // Oka says hi first; the rest of the hero follows once the bubble is done
+  await wait(250);
+  introContent();
 };
 
 // Portrait tilts toward the cursor

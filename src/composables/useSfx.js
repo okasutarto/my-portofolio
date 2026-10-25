@@ -91,13 +91,22 @@ const SOUNDS = {
     tone(t, { freq: vary(130), to: 45, peak: 0.9 * strength, decay: 0.22 });
     noise(t, { filter: "lowpass", freq: 500, peak: 0.45 * strength, decay: 0.08 });
   },
-  // A single sheet of paper flicked
+  // A sheet of paper flicked: a few tiny bright crackles plus the soft air under the sheet
   paper(t) {
-    noise(t, { freq: vary(2600, 0.15), to: 1300, q: 0.8, attack: 0.008, peak: 0.35, decay: 0.1 });
+    const crackles = 3 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < crackles; i++) {
+      const at = t + i * 0.018 + Math.random() * 0.01;
+      noise(at, { filter: "highpass", freq: vary(3000, 0.3), q: 0.7, attack: 0.002, peak: 0.28 * (1 - i * 0.18), decay: 0.02 + Math.random() * 0.015 });
+    }
+    noise(t, { freq: 1800, q: 0.6, attack: 0.01, peak: 0.12, decay: 0.09 });
   },
-  // A cover or a large sheet swinging through the air
+  // A cover or a big sheet moving: a crinkle of many short crackles that swells and fades
   rustle(t, { duration = 0.6 } = {}) {
-    noise(t, { freq: 1500, to: 3200, q: 0.6, attack: duration * 0.45, peak: 0.25, decay: duration * 0.55 });
+    for (let at = t; at < t + duration; at += 0.012 + Math.random() * 0.03) {
+      const swell = Math.sin(Math.PI * ((at - t) / duration));
+      noise(at, { filter: "highpass", freq: vary(2400, 0.4), q: 0.8, attack: 0.002, peak: 0.05 + 0.2 * swell, decay: 0.012 + Math.random() * 0.02 });
+    }
+    noise(t, { freq: 1200, q: 0.5, attack: duration * 0.4, peak: 0.06, decay: duration * 0.6 });
   },
   // Air rushing past something thrown
   whoosh(t, { duration = 0.45, up = true } = {}) {
@@ -141,10 +150,18 @@ const SOUNDS = {
       noise(at, { freq: vary(3800, 0.25), q: 2.5, attack: 0.01, peak: 0.12, decay: 0.03 + Math.random() * 0.03 });
     }
   },
-  // Keyboard key
+  // Mechanical keyboard key: a sharp click, then the low "thock" of the keycap bottoming out
   key(t) {
-    noise(t, { filter: "highpass", freq: vary(2600, 0.2), peak: 0.22, decay: 0.02 });
-    tone(t, { freq: vary(210, 0.2), peak: 0.08, decay: 0.03 });
+    noise(t, { freq: vary(1800, 0.2), q: 1.2, attack: 0.001, peak: 0.25, decay: 0.012 });
+    noise(t + 0.008, { filter: "lowpass", freq: 600, attack: 0.002, peak: 0.18, decay: 0.03 });
+    tone(t, { freq: vary(140, 0.15), to: 90, peak: 0.08, decay: 0.035 });
+  },
+  // Cartoon "speech": a short voiced syllable at a random pitch, for talking speech bubbles
+  talk(t) {
+    const notes = [220, 247, 262, 294, 330];
+    const base = notes[Math.floor(Math.random() * notes.length)];
+    tone(t, { type: "triangle", freq: base * 1.15, to: base, attack: 0.008, peak: 0.16, decay: 0.07 });
+    tone(t, { freq: base * 2.02, to: base * 1.9, attack: 0.008, peak: 0.06, decay: 0.06 });
   },
   // Robot chatter
   blip(t) {
@@ -163,7 +180,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { key: 0.035, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5 };
+const MIN_GAP = { key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || ctx.state !== "running" || document.hidden) return;

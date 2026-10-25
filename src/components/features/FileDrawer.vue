@@ -12,21 +12,30 @@
             :key="project.id"
             :ref="(el) => el && (folderEls[index] = el)"
             class="folder"
-            :class="{ shut: isShut(index) }"
-            :style="folderStyle(index)">
+            :class="{ shut: isShut(index), 'is-active': index === shownIndex }"
+            :style="folderStyle(index)"
+            :role="index === shownIndex ? 'button' : undefined"
+            :tabindex="index === shownIndex ? 0 : undefined"
+            :aria-label="index === shownIndex ? `Open ${project.title} file` : undefined"
+            @click="handleFolderClick(index)"
+            @keydown.enter.space.prevent="index === shownIndex && openFile(index)">
             <!-- A manila folder: the back and its tab are one piece, the front is cut lower -->
             <button
               type="button"
               class="tab"
               :style="{ left: tabLeft(index), '--c': colorOf(index) }"
-              :aria-label="`Show ${project.title}`"
-              @click="goTo(index)">
+              :aria-label="index === shownIndex ? `Open ${project.title}` : `Show ${project.title}`"
+              @click.stop="handleFolderClick(index)">
               <span class="tab-label"><b class="font-display">{{ pad(index + 1) }}</b><span class="tab-name">{{ project.title }}</span></span>
             </button>
             <div class="back" :style="{ backgroundColor: colorOf(index) }"></div>
             <div class="papers" aria-hidden="true"><i></i><i></i><i></i></div>
-            <div class="face" :style="{ backgroundColor: colorOf(index) }" :inert="index !== shownIndex || openIndex !== -1 || undefined">
-              <FileCover :project="project" @open="openFile(index)" />
+            <div
+              class="face"
+              :style="{ backgroundColor: colorOf(index) }"
+              :inert="index !== shownIndex || openIndex !== -1 || undefined"
+              @click="openFile(index)">
+              <FileCover :project="project" />
             </div>
           </div>
         </div>
@@ -60,18 +69,29 @@
               :next-color="colorOf(openIndex + 1)" />
           </div>
         </div>
-        <div class="note">
-          <button type="button" aria-label="Previous sheet" @click="flip(-1)">‹</button>
-          <span class="font-display" aria-live="polite"><small>Sheet</small>{{ order[0] + 1 }} / {{ PAGES.length }} · {{ PAGES[order[0]] }}</span>
-          <button type="button" aria-label="Next sheet" @click="flip(1)">›</button>
+        <div class="sheet-nav font-display" role="navigation" aria-label="Sheet pagination">
+          <button type="button" aria-label="Previous sheet" @click.stop="flip(-1)">‹</button>
+          <span aria-live="polite">{{ order[0] + 1 }} / {{ PAGES.length }}</span>
+          <button type="button" aria-label="Next sheet" @click.stop="flip(1)">›</button>
         </div>
-        <button type="button" class="close font-display" @click="closeFile">Close file ✕</button>
-        <div ref="coverRef" class="cover">
+        <div
+          ref="coverRef"
+          class="cover"
+          :class="{ 'can-close': fileOpened }"
+          role="button"
+          :tabindex="fileOpened ? 0 : -1"
+          :aria-label="fileOpened ? 'Close folder' : undefined"
+          :title="fileOpened ? 'Click cover to close' : undefined"
+          @click="onCoverClick"
+          @keydown.enter.space.prevent="onCoverClick">
           <div class="cover-out" :style="{ backgroundColor: colorOf(openIndex) }">
             <FileCover :project="openProject" decorative />
           </div>
           <div class="cover-in" :style="{ backgroundColor: colorOf(openIndex) }">
-            <span class="font-display"><small>Case file</small>No. {{ pad(openIndex + 1) }} · {{ openProject.title }}</span>
+            <span class="font-display">
+              <small>Case file · Click to close ⤶</small>
+              No. {{ pad(openIndex + 1) }} · {{ openProject.title }}
+            </span>
           </div>
         </div>
       </div>
@@ -80,6 +100,7 @@
 </template>
 
 <script setup>
+import { FOLDER_COLORS as COLORS } from "@/data/projectFiles";
 import { ref, computed, watch, inject, nextTick, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
 import gsap from "gsap";
@@ -91,8 +112,6 @@ const props = defineProps({
   projects: { type: Array, required: true },
 });
 
-// Each project's folder colour (deliberately not the yellow/blue/teal of the site accents)
-const COLORS = ["#ff9ec4", "#ffb35c", "#c4b5fd", "#bef264", "#f0abfc"];
 const PAGES = ["Overview", "Challenge", "Features", "How it works", "Stack"];
 const colorOf = (index) => COLORS[index % COLORS.length];
 const pad = (n) => String(n).padStart(2, "0");
@@ -175,6 +194,14 @@ const positionOf = (index) => trackTop() + ((trackRef.value.offsetHeight - windo
 const goTo = (index) => {
   sfx.tick();
   window.scrollTo({ top: positionOf(index), behavior: reduced ? "auto" : "smooth" });
+};
+const handleFolderClick = (index) => {
+  if (busy || openIndex.value !== -1) return;
+  if (index === shownIndex.value) {
+    openFile(index);
+  } else {
+    goTo(index);
+  }
 };
 
 // On tall screens the drawer sits low in its (full-height) stage, which would leave a big gap
@@ -323,6 +350,11 @@ const closeFile = async () => {
     .call(() => sfx.drawer({ duration: 0.7 }), null, 0.6)
     .call(() => sfx.slide({ duration: 0.45, up: false }), null, 0.8)
     .call(() => sfx.knock(), null, 1.32);
+};
+
+const onCoverClick = () => {
+  if (!fileOpened.value || busy) return;
+  closeFile();
 };
 
 // ---------- flipping through the sheets ----------
@@ -533,6 +565,10 @@ onUnmounted(() => {
   transform-origin: 50% 100%;
   will-change: transform;
 }
+.folder.is-active,
+.folder.is-active .face {
+  cursor: pointer;
+}
 /* The tab is cut from the back panel: a trapezoid outlined in black (an outer black shape with
    the colour inset inside it), running into the back panel with no seam */
 .tab {
@@ -657,70 +693,52 @@ onUnmounted(() => {
 .leaf:nth-child(3) { background: #fdfaf0; }
 .leaf:nth-child(4) { background: #f9f4e4; }
 .leaf:nth-child(5) { background: #fcf8ec; }
-/* sits below the middle of the file: clear of the folder's tab and the chat button */
-.note {
+/* sits in the top-right corner of the paper / sheet */
+.sheet-nav {
   position: absolute;
   z-index: 30;
-  left: 50%;
-  bottom: -60px;
-  margin-left: -9.5em;
+  top: 14px;
+  right: 28px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 8px;
+  gap: 6px;
+  padding: 4px 6px;
   background: #ffdd00;
-  border: 3px solid #000;
-  box-shadow: 3px 3px 0 #000;
-  transform: rotate(-2deg);
+  border: 2.5px solid #000;
+  box-shadow: 2.5px 2.5px 0 #000;
   visibility: hidden;
+  user-select: none;
 }
-.file.opened .note {
+.file.opened .sheet-nav {
   visibility: visible;
 }
-.note > span {
-  min-width: 9.5em;
-  text-align: center;
-  font-size: 0.78rem;
+.sheet-nav > span {
+  padding: 0 4px;
+  font-size: 0.75rem;
   font-weight: 800;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  color: #000;
 }
-.note small {
-  display: block;
-  font: 700 0.54rem "JetBrains Mono", monospace;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.65;
-}
-.note button {
-  width: 30px;
-  height: 30px;
+.sheet-nav button {
+  width: 24px;
+  height: 24px;
   display: grid;
   place-items: center;
   background: #fff;
-  border: 2.5px solid #000;
-  font: 800 1rem "Lexend Mega", sans-serif;
+  border: 2px solid #000;
+  font: 800 0.88rem "Lexend Mega", sans-serif;
+  color: #000;
+  cursor: pointer;
+  line-height: 1;
+  transition: transform 0.1s, background-color 0.1s, color 0.1s;
 }
-.note button:hover {
+.sheet-nav button:hover {
   background: #111;
   color: #ffdd00;
 }
-.close {
-  position: absolute;
-  z-index: 3;
-  left: 0;
-  bottom: -54px;
-  padding: 8px 12px;
-  background: #fff;
-  border: 3px solid #000;
-  box-shadow: 3px 3px 0 #000;
-  font-size: 0.68rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  color: #111;
-}
-.close:hover {
-  background: #111;
-  color: #fff;
+.sheet-nav button:active {
+  transform: translate(1px, 1px);
 }
 /* The cover swings open to the left and lies flat */
 .cover {
@@ -763,6 +781,17 @@ onUnmounted(() => {
   letter-spacing: 0.1em;
   opacity: 0.6;
 }
+.cover.can-close {
+  cursor: pointer;
+}
+.cover.can-close .cover-in {
+  cursor: pointer;
+}
+.cover.can-close:hover .cover-in span {
+  transform: rotate(-3deg) translateY(-2px);
+  box-shadow: 4px 4px 0 #000;
+  background: #ffdd00;
+}
 
 /* ---------- phones ---------- */
 @media (max-width: 639px) {
@@ -795,14 +824,20 @@ onUnmounted(() => {
   .tab-name {
     display: none;
   }
-  .note {
-    left: auto;
-    right: 4px;
-    margin-left: 0;
+  .sheet-nav {
+    top: 10px;
+    right: 18px;
+    padding: 3px 5px;
+    gap: 4px;
   }
-  .note > span {
-    min-width: 7.5em;
+  .sheet-nav > span {
     font-size: 0.68rem;
+    padding: 0 2px;
+  }
+  .sheet-nav button {
+    width: 22px;
+    height: 22px;
+    font-size: 0.78rem;
   }
 }
 </style>

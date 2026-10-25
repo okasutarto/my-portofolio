@@ -2,9 +2,11 @@
 // canvas pixels ({ x, y, w, h, href | action }), which the scene makes clickable.
 //
 // Props: ID badge, boarding passes, case files, phone chat,
-// postcard, scrapbook and the terminal screen.
+// postcard, pinned About notes and the terminal screen.
 // Everything is drawn flat with thick black strokes and hard offset shadows, like the 2D site.
 import * as THREE from "three";
+import { ABOUT_STACK } from "@/data/about";
+import { FOLDER_COLORS, FILE_PAGES } from "@/data/projectFiles";
 
 export const TYPE_COLORS = {
   Frontend: "#ffdd00",
@@ -424,166 +426,167 @@ export function drawTicketBack(c, w, h, exp) {
   c.strokeRect(5, 5, w - 10, h - 10);
 }
 
-// ---------- project case files (projects) ----------
-export function drawFolderCover(c, w, h, project, index = 0) {
-  c.fillStyle = "#f5c76b";
-  c.fillRect(0, 0, w, h);
-  c.fillStyle = "rgba(120,70,10,.12)";
-  for (let y = 0; y < h; y += 12) c.fillRect(0, y, w, 2);
-  // label sticker
-  brutalBox(c, 34, 34, w * 0.62, 150, "#fff", { shadow: 8, line: 6 });
-  c.fillStyle = "#000";
-  c.font = `700 20px ${BODY}`;
-  c.textBaseline = "top";
-  c.fillText(`CASE FILE #${String(index + 1).padStart(3, "0")}`, 54, 52);
-  fitFont(c, project.title.toUpperCase(), 800, DISPLAY, 44, w * 0.62 - 40);
-  c.fillText(project.title.toUpperCase(), 54, 86);
-  c.font = `700 20px ${BODY}`;
-  c.fillText(`${project.type.toUpperCase()} · ${project.year || ""}`, 54, 146);
-  // type stamp
+// ---------- project case files: same five sheets and palette as the 2D drawer ----------
+function fileCanvas(c, w, h, draw, height = 740) {
   c.save();
-  c.translate(w - 150, h - 110);
-  c.rotate(-0.2);
-  c.strokeStyle = colorFor(project) === "#ffdd00" ? "#e11d48" : colorFor(project);
-  c.fillStyle = c.strokeStyle;
-  c.lineWidth = 8;
-  c.strokeRect(-110, -40, 220, 80);
-  c.font = `800 34px ${DISPLAY}`;
-  c.textAlign = "center";
-  c.textBaseline = "middle";
-  c.fillText("SHIPPED", 0, 2);
-  c.restore();
-  c.textBaseline = "alphabetic";
-  c.lineWidth = 10;
-  c.strokeStyle = "#000";
-  c.strokeRect(5, 5, w - 10, h - 10);
-}
-
-
-// The sheets clipped inside each folder, turned over one by one once the folder is open.
-// Back sides (and the inside of the cover) are drawn upside down, like the scrapbook's.
-function sheetPaper(c, w, h, project, title, n, total) {
-  c.fillStyle = "#fff";
-  c.fillRect(0, 0, w, h);
-  c.fillStyle = "rgba(59,130,246,.15)";
-  for (let y = 100; y < h; y += 34) c.fillRect(0, y, w, 2);
-  c.fillStyle = colorFor(project);
-  c.fillRect(0, 0, w, 16);
-  c.fillStyle = "#000";
-  c.textBaseline = "top";
-  c.font = `700 16px ${BODY}`;
-  c.fillText(`${project.title.toUpperCase()} · ${n}/${total}`, 28, 30);
-  c.font = `800 32px ${DISPLAY}`;
-  c.fillText(title, 28, 54);
-  c.fillStyle = "rgba(0,0,0,.5)";
-  c.font = `600 22px 'Caveat', cursive`;
-  c.textAlign = "right";
-  c.fillText(n < total ? "turn →" : "the end", w - 22, h - 34);
+  c.scale(w / 1000, h / height);
   c.textAlign = "left";
-  c.fillStyle = "#000";
+  c.textBaseline = "top";
+  const hotspots = draw() || [];
+  c.restore();
+  return hotspots.map((spot) => ({ ...spot, x: spot.x * w / 1000, y: spot.y * h / height, w: spot.w * w / 1000, h: spot.h * h / height }));
 }
-const bullets = (c, items, x, y, width, { max = 4, lines = 2, size = 19, gap = 10 } = {}) => {
-  for (const item of items.slice(0, max)) {
-    c.fillStyle = "#000";
-    c.fillRect(x, y + 7, 10, 10);
-    c.font = `500 ${size}px ${BODY}`;
-    const ls = wrap(c, item, width - 24, lines);
-    ls.forEach((line, i) => c.fillText(line, x + 22, y + i * (size + 5)));
-    y += ls.length * (size + 5) + gap;
-  }
-  return y;
-};
-export const CASE_SHEETS = ["brief", "challenge", "features", "results"];
-const SHEETS = {
-  brief(c, w, h, p) {
-    c.font = `700 16px ${BODY}`;
-    c.fillText(`${p.type.toUpperCase()} · ${p.year || ""} · ${(p.role || "").toUpperCase()}`, 28, 100);
-    c.font = `500 19px ${BODY}`;
-    wrap(c, p.overview || p.description || "", w - 56, 6).forEach((line, i) => c.fillText(line, 28, 136 + i * 34));
-    let x = 28;
-    c.font = `700 15px ${BODY}`;
-    for (const tech of (p.technologies || []).slice(0, 5)) {
-      const tw = c.measureText(tech.toUpperCase()).width + 20;
-      if (x + tw > w - 28) break;
-      brutalBox(c, x, h - 76, tw, 32, "#ffdd00", { shadow: 4, line: 3 });
-      c.fillStyle = "#000";
-      c.fillText(tech.toUpperCase(), x + 10, h - 68);
-      x += tw + 12;
-    }
-  },
-  challenge(c, w, h, p) {
-    const half = (w - 70) / 2;
-    c.font = `800 18px ${DISPLAY}`;
-    c.fillStyle = "#e11d48";
-    c.fillText("PROBLEM", 28, 104);
-    c.fillStyle = "#166534";
-    c.fillText("SOLUTION", 42 + half, 104);
-    bullets(c, p.problem?.points || [], 28, 138, half, { max: 4, lines: 3, size: 16, gap: 8 });
-    bullets(c, p.solution?.points || [], 42 + half, 138, half, { max: 4, lines: 3, size: 16, gap: 8 });
-    c.fillStyle = "#000";
-    c.fillRect(34 + half, 104, 3, h - 160);
-  },
-  features(c, w, h, p) {
-    const half = (w - 70) / 2;
-    const items = p.features || [];
-    bullets(c, items.slice(0, 4), 28, 104, half, { lines: 2, size: 17 });
-    bullets(c, items.slice(4, 8), 42 + half, 104, half, { lines: 2, size: 17 });
-  },
-  results(c, w, h, p) {
-    const hotspots = [];
-    (p.results?.metrics || []).slice(0, 3).forEach((m, i) => {
-      const bw = (w - 56 - 24) / 3;
-      const x = 28 + i * (bw + 12);
-      brutalBox(c, x, 104, bw, 124, ["#ffdd00", "#ff90e8", "#8fd694"][i], { shadow: 6, line: 4 });
-      c.fillStyle = "#000";
-      fitFont(c, m.value, 800, DISPLAY, 34, bw - 20);
-      c.fillText(m.value, x + 12, 118);
-      c.font = `700 14px ${BODY}`;
-      wrap(c, m.label.toUpperCase(), bw - 24, 3).forEach((line, j) => c.fillText(line, x + 12, 168 + j * 17));
-    });
-    // Links as rubber stamps
-    const links = [
-      { label: "LIVE SITE ↗", href: p.demoLink, color: "#00e0c6" },
-      { label: "CODE ↗", href: p.codeLink, color: "#fff" },
-    ].filter((l) => l.href && l.href !== "#");
-    links.forEach((l, i) => {
-      const box = { x: 28 + i * 230, y: h - 140, w: 210, h: 64 };
-      brutalBox(c, box.x, box.y, box.w, box.h, l.color, { shadow: 6, line: 5 });
-      c.fillStyle = "#000";
-      c.font = `800 22px ${DISPLAY}`;
-      c.textBaseline = "middle";
-      c.fillText(l.label, box.x + 18, box.y + box.h / 2 + 2);
-      c.textBaseline = "top";
-      hotspots.push({ ...box, href: l.href });
-    });
-    if (!links.length) {
-      c.font = `600 26px 'Caveat', cursive`;
-      c.fillText("(private project: no public link)", 28, h - 118);
-    }
-    return hotspots;
-  },
-};
-const SHEET_TITLES = { brief: "THE BRIEF", challenge: "THE CHALLENGE", features: "FEATURES", results: "RESULTS" };
-
-export function drawCaseSheet(c, w, h, project, kind) {
-  const n = CASE_SHEETS.indexOf(kind) + 1;
-  sheetPaper(c, w, h, project, SHEET_TITLES[kind], n, CASE_SHEETS.length);
-  const hotspots = SHEETS[kind](c, w, h, project) || [];
-  c.textBaseline = "alphabetic";
+function fileText(c, text, x, y, width, { size = 25, lines = 4, weight = 500, ink = "#111" } = {}) {
+  c.fillStyle = ink;
+  c.font = `${weight} ${size}px ${BODY}`;
+  const wrapped = wrap(c, String(text || ""), width, lines);
+  wrapped.forEach((line, i) => c.fillText(line, x, y + i * size * 1.35));
+  return wrapped.length * size * 1.35;
+}
+function drawClip(c, x, y, w, h, api) {
+  brutalBox(c, x, y, w, h, "#fffdf5", { shadow: 7, line: 4 });
+  c.strokeStyle = "#555";
   c.lineWidth = 6;
-  c.strokeStyle = "#000";
-  c.strokeRect(3, 3, w - 6, h - 6);
-  return hotspots;
+  c.strokeRect(x + 35, y - 18, 20, 58);
+  if (api) {
+    fileText(c, api.request, x + 16, y + 35, w - 32, { size: 17, weight: 800, lines: 2 });
+    fileText(c, api.status, x + 16, y + 95, w - 32, { size: 16, ink: "#166534", lines: 1 });
+    fileText(c, typeof api.body === "string" ? api.body : JSON.stringify(api.body, null, 2), x + 16, y + 130, w - 32, { size: 15, ink: "#7c3aed", lines: 8 });
+  } else {
+    brutalBox(c, x + 20, y + 28, w - 40, 25, "#fff", { shadow: 0, line: 3 });
+    brutalBox(c, x + 20, y + 70, w - 40, h * 0.35, "#d9d9d9", { shadow: 0, line: 3 });
+    for (let i = 0; i < 2; i++) brutalBox(c, x + 20 + i * (w / 2 - 10), y + h * 0.64, w / 2 - 30, h * 0.15, "#fff", { shadow: 0, line: 3 });
+    c.fillStyle = "#111";
+    c.fillRect(x + 20, y + h - 35, w * 0.55, 16);
+  }
+}
+function drawFileMetrics(c, metrics, color, y = 630) {
+  metrics.slice(0, 3).forEach((metric, i) => {
+    const x = 42 + i * 310;
+    brutalBox(c, x, y, 292, 78, color, { shadow: 5, line: 4 });
+    c.fillStyle = "#111";
+    fitFont(c, metric.value, 800, DISPLAY, 34, 266);
+    c.fillText(metric.value, x + 14, y + 8);
+    fileText(c, metric.label.toUpperCase(), x + 14, y + 49, 266, { size: 14, lines: 1, weight: 800 });
+  });
+}
+export function drawFolderCover(c, w, h, project, index = 0) {
+  return fileCanvas(c, w, h, () => {
+    const color = FOLDER_COLORS[index % FOLDER_COLORS.length];
+    c.fillStyle = color;
+    c.fillRect(0, 0, 1000, 740);
+    brutalBox(c, 42, 42, 245, 46, "#fff", { shadow: 5, line: 4 });
+    fileText(c, project.type.toUpperCase(), 58, 53, 220, { size: 20, weight: 800, lines: 1 });
+    const longestWord = project.title.toUpperCase().split(/\s+/).sort((a, b) => b.length - a.length)[0];
+    fitFont(c, longestWord, 800, DISPLAY, 61, 560);
+    const title = wrap(c, project.title.toUpperCase(), 560, 3);
+    title.forEach((line, i) => c.fillText(line, 42, 122 + i * 76));
+    fileText(c, project.description, 42, 142 + title.length * 76, 550, { size: 25, lines: 3 });
+    drawClip(c, 660, 140, 290, 330, project.caseFile?.api);
+    c.strokeStyle = "#000";
+    c.lineWidth = 7;
+    c.strokeRect(4, 4, 992, 732);
+  });
+}
+export const CASE_SHEETS = FILE_PAGES.map((page) => page.id);
+export function drawCaseSheet(c, w, h, project, kind, { index = 0 } = {}) {
+  return fileCanvas(c, w, h, () => {
+    const page = CASE_SHEETS.indexOf(kind);
+    const color = FOLDER_COLORS[index % FOLDER_COLORS.length];
+    const metrics = (project.results?.metrics || []).slice(0, 3);
+    const cf = project.caseFile || {};
+    c.fillStyle = "#fffdf5";
+    c.fillRect(0, 0, 1000, 740);
+    brutalBox(c, 35, 28, 58, 40, "#111", { shadow: 0, line: 0 });
+    fileText(c, String(page + 1).padStart(2, "0"), 46, 36, 45, { size: 23, weight: 800, lines: 1, ink: "#ffdd00" });
+    fileText(c, FILE_PAGES[page].title.toUpperCase(), 110, 34, 840, { size: 31, weight: 800, lines: 1 });
+    fileText(c, `NO. ${String(index + 1).padStart(2, "0")} · ${project.title.toUpperCase()}`, 38, 84, 920, { size: 16, weight: 700, lines: 1, ink: "#666" });
+    const hotspots = [];
+    if (kind === "overview") {
+      const storyH = fileText(c, project.overview || project.description, 38, 135, 540, { size: 25, lines: 8 });
+      if (cf.quote) fileText(c, `“${cf.quote}.”`, 38, Math.min(450, 160 + storyH), 540, { size: 24, weight: 700, ink: "#555", lines: 2 });
+      brutalBox(c, 620, 135, 340, 370, "#fff", { shadow: 5, line: 4 });
+      [["CLIENT", cf.client || "Personal project"], ["TYPE", project.type], ["YEAR", project.year], ["BUILT IN", project.duration], ["ROLE", project.role]].forEach(([label, value], i) => {
+        fileText(c, label, 638, 151 + i * 67, 295, { size: 15, weight: 800, ink: "#666", lines: 1 });
+        fileText(c, value, 638, 174 + i * 67, 295, { size: 22, weight: 700, lines: 1 });
+      });
+      drawFileMetrics(c, metrics, color, 555);
+    } else if (kind === "challenge") {
+      fileText(c, "THE PROBLEM", 38, 130, 400, { size: 22, weight: 800, lines: 1 });
+      fileText(c, "WHAT I BUILT", 565, 130, 400, { size: 22, weight: 800, lines: 1 });
+      (project.problem?.points || []).slice(0, 4).forEach((point, i) => {
+        const y = 175 + i * 115;
+        brutalBox(c, 38, y, 410, 100, "#fecaca", { shadow: 4, line: 3 });
+        brutalBox(c, 555, y, 410, 100, "#bbf7d0", { shadow: 4, line: 3 });
+        fileText(c, point, 51, y + 12, 384, { size: 20, lines: 3 });
+        fileText(c, "→", 477, y + 28, 65, { size: 38, weight: 800, lines: 1 });
+        fileText(c, project.solution?.points?.[i], 568, y + 12, 384, { size: 20, lines: 3 });
+      });
+    } else if (kind === "features") {
+      (project.features || []).slice(0, 9).forEach((feature, i) => {
+        const x = 40 + (i % 3) * 317;
+        const y = 140 + Math.floor(i / 3) * 170;
+        brutalBox(c, x, y, 297, 148, ["#fff", color, "#ffdd00", "#bfdbfe"][i % 4], { shadow: 5, line: 4 });
+        fileText(c, String(i + 1).padStart(2, "0"), x + 14, y + 12, 60, { size: 17, weight: 800, lines: 1 });
+        fileText(c, feature, x + 14, y + 42, 270, { size: 22, weight: 700, lines: 3 });
+      });
+    } else if (kind === "how") {
+      let y = 142;
+      (cf.flows || []).forEach((flow) => {
+        fileText(c, flow.label.toUpperCase(), 38, y, 545, { size: 20, weight: 800, lines: 1 });
+        y += 40;
+        y += fileText(c, flow.nodes.join(" → "), 38, y, 550, { size: 27, weight: 700, lines: 3 }) + 50;
+      });
+      drawClip(c, 645, 155, 310, 390, cf.api);
+    } else {
+      let x = 38;
+      let y = 140;
+      for (const tech of project.technologies || []) {
+        c.font = `700 21px ${BODY}`;
+        const width = c.measureText(tech).width + 28;
+        if (x + width > 605) { x = 38; y += 58; }
+        brutalBox(c, x, y, width, 42, "#fff", { shadow: 4, line: 3 });
+        fileText(c, tech, x + 12, y + 8, width - 24, { size: 21, weight: 700, lines: 1 });
+        x += width + 14;
+      }
+      y += 80;
+      if (project.learnings?.length) {
+        fileText(c, "WHAT I LEARNED", 38, y, 550, { size: 18, weight: 800, lines: 1 });
+        project.learnings.slice(0, 3).forEach((item, i) => fileText(c, `• ${item}`, 38, y + 36 + i * 70, 550, { size: 22, lines: 2 }));
+      }
+      metrics.forEach((metric, i) => {
+        brutalBox(c, 650, 140 + i * 155, 305, 130, color, { shadow: 5, line: 4 });
+        fileText(c, metric.value, 670, 158 + i * 155, 265, { size: 42, weight: 800, lines: 1 });
+        fileText(c, metric.label.toUpperCase(), 670, 214 + i * 155, 265, { size: 18, weight: 800, lines: 2 });
+      });
+      const links = [{ label: "OPEN LIVE ↗", href: project.demoLink }, { label: "CODE ↗", href: project.codeLink }].filter((link) => link.href && link.href !== "#");
+      links.forEach((link, i) => {
+        const box = { x: 38 + i * 255, y: 580, w: 235, h: 58 };
+        brutalBox(c, box.x, box.y, box.w, box.h, i ? "#fff" : "#00e0c6", { shadow: 5, line: 4 });
+        fileText(c, link.label, box.x + 13, box.y + 16, box.w - 26, { size: 23, weight: 800, lines: 1 });
+        hotspots.push({ ...box, href: link.href });
+      });
+      if (!links.length) fileText(c, "PRIVATE BUILD", 38, 595, 540, { size: 22, weight: 800, ink: "#666", lines: 1 });
+    }
+    fileText(c, page ? "← BACK" : "", 38, 684, 250, { size: 19, weight: 800, lines: 1 });
+    fileText(c, page < CASE_SHEETS.length - 1 ? "NEXT →" : "END", 820, 684, 150, { size: 19, weight: 800, lines: 1 });
+    if (page) hotspots.push({ x: 20, y: 660, w: 260, h: 70, action: "prev" });
+    if (page < CASE_SHEETS.length - 1) hotspots.push({ x: 760, y: 660, w: 230, h: 70, action: "next" });
+    c.strokeStyle = "#000";
+    c.lineWidth = 6;
+    c.strokeRect(3, 3, 994, 734);
+    return hotspots;
+  });
 }
 // Back of a turned sheet / inside of the cover: drawn upside down so they read once flipped
 export function drawCaseBack(c, w, h, project, { inside = false, index = 0 } = {}) {
   c.save();
   c.translate(w, h);
   c.rotate(Math.PI);
-  c.fillStyle = inside ? "#f5c76b" : "#fff";
+  c.fillStyle = inside ? FOLDER_COLORS[index % FOLDER_COLORS.length] : "#fff";
   c.fillRect(0, 0, w, h);
   c.fillStyle = inside ? "rgba(120,70,10,.12)" : "rgba(59,130,246,.15)";
-  for (let y = inside ? 0 : 100; y < h; y += inside ? 12 : 34) c.fillRect(0, y, w, 2);
+  if (!inside) for (let y = 100; y < h; y += 34) c.fillRect(0, y, w, 2);
   c.fillStyle = "#000";
   if (inside) {
     c.font = `800 30px ${DISPLAY}`;
@@ -768,378 +771,152 @@ export function drawPostcard(c, w, h) {
 }
 
 export function drawEnvelope(c, w, h, { delivered = false } = {}) {
-  c.fillStyle = "#e9c48a";
-  c.fillRect(0, 0, w, h);
-  c.strokeStyle = "#000";
-  c.lineWidth = 8;
+  c.clearRect(0, 0, w, h);
   c.beginPath();
-  c.moveTo(0, 0);
-  c.lineTo(w / 2, h * 0.55);
-  c.lineTo(w, 0);
-  c.stroke();
-  c.beginPath();
-  c.moveTo(0, h);
-  c.lineTo(w * 0.42, h * 0.48);
-  c.moveTo(w, h);
-  c.lineTo(w * 0.58, h * 0.48);
-  c.stroke();
-  // wax seal
-  c.fillStyle = "#e11d48";
-  c.beginPath();
-  c.arc(w / 2, h * 0.55, 34, 0, Math.PI * 2);
-  c.fill();
-  c.stroke();
-  c.lineWidth = 12;
-  c.strokeRect(6, 6, w - 12, h - 12);
+  c.moveTo(0, 0); c.lineTo(w / 2, h * 0.52); c.lineTo(w, 0);
+  c.lineTo(w, h); c.lineTo(0, h); c.closePath();
+  c.fillStyle = "#dcc391"; c.fill();
+  c.lineWidth = 6; c.strokeStyle = "#000"; c.stroke();
+  c.save(); c.translate(w * 0.08, h * 0.76); c.rotate(-0.07);
+  c.strokeStyle = "#1d4ed8"; c.fillStyle = "#1d4ed8"; c.lineWidth = 3;
+  c.strokeRect(0, 0, w * 0.38, h * 0.15);
+  c.font = `800 ${Math.round(h * 0.075)}px ${BODY}`;
+  c.textBaseline = "middle"; c.fillText("PAR AVION ✈", w * 0.025, h * 0.075);
+  c.restore();
   if (delivered) {
-    c.save();
-    c.translate(w * 0.72, h * 0.28);
-    c.rotate(-0.15);
-    c.strokeStyle = "#16a34a";
-    c.fillStyle = "#16a34a";
-    c.lineWidth = 7;
-    c.strokeRect(-130, -36, 260, 72);
-    c.font = `800 30px ${DISPLAY}`;
-    c.textAlign = "center";
-    c.textBaseline = "middle";
-    c.fillText("SENT ✓", 0, 2);
+    c.save(); c.translate(w * 0.68, h * 0.75); c.rotate(-0.12);
+    c.strokeStyle = "#16a34a"; c.fillStyle = "#16a34a"; c.lineWidth = 4;
+    c.strokeRect(-w * 0.22, -h * 0.09, w * 0.44, h * 0.18);
+    c.font = `800 ${Math.round(h * 0.08)}px ${BODY}`;
+    c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("DELIVERED ✓", 0, 0);
     c.restore();
   }
+}
+export function drawEnvelopeFlap(c, w, h) {
+  c.clearRect(0, 0, w, h);
+  c.beginPath(); c.moveTo(0, 0); c.lineTo(w, 0); c.lineTo(w / 2, h); c.closePath();
+  c.fillStyle = "#e2cb9c"; c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 6; c.stroke();
+}
+export function drawPostcardStamp(c, w, h) {
+  c.fillStyle = "#ffdd00"; c.fillRect(0, 0, w, h);
+  c.strokeStyle = "#000"; c.lineWidth = 5; c.strokeRect(3, 3, w - 6, h - 6);
+  c.strokeStyle = "#fffdf5"; c.lineWidth = 3; c.setLineDash([3, 5]);
+  c.strokeRect(10, 10, w - 20, h - 20); c.setLineDash([]);
+  c.strokeStyle = "#000"; c.lineWidth = 4; c.strokeRect(w * 0.36, h * 0.18, w * 0.28, h * 0.32);
+  c.fillStyle = "#000"; c.textAlign = "center"; c.textBaseline = "middle";
+  c.font = `800 ${Math.round(w * 0.11)}px ${BODY}`;
+  c.fillText("PONTIANAK", w / 2, h * 0.69); c.fillText("2026", w / 2, h * 0.82);
+  c.textAlign = "left"; c.textBaseline = "alphabetic";
 }
 
 // The writing side of the postcard: message on the left, sender on the right, SEND stamp.
 // `card` is the scene's live state ({ name, email, message, active, errors, status }).
 export function drawPostcardBack(c, w, h, card, { caret = false } = {}) {
-  const hotspots = [];
-  c.fillStyle = "#fffdf5";
-  c.fillRect(0, 0, w, h);
-  const split = w * 0.56;
-  c.fillStyle = "#000";
-  c.fillRect(split - 2, 40, 4, h - 80);
-
-  // message
-  c.textBaseline = "alphabetic";
-  c.fillStyle = "rgba(0,0,0,.55)";
-  c.font = `700 18px ${BODY}`;
-  c.fillText("WRITE ME SOMETHING", 40, 58);
-  const area = { x: 34, y: 76, w: split - 70, h: h - 150 };
-  c.fillStyle = "rgba(59,130,246,.25)";
-  for (let y = area.y + 56; y < area.y + area.h; y += 54) c.fillRect(area.x, y, area.w, 2);
-  if (card.active === "message") {
-    c.strokeStyle = "#3b82f6";
-    c.lineWidth = 4;
-    c.setLineDash([12, 8]);
-    c.strokeRect(area.x - 6, area.y - 6, area.w + 12, area.h + 12);
-    c.setLineDash([]);
-  }
-  c.font = `600 40px 'Caveat', cursive`;
-  const lines = (card.message || "").split("\n").flatMap((para) => wrap(c, para, area.w - 10, 20));
-  const visible = lines.slice(-7);
-  c.fillStyle = card.message ? "#1a1714" : "rgba(0,0,0,.35)";
-  (card.message ? visible : ["Hi Oka, I'd love to…"]).forEach((line, i) => c.fillText(line, area.x + 6, area.y + 48 + i * 54));
-  if (caret && card.active === "message") {
-    const last = card.message ? visible[visible.length - 1] || "" : "";
-    const row = Math.max(0, (card.message ? visible.length : 1) - 1);
-    c.fillStyle = "#1a1714";
-    c.fillRect(area.x + 8 + c.measureText(card.message ? last : "").width, area.y + 14 + row * 54, 4, 42);
-  }
-  if (card.errors.message) {
-    c.fillStyle = "#e11d48";
-    c.font = `700 18px ${BODY}`;
-    c.fillText(card.errors.message, area.x, h - 40);
-  }
-  hotspots.push({ ...area, id: "message" });
-
-  // stamp = the send button
-  const stamp = { x: w - 200, y: 36, w: 160, h: 190 };
-  const stampColor = card.status === "error" ? "#e11d48" : card.status === "sending" ? "#ffdd00" : "#ff90e8";
-  brutalBox(c, stamp.x, stamp.y, stamp.w, stamp.h, stampColor, { shadow: 8, line: 6 });
-  c.fillStyle = "rgba(0,0,0,.2)";
-  for (let i = 0; i < 10; i++) {
-    c.beginPath();
-    c.arc(stamp.x + 8 + i * 16, stamp.y - 2, 6, 0, Math.PI * 2);
-    c.arc(stamp.x + 8 + i * 16, stamp.y + stamp.h + 2, 6, 0, Math.PI * 2);
-    c.fill();
-  }
-  c.fillStyle = "#000";
-  c.textAlign = "center";
-  c.textBaseline = "middle";
-  c.font = `800 34px ${DISPLAY}`;
-  c.fillText(card.status === "sending" ? "…" : "SEND", stamp.x + stamp.w / 2, stamp.y + 80);
-  c.font = `800 40px ${BODY}`;
-  c.fillText(card.status === "error" ? "!" : "✉", stamp.x + stamp.w / 2, stamp.y + 136);
-  c.textAlign = "left";
-  hotspots.push({ ...stamp, id: "send" });
-  if (card.status === "error") {
-    c.fillStyle = "#e11d48";
-    c.font = `700 18px ${BODY}`;
-    c.fillText("Couldn't send. Try again?", split + 30, stamp.y + stamp.h + 34);
-  }
-
-  // sender fields on address lines
-  [
-    { id: "name", label: "FROM", placeholder: "your name", y: 330 },
-    { id: "email", label: "REPLY TO", placeholder: "you@email.com", y: 470 },
-  ].forEach((f) => {
-    const box = { x: split + 30, y: f.y - 70, w: w - split - 70, h: 96 };
-    c.fillStyle = "rgba(0,0,0,.55)";
-    c.font = `700 18px ${BODY}`;
-    c.textBaseline = "alphabetic";
-    c.fillText(f.label, box.x, f.y - 46);
-    c.fillStyle = "#000";
-    c.fillRect(box.x, f.y + 8, box.w, card.active === f.id ? 6 : 3);
-    const value = card[f.id] || "";
-    c.font = `600 30px ${BODY}`;
-    let shown = value;
-    while (shown && c.measureText(shown).width > box.w - 16) shown = shown.slice(1);
-    c.fillStyle = value ? "#000" : "rgba(0,0,0,.3)";
-    c.fillText(value ? shown : f.placeholder, box.x + 4, f.y - 6);
-    if (caret && card.active === f.id) c.fillRect(box.x + 6 + (value ? c.measureText(shown).width : 0), f.y - 36, 4, 38);
-    if (card.errors[f.id]) {
-      c.fillStyle = "#e11d48";
-      c.font = `700 17px ${BODY}`;
-      c.fillText(card.errors[f.id], box.x, f.y + 38);
+  return fileCanvas(c, w, h, () => {
+    c.fillStyle = "#fffdf5"; c.fillRect(0, 0, 1000, 640);
+    c.strokeStyle = "rgba(0,0,0,.18)"; c.lineWidth = 2; c.setLineDash([8, 7]);
+    c.strokeRect(14, 14, 972, 612); c.setLineDash([]);
+    c.fillStyle = "rgba(0,0,0,.25)"; c.fillRect(560, 0, 2, 640);
+    fileText(c, "HI OKA,", 40, 48, 450, { size: 35, weight: 800, lines: 1 });
+    const area = { x: 38, y: 115, w: 485, h: 430, id: "message" };
+    c.fillStyle = "rgba(0,0,0,.18)";
+    for (let y = 172; y < 560; y += 56) c.fillRect(40, y, 480, 2);
+    c.font = `500 30px ${BODY}`;
+    const lines = (card.message || "").split("\n").flatMap((line) => wrap(c, line, 465, 30)).slice(-7);
+    c.fillStyle = card.message ? "#1a1714" : "rgba(0,0,0,.4)";
+    (card.message ? lines : ["Tell me about your", "project..."]).forEach((line, i) => c.fillText(line, 44, 129 + i * 56));
+    if (caret && card.active === "message") {
+      c.fillStyle = "#111";
+      c.fillRect(44 + c.measureText(lines[lines.length - 1] || "").width, 129 + Math.max(0, lines.length - 1) * 56, 3, 34);
     }
-    hotspots.push({ ...box, id: f.id });
-  });
-
-  c.lineWidth = 10;
-  c.strokeStyle = "#000";
-  c.strokeRect(5, 5, w - 10, h - 10);
-  c.textBaseline = "alphabetic";
-  return hotspots;
+    if (card.errors.message) fileText(c, card.errors.message, 40, 580, 480, { size: 18, ink: "#dc2626", lines: 1 });
+    c.save(); c.translate(725, 106); c.rotate(-0.24);
+    c.strokeStyle = "rgba(217,70,239,.7)"; c.fillStyle = "rgba(217,70,239,.85)"; c.lineWidth = 4;
+    c.beginPath(); c.arc(0, 0, 60, 0, Math.PI * 2); c.stroke();
+    c.font = `800 14px ${BODY}`; c.textAlign = "center";
+    c.fillText("SENT FROM", 0, -24); c.fillText("OKASP.DEV", 0, -3); c.fillText("✦", 0, 18); c.restore();
+    fileText(c, "To: Oka Sutarto Putra", 600, 222, 350, { size: 24, weight: 800, lines: 1 });
+    const hotspots = [area];
+    [{ id: "name", label: "FROM (YOUR NAME)", placeholder: "Jane Doe", y: 290 },
+      { id: "email", label: "REPLY TO (EMAIL)", placeholder: "jane@company.com", y: 405 }].forEach((field) => {
+      fileText(c, field.label, 600, field.y, 350, { size: 18, weight: 800, lines: 1, ink: "#666" });
+      fileText(c, card[field.id] || field.placeholder, 600, field.y + 31, 350, { size: 27, lines: 1, ink: card[field.id] ? "#111" : "#999" });
+      c.fillStyle = card.active === field.id ? "#000" : "rgba(0,0,0,.35)";
+      c.fillRect(600, field.y + 72, 350, card.active === field.id ? 4 : 2);
+      if (caret && card.active === field.id) {
+        c.font = `500 27px ${BODY}`;
+        c.fillRect(601 + Math.min(340, c.measureText(card[field.id] || "").width), field.y + 31, 3, 32);
+      }
+      if (card.errors[field.id]) fileText(c, card.errors[field.id], 600, field.y + 79, 350, { size: 16, ink: "#dc2626", lines: 1 });
+      hotspots.push({ x: 590, y: field.y - 5, w: 370, h: 80, id: field.id });
+    });
+    const send = { x: 600, y: 535, w: 350, h: 62, id: "send" };
+    brutalBox(c, send.x, send.y, send.w, send.h, "#ffdd00", { shadow: 6, line: 4 });
+    fileText(c, card.status === "sending" ? "SENDING..." : "SEND POSTCARD ↗", 620, 555, 315, { size: 24, weight: 800, lines: 1 });
+    if (card.status === "error") fileText(c, "Couldn't send. Try again?", 600, 611, 350, { size: 16, ink: "#dc2626", lines: 1 });
+    hotspots.push(send);
+    c.strokeStyle = "#000"; c.lineWidth = 6; c.strokeRect(3, 3, 994, 634);
+    return hotspots;
+  }, 640);
 }
 
-// ---------- scrapbook (about) ----------
-function sticker(c, x, y, r, w, h, fill, text, { ink = "#000", size = 28 } = {}) {
-  c.save();
-  c.translate(x, y);
-  c.rotate(r);
-  brutalBox(c, -w / 2, -h / 2, w, h, fill, { shadow: 6, line: 5 });
-  c.fillStyle = ink;
-  c.textAlign = "center";
-  c.textBaseline = "middle";
-  fitFont(c, text, 800, DISPLAY, size, w - 20);
-  c.fillText(text, 0, 2);
-  c.restore();
-}
-function washi(c, x, y, r, w = 110) {
-  c.save();
-  c.translate(x, y);
-  c.rotate(r);
-  c.fillStyle = "rgba(255,144,232,.75)";
-  c.fillRect(-w / 2, -16, w, 32);
-  c.fillStyle = "rgba(255,255,255,.35)";
-  for (let i = -w / 2; i < w / 2; i += 16) c.fillRect(i, -16, 6, 32);
-  c.restore();
-}
-
-export function drawScrapCover(c, w, h) {
-  c.fillStyle = "#1a1714";
-  c.fillRect(0, 0, w, h);
-  c.fillStyle = "rgba(255,255,255,.06)";
-  for (let y = 0; y < h; y += 14) c.fillRect(0, y, w, 2);
-  sticker(c, w * 0.45, h * 0.2, -0.06, 300, 96, "#ffdd00", "ABOUT ME", { size: 40 });
-  sticker(c, w * 0.25, h * 0.45, 0.12, 130, 64, "#00e0c6", "VUE");
-  sticker(c, w * 0.62, h * 0.47, -0.1, 150, 64, "#8fd694", "NODE");
-  sticker(c, w * 0.32, h * 0.66, -0.08, 180, 64, "#3b82f6", "FLUTTER", { ink: "#fff" });
-  sticker(c, w * 0.66, h * 0.7, 0.14, 150, 64, "#ff90e8", "GAMER");
-  sticker(c, w * 0.42, h * 0.86, 0.05, 170, 60, "#fff", "COFFEE++", { size: 24 });
-  c.lineWidth = 10;
-  c.strokeStyle = "#000";
-  c.strokeRect(5, 5, w - 10, h - 10);
-}
-
-// Paper, page number and the "turn" cue every scrapbook page shares
-function scrapPaper(c, w, h, { n, side }) {
+// ---------- pinned About board (same content as the 2D sticker board) ----------
+export function drawAboutBoard(c, w, h) {
   c.fillStyle = "#fffdf5";
   c.fillRect(0, 0, w, h);
-  c.fillStyle = "rgba(0,0,0,.12)";
-  for (let y = 18; y < h; y += 26) for (let x = 18; x < w; x += 26) c.fillRect(x, y, 3, 3);
-  c.fillStyle = "rgba(0,0,0,.5)";
-  c.font = `600 26px 'Caveat', cursive`;
-  c.textBaseline = "alphabetic";
-  if (side === "right") {
-    c.textAlign = "right";
-    c.fillText(`${n}  ·  turn →`, w - 26, h - 22);
-  } else {
-    c.textAlign = "left";
-    c.fillText(`← back  ·  ${n}`, 26, h - 22);
-  }
+  c.fillStyle = "rgba(0,0,0,.16)";
+  for (let y = 16; y < h; y += 24) for (let x = 16; x < w; x += 24) c.fillRect(x, y, 2, 2);
+  c.fillStyle = "#000";
+  c.font = `900 ${Math.round(h * 0.06)}px ${DISPLAY}`;
+  c.textAlign = "center";
+  c.fillText("ABOUT ME", w / 2, h * 0.075);
   c.textAlign = "left";
 }
-const scrapEdge = (c, w, h) => {
-  c.lineWidth = 6;
-  c.strokeStyle = "#000";
-  c.strokeRect(3, 3, w - 6, h - 6);
-};
-const hand = (c, text, x, y, size = 36, color = "#1a1714") => {
-  c.fillStyle = color;
-  c.font = `600 ${size}px 'Caveat', cursive`;
-  c.fillText(text, x, y);
-};
 
-// Inside of the front cover (left side of the first spread)
-export function drawScrapInside(c, w, h) {
-  c.fillStyle = "#e9c48a";
+export function drawAboutNote(c, w, h, note) {
+  const colors = { years: "#ffdd00", projects: "#00e0c6", companies: "#7fb2ff", stack: "#ff90e8", now: "#c4b5fd", resume: "#000" };
+  c.fillStyle = colors[note.id] || "#fffdf5";
   c.fillRect(0, 0, w, h);
-  c.fillStyle = "rgba(120,70,10,.15)";
-  for (let y = 0; y < h; y += 12) c.fillRect(0, y, w, 2);
-  brutalBox(c, 50, 120, w - 110, 200, "#fff", { shadow: 10, line: 6 });
-  hand(c, "this scrapbook", 80, 190, 40);
-  hand(c, "belongs to:", 80, 236, 40);
-  c.fillStyle = "#000";
-  c.font = `800 40px ${DISPLAY}`;
-  c.fillText("OKA", 80, 292);
-  sticker(c, w * 0.3, h * 0.62, -0.15, 170, 70, "#ffdd00", "HELLO!");
-  sticker(c, w * 0.68, h * 0.72, 0.1, 150, 70, "#00e0c6", "2026");
-  hand(c, "flip through →", w * 0.42, h - 50, 34, "#3b82f6");
-  scrapEdge(c, w, h);
-}
-
-const SCRAP_PAGES = {
-  hello(c, w) {
-    c.save();
-    c.translate(w / 2, 250);
-    c.rotate(-0.05);
-    c.fillStyle = "#000";
-    c.fillRect(-119, -169, 250, 360);
-    c.fillStyle = "#fff";
-    c.fillRect(-125, -175, 250, 360);
-    c.strokeStyle = "#000";
-    c.lineWidth = 6;
-    c.strokeRect(-125, -175, 250, 360);
-    drawPortrait(c, -104, -154, 208, 280, "#00e0c6");
-    c.fillStyle = "#000";
-    c.textAlign = "center";
-    c.textBaseline = "middle";
-    c.font = `600 32px 'Caveat', cursive`;
-    c.fillText("me, probably coding", 0, 156);
-    c.restore();
-    washi(c, w / 2 - 130, 100, -0.5);
-    washi(c, w / 2 + 130, 100, 0.45);
-    c.textAlign = "left";
-    c.textBaseline = "alphabetic";
-    hand(c, "hi, i'm oka!", 60, 500, 56);
-    hand(c, "web + mobile engineer", 64, 552, 36, "#3b82f6");
-    hand(c, "from pontianak, indonesia", 64, 596, 36, "#3b82f6");
-  },
-  bio(c, w) {
-    c.fillStyle = "#000";
-    c.font = `800 34px ${DISPLAY}`;
-    c.fillText("WHO IS", 50, 90);
-    c.fillText("THIS GUY?", 50, 134);
-    washi(c, w - 90, 70, 0.6, 90);
-    c.font = `500 25px ${BODY}`;
-    const bio =
-      "Hi, I'm Oka Sutarto Putra, a Pontianak-based engineer who builds for web and mobile. I started out in industrial engineering, so I still hunt for bottlenecks, just in code now.";
-    wrap(c, bio, w - 100, 12).forEach((line, i) => c.fillText(line, 50, 200 + i * 38));
-    hand(c, "(the bottleneck thing is real)", 54, 560, 32, "#e11d48");
-  },
-  stats(c, w) {
-    c.fillStyle = "#000";
-    c.font = `800 34px ${DISPLAY}`;
-    c.fillText("BY THE", 50, 90);
-    c.fillText("NUMBERS", 50, 134);
-    [
-      { v: "4+", l: "years of experience", color: "#ffdd00", r: -0.05 },
-      { v: "8+", l: "projects shipped", color: "#ff90e8", r: 0.04 },
-      { v: "4", l: "companies", color: "#8fd694", r: -0.03 },
-    ].forEach((st, i) => {
-      c.save();
-      c.translate(w / 2, 240 + i * 140);
-      c.rotate(st.r);
-      brutalBox(c, -190, -55, 380, 110, st.color, { shadow: 8, line: 6 });
-      c.fillStyle = "#000";
-      c.font = `800 58px ${DISPLAY}`;
-      c.textBaseline = "middle";
-      c.fillText(st.v, -170, 2);
-      fitFont(c, st.l.toUpperCase(), 700, BODY, 24, 220);
-      c.fillText(st.l.toUpperCase(), -50, 2);
-      c.restore();
+  const ink = note.id === "resume" ? "#fff" : "#000";
+  const pad = w * 0.075;
+  c.fillStyle = ink;
+  c.textAlign = "left";
+  c.textBaseline = "top";
+  if (note.type === "stat") {
+    c.font = `900 ${Math.round(h * 0.46)}px ${DISPLAY}`;
+    c.fillText(note.value, pad, h * 0.24);
+    fitFont(c, note.label.toUpperCase(), 800, BODY, Math.round(h * 0.11), w - 2 * pad);
+    c.fillText(note.label.toUpperCase(), pad, h * 0.78);
+  } else if (note.type === "stack") {
+    c.font = `900 ${Math.round(w * 0.065)}px ${DISPLAY}`;
+    c.fillText("STACK", pad, h * 0.13);
+    let y = h * 0.28;
+    ABOUT_STACK.forEach((group) => {
+      c.font = `800 ${Math.round(w * 0.04)}px ${BODY}`;
+      c.fillText(group.label.toUpperCase(), pad, y);
+      c.font = `600 ${Math.round(w * 0.04)}px ${BODY}`;
+      const lines = wrap(c, group.items.join(" · "), w - 2 * pad, 2);
+      const bodyY = y + w * 0.044;
+      lines.forEach((line, k) => c.fillText(line, pad, bodyY + k * w * 0.047));
+      y = bodyY + lines.length * w * 0.047 + h * 0.025;
     });
-  },
-  now(c) {
-    c.fillStyle = "#000";
-    c.font = `800 34px ${DISPLAY}`;
-    c.fillText("NOW", 50, 90);
-    c.fillText("BUILDING", 50, 134);
-    ["flutter apps @ dusitek", "AI-powered side tools", "this very desk :)"].forEach((item, i) => {
-      c.fillStyle = "#e11d48";
-      c.fillRect(56, 214 + i * 92, 18, 18);
-      c.strokeStyle = "#000";
-      c.lineWidth = 4;
-      c.strokeRect(56, 214 + i * 92, 18, 18);
-      hand(c, item, 92, 236 + i * 92, 42);
-    });
-    // doodle: a little rocket trail
-    c.strokeStyle = "#3b82f6";
-    c.lineWidth = 5;
-    c.beginPath();
-    c.moveTo(80, 560);
-    c.bezierCurveTo(200, 500, 300, 620, 420, 520);
-    c.stroke();
-    sticker(c, 440, 500, 0.3, 90, 70, "#ffdd00", "GO!");
-  },
-  skills(c, w, h, { skills = [] } = {}) {
-    c.fillStyle = "#000";
-    c.font = `800 34px ${DISPLAY}`;
-    c.fillText("STICKER", 50, 90);
-    c.fillText("COLLECTION", 50, 134);
-    const colors = ["#00e0c6", "#ffdd00", "#ff90e8", "#8fd694", "#3b82f6", "#fff"];
-    skills.slice(0, 12).forEach((name, i) => {
-      const col = i % 3;
-      const row = Math.floor(i / 3);
-      const color = colors[i % colors.length];
-      sticker(c, 110 + col * 160, 220 + row * 100, ((i * 37) % 7) / 30 - 0.1, 146, 66, color, name.toUpperCase(), {
-        ink: color === "#3b82f6" ? "#fff" : "#000",
-        size: 24,
-      });
-    });
-  },
-  end(c, w) {
-    hand(c, "that's me!", 60, 200, 64);
-    hand(c, "next stop:", 64, 290, 42, "#3b82f6");
-    hand(c, "the boarding passes ✈", 64, 340, 42, "#3b82f6");
-    c.strokeStyle = "#000";
-    c.lineWidth = 6;
-    c.beginPath();
-    c.arc(w / 2, 480, 70, 0, Math.PI * 2);
-    c.stroke();
-    c.fillStyle = "#000";
-    c.fillRect(w / 2 - 30, 455, 12, 12);
-    c.fillRect(w / 2 + 18, 455, 12, 12);
-    c.beginPath();
-    c.arc(w / 2, 490, 34, 0.15 * Math.PI, 0.85 * Math.PI);
-    c.stroke();
-  },
-  notes(c, w, h) {
-    c.fillStyle = "rgba(59,130,246,.25)";
-    for (let y = 140; y < h - 60; y += 44) c.fillRect(40, y, w - 80, 2);
-    hand(c, "notes:", 50, 110, 44);
-    hand(c, "hire oka  ✓", 60, 172, 36, "#e11d48");
-  },
-};
-
-// One scrapbook page. Back sides of leaves are drawn upside down: they end up the right way
-// round once the leaf is turned over to the left.
-export function drawScrapPage(c, w, h, { kind, n, side, flipped = false, skills } = {}) {
-  c.save();
-  if (flipped) {
-    c.translate(w, h);
-    c.rotate(Math.PI);
+  } else {
+    const titleSize = note.id === "resume" ? h * 0.32 : Math.min(w * (note.id === "location" ? 0.12 : 0.073), h * 0.17);
+    fitFont(c, note.title.toUpperCase(), 900, BODY, Math.round(titleSize), w - 2 * pad);
+    const top = h * (note.id === "resume" ? 0.6 : note.id === "location" ? 0.25 : note.id === "now" ? 0.33 : 0.17);
+    c.fillText(note.title.toUpperCase(), pad, top);
+    if (note.body) {
+      const size = Math.min(w * (note.id === "now" ? 0.038 : note.id === "location" ? 0.075 : note.id === "who" ? 0.043 : 0.047), h * 0.12);
+      c.font = `500 ${Math.round(size)}px ${BODY}`;
+      const lineHeight = size * 1.4;
+      const bodyY = top + titleSize + h * 0.08;
+      const lines = wrap(c, note.body.replace(/<[^>]*>/g, ""), w - 2 * pad, Math.max(1, Math.floor((h - bodyY - h * 0.08) / lineHeight)));
+      lines.forEach((line, i) => c.fillText(line, pad, bodyY + i * lineHeight));
+    }
   }
-  scrapPaper(c, w, h, { n, side });
-  SCRAP_PAGES[kind](c, w, h, { skills });
-  scrapEdge(c, w, h);
-  c.restore();
-}
-export function drawScrapInsideFlipped(c, w, h) {
-  c.save();
-  c.translate(w, h);
-  c.rotate(Math.PI);
-  drawScrapInside(c, w, h);
-  c.restore();
+  c.textBaseline = "alphabetic";
+  return note.href ? [{ x: 0, y: 0, w, h, href: note.href }] : [];
 }
 
 // ---------- keycap labels (the shortcut keys) ----------

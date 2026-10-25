@@ -112,6 +112,7 @@ import { sfx } from "@/composables/useSfx";
 import { Draggable } from "gsap/Draggable";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { usePostHog } from "@/composables/usePostHog";
+import { ABOUT_STACK as stack, ABOUT_NOTES as stickers } from "@/data/about";
 
 gsap.registerPlugin(Draggable, ScrollTrigger);
 
@@ -119,106 +120,6 @@ const { posthog } = usePostHog();
 const trackResumeDownload = () => {
   posthog.capture("resume_downloaded");
 };
-
-const stack = [
-  { label: "Web", items: ["Vue", "React", "Angular", "TypeScript", "Tailwind"] },
-  { label: "Mobile", items: ["Flutter", "Dart"] },
-  { label: "Backend", items: ["Node.js", "Express", "PostgreSQL", "MySQL"] },
-  { label: "Tools", items: ["Docker", "Git"] },
-];
-
-// pos / mobile: top-left corner as % of the board, rotate: resting tilt in degrees
-const stickers = [
-  {
-    id: "who",
-    pin: "#ff6b6b",
-    title: "Who is this guy?",
-    body: 'Hi, I\'m <mark class="name-mark">Oka Sutarto Putra</mark>, a Pontianak-based engineer who builds for web and mobile. I started out in industrial engineering, so I still hunt for bottlenecks, just in code now.',
-    class: "bg-white",
-    width: "340px",
-    mobileWidth: "88%",
-    pos: [3, 6],
-    mobile: [6, 1.5],
-    rotate: -3,
-  },
-  {
-    id: "years",
-    pin: "#3b82f6",
-    type: "stat",
-    value: "4+",
-    label: "Years exp",
-    class: "bg-primary",
-    pos: [40, 8],
-    mobile: [6, 21],
-    rotate: 4,
-  },
-  {
-    id: "projects",
-    pin: "#ff6b6b",
-    type: "stat",
-    value: "8+",
-    label: "Projects",
-    class: "bg-secondary",
-    pos: [57, 4],
-    mobile: [52, 20],
-    rotate: -5,
-  },
-  {
-    id: "companies",
-    pin: "#ffdd00",
-    type: "stat",
-    value: "4",
-    label: "Companies",
-    class: "bg-accent-blue",
-    pos: [76, 9],
-    mobile: [26, 32],
-    rotate: 3,
-  },
-  {
-    id: "stack",
-    pin: "#00e0c6",
-    type: "stack",
-    class: "bg-accent-pink",
-    width: "320px",
-    mobileWidth: "90%",
-    pos: [64, 44],
-    mobile: [5, 44.5],
-    rotate: 3,
-  },
-  {
-    id: "now",
-    pin: "#ffdd00",
-    title: "Now building ✦",
-    body: "Flutter apps at Dusitek, AI-powered tools on the side, and this very portfolio.",
-    class: "bg-[#c4b5fd]",
-    width: "260px",
-    mobileWidth: "70%",
-    pos: [36, 50],
-    mobile: [26, 70],
-    rotate: -2,
-  },
-  {
-    id: "location",
-    pin: "#d946ef",
-    title: "Pontianak",
-    icon: "fas fa-location-dot",
-    body: "Indonesia · GMT+7",
-    class: "bg-white",
-    pos: [6, 60],
-    mobile: [5, 84],
-    rotate: 6,
-  },
-  {
-    id: "resume",
-    pin: "#ffdd00",
-    title: "Download resume ↓",
-    class: "!bg-black !text-white",
-    href: "https://rbopflmphatliijk.public.blob.vercel-storage.com/OkaSutartoCV.pdf",
-    pos: [20, 82],
-    mobile: [38, 92],
-    rotate: -4,
-  },
-];
 
 const sectionRef = ref(null);
 const boardRef = ref(null);

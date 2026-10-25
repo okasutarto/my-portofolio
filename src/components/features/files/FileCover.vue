@@ -6,15 +6,8 @@
         <span class="type-sticker">{{ project.type }}</span>
         <h3 class="cover-title font-display" :class="titleSize">{{ project.title }}</h3>
         <p class="cover-desc">{{ project.description }}</p>
-        <button v-if="!decorative" type="button" class="open-btn font-display" @click="$emit('open')">Open file →</button>
-        <span v-else class="open-btn font-display" aria-hidden="true">Open file →</span>
       </div>
       <ClipSheet class="cover-clip" :api="project.caseFile?.api" />
-    </div>
-    <div class="cover-stats">
-      <span v-for="metric in metrics" :key="metric.label" class="stat">
-        <b class="font-display">{{ metric.value }}</b><span>{{ metric.label }}</span>
-      </span>
     </div>
   </div>
 </template>
@@ -28,9 +21,7 @@ const props = defineProps({
   // The copy on the lifted file's cover is only for show
   decorative: { type: Boolean, default: false },
 });
-defineEmits(["open"]);
 
-const metrics = computed(() => (props.project.results?.metrics || []).slice(0, 3));
 // Lexend Mega is very wide: size the title by its longest word so it never overflows
 const titleSize = computed(() => {
   const longest = Math.max(...props.project.title.split(/\s+/).map((w) => w.length));
@@ -88,64 +79,14 @@ const titleSize = computed(() => {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.open-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 15px;
-  background: #111;
-  color: #fff;
-  border: 3px solid #000;
-  box-shadow: 4px 4px 0 #fff, 4px 4px 0 3px #000;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  text-transform: uppercase;
-  transition: transform 0.12s, box-shadow 0.12s;
-}
-button.open-btn:hover {
-  transform: translate(-2px, -2px);
-  box-shadow: 6px 6px 0 #fff, 6px 6px 0 3px #000;
-}
-button.open-btn:active {
-  transform: translate(3px, 3px);
-  box-shadow: 1px 1px 0 #fff, 1px 1px 0 3px #000;
-}
 .cover-clip {
   width: 180px;
   height: 180px;
   margin-top: 6px;
   transform: rotate(3deg);
 }
-.cover-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 10px;
-}
-.stat {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-  padding: 5px 9px;
-  background: #fff;
-  border: 3px solid #000;
-  box-shadow: 3px 3px 0 #000;
-}
-.stat:nth-child(2) { transform: rotate(-1.5deg); }
-.stat:nth-child(3) { transform: rotate(1deg); }
-.stat b {
-  font-size: 1.1rem;
-  font-weight: 800;
-  letter-spacing: -0.06em;
-}
-.stat span {
-  font: 700 0.54rem "JetBrains Mono", monospace;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
 
-/* Phones: no clipped sheet, one stat line */
+/* Phones: no clipped sheet */
 @media (max-width: 639px) {
   .file-cover {
     padding: 14px 14px var(--front-cover, 50px);
@@ -159,9 +100,6 @@ button.open-btn:active {
   .cover-desc {
     -webkit-line-clamp: 2;
     font-size: 0.8rem;
-  }
-  .stat:nth-child(3) {
-    display: none;
   }
 }
 </style>

@@ -83,7 +83,6 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
 import { useMediaQuery } from "@vueuse/core";
 import { projects } from "@/data/projects";
 import { experiences } from "@/data/experience";
-import { skills } from "@/data/skills";
 import { useTheme } from "@/composables/useTheme";
 import { useSfx } from "@/composables/useSfx";
 
@@ -117,10 +116,10 @@ const hint = computed(() => {
   if (focus.value === "mug") return "Click the mug for a sip. Finish the cup for the night shift";
   if (focus.value === "experience") return isDesktop.value ? "Click a pass to hold it up, again to flip it (← → to browse)" : "Tap a pass to hold it, tap again to flip it";
   if (focus.value === "projects") return isDesktop.value ? "Click a case file to open it, then click its pages (or ← →)" : "Tap a case file, then tap its pages to turn them";
-  if (focus.value === "contact") return isDesktop.value ? "Write on the card (Tab moves along), then hit the SEND stamp" : "Tap the card to write, then tap the SEND stamp";
+  if (focus.value === "contact") return isDesktop.value ? "Write on the card (Tab moves along), then hit SEND POSTCARD" : "Tap the card to write, then tap SEND POSTCARD";
   if (focus.value === "chat") return isDesktop.value ? "Type a question and hit Enter (scroll to read back)" : "Tap a question or the box below to ask";
   if (focus.value === "hero") return "Click the badge to flip it. The links are on the back";
-  if (focus.value === "about") return isDesktop.value ? "Click a page (or ← →) to turn it" : "Tap the right page to turn, left to go back";
+  if (focus.value === "about") return isDesktop.value ? "Drag the papers to rearrange them. Release to pin them back" : "Drag a paper to move it. Release to pin it back";
   if (zoomed.value) return "";
   return isDesktop.value ? "Click anything on the desk, or press 1–5" : "Tap anything on the desk to take a closer look";
 });
@@ -145,7 +144,6 @@ onMounted(async () => {
       container: stageRef.value,
       projects,
       experiences,
-      skills: skills.map((s) => s.name),
       labels: labelEls,
       dark: isDark.value,
       onEvent,

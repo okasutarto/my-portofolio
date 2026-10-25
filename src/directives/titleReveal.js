@@ -1,5 +1,6 @@
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { sfx } from "@/composables/useSfx";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -46,6 +47,9 @@ export const titleReveal = {
       });
       if (box) {
         tl.from(el, { scale: 0.6, rotate: -8, opacity: 0, duration: 0.5, ease: "back.out(2.2)", clearProps: "transform,opacity" });
+        // the box is thrown down and slapped onto the page
+        tl.call(() => sfx.whoosh({ duration: 0.3, up: false }), null, 0);
+        tl.call(() => sfx.slap(), null, 0.22);
       }
       tl.from(
         words,

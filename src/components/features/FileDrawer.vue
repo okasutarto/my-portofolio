@@ -1,7 +1,6 @@
 <template>
   <div ref="trackRef" class="relative" :style="{ height: `${projects.length * 100 + 20}vh`, marginTop: `${-pullUp}px` }">
     <div ref="stageRef" class="stage" :style="{ '--nav-h': `${navH}px` }">
-      <span class="hint" :class="{ gone: openIndex !== -1 }">Scroll to flip through the drawer</span>
       <!-- Clicking anywhere around an open file puts it back -->
       <div v-if="openIndex !== -1" class="catcher" @click="closeFile"></div>
 
@@ -15,14 +14,17 @@
             class="folder"
             :class="{ shut: isShut(index) }"
             :style="folderStyle(index)">
+            <!-- A manila folder: the back and its tab are one piece, the front is cut lower -->
             <button
               type="button"
               class="tab"
-              :style="{ left: tabLeft(index), backgroundColor: colorOf(index) }"
+              :style="{ left: tabLeft(index), '--c': colorOf(index) }"
               :aria-label="`Show ${project.title}`"
               @click="goTo(index)">
-              <b class="font-display">{{ pad(index + 1) }}</b><span class="tab-name">{{ project.title }}</span>
+              <span class="tab-label"><b class="font-display">{{ pad(index + 1) }}</b><span class="tab-name">{{ project.title }}</span></span>
             </button>
+            <div class="back" :style="{ backgroundColor: colorOf(index) }"></div>
+            <div class="papers" aria-hidden="true"><i></i><i></i><i></i></div>
             <div class="face" :style="{ backgroundColor: colorOf(index) }" :inert="index !== shownIndex || openIndex !== -1 || undefined">
               <FileCover :project="project" @open="openFile(index)" />
             </div>
@@ -44,8 +46,8 @@
         :style="fileBox"
         role="dialog"
         :aria-label="`${openProject.title} case file`">
-        <span class="tab" :style="{ left: tabLeft(openIndex), backgroundColor: colorOf(openIndex) }">
-          <b class="font-display">{{ pad(openIndex + 1) }}</b><span class="tab-name">{{ openProject.title }}</span>
+        <span class="tab" :style="{ left: tabLeft(openIndex), '--c': colorOf(openIndex) }">
+          <span class="tab-label"><b class="font-display">{{ pad(openIndex + 1) }}</b><span class="tab-name">{{ openProject.title }}</span></span>
         </span>
         <div ref="boardRef" class="board" :style="{ backgroundColor: colorOf(openIndex) }"></div>
         <div class="leaves">
@@ -156,10 +158,10 @@ const onScroll = () => {
     const f = raw - i;
     const before = shownIndex.value;
     progress.value = Math.min(i + (f < 0.2 ? 0 : f > 0.8 ? 1 : smooth((f - 0.2) / 0.6)), n.value - 1);
-    // Paper as a folder comes out, a soft thump as it drops in at the back
+    // The folder slides up out of the others, then knocks into place at the back
     if (shownIndex.value !== before) {
-      sfx.paper();
-      sfx.thud({ strength: 0.25, delay: 0.18 });
+      sfx.slide();
+      sfx.knock({ strength: 0.7, delay: 0.22 });
     }
   });
 };
@@ -241,7 +243,8 @@ const openFile = async (index) => {
   if (busy || openIndex.value !== -1) return;
   busy = true;
   const stageRect = stageRef.value.getBoundingClientRect();
-  const face = folderEls[index].querySelector(".face").getBoundingClientRect();
+  // the lifted file is the whole folder (back and tab included), at exactly its size
+  const face = folderEls[index].getBoundingClientRect();
   previousOverflow = document.documentElement.style.overflow;
   document.documentElement.style.overflow = "hidden"; // the drawer stays on this file while it's open
   fileBox.value = { left: `${face.left - stageRect.left}px`, top: `${face.top - stageRect.top}px`, width: `${face.width}px`, height: `${face.height}px` };
@@ -278,10 +281,11 @@ const openFile = async (index) => {
     }, 0)
     // The cover swings over to the left and lies flat
     .to(coverRef.value, { rotationY: -180, duration: 0.8, ease: "power2.inOut" }, 0.75);
-  tl.call(() => sfx.whoosh({ duration: 0.6 }), null, 0)
-    .call(() => sfx.thud({ strength: 0.35 }), null, 0.62)
-    .call(() => sfx.rustle({ duration: 0.75 }), null, 0.75)
-    .call(() => sfx.slap(), null, 1.5);
+  // pulled out of the drawer, the drawer rolls away, the cover is swung open and lands flat
+  tl.call(() => sfx.slide({ duration: 0.4 }), null, 0)
+    .call(() => sfx.drawer({ duration: 0.6 }), null, 0.05)
+    .call(() => sfx.slide({ duration: 0.5, up: false }), null, 0.8)
+    .call(() => sfx.flop(), null, 1.5);
 };
 
 const closeFile = async () => {
@@ -313,10 +317,12 @@ const closeFile = async () => {
       ease: "power2.inOut",
       onUpdate: hideBehindFront,
     }, 0.6);
-  tl.call(() => sfx.rustle({ duration: 0.55 }), null, 0)
-    .call(() => sfx.slap(), null, 0.56)
-    .call(() => sfx.whoosh({ duration: 0.6, up: false }), null, 0.6)
-    .call(() => sfx.thud({ strength: 0.5 }), null, 1.3);
+  // the cover flops shut, the drawer rolls back in, the folder slides down into its slot
+  tl.call(() => sfx.slide({ duration: 0.45 }), null, 0.05)
+    .call(() => sfx.flop(), null, 0.56)
+    .call(() => sfx.drawer({ duration: 0.7 }), null, 0.6)
+    .call(() => sfx.slide({ duration: 0.45, up: false }), null, 0.8)
+    .call(() => sfx.knock(), null, 1.32);
 };
 
 // ---------- flipping through the sheets ----------
@@ -327,7 +333,7 @@ const flip = (dir) => {
   flipping = true;
   const page = dir > 0 ? order.value[0] : order.value[order.value.length - 1];
   const moving = leafEls.value[page];
-  sfx.paper();
+  sfx.slide({ duration: 0.22 });
   gsap.to(moving, {
     xPercent: 62,
     yPercent: -6,
@@ -340,7 +346,7 @@ const flip = (dir) => {
         gsap.set(leafEls.value[p], { zIndex: 10 - depth });
         if (p !== page) gsap.to(leafEls.value[p], { ...restOf(depth), duration: 0.2 });
       });
-      sfx.paper({ delay: 0.12 });
+      sfx.slide({ duration: 0.28, up: false, delay: 0.05 });
       gsap.to(moving, { ...restOf(order.value.indexOf(page)), duration: 0.32, ease: "back.out(1.4)", onComplete: () => (flipping = false) });
     },
   });
@@ -425,34 +431,17 @@ onUnmounted(() => {
 <style scoped>
 .stage {
   --fw: min(680px, calc(100vw - 110px));
-  --fh: clamp(250px, calc(100svh - var(--nav-h) - 330px), 420px);
+  --fh: clamp(250px, calc(100svh - var(--nav-h) - 330px), 500px);
   --front-h: 100px;
   position: sticky;
   top: 0;
   height: 100svh;
   overflow: hidden;
   display: grid;
-  place-items: end center;
-  padding-bottom: 4vh;
+  /* centred under the navbar, with the back folders' tabs counted in, so no tall gap is left above */
+  place-items: center;
+  padding: calc(var(--nav-h) + 150px) 0 3vh;
   color: #111;
-}
-.hint {
-  position: absolute;
-  top: calc(var(--nav-h) + 14px);
-  left: 50%;
-  transform: translateX(-50%);
-  font: 700 0.68rem "JetBrains Mono", monospace;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  opacity: 0.55;
-  transition: opacity 0.3s;
-}
-:global(.dark) .hint {
-  color: #f4ead5;
-}
-.hint.gone {
-  opacity: 0;
 }
 .catcher {
   position: absolute;
@@ -536,6 +525,7 @@ onUnmounted(() => {
   bottom: 54px;
   height: var(--fh);
   --front-cover: calc(var(--front-h) - 54px + 12px);
+  --lip: 22px;
 }
 .folder {
   position: absolute;
@@ -543,37 +533,98 @@ onUnmounted(() => {
   transform-origin: 50% 100%;
   will-change: transform;
 }
+/* The tab is cut from the back panel: a trapezoid outlined in black (an outer black shape with
+   the colour inset inside it), running into the back panel with no seam */
 .tab {
+  --c: #fff;
   position: absolute;
+  z-index: 2;
   top: -34px;
   height: 38px;
+  padding: 0 24px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  border: 3.5px solid #000;
-  border-bottom: 0;
-  border-radius: 10px 10px 0 0;
-  font: 700 0.68rem "JetBrains Mono", monospace;
+  background: #000;
+  clip-path: polygon(0 100%, 16px 0, calc(100% - 16px) 0, 100% 100%);
+  color: #111;
+}
+.tab::before {
+  content: "";
+  position: absolute;
+  inset: 3.5px 3.5px 0;
+  background: var(--c);
+  clip-path: polygon(0 100%, 14px 0, calc(100% - 14px) 0, 100% 100%);
+}
+/* a paper label on the tab */
+.tab-label {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  background: #fffdf5;
+  border: 2px solid #000;
+  font: 700 0.62rem "JetBrains Mono", monospace;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
-  color: #111;
 }
-.tab b {
-  font-size: 0.74rem;
+.tab-label b {
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: -0.03em;
 }
-.face {
+.back {
   position: absolute;
   inset: 0;
+  border: 3.5px solid #000;
+  border-radius: 6px 10px 4px 4px;
+}
+/* the tops of the sheets inside, showing above the lower front */
+.papers {
+  position: absolute;
+  left: 14px;
+  right: 20px;
+  top: 8px;
+  height: 40px;
+}
+.papers i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 100%;
+  background: #fffdf5;
+  border: 2.5px solid #000;
+}
+.papers i:nth-child(2) {
+  top: 5px;
+  background: #f4ecd8;
+  transform: rotate(0.8deg);
+}
+.papers i:nth-child(3) {
+  top: 9px;
+  left: 30%;
+  right: 28%;
+  background: #ffdd00;
+  transform: rotate(-1.6deg);
+}
+.papers i:nth-child(1) {
+  transform: rotate(-1deg);
+}
+/* the front panel: cut lower than the back, with a thumb notch in the middle of its top edge */
+.face {
+  position: absolute;
+  inset: var(--lip) 0 0;
   overflow: hidden;
   border: 3.5px solid #000;
-  border-radius: 0 10px 4px 4px;
+  border-radius: 4px 4px 4px 4px;
+  -webkit-mask: radial-gradient(circle 24px at 50% -5px, transparent 23px, #000 24px);
+  mask: radial-gradient(circle 24px at 50% -5px, transparent 23px, #000 24px);
 }
 /* Folders further back only show their tab and a strip of cover */
-.folder.shut .face > * {
+.folder.shut .face > *,
+.folder.shut .papers {
   visibility: hidden;
 }
 
@@ -583,12 +634,13 @@ onUnmounted(() => {
   z-index: 900;
   perspective: 1800px;
   --front-cover: 20px;
+  --lip: 22px;
 }
 .board {
   position: absolute;
   inset: 0;
   border: 3.5px solid #000;
-  border-radius: 0 10px 4px 4px;
+  border-radius: 6px 10px 4px 4px;
   box-shadow: 10px 10px 0 #000;
 }
 .leaves {
@@ -674,7 +726,7 @@ onUnmounted(() => {
 .cover {
   position: absolute;
   z-index: 50;
-  inset: 0;
+  inset: var(--lip) 0 0;
   transform-origin: 0 50%;
   transform-style: preserve-3d;
 }
@@ -683,7 +735,9 @@ onUnmounted(() => {
   inset: 0;
   overflow: hidden;
   border: 3.5px solid #000;
-  border-radius: 0 10px 4px 4px;
+  border-radius: 4px;
+  -webkit-mask: radial-gradient(circle 24px at 50% -5px, transparent 23px, #000 24px);
+  mask: radial-gradient(circle 24px at 50% -5px, transparent 23px, #000 24px);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
@@ -736,7 +790,7 @@ onUnmounted(() => {
     width: 90px;
   }
   .tab {
-    padding: 0 9px;
+    padding: 0 18px;
   }
   .tab-name {
     display: none;

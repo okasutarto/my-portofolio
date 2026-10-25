@@ -151,6 +151,32 @@ const SOUNDS = {
     }
     noise(t, { freq: 2200, to: 900, q: 0.7, attack: 0.02, peak: 0.22, decay: duration });
   },
+  // Paper sliding over paper: a soft, breathy "shff" with a little grain in it
+  slide(t, { duration = 0.26, up = true } = {}) {
+    noise(t, { freq: up ? 2200 : 3800, to: up ? 3800 : 2200, q: 0.7, attack: duration * 0.4, peak: 0.13, decay: duration * 0.6 });
+    for (let at = t + duration * 0.15; at < t + duration * 0.8; at += 0.03 + Math.random() * 0.04) {
+      noise(at, { filter: "highpass", freq: vary(5000, 0.2), q: 0.6, attack: 0.002, peak: 0.025, decay: 0.012 });
+    }
+  },
+  // A cardboard folder cover landing flat: a dull flop pushing a puff of air out
+  flop(t, { strength = 1 } = {}) {
+    noise(t, { filter: "lowpass", freq: 900, to: 180, attack: 0.004, peak: 0.3 * strength, decay: 0.13 });
+    tone(t, { freq: vary(95), to: 60, peak: 0.22 * strength, decay: 0.11 });
+  },
+  // A filing drawer rolling on its runners, ending in a soft clunk against the stop
+  drawer(t, { duration = 0.6 } = {}) {
+    for (let at = t; at < t + duration; at += 0.022 + Math.random() * 0.018) {
+      const swell = Math.sin(Math.PI * ((at - t) / duration));
+      noise(at, { filter: "lowpass", freq: vary(260, 0.25), attack: 0.004, peak: 0.04 + 0.08 * swell, decay: 0.03 });
+    }
+    tone(t + duration, { freq: 150, to: 85, peak: 0.32, decay: 0.08 });
+    noise(t + duration, { filter: "highpass", freq: 2400, attack: 0.001, peak: 0.08, decay: 0.02 });
+  },
+  // A folder knocking into place among the others: a short, hollow cardboard tap
+  knock(t, { strength = 1 } = {}) {
+    tone(t, { type: "triangle", freq: vary(210, 0.05), to: 150, peak: 0.18 * strength, decay: 0.06 });
+    noise(t, { freq: 800, q: 1.2, attack: 0.002, peak: 0.12 * strength, decay: 0.04 });
+  },
   // Air rushing past something thrown
   whoosh(t, { duration = 0.45, up = true } = {}) {
     noise(t, { freq: up ? 350 : 2600, to: up ? 2600 : 350, q: 1.4, attack: duration * 0.5, peak: 0.35, decay: duration * 0.5 });
@@ -223,7 +249,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3 };
+const MIN_GAP = { slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || ctx.state !== "running" || document.hidden) return;

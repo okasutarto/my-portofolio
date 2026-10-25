@@ -360,29 +360,29 @@ const onHeadlineAnimation = (event) => {
     const word = Number(event.target.style.getPropertyValue("--i")) || 0;
     heroSound("tick", { pitch: 0.7 + word * 0.1 });
   } else if (name.startsWith("scribble")) {
-    heroSound("scribble", { duration: 0.8 });
+    heroSound("scribble", { duration: 0.5 });
   } else if (name.startsWith("highlight")) {
-    heroSound("paper");
+    // a marker swiped across the words
+    heroSound("slide", { duration: 0.5 });
   } else if (name.startsWith("tag-in")) {
-    heroSound("stamp");
+    heroSound("pop", { pitch: 1.2 });
   }
 };
 
+// One sound at a time: the headline has its own (words, pen, marker, tag); the terminal, buttons
+// and socials come in quietly, and the terminal only starts typing once the headline is done
 const introContent = async () => {
   shown.status = true;
-  heroSound("pop", { pitch: 0.8 });
   await wait(150);
   shown.headline = true;
   await wait(900);
   shown.terminal = true;
-  heroSound("key");
-  bootTerminal();
   await wait(250);
   shown.ctas = true;
-  heroSound("slap");
   await wait(150);
   shown.socials = true;
-  heroSound("pop", { pitch: 1.15 });
+  await wait(1700);
+  bootTerminal();
 };
 
 const introPortrait = async () => {
@@ -390,19 +390,24 @@ const introPortrait = async () => {
   shown.backBlock = true;
   await wait(120);
   shown.frame = true;
+  // the frame springs in and lands
+  heroSound("pop", { pitch: 0.6 });
+  heroSound("flop", { strength: 0.5, delay: 0.32 });
   await wait(550);
   shown.photo = true;
-  heroSound("whoosh", { duration: 0.45, up: false });
+  // the photo rises up out of the frame
+  heroSound("whoosh", { duration: 0.5 });
   await wait(850);
   // Oka says hi (the whole line at once), then the rest of the hero follows
   bubbleText.value = GREETING;
   bubbleDone.value = true;
   shown.bubble = true;
-  heroSound("whoosh", { duration: 0.35 });
+  heroSound("whoosh", { duration: 0.25 });
   await wait(450);
   shown.years = true;
   heroSound("stamp");
-  await wait(200);
+  // let the stamp ring out before the headline starts ticking
+  await wait(450);
   introContent();
 };
 

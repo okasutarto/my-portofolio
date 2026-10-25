@@ -10,15 +10,22 @@
       <div
         class="relative z-10 h-full max-w-7xl mx-auto px-4 md:px-12 grid grid-cols-1 md:grid-cols-12 content-start md:content-center md:!pt-0 pointer-events-none"
         :style="{ paddingTop: `${textTop}px` }">
-        <!-- Outer wrapper: one-off entrance. Inner card: follows the scroll between projects -->
-        <div ref="cardIntroRef" class="md:col-span-5">
-        <div
+        <!-- Outer wrapper: one-off entrance. Inside: a deck of project cards that follows the scroll -->
+        <div ref="cardIntroRef" class="deck md:col-span-5">
+          <!-- Desktop only: a blank card at the back, so the deck has some thickness -->
+          <div v-if="isDesktop && deck.length > 1" class="deck-ghost" aria-hidden="true"></div>
+          <div
+            v-for="card in deck"
+            :key="card.project.id"
             class="info-card pointer-events-auto md:bg-white md:dark:bg-surface-dark md:border-2 md:border-black md:dark:border-primary md:shadow-neo md:p-8"
-            :style="cardStyle">
+            :class="`deck-${card.role}`"
+            :style="card.style"
+            :aria-hidden="card.role === 'under'"
+            :inert="card.role === 'under'">
             <div
               class="outlined-num relative isolate font-display font-bold leading-none text-5xl md:text-8xl text-white"
-              :data-num="String(activeIndex + 1).padStart(2, '0')">
-              {{ String(activeIndex + 1).padStart(2, "0")
+              :data-num="String(card.index + 1).padStart(2, '0')">
+              {{ String(card.index + 1).padStart(2, "0")
               }}<span
                 class="text-xl md:text-3xl text-black dark:text-white align-top ml-2"
                 >/ {{ String(projects.length).padStart(2, "0") }}</span
@@ -27,24 +34,24 @@
 
             <span
               class="inline-block mt-3 md:mt-4 mb-2 md:mb-3 px-3 py-0.5 border-2 border-black dark:border-primary text-xs font-bold uppercase shadow-neo-sm"
-              :class="typeStyle(active.type).badge">
-              {{ active.type }}
+              :class="typeStyle(card.project.type).badge">
+              {{ card.project.type }}
             </span>
 
             <h3
               class="font-display font-bold uppercase tracking-tight leading-none text-2xl text-black dark:text-white mb-3 md:mb-4 [overflow-wrap:anywhere]"
-              :class="titleSize">
-              {{ active.title }}
+              :class="titleSizeFor(card.project)">
+              {{ card.project.title }}
             </h3>
             <p
               class="font-medium leading-relaxed text-sm md:text-lg text-gray-800 dark:text-gray-200 border-l-4 pl-4 max-w-md mb-4 md:mb-5 line-clamp-3 [@media(max-width:767px)_and_(max-height:740px)]:line-clamp-2 md:line-clamp-none"
-              :class="typeStyle(active.type).border">
-              {{ active.description }}
+              :class="typeStyle(card.project.type).border">
+              {{ card.project.description }}
             </p>
 
             <div class="flex flex-wrap gap-2 mb-4 md:mb-6 [@media(max-width:767px)_and_(max-height:740px)]:hidden">
               <span
-                v-for="(tech, techIndex) in active.technologies.slice(0, 5)"
+                v-for="(tech, techIndex) in card.project.technologies.slice(0, 5)"
                 :key="tech"
                 :class="{ 'hidden md:inline-block': techIndex >= 3 }"
                 class="bg-white dark:bg-zinc-800 border-2 border-black dark:border-primary px-2 py-0.5 text-xs font-bold uppercase shadow-neo-sm text-black dark:text-white">
@@ -54,21 +61,21 @@
 
             <div class="flex flex-wrap items-center gap-4">
               <router-link
-                :to="`/projects/${active.id}`"
+                :to="`/projects/${card.project.id}`"
                 class="bg-black dark:bg-primary text-white dark:text-black font-bold py-2.5 px-5 border-2 border-black dark:border-primary hover:bg-primary hover:text-black transition-all shadow-neo-sm active:translate-y-0.5 active:shadow-none flex items-center gap-2 uppercase text-xs tracking-wider">
                 Case study <i class="fas fa-arrow-right"></i>
               </router-link>
               <a
-                v-if="isLink(active.demoLink)"
-                :href="active.demoLink"
+                v-if="isLink(card.project.demoLink)"
+                :href="card.project.demoLink"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="flex items-center gap-2 font-bold text-xs uppercase hover:underline decoration-2 text-black dark:text-white">
                 <i class="fas fa-external-link-alt"></i> Demo
               </a>
               <a
-                v-if="isLink(active.codeLink)"
-                :href="active.codeLink"
+                v-if="isLink(card.project.codeLink)"
+                :href="card.project.codeLink"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="flex items-center gap-2 font-bold text-xs uppercase hover:underline decoration-2 text-black dark:text-white">
@@ -155,28 +162,62 @@ const updateTextTop = () => {
   textTop.value = Math.round(inset + stackedPhoneHeight(h, inset) + 16);
 };
 const active = computed(() => props.projects[activeIndex.value]);
+// Continuous scroll position across projects: 0..(projects.length - 1)
+const progress = ref(0);
+const DESKTOP_QUERY = window.matchMedia("(min-width: 768px)");
+const isDesktop = ref(DESKTOP_QUERY.matches);
+const onDesktopChange = (e) => (isDesktop.value = e.matches);
 watch(activeIndex, () => sfx.whoosh({ duration: 0.3 }));
 // -0.5..0.5: how far the scroll is from the current project
 const offset = ref(0);
-// The card slides aside, tilts and fades like a sheet being pulled out, then the next
-// one comes in from the other side (deliberately different from the phone's spin)
-// The card flips over like a desk-calendar page (around X, unlike the phone's spin).
-// At the halfway point it's edge-on, which is exactly when the content swaps, so no fade
-// is needed to hide it.
-const cardStyle = computed(() => {
-  const o = offset.value;
-  return {
-    transform: `perspective(1400px) rotateX(${o * 180}deg) scale(${1 - Math.abs(o) * 0.12})`,
-  };
+const smoothstep = (x) => x * x * (3 - 2 * x);
+
+// Desktop: a deck of cards. The top card (this project) is dealt off to the right as you
+// scroll, revealing the next project's card already lying underneath, which settles into
+// place. Both cards show real content, so nothing needs to fade or hide the swap.
+// Phones keep a single card that flips like a desk-calendar page (around X); the content
+// swaps while it's edge-on.
+const deck = computed(() => {
+  const n = props.projects.length;
+  if (!isDesktop.value) {
+    const o = offset.value;
+    return [
+      {
+        project: active.value,
+        index: activeIndex.value,
+        role: "top",
+        style: { transform: `perspective(1400px) rotateX(${o * 180}deg) scale(${1 - Math.abs(o) * 0.12})` },
+      },
+    ];
+  }
+  const base = Math.min(Math.floor(progress.value), n - 1);
+  const f = base >= n - 1 ? 0 : smoothstep(progress.value - base);
+  const cards = [];
+  if (base + 1 < n) {
+    const r = 1 - f;
+    cards.push({
+      project: props.projects[base + 1],
+      index: base + 1,
+      role: "under",
+      style: { transform: `translate(${r * 16}px, ${r * 18}px) rotate(${r * -2.5}deg) scale(${0.96 + f * 0.04})` },
+    });
+  }
+  cards.push({
+    project: props.projects[base],
+    index: base,
+    role: "top",
+    style: { transform: `translate(${f * 120}%, ${-f * 30}px) rotate(${f * 14}deg)` },
+  });
+  return cards;
 });
 
 // Lexend Mega is very wide: size the title by its longest word so it never overflows
-const titleSize = computed(() => {
-  const longest = Math.max(...active.value.title.split(/\s+/).map((w) => w.length));
+const titleSizeFor = (project) => {
+  const longest = Math.max(...project.title.split(/\s+/).map((w) => w.length));
   if (longest <= 8) return "md:text-5xl";
   if (longest <= 11) return "md:text-4xl";
   return "md:text-3xl";
-});
+};
 
 let phoneScene = null;
 let loading = false;
@@ -204,8 +245,9 @@ const onScroll = () => {
   else applyProgress(p);
 };
 
-// The content swaps at the halfway point, while the card is faded out
+// The index (progress dots, phone screen) changes at the halfway point
 const applyProgress = (p) => {
+  progress.value = p;
   activeIndex.value = Math.round(p);
   offset.value = p - Math.round(p);
 };
@@ -229,6 +271,7 @@ const loadScene = async () => {
 };
 
 onMounted(() => {
+  DESKTOP_QUERY.addEventListener("change", onDesktopChange);
   if (
     !supportsWebGL() ||
     window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -275,6 +318,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  DESKTOP_QUERY.removeEventListener("change", onDesktopChange);
   window.removeEventListener("scroll", onScroll);
   window.removeEventListener("resize", updateTextTop);
   if (observer) observer.disconnect();
@@ -304,6 +348,39 @@ onUnmounted(() => {
 }
 .outlined-num span {
   text-shadow: none;
+}
+
+/* ---------- Deck of project cards (desktop) ---------- */
+.deck {
+  position: relative;
+}
+.deck-top {
+  position: relative;
+  z-index: 2;
+  will-change: transform;
+}
+/* The next project's card lies underneath, peeking out */
+.deck-under {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  right: 0;
+  will-change: transform;
+}
+/* A blank card at the very back for thickness */
+.deck-ghost {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: #fff;
+  border: 2px solid #000;
+  box-shadow: 5px 5px 0 var(--color-shadow);
+  transform: translate(30px, 34px) rotate(3.5deg);
+}
+:global(.dark .deck-ghost) {
+  background: #241f1a;
+  border-color: var(--color-primary);
 }
 
 </style>

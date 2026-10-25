@@ -361,7 +361,7 @@ const fitStage = () => {
     return;
   }
   stage.style.setProperty("--stage-h", `${stage.clientHeight}px`);
-  // The sticker sheet may also grow to fill spare room; everything else only shrinks.
+  // Content grows to fill spare room (up to a point) and shrinks when it doesn't fit.
   // Scaling changes the layout width (and so the wrapping), so test each candidate at its
   // own width and binary-search the largest scale whose content still fits.
   const room = stage.clientHeight;
@@ -370,7 +370,7 @@ const fitStage = () => {
     return inner.offsetHeight * scale <= room;
   };
   let lo = 0.55;
-  let hi = tab.value === "features" ? 1.3 : 1;
+  let hi = 1.35;
   if (fits(hi)) lo = hi;
   else
     for (let i = 0; i < 7; i++) {
@@ -1002,7 +1002,7 @@ onBeforeUnmount(() => {
   }
   /* The polaroid is sized from the space left on the sheet (it's ~1.27x taller than wide) */
   .ov-side .polaroid {
-    width: clamp(130px, calc((var(--stage-h, 520px) - 150px) * 0.78), 250px);
+    width: clamp(130px, calc((var(--stage-h, 520px) - 150px) * 0.78), 330px);
   }
   .polaroid {
     max-width: 250px;

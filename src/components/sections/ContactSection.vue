@@ -21,10 +21,15 @@
         class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-12 lg:gap-14 items-start">
         <!-- Postcard -->
         <div class="postcard-stage relative">
+          <!-- Envelope the card arrives in (intro only): back panel sits behind the card,
+               the front pocket and the flap sit in front of it -->
+          <template v-if="showEnvelope">
+            <div ref="envelopeBackRef" class="envelope-part envelope-back" aria-hidden="true"></div>
+          </template>
           <form
             ref="postcardRef"
-            class="postcard relative grid grid-cols-1 md:grid-cols-[1.2fr_1fr] min-h-[400px] bg-[#fffdf5] text-[#1a1714] border-[2.5px] border-black shadow-[8px_8px_0_#000]"
-            :class="{ sent: status === 'sent', shake: status === 'error' }"
+            class="postcard relative z-10 grid grid-cols-1 md:grid-cols-[1.2fr_1fr] min-h-[400px] bg-[#fffdf5] text-[#1a1714] border-[2.5px] border-black shadow-[8px_8px_0_#000]"
+            :class="{ ready: introDone, sent: status === 'sent', shake: status === 'error' }"
             novalidate
             @submit.prevent="submitForm">
             <!-- Message side -->
@@ -116,6 +121,17 @@
               </p>
             </div>
           </form>
+
+          <template v-if="showEnvelope">
+            <div ref="envelopeFrontRef" class="envelope-part envelope-front-wrap" aria-hidden="true">
+              <div class="envelope-front">
+                <span class="par-avion">Par avion ✈</span>
+              </div>
+            </div>
+            <div ref="flapRef" class="envelope-part envelope-flap-wrap" aria-hidden="true">
+              <div class="envelope-flap"></div>
+            </div>
+          </template>
 
           <!-- Delivered stamp shown after the card flies off -->
           <div
@@ -211,6 +227,14 @@ const form = reactive({ name: "", email: "", message: "" });
 const errors = reactive({ name: "", email: "", message: "" });
 // idle | sending | sent | error
 const status = ref("idle");
+// The fly-away transition is only switched on after the intro, otherwise it would
+// also delay every value GSAP sets while tossing the card in
+const introDone = ref(false);
+// Envelope only exists for the intro (skipped with reduced motion)
+const showEnvelope = ref(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+const envelopeBackRef = ref(null);
+const envelopeFrontRef = ref(null);
+const flapRef = ref(null);
 let resetTimer = null;
 let ctx = null;
 
@@ -264,30 +288,46 @@ const submitForm = async () => {
 };
 
 onMounted(() => {
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    introDone.value = true;
+    return;
+  }
 
   ctx = gsap.context(() => {
-    // The postcard gets tossed onto the table, then the stamp is slapped on
+    const card = postcardRef.value;
+    const envelope = [envelopeBackRef.value, envelopeFrontRef.value, flapRef.value];
+    const side = sideRef.value.children;
+
+    // Waiting state: envelope off to the left, card hidden inside it, side column hidden
+    gsap.set(envelope, { x: -180, rotate: -10, opacity: 0 });
+    gsap.set(card, { opacity: 0, yPercent: 4, scale: 0.95 });
+    gsap.set(side, { y: 24, opacity: 0 });
+
+    // The postcard arrives in an envelope, slides out, and gets stamped; only then
+    // does the "Let's connect" column follow, so the eye lands on the card first
     gsap
-      .timeline({ scrollTrigger: { trigger: postcardRef.value, start: "top 80%" } })
-      .from(postcardRef.value, {
-        y: 80,
-        rotate: -6,
-        opacity: 0,
-        duration: 0.7,
-        ease: "power3.out",
-        clearProps: "transform,opacity",
+      .timeline({
+        scrollTrigger: { trigger: card, start: "top 80%" },
+        onComplete: () => {
+          introDone.value = true;
+          showEnvelope.value = false;
+        },
       })
-      .from(
-        stampRef.value,
-        { scale: 2.2, rotate: -20, opacity: 0, duration: 0.45, ease: "back.out(2)" },
-        "-=0.15",
-      )
-      .from(
-        sideRef.value.children,
-        { y: 24, opacity: 0, duration: 0.5, stagger: 0.07, ease: "power3.out" },
-        "<",
-      );
+      // 1. Envelope slides in
+      .to(envelope, { x: 0, rotate: 0, opacity: 1, duration: 0.6, ease: "power3.out" })
+      .set(card, { opacity: 1 })
+      // 2. Flap opens; halfway through it passes behind the card
+      .to(flapRef.value, { rotateX: 180, duration: 0.45, ease: "power2.inOut" }, "+=0.05")
+      .set(flapRef.value, { zIndex: 5 }, "-=0.22")
+      // 3. Card slides up out of the envelope...
+      .to(card, { yPercent: -42, scale: 1, duration: 0.55, ease: "power2.out" })
+      // 4. ...the envelope drops away, and the card lands on the table
+      .to(envelope, { yPercent: 70, rotate: 5, opacity: 0, duration: 0.5, ease: "power2.in" }, "<+0.25")
+      .to(card, { yPercent: 0, duration: 0.65, ease: "bounce.out" })
+      .set(card, { clearProps: "transform,opacity" })
+      // 5. Stamp slapped on, then the side column
+      .from(stampRef.value, { scale: 2.2, rotate: -20, opacity: 0, duration: 0.45, ease: "back.out(2)" })
+      .to(side, { y: 0, opacity: 1, duration: 0.5, stagger: 0.09, ease: "power3.out", clearProps: "transform,opacity" }, ">+0.1");
   }, sectionRef.value);
 });
 
@@ -298,6 +338,57 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* ---------- Envelope (intro) ---------- */
+.envelope-part {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.envelope-back {
+  z-index: 0;
+  background: #e8d3a7;
+  border: 2.5px solid #000;
+  box-shadow: 8px 8px 0 #000;
+}
+/* Clip-path drops borders, so the outline comes from drop-shadows on the wrapper */
+.envelope-front-wrap,
+.envelope-flap-wrap {
+  filter: drop-shadow(2.5px 0 0 #000) drop-shadow(-2.5px 0 0 #000)
+    drop-shadow(0 2.5px 0 #000) drop-shadow(0 -2.5px 0 #000);
+}
+.envelope-front-wrap {
+  z-index: 20;
+}
+.envelope-front {
+  position: absolute;
+  inset: 0;
+  background: #dcc391;
+  /* Side and bottom flaps meet in a V; its depth is capped on tall (mobile) cards */
+  clip-path: polygon(0 0, 50% min(52%, 210px), 100% 0, 100% 100%, 0 100%);
+}
+.par-avion {
+  position: absolute;
+  left: 22px;
+  bottom: 18px;
+  padding: 4px 10px;
+  border: 2px solid #1d4ed8;
+  color: #1d4ed8;
+  font: 800 0.75rem "Lexend Mega", sans-serif;
+  text-transform: uppercase;
+  transform: rotate(-4deg);
+}
+.envelope-flap-wrap {
+  z-index: 30;
+  height: min(52%, 210px);
+  transform-origin: top center;
+}
+.envelope-flap {
+  position: absolute;
+  inset: 0;
+  background: #e2cb9c;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
 /* Faint dashed border inside the card edge */
 .postcard::before {
   content: "";
@@ -381,6 +472,8 @@ onBeforeUnmount(() => {
 /* Sent: the card folds back and flies off */
 .postcard {
   transform-origin: center;
+}
+.postcard.ready {
   transition:
     transform 0.8s cubic-bezier(0.6, -0.2, 0.4, 1.2),
     opacity 0.4s 0.5s;

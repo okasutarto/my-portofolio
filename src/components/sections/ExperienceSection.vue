@@ -17,121 +17,158 @@
         </h2>
       </div>
 
-      <!-- Folders -->
-      <div class="flex flex-col gap-5">
+      <!-- Boarding passes, newest first -->
+      <div class="flex flex-col gap-7">
         <article
-          v-for="experience in experiences"
-          :key="experience.id"
-          class="xp-row bg-white dark:bg-surface-dark border-2 border-black dark:border-[#f4ead5] shadow-neo"
-          :class="{ open: openId === experience.id }">
-          <button
-            :id="`xp-head-${experience.id}`"
-            class="row-head w-full grid items-center gap-x-5 gap-y-2 px-5 md:px-6 py-4 md:py-5 text-left text-black dark:text-white group/row"
-            :aria-expanded="openId === experience.id"
-            :aria-controls="`xp-body-${experience.id}`"
-            @click="toggle(experience.id)">
-            <span
-              class="period font-bold text-xs md:text-sm uppercase tracking-wider opacity-80"
-              >{{ experience.period }}</span
-            >
-            <span class="min-w-0">
-              <span
-                class="block font-display font-bold uppercase tracking-tight text-lg md:text-2xl leading-tight"
-                >{{ experience.role }}</span
-              >
-              <span class="block font-bold text-sm mt-1">
-                <a
-                  v-if="experience.companyUrl"
-                  :href="experience.companyUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="underline decoration-2 decoration-primary underline-offset-2 hover:bg-primary hover:text-black"
-                  @click.stop
-                  >@{{ experience.company }}</a
-                >
-                <template v-else>@{{ experience.company }}</template>
-                · {{ experience.location }}
+          v-for="ticket in tickets"
+          :key="ticket.id"
+          class="ticket text-[#111]"
+          :class="{ open: openId === ticket.id }">
+          <!-- Main part -->
+          <div class="ticket-main relative p-5 md:p-7 bg-[#fffdf5] border-[2.5px] border-black">
+            <div class="flex items-center justify-between gap-3">
+              <!-- The company is the "airline" -->
+              <component
+                :is="ticket.companyUrl ? 'a' : 'span'"
+                :href="ticket.companyUrl || undefined"
+                :target="ticket.companyUrl ? '_blank' : undefined"
+                :rel="ticket.companyUrl ? 'noopener noreferrer' : undefined"
+                class="flex items-center gap-2.5 font-bold text-sm uppercase tracking-wider"
+                :class="{ 'hover:underline decoration-2': ticket.companyUrl }">
                 <span
-                  v-if="experience.current"
-                  class="ml-1.5 bg-[#22c55e] text-black border-2 border-black px-1.5 text-[10px] align-middle"
-                  >NOW</span
+                  class="w-8 h-8 grid place-items-center border-2 border-black font-display text-xs"
+                  :class="toneClass(ticket.tone)"
+                  >{{ ticket.companyInitial }}</span
                 >
+                {{ ticket.company }}
+              </component>
+              <span
+                class="status-stamp font-display font-bold text-[10px] md:text-xs uppercase px-2.5 py-1 border-2 -rotate-3 whitespace-nowrap"
+                :class="
+                  ticket.current
+                    ? 'border-[#16a34a] text-[#16a34a]'
+                    : 'border-black/60 text-black/60'
+                ">
+                {{ ticket.current ? "✈ Boarding now" : "Arrived ✓" }}
               </span>
+            </div>
+
+            <!-- Route: start month -> end month. The small labels sit on their own row so the
+                 flight path lines up with the middle of the big letters. -->
+            <div class="mt-5 mb-4">
+              <div class="flex items-center gap-3 md:gap-5">
+                <span class="route-code flap">{{ ticket.from.month }}</span>
+                <!-- Dotted trail drawn behind the plane as it flies to the destination -->
+                <div class="flight-path relative flex-1 h-6" aria-hidden="true">
+                  <span class="trail"></span>
+                  <i class="plane fas fa-plane text-lg md:text-xl"></i>
+                </div>
+                <span class="route-code flap">{{ ticket.to.month }}</span>
+              </div>
+              <div class="route-label flex justify-between gap-3 mt-1.5">
+                <span>{{ ticket.from.label }}</span>
+                <span class="text-right">{{ ticket.to.label }}</span>
+              </div>
+            </div>
+
+            <h3
+              class="flap font-display font-bold uppercase tracking-tight text-lg md:text-2xl leading-tight">
+              {{ ticket.role }}
+            </h3>
+
+            <dl class="flex flex-wrap gap-x-7 gap-y-2 mt-3">
+              <div>
+                <dt class="field-label">Destination</dt>
+                <dd class="font-bold">{{ ticket.location }}</dd>
+              </div>
+              <div>
+                <dt class="field-label">Duration</dt>
+                <dd class="font-bold">{{ ticket.duration }}</dd>
+              </div>
+              <div>
+                <dt class="field-label">Gear</dt>
+                <dd class="font-bold">{{ ticket.technologies.slice(0, 3).join(" · ") }}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <!-- Stub: the headline number; tear it off to open the details -->
+          <button
+            type="button"
+            class="ticket-stub relative flex md:flex-col justify-between items-center md:items-stretch gap-4 p-4 md:p-5 border-[2.5px] border-black text-left text-black"
+            :class="toneClass(ticket.tone)"
+            :aria-expanded="openId === ticket.id"
+            :aria-controls="`ticket-details-${ticket.id}`"
+            @click="toggle(ticket.id)">
+            <span>
+              <span class="field-label !opacity-70">Highlight</span>
+              <span
+                class="block font-display font-bold leading-none tracking-tighter"
+                :class="ticket.stats[0].value.length > 5 ? 'text-xl md:text-2xl' : 'text-3xl md:text-4xl'"
+                >{{ ticket.stats[0].value }}</span
+              >
+              <span class="block mt-1 text-[11px] font-bold uppercase tracking-wider">{{
+                ticket.stats[0].label
+              }}</span>
             </span>
-            <span
-              v-if="experience.metric"
-              class="metric font-display font-bold text-sm md:text-base px-3 py-1.5 border-2 border-black text-black shadow-neo-sm whitespace-nowrap -rotate-2 justify-self-start"
-              :class="toneClass(experience.metric.tone)"
-              >{{ experience.metric.label }}</span
-            >
-            <span
-              class="toggle w-11 h-11 border-2 border-black dark:border-[#f4ead5] grid place-items-center text-lg group-hover/row:bg-primary group-hover/row:text-black"
-              aria-hidden="true">
-              <i class="fas fa-plus"></i>
+            <span class="flex flex-col gap-2 items-end md:items-stretch flex-1 md:flex-none">
+              <span class="barcode w-full max-w-[160px] md:max-w-none" aria-hidden="true"></span>
+              <span class="text-[10px] font-bold uppercase tracking-widest whitespace-nowrap">
+                {{ openId === ticket.id ? "Close ↙" : "Tear for details ↗" }}
+              </span>
             </span>
           </button>
 
+          <!-- Details revealed when the stub is torn off -->
           <div
-            :id="`xp-body-${experience.id}`"
-            class="row-body"
+            :id="`ticket-details-${ticket.id}`"
+            class="ticket-details"
             role="region"
-            :aria-labelledby="`xp-head-${experience.id}`">
+            :aria-label="`${ticket.role} at ${ticket.company}`">
             <div class="overflow-hidden">
               <div
-                class="mx-5 md:mx-6 pt-5 pb-6 border-t-2 border-dashed border-black dark:border-[#f4ead5] grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6 md:gap-8">
-                <!-- Big numbers -->
-                <div class="flex flex-row md:flex-col flex-wrap gap-3.5">
+                class="mt-3 p-5 md:p-6 bg-white dark:bg-surface-dark border-[2.5px] border-black dark:border-[#f4ead5] text-black dark:text-white grid grid-cols-1 md:grid-cols-[1fr_220px] gap-6">
+                <ul class="flex flex-col gap-2.5">
+                  <li
+                    v-for="(achievement, aIndex) in ticket.achievements"
+                    :key="aIndex"
+                    class="flex gap-3 font-medium leading-relaxed">
+                    <i
+                      class="fas fa-plane w-4 h-4 leading-4 self-start flex-shrink-0 text-center text-xs mt-1.5 -rotate-45 opacity-60"
+                      aria-hidden="true"></i>
+                    <p>
+                      <template v-for="(part, pIndex) in splitNumbers(achievement)" :key="pIndex">
+                        <strong v-if="part.number" class="bg-primary/60 text-black dark:text-white px-1">{{
+                          part.text
+                        }}</strong>
+                        <template v-else>{{ part.text }}</template>
+                      </template>
+                    </p>
+                  </li>
+                </ul>
+                <div class="flex md:flex-col flex-wrap gap-3">
                   <div
-                    v-for="stat in experience.stats"
+                    v-for="stat in ticket.stats"
                     :key="stat.label"
-                    class="px-4 py-3 border-2 border-black text-black shadow-[4px_4px_0_#000] flex-1 md:flex-none min-w-[130px]"
+                    class="flex-1 px-4 py-3 border-2 border-black text-black shadow-[4px_4px_0_#000]"
                     :class="toneClass(stat.tone)">
                     <b
                       class="block font-display font-bold leading-none tracking-tighter"
-                      :class="
-                        stat.value.length > 5
-                          ? 'text-xl md:text-3xl'
-                          : 'text-3xl md:text-4xl'
-                      "
+                      :class="stat.value.length > 5 ? 'text-xl' : 'text-3xl'"
                       >{{ stat.value }}</b
                     >
-                    <span
-                      class="block mt-1.5 font-bold text-[11px] uppercase tracking-wider"
-                      >{{ stat.label }}</span
-                    >
+                    <span class="block mt-1 text-[11px] font-bold uppercase tracking-wider">{{
+                      stat.label
+                    }}</span>
                   </div>
                 </div>
-
-                <div>
-                  <ul class="flex flex-col gap-3">
-                    <li
-                      v-for="(achievement, aIndex) in experience.achievements"
-                      :key="aIndex"
-                      class="flex items-start gap-3 text-gray-800 dark:text-gray-200">
-                      <span
-                        class="mt-2 w-2.5 h-2.5 bg-primary border border-black flex-shrink-0 rotate-45"></span>
-                      <p class="font-medium text-base leading-relaxed">
-                        <template
-                          v-for="(part, pIndex) in splitNumbers(achievement)"
-                          :key="pIndex">
-                          <strong
-                            v-if="part.number"
-                            class="bg-primary/60 text-black dark:text-white px-1"
-                            >{{ part.text }}</strong
-                          >
-                          <template v-else>{{ part.text }}</template>
-                        </template>
-                      </p>
-                    </li>
-                  </ul>
-                  <div class="flex flex-wrap gap-2 mt-5">
-                    <span
-                      v-for="tech in experience.technologies"
-                      :key="tech"
-                      class="px-2.5 py-0.5 border-2 border-black dark:border-[#f4ead5] text-xs font-bold uppercase tracking-wider text-black dark:text-white"
-                      >{{ tech }}</span
-                    >
-                  </div>
+                <div class="md:col-span-2 flex flex-wrap gap-2">
+                  <span
+                    v-for="tech in ticket.technologies"
+                    :key="tech"
+                    class="px-2.5 py-0.5 border-2 border-black dark:border-[#f4ead5] text-xs font-bold uppercase tracking-wider"
+                    >{{ tech }}</span
+                  >
                 </div>
               </div>
             </div>
@@ -158,6 +195,40 @@ const TONES = {
 };
 const toneClass = (tone) => TONES[tone] || TONES.primary;
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// "Jun 2026" -> { month: "JUN", year: 2026, index } ; "Present" -> today
+const parseDate = (text) => {
+  const [mon, year] = text.trim().split(/\s+/);
+  const index = MONTHS.findIndex((m) => m.toLowerCase() === mon.toLowerCase());
+  return { month: mon.toUpperCase(), year: Number(year), index };
+};
+
+const monthsBetween = (a, b) => (b.year - a.year) * 12 + (b.index - a.index) + 1;
+
+const formatDuration = (months) => {
+  const years = Math.floor(months / 12);
+  const rest = months % 12;
+  return [years && `${years} yr`, rest && `${rest} mo`].filter(Boolean).join(" ");
+};
+
+const tickets = experiences.map((experience) => {
+  const [startText, endText] = experience.period.split(/\s*-\s*/);
+  const from = parseDate(startText);
+  const now = new Date();
+  const isPresent = /present/i.test(endText);
+  const to = isPresent
+    ? { month: "PRESENT", year: now.getFullYear(), index: now.getMonth() }
+    : parseDate(endText);
+  return {
+    ...experience,
+    tone: experience.metric?.tone || "primary",
+    from: { month: from.month, label: `${from.month} ${from.year}` },
+    to: { month: to.month, label: isPresent ? "Today" : `${to.month} ${to.year}` },
+    duration: formatDuration(monthsBetween(from, to)),
+  };
+});
+
 // Split text so percentages ("40%", "99.9%") can be highlighted
 const splitNumbers = (text) =>
   text
@@ -166,25 +237,85 @@ const splitNumbers = (text) =>
     .map((part) => ({ text: part, number: /\d%$/.test(part) }));
 
 const sectionRef = ref(null);
-const openId = ref(experiences[0]?.id);
+const openId = ref(null);
 const toggle = (id) => {
   openId.value = openId.value === id ? null : id;
 };
 
 let ctx = null;
 
+// Split-flap board: letters cycle randomly, then lock in left to right
+const FLAP_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const scramble = (el, duration) => {
+  const final = el.textContent.trim();
+  const state = { p: 0 };
+  return gsap.to(state, {
+    p: 1,
+    duration,
+    ease: "none",
+    onUpdate() {
+      const locked = Math.floor(state.p * final.length);
+      el.textContent =
+        final.slice(0, locked) +
+        [...final.slice(locked)]
+          .map((c) => (c === " " ? " " : FLAP_CHARS[Math.floor(Math.random() * FLAP_CHARS.length)]))
+          .join("");
+    },
+    onComplete() {
+      el.textContent = final;
+    },
+  });
+};
+
 onMounted(() => {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   ctx = gsap.context(() => {
-    // Calm fade-up: tilt + overshoot here read as the section shaking while scrolling
-    gsap.from(".xp-row", {
-      y: 32,
-      opacity: 0,
-      duration: 0.6,
-      stagger: 0.08,
-      ease: "power3.out",
-      clearProps: "transform,opacity",
-      scrollTrigger: { trigger: sectionRef.value, start: "top 70%" },
+    const tl = gsap.timeline({
+      scrollTrigger: { trigger: ".ticket", start: "top 80%" },
+    });
+
+    gsap.utils.toArray(".ticket").forEach((ticket, i) => {
+      const at = i * 0.55;
+      const plane = ticket.querySelector(".plane");
+      const trail = ticket.querySelector(".trail");
+      const stamp = ticket.querySelector(".status-stamp");
+
+      tl
+        // 1. Printed: revealed top-down in jerky steps, like a receipt coming out
+        .fromTo(
+          ticket,
+          { clipPath: "inset(0% -3% 100% -3%)", y: -24 },
+          {
+            clipPath: "inset(0% -3% -6% -3%)",
+            y: 0,
+            duration: 0.9,
+            ease: "steps(12)",
+            clearProps: "clipPath,transform",
+          },
+          at,
+        )
+        // 3. The plane flies to the destination, drawing its dotted trail
+        .fromTo(trail, { scaleX: 0 }, { scaleX: 1, duration: 0.9, ease: "power2.inOut" }, at + 0.45)
+        .fromTo(plane, { "--fly": 0 }, { "--fly": 1, duration: 0.9, ease: "power2.inOut" }, at + 0.45)
+        // 4. Landed: the status stamp slams down and the ticket shakes
+        .from(
+          stamp,
+          {
+            scale: 2.6,
+            rotation: -20,
+            opacity: 0,
+            duration: 0.35,
+            ease: "back.out(2)",
+            clearProps: "transform,opacity",
+          },
+          at + 1.3,
+        )
+        .to(ticket, { keyframes: { x: [-6, 5, -3, 0] }, duration: 0.3, clearProps: "transform" }, at + 1.42);
+
+      // 2. Departure-board letters flip into place
+      ticket.querySelectorAll(".flap").forEach((el, k) => {
+        tl.add(scramble(el, 0.7 + k * 0.15), at + 0.25);
+      });
     });
   }, sectionRef.value);
 });
@@ -195,49 +326,130 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.row-head {
-  grid-template-columns: 1fr 44px;
+.ticket {
+  display: grid;
+  grid-template-columns: 1fr;
+  filter: drop-shadow(6px 6px 0 var(--color-shadow));
 }
-.row-head .period {
-  grid-column: 1 / -1;
+.ticket-main {
+  border-radius: 14px 14px 0 0;
+  border-bottom-width: 0;
 }
-.row-head .metric {
-  grid-column: 1;
+.ticket-stub {
+  border-top: 3px dashed #000;
+  border-radius: 0 0 14px 14px;
+  transition: transform 0.6s cubic-bezier(0.3, 1.4, 0.5, 1);
+  transform-origin: top center;
 }
-.row-head .toggle {
-  grid-column: 2;
-  grid-row: 2 / span 2;
+.ticket.open .ticket-stub {
+  transform: translateY(14px) rotate(2deg);
 }
+
 @media (min-width: 768px) {
-  .row-head {
-    grid-template-columns: 170px 1fr auto 44px;
+  .ticket {
+    grid-template-columns: 1fr 210px;
   }
-  .row-head .period,
-  .row-head .metric,
-  .row-head .toggle {
-    grid-column: auto;
-    grid-row: auto;
+  .ticket-main {
+    border-radius: 14px 0 0 14px;
+    border-bottom-width: 2.5px;
+    border-right-width: 0;
+  }
+  .ticket-stub {
+    border-top: 2.5px solid #000;
+    border-left: 3px dashed #000;
+    border-radius: 0 14px 14px 0;
+    transform-origin: left center;
+  }
+  /* Punched notches along the tear line */
+  .ticket-stub::before,
+  .ticket-stub::after {
+    content: "";
+    position: absolute;
+    left: -15px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--notch-bg, #f0f0f0);
+    border: 2.5px solid #000;
+  }
+  .ticket-stub::before {
+    top: -15px;
+  }
+  .ticket-stub::after {
+    bottom: -15px;
+  }
+  /* Whole selector inside :global() — ":global(.dark) .x" would compile to just ".dark" */
+  :global(.dark .ticket-stub::before),
+  :global(.dark .ticket-stub::after) {
+    background: #1a1714;
+  }
+  .ticket.open .ticket-stub {
+    transform: rotate(10deg) translate(30px, 26px);
   }
 }
 
-.toggle {
-  transition:
-    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
-    background 0.2s;
+.route-code {
+  font-family: "Lexend Mega", sans-serif;
+  font-weight: 800;
+  font-size: clamp(1.4rem, 6vw, 3rem);
+  letter-spacing: -0.04em;
+  line-height: 1;
 }
-.xp-row.open .toggle {
-  transform: rotate(45deg);
-  background: var(--color-primary);
-  color: #000;
+.route-label {
+  font: 700 0.7rem "Space Grotesk", sans-serif;
+  letter-spacing: 0.1em;
+  opacity: 0.6;
+}
+.trail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 3px dotted #000;
+  transform-origin: left center;
+}
+/* Resting state: the plane has landed at the destination end of the trail */
+.plane {
+  --fly: 1;
+  position: absolute;
+  top: 50%;
+  left: calc(var(--fly) * 100%);
+  transform: translate(calc(var(--fly) * -100%), -50%) rotate(45deg);
+  background: #fffdf5;
+  padding: 0 4px;
 }
 
-/* Smooth open/close without measuring heights */
-.row-body {
+
+.field-label {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+.barcode {
+  display: block;
+  height: 44px;
+  background: repeating-linear-gradient(
+    90deg,
+    #000 0 2px,
+    transparent 2px 4px,
+    #000 4px 7px,
+    transparent 7px 9px,
+    #000 9px 10px,
+    transparent 10px 13px
+  );
+}
+
+.ticket-details {
+  grid-column: 1 / -1;
   display: grid;
   grid-template-rows: 0fr;
   transition: grid-template-rows 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.xp-row.open .row-body {
+.ticket.open .ticket-details {
   grid-template-rows: 1fr;
 }
 </style>

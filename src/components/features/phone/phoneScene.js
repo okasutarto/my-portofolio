@@ -19,7 +19,7 @@ const SH = SW * (SCREEN_H / SCREEN_W);
 const ORBIT_RZ = 2.0;
 
 
-export function createPhoneScene({ container, projects, colorFor }) {
+export function createPhoneScene({ container, projects, colorFor, onProgress }) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   // 1.5x is visually indistinguishable here and much lighter on retina GPUs
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
@@ -141,6 +141,7 @@ export function createPhoneScene({ container, projects, colorFor }) {
         rx: 2.0 + (i % 3) * 0.25,
         y: (i % 2 ? 1 : -1) * (0.3 + (i % 4) * 0.35),
         s: 0.3 + (i % 5) * 0.08,
+        i,
       };
       scene.add(m);
       blocks.push(m);
@@ -245,10 +246,28 @@ export function createPhoneScene({ container, projects, colorFor }) {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const clock = new THREE.Clock();
   let smooth = 0;
+  let reported = -1;
+  // Entrance: the phone waits off-stage (above) until playIntro() is called
+  let introStart = null;
+  const clamp01 = (v) => Math.min(1, Math.max(0, v));
+  const easeOutBounce = (x) => {
+    const n = 7.5625;
+    const d = 2.75;
+    if (x < 1 / d) return n * x * x;
+    if (x < 2 / d) return n * (x -= 1.5 / d) * x + 0.75;
+    if (x < 2.5 / d) return n * (x -= 2.25 / d) * x + 0.9375;
+    return n * (x -= 2.625 / d) * x + 0.984375;
+  };
+  const easeOutBack = (x) => 1 + 2.7 * Math.pow(x - 1, 3) + 1.7 * Math.pow(x - 1, 2);
 
   const tick = () => {
     const t = clock.getElapsedTime();
     smooth += (progress - smooth) * 0.12;
+    // Report the eased progress so the DOM card can turn in lockstep with the phone
+    if (onProgress && Math.abs(smooth - reported) > 0.0005) {
+      reported = smooth;
+      onProgress(smooth);
+    }
 
     // One full spin per project; the texture swaps while the back faces the camera
     phone.rotation.y = reduced ? 0 : smooth * Math.PI * 2;
@@ -261,7 +280,9 @@ export function createPhoneScene({ container, projects, colorFor }) {
     }
     pivot.rotation.y = dragRot + mouse.x * 0.25;
     pivot.rotation.x = mouse.y * 0.15 + Math.sin(t * 0.8) * 0.04;
-    pivot.position.y = Math.sin(t * 1.2) * 0.06;
+    // Intro: the phone drops in from above and bounces, then the cubes pop in
+    const intro = reduced ? 1 : introStart === null ? 0 : clamp01((t - introStart) / 1.1);
+    pivot.position.y = Math.sin(t * 1.2) * 0.06 + (1 - easeOutBounce(intro)) * 5;
 
     // Squash a little mid-spin for a cartoony feel
     const mid = Math.abs(Math.sin(smooth * Math.PI));
@@ -281,6 +302,8 @@ export function createPhoneScene({ container, projects, colorFor }) {
       );
       b.rotation.x = t * d.s;
       b.rotation.y = t * d.s * 1.3;
+      const pop = reduced ? 1 : introStart === null ? 0 : clamp01((t - introStart - 0.7 - d.i * 0.07) / 0.35);
+      b.scale.setScalar(Math.max(0.001, easeOutBack(pop)));
     });
 
     renderer.render(scene, camera);
@@ -291,6 +314,10 @@ export function createPhoneScene({ container, projects, colorFor }) {
     // p: 0..(projects.length - 1)
     setProgress(p) {
       progress = p;
+    },
+    // Drop the phone in and pop the cubes (once)
+    playIntro() {
+      if (introStart === null) introStart = clock.getElapsedTime();
     },
     start() {
       if (frame === null && !destroyed) {

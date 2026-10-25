@@ -208,7 +208,8 @@ svg {
 }
 
 /* Dark mode adjustments (if needed, but Yellow/Cyan are already bold) */
-:global(.dark) .cursor-shadow svg path {
+/* Whole selector inside :global() — ":global(.dark) .x" compiles to just ".dark" */
+:global(.dark .cursor-shadow svg path) {
   stroke: white;
 }
 </style>

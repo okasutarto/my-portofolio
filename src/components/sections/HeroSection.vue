@@ -31,7 +31,7 @@
 
         <!-- Terminal card -->
         <div
-          class="hero-in terminal max-w-[470px] mx-auto lg:mx-0 text-left border-2 border-black dark:border-[#f4ead5] shadow-[6px_6px_0_var(--color-secondary)]"
+          class="hero-in terminal bg-[#111] dark:bg-[#0d0b09] max-w-[470px] mx-auto lg:mx-0 text-left border-2 border-black dark:border-[#f4ead5] shadow-[6px_6px_0_var(--color-secondary)]"
           :class="{ show: shown.terminal }"
           aria-label="Roles and current focus">
           <div
@@ -389,11 +389,7 @@ onUnmounted(() => {
 
 /* ---------- Terminal ---------- */
 .terminal {
-  background: #111;
   color: #f4ead5;
-}
-:global(.dark) .terminal {
-  background: #0d0b09;
 }
 .term-dot {
   width: 11px;

@@ -35,7 +35,7 @@ const context = vm.createContext({
   say() {},
   onEvent: (name, payload) => events.push({ name, payload }),
 });
-vm.runInContext('const SIPS = 4; let sipsLeft = SIPS; let sipping = false; let lastQuote = -1; let darkNow = false; const SIP_QUOTES = [{}]; const timers = [];\n' + sip, context);
+vm.runInContext('const MUG_Y = 0.06; const SIPS = 4; let sipsLeft = SIPS; let sipping = false; let lastQuote = -1; let darkNow = false; const SIP_QUOTES = [{}]; const timers = [];\n' + sip, context);
 const drink = () => vm.runInContext('sip()', context);
 
 // Clicking during the animation must not consume another sip.

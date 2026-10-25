@@ -111,6 +111,48 @@ function noise(t, { filter = "bandpass", freq = 1500, to, q = 1, attack, peak, d
 
 const vary = (n, spread = 0.08) => n * (1 + (Math.random() * 2 - 1) * spread);
 
+// A plucked string (Karplus–Strong): a burst of noise fed round a delay line the length of one
+// period, softened a little on every pass. Rendered once per pitch and reused.
+const pluckCache = new Map();
+function pluckBuffer(freq) {
+  const key = `${ctx.sampleRate}:${Math.round(freq * 10)}`;
+  if (pluckCache.has(key)) return pluckCache.get(key);
+  const rate = ctx.sampleRate;
+  const buffer = ctx.createBuffer(1, Math.floor(rate * 2.4), rate);
+  const data = buffer.getChannelData(0);
+  const period = Math.max(2, Math.round(rate / freq));
+  const ring = new Float32Array(period);
+  for (let i = 0; i < period; i++) ring[i] = Math.random() * 2 - 1;
+  for (let i = 0; i < data.length; i++) {
+    const k = i % period;
+    data[i] = ring[k];
+    ring[k] = 0.996 * 0.5 * (ring[k] + ring[(k + 1) % period]);
+  }
+  pluckCache.set(key, buffer);
+  return buffer;
+}
+function pluck(t, freq, peak) {
+  const src = ctx.createBufferSource();
+  src.buffer = pluckBuffer(freq);
+  const tone = ctx.createBiquadFilter();
+  tone.type = "lowpass";
+  tone.frequency.value = 3200;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(peak, t);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + 2.3);
+  src.connect(tone).connect(gain).connect(out);
+  src.start(t);
+  src.stop(t + 2.4);
+}
+// Open chords, low string to high (Hz)
+const CHORDS = [
+  [98, 123.47, 146.83, 196, 246.94, 392], // G
+  [130.81, 164.81, 196, 261.63, 329.63], // C
+  [146.83, 220, 293.66, 369.99], // D
+  [82.41, 123.47, 164.81, 196, 246.94, 329.63], // Em
+];
+let chordIndex = 0;
+
 // ---------- the sounds ----------
 const SOUNDS = {
   // Something heavy landing on a desk
@@ -241,6 +283,14 @@ const SOUNDS = {
     noise(gulp, { filter: "lowpass", freq: 380, peak: 0.25, decay: 0.08 });
     noise(gulp + 0.22, { freq: 1100, to: 650, q: 0.8, attack: 0.06, peak: 0.07, decay: 0.35 });
   },
+  // Leaves brushing together: a soft airy swish with a few gentle flutters, no paper crackle
+  leaves(t, { duration = 0.6 } = {}) {
+    noise(t, { freq: 2200, to: 1400, q: 0.5, attack: 0.08, peak: 0.1, decay: duration });
+    for (let i = 0; i < 6; i++) {
+      const at = t + 0.04 + i * (duration / 7) + Math.random() * 0.03;
+      noise(at, { freq: vary(3600, 0.25), q: 1.2, attack: 0.02, peak: 0.05 + Math.random() * 0.03, decay: 0.08 + Math.random() * 0.05 });
+    }
+  },
   // Notification chime
   ping(t) {
     tone(t, { freq: 1318, peak: 0.25, decay: 0.5 });
@@ -283,6 +333,11 @@ const SOUNDS = {
     tone(t, { type: "sawtooth", freq: 110, peak: 0.16, decay: 0.2 });
     tone(t + 0.02, { type: "sawtooth", freq: 116, peak: 0.12, decay: 0.18 });
   },
+  // A downstrum on the guitar, one chord after another round the progression
+  strum(t) {
+    const chord = CHORDS[chordIndex++ % CHORDS.length];
+    chord.forEach((freq, i) => pluck(t + i * 0.022 + Math.random() * 0.006, freq, 0.32 - i * 0.025));
+  },
   // Plain UI click
   click(t) {
     tone(t, { freq: 900, to: 550, peak: 0.2, decay: 0.03 });
@@ -290,7 +345,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3 };
+const MIN_GAP = { slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || ctx.state !== "running" || document.hidden) return;

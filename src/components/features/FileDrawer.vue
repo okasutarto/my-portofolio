@@ -104,6 +104,7 @@ import { FOLDER_COLORS as COLORS } from "@/data/projectFiles";
 import { ref, computed, watch, inject, nextTick, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
 import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { sfx } from "@/composables/useSfx";
 import FileCover from "./files/FileCover.vue";
 import FileSheet from "./files/FileSheet.vue";
@@ -443,15 +444,41 @@ const onResize = () => {
   onScroll();
 };
 
+// ---------- first appearance: the drawer rolls up, then the folders drop into it ----------
+// Uses the `translate` property (via CSS variables), so it never fights the scroll-driven
+// transforms on the same elements.
+gsap.registerPlugin(ScrollTrigger);
+let intro = null;
+const playIntro = () => {
+  const tl = gsap.timeline();
+  tl.to(drawerRef.value, { "--rise": "0px", duration: 0.7, ease: "power3.out" }, 0).call(() => sfx.drawer({ duration: 0.6 }), null, 0);
+  // Back folders first, so the one in front lands last, on top
+  const order = folderEls.map((el, index) => ({ el, depth: depthOf(index) })).sort((a, b) => b.depth - a.depth);
+  order.forEach(({ el }, k) => {
+    const at = 0.45 + k * 0.13;
+    // Hidden while it waits above the drawer, shown the moment it starts to fall
+    tl.set(el, { opacity: 1 }, at)
+      .to(el, { "--drop": "0%", duration: 0.6, ease: "bounce.out" }, at)
+      .call(() => sfx.flop({ strength: 0.45 }), null, at + 0.3);
+  });
+};
+
 onMounted(() => {
   measure();
   window.addEventListener("scroll", onScroll, { passive: true });
   window.addEventListener("resize", onResize);
   if (route.query.file) openFromLink();
   else onScroll();
+  if (!reduced && !route.query.file) {
+    gsap.set(drawerRef.value, { "--rise": "180px" });
+    gsap.set(folderEls, { "--drop": "-140%", opacity: 0 });
+    // Wait for the drawer itself to come into view, not the section title above it
+    intro = ScrollTrigger.create({ trigger: drawerRef.value, start: "top 80%", once: true, onEnter: playIntro });
+  }
 });
 
 onUnmounted(() => {
+  intro?.kill();
   window.removeEventListener("scroll", onScroll);
   window.removeEventListener("resize", onResize);
   removeInputs();
@@ -484,6 +511,7 @@ onUnmounted(() => {
 /* ---------- the drawer ---------- */
 .drawer {
   position: relative;
+  translate: 0 var(--rise, 0px);
   width: calc(var(--fw) + 70px);
   height: calc(var(--fh) + 150px);
 }
@@ -562,6 +590,7 @@ onUnmounted(() => {
 .folder {
   position: absolute;
   inset: 0;
+  translate: 0 var(--drop, 0%);
   transform-origin: 50% 100%;
   will-change: transform;
 }

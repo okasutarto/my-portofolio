@@ -24,10 +24,16 @@
         </p>
       </div>
 
-      <!-- Sticker board -->
-      <div
-        ref="boardRef"
-        class="board relative bg-white dark:bg-surface-dark border-2 border-black dark:border-[#f4ead5] bg-dot-grid overflow-hidden">
+      <!-- Cork Pinboard -->
+      <div class="cork-frame relative">
+        <span class="frame-corner frame-tl" aria-hidden="true"></span>
+        <span class="frame-corner frame-tr" aria-hidden="true"></span>
+        <span class="frame-corner frame-bl" aria-hidden="true"></span>
+        <span class="frame-corner frame-br" aria-hidden="true"></span>
+
+        <div
+          ref="boardRef"
+          class="board relative overflow-hidden">
         <component
           :is="sticker.href ? 'a' : 'div'"
           v-for="sticker in stickers"
@@ -101,6 +107,7 @@
           </template>
         </component>
       </div>
+    </div>
     </div>
   </section>
 </template>
@@ -234,8 +241,71 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* ---------- Cork Pinboard Frame ---------- */
+.cork-frame {
+  padding: 12px;
+  background: linear-gradient(135deg, #b87c46 0%, #995c2c 50%, #b87c46 100%);
+  border: 3.5px solid #000;
+  box-shadow: 8px 8px 0 #000;
+  transition: box-shadow 0.2s;
+}
+:global(.dark .cork-frame) {
+  background: linear-gradient(135deg, #6b4020 0%, #4f2d14 50%, #6b4020 100%);
+  border-color: #000;
+  box-shadow: 8px 8px 0 #000;
+}
+
+@media (min-width: 1024px) {
+  .cork-frame {
+    padding: 18px;
+    box-shadow: 12px 12px 0 #000;
+  }
+}
+
+/* Corner metal brackets with rivet */
+.frame-corner {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  background: #ffdd00;
+  border: 2px solid #000;
+  z-index: 5;
+  pointer-events: none;
+}
+.frame-corner::after {
+  content: "";
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  background: #000;
+  border-radius: 50%;
+}
+.frame-tl { top: -2px; left: -2px; clip-path: polygon(0 0, 100% 0, 0 100%); }
+.frame-tl::after { top: 5px; left: 5px; }
+.frame-tr { top: -2px; right: -2px; clip-path: polygon(0 0, 100% 0, 100% 100%); }
+.frame-tr::after { top: 5px; right: 5px; }
+.frame-bl { bottom: -2px; left: -2px; clip-path: polygon(0 0, 0 100%, 100% 100%); }
+.frame-bl::after { bottom: 5px; left: 5px; }
+.frame-br { bottom: -2px; right: -2px; clip-path: polygon(100% 0, 0 100%, 100% 100%); }
+.frame-br::after { bottom: 5px; right: 5px; }
+
+/* Cork Board Surface */
 .board {
   height: 1250px;
+  border: 2.5px solid #000;
+  background-color: #cb9b67;
+  background-image:
+    radial-gradient(ellipse at 50% 50%, rgba(255, 235, 195, 0.16), rgba(60, 35, 10, 0.24)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.45  0 0 0 0 0.28  0 0 0 0 0.12  0 0 0 0.35 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  box-shadow: inset 0 4px 14px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+:global(.dark .board) {
+  background-color: #3d281a;
+  background-image:
+    radial-gradient(ellipse at 50% 50%, rgba(180, 120, 80, 0.08), rgba(0, 0, 0, 0.4)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.15  0 0 0 0 0.09  0 0 0 0 0.04  0 0 0 0.45 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)'/%3E%3C/svg%3E");
+  box-shadow: inset 0 4px 16px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(0, 0, 0, 0.4);
 }
 .sticker {
   left: var(--sx-m);

@@ -568,9 +568,8 @@ export function drawCaseSheet(c, w, h, project, kind, { index = 0 } = {}) {
       });
       if (!links.length) fileText(c, "PRIVATE BUILD", 38, 595, 540, { size: 22, weight: 800, ink: "#666", lines: 1 });
     }
-    fileText(c, page ? "← BACK" : "", 38, 684, 250, { size: 19, weight: 800, lines: 1 });
+    // Going back lives on the left page (the back of the sheet just turned)
     fileText(c, page < CASE_SHEETS.length - 1 ? "NEXT →" : "END", 820, 684, 150, { size: 19, weight: 800, lines: 1 });
-    if (page) hotspots.push({ x: 20, y: 660, w: 260, h: 70, action: "prev" });
     if (page < CASE_SHEETS.length - 1) hotspots.push({ x: 760, y: 660, w: 230, h: 70, action: "next" });
     c.strokeStyle = "#000";
     c.lineWidth = 6;
@@ -578,31 +577,54 @@ export function drawCaseSheet(c, w, h, project, kind, { index = 0 } = {}) {
     return hotspots;
   });
 }
-// Back of a turned sheet / inside of the cover: drawn upside down so they read once flipped
-export function drawCaseBack(c, w, h, project, { inside = false, index = 0 } = {}) {
+// Back of a turned sheet / inside of the cover: drawn upside down so they read once flipped.
+// A turned sheet's back is the left page of the spread, in the same paper as the right page,
+// and carries the way back to the page it belongs to (`kind`).
+export function drawCaseBack(c, w, h, project, { inside = false, index = 0, kind } = {}) {
   c.save();
   c.translate(w, h);
   c.rotate(Math.PI);
-  c.fillStyle = inside ? FOLDER_COLORS[index % FOLDER_COLORS.length] : "#fff";
-  c.fillRect(0, 0, w, h);
-  c.fillStyle = inside ? "rgba(120,70,10,.12)" : "rgba(59,130,246,.15)";
-  if (!inside) for (let y = 100; y < h; y += 34) c.fillRect(0, y, w, 2);
-  c.fillStyle = "#000";
+  let hotspots = [];
   if (inside) {
+    c.fillStyle = FOLDER_COLORS[index % FOLDER_COLORS.length];
+    c.fillRect(0, 0, w, h);
+    c.fillStyle = "#000";
     c.font = `800 30px ${DISPLAY}`;
     c.fillText(`CASE FILE #${String(index + 1).padStart(3, "0")}`, 30, 70);
     c.font = `600 30px 'Caveat', cursive`;
     c.fillText(`re: ${project.title}`, 30, 120);
     c.fillText("handle with care ✦", 30, 160);
+    c.lineWidth = 6;
+    c.strokeStyle = "#000";
+    c.strokeRect(3, 3, w - 6, h - 6);
   } else {
-    c.font = `600 26px 'Caveat', cursive`;
-    c.fillStyle = "rgba(0,0,0,.45)";
-    c.fillText("← back", 26, h - 30);
+    const page = Math.max(0, CASE_SHEETS.indexOf(kind));
+    hotspots = fileCanvas(c, w, h, () => {
+      c.fillStyle = "#fffdf5";
+      c.fillRect(0, 0, 1000, 740);
+      // Same header as the right page, for the page this sheet holds
+      brutalBox(c, 35, 28, 58, 40, "#111", { shadow: 0, line: 0 });
+      fileText(c, String(page + 1).padStart(2, "0"), 46, 36, 45, { size: 23, weight: 800, lines: 1, ink: "#ffdd00" });
+      fileText(c, FILE_PAGES[page].title.toUpperCase(), 110, 34, 840, { size: 31, weight: 800, lines: 1 });
+      fileText(c, `NO. ${String(index + 1).padStart(2, "0")} · ${project.title.toUpperCase()}`, 38, 84, 920, { size: 16, weight: 700, lines: 1, ink: "#666" });
+      // Notes page: a few ruled lines and the page number, large and faint
+      c.fillStyle = "rgba(0,0,0,.07)";
+      for (let y = 160; y < 640; y += 48) c.fillRect(38, y, 924, 3);
+      c.fillStyle = "rgba(0,0,0,.06)";
+      c.font = `800 260px ${DISPLAY}`;
+      c.textAlign = "center";
+      c.fillText(String(page + 1).padStart(2, "0"), 500, 250);
+      c.textAlign = "left";
+      fileText(c, "← BACK", 38, 684, 250, { size: 19, weight: 800, lines: 1 });
+      c.strokeStyle = "#000";
+      c.lineWidth = 6;
+      c.strokeRect(3, 3, 994, 734);
+      return [{ x: 20, y: 660, w: 260, h: 70, action: "prev" }];
+    });
   }
-  c.lineWidth = 6;
-  c.strokeStyle = "#000";
-  c.strokeRect(3, 3, w - 6, h - 6);
   c.restore();
+  // Hotspots were laid out in the upside-down frame; turn them into canvas coordinates
+  return hotspots.map((hs) => ({ ...hs, x: w - hs.x - hs.w, y: h - hs.y - hs.h }));
 }
 
 // ---------- phone: a chat with Oka's AI assistant ----------
@@ -863,11 +885,15 @@ export function drawPostcardBack(c, w, h, card, { caret = false } = {}) {
 
 // ---------- pinned About board (same content as the 2D sticker board) ----------
 export function drawAboutBoard(c, w, h) {
-  c.fillStyle = "#fffdf5";
+  c.fillStyle = "#cb9b67";
   c.fillRect(0, 0, w, h);
-  c.fillStyle = "rgba(0,0,0,.16)";
-  for (let y = 16; y < h; y += 24) for (let x = 16; x < w; x += 24) c.fillRect(x, y, 2, 2);
-  c.fillStyle = "#000";
+  c.fillStyle = "rgba(70, 40, 15, 0.14)";
+  for (let i = 0; i < 300; i++) {
+    const x = (Math.sin(i * 99) * 0.5 + 0.5) * w;
+    const y = (Math.cos(i * 33) * 0.5 + 0.5) * h;
+    c.fillRect(x, y, (i % 3) + 1, (i % 2) + 1);
+  }
+  c.fillStyle = "#111";
   c.font = `900 ${Math.round(h * 0.06)}px ${DISPLAY}`;
   c.textAlign = "center";
   c.fillText("ABOUT ME", w / 2, h * 0.075);
@@ -917,6 +943,220 @@ export function drawAboutNote(c, w, h, note) {
   }
   c.textBaseline = "alphabetic";
   return note.href ? [{ x: 0, y: 0, w, h, href: note.href }] : [];
+}
+
+// ---------- the file drawer's front panel, same as the 2D drawer ----------
+export function drawDrawerFront(c, w, h, count) {
+  c.fillStyle = "#ffdd00";
+  c.fillRect(0, 0, w, h);
+  // Label boxes sized to their text; the type shrinks until both fit side by side
+  const left = `PROJECTS 01–${String(count).padStart(2, "0")}`;
+  let size = h * 0.2;
+  c.font = `800 ${size}px ${DISPLAY}`;
+  const boxW = (big) => c.measureText(big).width + w * 0.05;
+  const need = boxW(left) + boxW("SHIPPED");
+  if (need > w * 0.86) size *= (w * 0.86) / need;
+  const label = (x, small, big, fromRight = false) => {
+    c.font = `800 ${size}px ${DISPLAY}`;
+    const bw = boxW(big);
+    if (fromRight) x = w - x - bw;
+    brutalBox(c, x, h * 0.22, bw, h * 0.56, "#fffdf5", { shadow: 0, line: Math.max(4, h * 0.035) });
+    c.fillStyle = "rgba(0,0,0,.6)";
+    c.font = `700 ${Math.round(h * 0.11)}px ${BODY}`;
+    c.textBaseline = "top";
+    c.fillText(small, x + w * 0.025, h * 0.28);
+    c.fillStyle = "#111";
+    c.font = `800 ${size}px ${DISPLAY}`;
+    c.fillText(big, x + w * 0.025, h * 0.44);
+  };
+  label(w * 0.04, "DRAWER A", left);
+  label(w * 0.04, "STATUS", "SHIPPED", true);
+  c.textBaseline = "alphabetic";
+  c.lineWidth = Math.max(6, h * 0.05);
+  c.strokeStyle = "#000";
+  c.strokeRect(0, 0, w, h);
+}
+
+// ---------- desk top: light oak planks running the desk's length, flat grain, bold seams ----------
+export function drawWoodTop(c, w, h) {
+  const planks = 6;
+  const ph = h / planks;
+  const tones = ["#d9a066", "#cf9559", "#deaa70", "#d39b5f"];
+  // A fixed seed, so the grain is the same every load
+  let seed = 7;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < planks; i++) {
+    const y = i * ph;
+    c.fillStyle = tones[i % tones.length];
+    c.fillRect(0, y, w, ph);
+    // Long, gently wavy grain lines
+    c.strokeStyle = "rgba(120, 66, 24, 0.22)";
+    c.lineWidth = 3;
+    for (let g = 0; g < 7; g++) {
+      const gy = y + ph * (0.12 + g * 0.12) + rand() * 6;
+      const amp = 3 + rand() * 6;
+      const len = 120 + rand() * 160;
+      c.beginPath();
+      for (let x = 0; x <= w; x += 20) c.lineTo(x, gy + Math.sin(x / len + g) * amp);
+      c.stroke();
+    }
+    // A knot or two
+    for (let k = 0; k < 2; k++) {
+      const kx = rand() * w;
+      const ky = y + ph * (0.3 + rand() * 0.4);
+      c.strokeStyle = "rgba(110, 58, 20, 0.35)";
+      c.lineWidth = 3;
+      [18, 30].forEach((r) => {
+        c.beginPath();
+        c.ellipse(kx, ky, r * 2.2, r * 0.6, 0, 0, Math.PI * 2);
+        c.stroke();
+      });
+    }
+    // Plank ends are staggered, like a real top
+    c.fillStyle = "rgba(60, 32, 12, 0.55)";
+    const end = (0.2 + rand() * 0.6) * w;
+    c.fillRect(end, y, 4, ph);
+    // The seam between planks
+    c.fillRect(0, y, w, 4);
+  }
+}
+
+// ---------- floor: wood planks that tile seamlessly in both directions ----------
+export function drawWoodFloor(c, w, h) {
+  const rows = 8;
+  const rh = h / rows;
+  const tones = ["#c98d55", "#bf834c", "#d29a62", "#c48851"];
+  for (let i = 0; i < rows; i++) {
+    const y = i * rh;
+    c.fillStyle = tones[i % tones.length];
+    c.fillRect(0, y, w, rh);
+    // Grain whose waves repeat a whole number of times across the tile, so it wraps cleanly
+    c.strokeStyle = "rgba(110, 60, 22, 0.2)";
+    c.lineWidth = 3;
+    for (let g = 0; g < 4; g++) {
+      const gy = y + rh * (0.2 + g * 0.2);
+      c.beginPath();
+      for (let x = 0; x <= w; x += 16) c.lineTo(x, gy + Math.sin(((x / w) * (2 + g) + i * 0.3) * Math.PI * 2) * 4);
+      c.stroke();
+    }
+    // Two plank ends per row, staggered from row to row
+    c.fillStyle = "rgba(55, 30, 10, 0.6)";
+    const start = ((i * 0.37) % 1) * w;
+    [start, (start + w / 2) % w].forEach((x) => c.fillRect(x, y, 5, rh));
+    c.fillRect(0, y, w, 5);
+  }
+}
+
+// ---------- wall painting: a bold sunset over the hills, neo-brutal flat shapes ----------
+export function drawPainting(c, w, h) {
+  const ink = (path, fill) => {
+    c.fillStyle = fill;
+    c.fill(path);
+    c.lineWidth = Math.max(5, w / 110);
+    c.strokeStyle = "#000";
+    c.stroke(path);
+  };
+  // sky bands
+  [["#ff90e8", 0], ["#ffb35c", 0.28], ["#ffdd00", 0.46]].forEach(([color, y]) => {
+    c.fillStyle = color;
+    c.fillRect(0, h * y, w, h);
+  });
+  // stars and a ringed planet
+  c.fillStyle = "#fffdf5";
+  [[0.08, 0.1], [0.2, 0.2], [0.36, 0.08], [0.55, 0.16], [0.9, 0.1], [0.78, 0.24]].forEach(([x, y]) => {
+    c.fillRect(w * x, h * y, w * 0.012, w * 0.012);
+  });
+  const planet = new Path2D();
+  planet.arc(w * 0.82, h * 0.2, h * 0.08, 0, Math.PI * 2);
+  ink(planet, "#7fb2ff");
+  c.save();
+  c.translate(w * 0.82, h * 0.2);
+  c.rotate(-0.35);
+  c.lineWidth = Math.max(5, w / 110);
+  c.strokeStyle = "#000";
+  c.beginPath();
+  c.ellipse(0, 0, h * 0.15, h * 0.035, 0, 0, Math.PI * 2);
+  c.stroke();
+  c.restore();
+  // big sun, half behind the hills
+  const sun = new Path2D();
+  sun.arc(w * 0.42, h * 0.6, h * 0.26, 0, Math.PI * 2);
+  ink(sun, "#ff6b6b");
+  c.fillStyle = "rgba(0,0,0,.14)";
+  for (let i = 0; i < 4; i++) c.fillRect(w * 0.42 - h * 0.26, h * (0.52 + i * 0.05), h * 0.52, h * 0.015);
+  // hills, back to front
+  const hill = (points, fill) => {
+    const path = new Path2D();
+    path.moveTo(0, h);
+    points.forEach(([x, y]) => path.lineTo(w * x, h * y));
+    path.lineTo(w, h);
+    path.closePath();
+    ink(path, fill);
+  };
+  hill([[0, 0.7], [0.18, 0.55], [0.34, 0.68], [0.52, 0.5], [0.72, 0.66], [0.88, 0.56], [1, 0.62]], "#00e0c6");
+  hill([[0, 0.82], [0.22, 0.7], [0.45, 0.8], [0.66, 0.72], [0.84, 0.8], [1, 0.74]], "#3b82f6");
+  hill([[0, 0.92], [0.3, 0.84], [0.55, 0.9], [0.8, 0.83], [1, 0.9]], "#8fd694");
+  // a tiny house with a lit window
+  const house = new Path2D();
+  house.rect(w * 0.68, h * 0.74, w * 0.07, h * 0.08);
+  ink(house, "#fffdf5");
+  const roof = new Path2D();
+  roof.moveTo(w * 0.665, h * 0.745);
+  roof.lineTo(w * 0.715, h * 0.68);
+  roof.lineTo(w * 0.765, h * 0.745);
+  roof.closePath();
+  ink(roof, "#ff6b6b");
+  c.fillStyle = "#ffdd00";
+  c.fillRect(w * 0.7, h * 0.765, w * 0.025, h * 0.03);
+  // white mat and black frame line
+  c.lineWidth = w * 0.05;
+  c.strokeStyle = "#fffdf5";
+  c.strokeRect(0, 0, w, h);
+  c.lineWidth = Math.max(6, w / 90);
+  c.strokeStyle = "#000";
+  c.strokeRect(w * 0.025, h * 0.035, w * 0.95, h * 0.93);
+}
+
+// ---------- rug under the desk: plain dusty blue with a thin cream inset border ----------
+export function drawRug(c, w, h) {
+  c.fillStyle = "#8fa8d6";
+  c.fillRect(0, 0, w, h);
+  // the faintest weave, so it reads as fabric rather than paint
+  c.fillStyle = "rgba(0,0,0,.035)";
+  for (let y = 0; y < h; y += 10) c.fillRect(0, y, w, 3);
+  const inset = w * 0.045;
+  c.lineWidth = Math.max(5, w / 200);
+  c.strokeStyle = "#f3ead8";
+  c.strokeRect(inset, inset, w - inset * 2, h - inset * 2);
+  c.lineWidth = Math.max(8, w / 80);
+  c.strokeStyle = "#1a1714";
+  c.strokeRect(0, 0, w, h);
+}
+
+// ---------- sticky notes (monitor bezel) ----------
+export function drawStickyNote(c, w, h, { text, color = "#ffdd00", tick = false } = {}) {
+  c.fillStyle = color;
+  c.fillRect(0, 0, w, h);
+  // a darker strip where the glue is
+  c.fillStyle = "rgba(0,0,0,.08)";
+  c.fillRect(0, 0, w, h * 0.16);
+  c.fillStyle = "#1a1714";
+  c.font = `600 ${Math.round(h * 0.17)}px 'Caveat', cursive`;
+  c.textBaseline = "top";
+  wrap(c, text, w * 0.84, 4).forEach((line, i) => c.fillText(line, w * 0.08, h * 0.24 + i * h * 0.18));
+  if (tick) {
+    c.strokeStyle = "#16a34a";
+    c.lineWidth = h * 0.035;
+    c.beginPath();
+    c.moveTo(w * 0.66, h * 0.8);
+    c.lineTo(w * 0.74, h * 0.88);
+    c.lineTo(w * 0.9, h * 0.68);
+    c.stroke();
+  }
+  c.lineWidth = Math.max(4, w / 60);
+  c.strokeStyle = "#000";
+  c.strokeRect(2, 2, w - 4, h - 4);
+  c.textBaseline = "alphabetic";
 }
 
 // ---------- keycap labels (the shortcut keys) ----------

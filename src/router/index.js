@@ -6,22 +6,25 @@ window.history.scrollRestoration = "manual";
 
 const routes = [
   {
+    // The 3D desk is the front page; the classic scrolling site lives at /2d
     path: "/",
+    name: "desk",
+    component: () => import("../views/DeskPage.vue"),
+    meta: { title: "Oka Sutarto Putra", immersive: true },
+  },
+  {
+    path: "/2d",
     name: "home",
     component: () => import("../views/HomePage.vue"),
-    meta: { title: "Oka Sutarto Putra" },
+    meta: { title: "Oka Sutarto Putra | 2D" },
   },
+  // Old link to the desk
+  { path: "/desk", redirect: "/" },
   {
     // Projects open as files inside the Projects drawer; old links land there with the file open
     path: "/projects/:id",
     name: "project-details",
-    redirect: (to) => ({ path: "/", hash: "#projects", query: { file: to.params.id } }),
-  },
-  {
-    path: "/desk",
-    name: "desk",
-    component: () => import("../views/DeskPage.vue"),
-    meta: { title: "The Desk | okasputra", immersive: true },
+    redirect: (to) => ({ path: "/2d", hash: "#projects", query: { file: to.params.id } }),
   },
   {
     path: "/:pathMatch(.*)*",
@@ -36,8 +39,8 @@ const router = createRouter({
   routes,
   scrollBehavior(to, from, savedPosition) {
     // The drawer scrolls to (and opens) the linked file itself
-    if (to.path === "/" && to.query.file) return false;
-    if (to.path === "/" && from === START_LOCATION) return { top: 0, behavior: "instant" };
+    if (to.path === "/2d" && to.query.file) return false;
+    if (to.path === "/2d" && from === START_LOCATION) return { top: 0, behavior: "instant" };
     if (savedPosition) {
       return savedPosition;
     }

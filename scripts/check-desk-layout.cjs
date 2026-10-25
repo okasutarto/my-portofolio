@@ -13,25 +13,38 @@ const layout = vm.runInNewContext(source.slice(layoutStart, source.indexOf('  co
 assert.deepEqual(Object.keys(layout).sort(), Array.from(ABOUT_NOTES, (note) => note.id).sort(),
   'every shared 2D note must have a pinned placement on the 3D board');
 
-const context = { THREE, screenPos: new THREE.Vector3(), heldTicket: null, openFolder: null, selectedNote: null };
+const num = (name) => Number(source.match(new RegExp(`const ${name} = ([\\d.]+)`))[1]);
+const FOLDER_W = num('FOLDER_W');
+const FOLDER_D = num('FOLDER_D');
+const DRAWER_D = vm.runInNewContext(source.match(/const DRAWER_D = ([^;]+);/)[1], { projects: { length: 5 } });
+const OUT = vm.runInNewContext(`(${source.match(/const OUT = ([^;]+);/)[1]})`, { DRAWER_D, FOLDER_D });
+const context = { THREE, screenPos: new THREE.Vector3(), screenNormal: new THREE.Vector3(), heldTicket: null, openFolder: null, selectedNote: null, OUT, FOLDER_W, FOLDER_D, container: { clientWidth: 1200 } };
 for (const name of ['tickets', 'folders', 'aboutBoard']) {
   context[name] = new THREE.Group();
   vm.runInNewContext(source.match(new RegExp(name + '\\.position\\.set\\([^;]+;'))[0], context);
+  const turn = source.match(new RegExp(name + '\\.rotation\\.y = ([^;]+);'));
+  if (turn) vm.runInNewContext(turn[0], context);
 }
 const shotStart = source.indexOf('  const SHOTS =');
 const shots = vm.runInNewContext(source.slice(shotStart, source.indexOf('  const cam =', shotStart)) + '; SHOTS', context);
 const near = (target, object, distance = 1) => new THREE.Vector3(...target).distanceTo(object.position) < distance;
 assert.ok(near(shots.experience().target, context.tickets));
-assert.ok(near(shots.projects().target, context.folders, 2));
-assert.ok(context.tickets.position.z < 0, 'tickets belong in the old scrapbook position');
-assert.ok(context.folders.position.z > 0 && context.folders.position.x < -3, 'projects belong in the old ticket position');
+const drawerShot = () => near(shots.projects().target, context.folders, 1.5);
+assert.ok(drawerShot(), 'the projects shot frames the drawer');
+context.openFolder = {};
+const openTarget = shots.projects().target;
+assert.ok(openTarget[0] > context.folders.position.x + 1.5, 'an open folder lies on the desk in front of the drawer');
+assert.ok(openTarget[0] - FOLDER_W > context.folders.position.x + DRAWER_D / 2 + 0.1, 'its open cover clears the drawer front');
+context.openFolder = null;
+assert.ok(context.tickets.position.z > 0 && context.tickets.position.x < -3, 'tickets sit at the front-left of the desk');
+assert.ok(context.folders.position.x < -5.5 && context.folders.position.z > -4.85 && context.folders.position.z < -0.3, 'the drawer stands at the left end of the desk, under the window');
 assert.ok(new THREE.Vector3(...shots.about().target).distanceTo(context.aboutBoard.position) < 0.01);
 
 // Framing must follow props if they move, rather than retaining the old coordinates.
 context.tickets.position.x += 1;
 context.folders.position.z += 1;
 assert.ok(near(shots.experience().target, context.tickets));
-assert.ok(near(shots.projects().target, context.folders, 2));
+assert.ok(drawerShot(), 'the projects shot follows the drawer');
 // Clicking a paper must never change the board camera framing.
 const boardShot = shots.about();
 context.selectedNote = { paper: new THREE.Group(), w: 1, h: 1 };

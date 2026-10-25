@@ -40,13 +40,19 @@ import {
   loadPortrait,
   drawKeyLabel,
   drawQuoteBubble,
+  drawStickyNote,
+  drawPainting,
+  drawWoodTop,
+  drawWoodFloor,
+  drawRug,
+  drawDrawerFront,
   SIP_QUOTES,
 } from "./textures";
 
 const PALETTES = {
-  light: { desk: "#a388ee", shadow: "#000000" },
-  // Night: the same lavender, dimmed, so it still reads against the dark page
-  dark: { desk: "#6b5bc4", shadow: "#000000" },
+  light: { desk: "#ffffff", shadow: "#000000" },
+  // Night: the same wood, dimmed, so it still reads against the dark page
+  dark: { desk: "#c4b9dc", shadow: "#000000" },
 };
 // Props that stand for a section of the 2D site
 export const SECTIONS = ["hero", "about", "experience", "projects", "contact"];
@@ -55,7 +61,7 @@ export const SECTIONS = ["hero", "about", "experience", "projects", "contact"];
 const VIEW_W = 21.5;
 const VIEW_H = 14.5;
 
-export function createDeskScene({ container, projects, experiences, labels = {}, dark = false, onEvent = () => {} }) {
+export function createDeskScene({ container, projects, experiences, dark = false, muted = false, onEvent = () => {} }) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -79,8 +85,10 @@ export function createDeskScene({ container, projects, experiences, labels = {},
   readabilityFill.position.set(7, 8, 12);
   scene.add(readabilityFill);
   const sun = new THREE.DirectionalLight(0xfff1cc, 1.8);
-  sun.position.set(-14, 7.5, -5.25);
-  sun.target.position.set(0, -0.3, 1);
+  // From the window side, in front of the desk, aimed toward the back wall: shadows fall to
+  // the right on the desk and up onto the wall behind the props
+  sun.position.set(-13, 9.5, 4.5);
+  sun.target.position.set(1, -0.5, -2.5);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20, near: 1, far: 60 });
@@ -101,21 +109,38 @@ export function createDeskScene({ container, projects, experiences, labels = {},
   const toon = (color) => track(new THREE.MeshToonMaterial({ color, gradientMap: gradient }));
 
   const outlineMats = new Map();
+  // Outlines are drawn in screen pixels, not world units: every prop gets a clear line of the
+  // same weight whether the camera is pulled back or zoomed right in. The nominal width a
+  // prop asks for (world units, 0.01–0.06) maps to roughly 2.5–4 CSS pixels.
+  const outlineResolution = { value: new THREE.Vector2(1, 1) };
+  const outlinePixels = (thickness) => 2.2 + thickness * 30;
   const outlineMat = (thickness) => {
     if (!outlineMats.has(thickness)) {
       outlineMats.set(
         thickness,
         track(
           new THREE.ShaderMaterial({
-            uniforms: { thickness: { value: thickness }, color: { value: new THREE.Color(0x000000) } },
+            uniforms: {
+              thickness: { value: outlinePixels(thickness) },
+              resolution: outlineResolution,
+              color: { value: new THREE.Color(0x000000) },
+            },
             vertexShader: `
               uniform float thickness;
+              uniform vec2 resolution;
               void main() {
-                vec4 p = vec4(position + normal * thickness, 1.0);
+                vec4 p = vec4(position, 1.0);
+                vec3 n = normal;
                 #ifdef USE_INSTANCING
                   p = instanceMatrix * p;
+                  n = mat3(instanceMatrix) * n;
                 #endif
-                gl_Position = projectionMatrix * modelViewMatrix * p;
+                vec4 clip = projectionMatrix * modelViewMatrix * p;
+                vec2 dir = (mat3(modelViewMatrix) * n).xy;
+                float len = length(dir);
+                dir = len > 1e-5 ? dir / len : vec2(0.0);
+                clip.xy += dir * thickness * 2.0 / resolution * clip.w;
+                gl_Position = clip;
               }`,
             fragmentShader: `
               uniform vec3 color;
@@ -143,18 +168,21 @@ export function createDeskScene({ container, projects, experiences, labels = {},
   };
 
   const noRaycast = () => {};
-  function mesh(geo, material, { outline = 0.045, cast = true } = {}) {
+  // `hull` swaps in a simpler outer shape for the outline (a hollow mug outlines as a cylinder)
+  function mesh(geo, material, { outline = 0.045, cast = true, hull: hullShape } = {}) {
     track(geo);
     const m = new THREE.Mesh(geo, material);
     m.castShadow = cast;
     m.receiveShadow = true;
     if (outline) {
-      const hull = new THREE.Mesh(hullGeometry(geo), outlineMat(outline));
+      if (hullShape) track(hullShape);
+      const hull = new THREE.Mesh(hullGeometry(hullShape || geo), outlineMat(outline));
       hull.raycast = noRaycast;
       m.add(hull);
     }
     return m;
   }
+  const UP = new THREE.Vector3(0, 1, 0);
   const rbox = (w, h, d, r = 0.08) => new RoundedBoxGeometry(w, h, d, 2, Math.min(r, Math.min(w, h, d) / 2 - 1e-3));
 
   // A plane carrying a canvas texture, unlit so the print keeps its exact colours
@@ -251,18 +279,23 @@ export function createDeskScene({ container, projects, experiences, labels = {},
       return typing.onEnter?.();
     }
     if (!e.repeat && (e.key.length === 1 || e.key === "Backspace" || e.key === "Enter"))
-      pressKey(e.key === " " ? SPACE : e.key.toLowerCase().charCodeAt(0) % (COLS * ROWS));
+      pressKey(e.code);
   };
   typer.addEventListener("input", onTyperInput);
   typer.addEventListener("keydown", onTyperKey);
 
   // ---------- the desk ----------
   const FLOOR_Y = -5.2;
+  // A wood-grain top; the material's colour tints it for the night shift
   const deskMat = toon(PALETTES.light.desk);
+  const deskWood = canvasTexture(1400, 840);
+  track(deskWood.texture);
+  drawWoodTop(deskWood.ctx, 1400, 840);
+  deskMat.map = deskWood.texture;
   const desk = mesh(rbox(14, 0.7, 8.4, 0.14), deskMat, { outline: 0.06 });
   desk.position.y = -0.35;
   scene.add(desk);
-  const legMat = toon("#ffffff");
+  const legMat = toon("#1a1a1a");
   [
     [-6.4, -3.6],
     [6.4, -3.6],
@@ -277,9 +310,16 @@ export function createDeskScene({ container, projects, experiences, labels = {},
   // ---------- full-viewport room: walls and floor extend beyond every camera shot ----------
   const room = new THREE.Group();
   scene.add(room);
-  const floorMat = toon("#f5c76b");
-  const backWallMat = toon("#fff0c9");
-  const sideWallMat = toon("#ff90e8");
+  // Wood flooring: one tile of staggered planks repeated across the floor (8 × 8 units a tile)
+  const floorMat = toon("#ffffff");
+  const floorWood = canvasTexture(1024, 1024);
+  track(floorWood.texture);
+  drawWoodFloor(floorWood.ctx, 1024, 1024);
+  floorWood.texture.wrapS = floorWood.texture.wrapT = THREE.RepeatWrapping;
+  floorWood.texture.repeat.set(25, 25);
+  floorMat.map = floorWood.texture;
+  const backWallMat = toon("#ffffff");
+  const sideWallMat = toon("#ffffff");
   const trimMat = toon("#ffffff");
   const roomBox = (w, h, d, material, x, y, z, outline = 0.055) => {
     const part = mesh(new THREE.BoxGeometry(w, h, d), material, { outline, cast: false });
@@ -289,18 +329,23 @@ export function createDeskScene({ container, projects, experiences, labels = {},
   };
   roomBox(200, 0.25, 200, floorMat, 0, FLOOR_Y - 0.17, 1.2);
   roomBox(200, 100, 0.24, backWallMat, 0, FLOOR_Y + 50, -6.68);
+  // The room's ambient fill washes shadows off the wall, so the wall gets its own catcher: a
+  // plane just in front of it that only shows where something's shadow lands
+  const wallShadowMat = track(new THREE.ShadowMaterial({ color: "#1a1714", opacity: 0.32 }));
+  const wallShadows = new THREE.Mesh(track(new THREE.PlaneGeometry(40, 24)), wallShadowMat);
+  wallShadows.position.set(0, FLOOR_Y + 10, -6.555);
+  wallShadows.receiveShadow = true;
+  wallShadows.raycast = noRaycast;
+  room.add(wallShadows);
   roomBox(0.24, 100, 200, sideWallMat, -8.88, FLOOR_Y + 50, 1.2);
+  const sideShadows = new THREE.Mesh(track(new THREE.PlaneGeometry(30, 24)), wallShadowMat);
+  sideShadows.rotation.y = Math.PI / 2;
+  sideShadows.position.set(-8.745, FLOOR_Y + 10, 1.2);
+  sideShadows.receiveShadow = true;
+  sideShadows.raycast = noRaycast;
+  room.add(sideShadows);
   roomBox(200, 0.22, 0.16, trimMat, 0, FLOOR_Y + 0.17, -6.45, 0.025);
   roomBox(0.16, 0.22, 200, trimMat, -8.65, FLOOR_Y + 0.17, 1.2, 0.025);
-  // Broad floor tiles keep the room graphic rather than adding a noisy texture.
-  const floorGrid = new THREE.GridHelper(200, 64, "#1a1714", "#1a1714");
-  track(floorGrid.geometry);
-  track(floorGrid.material);
-  floorGrid.material.transparent = true;
-  floorGrid.material.opacity = 0.3;
-  floorGrid.position.y = FLOOR_Y - 0.036;
-  floorGrid.raycast = noRaycast;
-  room.add(floorGrid);
 
   // A framed illustration on the left wall: four panes, a sun/moon and angular trees.
   let roomDark = false;
@@ -308,7 +353,8 @@ export function createDeskScene({ container, projects, experiences, labels = {},
   windowGroup.position.set(-8.7, 3.9, -2.65);
   windowGroup.rotation.y = Math.PI / 2;
   room.add(windowGroup);
-  const windowFrame = mesh(new THREE.BoxGeometry(4.4, 4.5, 0.18), trimMat, { cast: false, outline: 0.07 });
+  const frameWood = toon("#b5773e");
+  const windowFrame = mesh(new THREE.BoxGeometry(4.4, 4.5, 0.18), frameWood, { cast: false, outline: 0.07 });
   const windowView = printed(4.0, 4.1, 160, (c, w, h) => {
     c.fillStyle = roomDark ? "#243257" : "#7fdfff";
     c.fillRect(0, 0, w, h);
@@ -340,9 +386,84 @@ export function createDeskScene({ container, projects, experiences, labels = {},
   });
   windowView.position.z = 0.105;
   windowGroup.add(windowFrame, windowView);
-  const sill = mesh(new THREE.BoxGeometry(4.65, 0.18, 0.6), trimMat, { cast: false, outline: 0.045 });
+  const sill = mesh(new THREE.BoxGeometry(4.65, 0.18, 0.6), frameWood, { cast: false, outline: 0.045 });
   sill.position.set(0, -2.3, 0.14);
   windowGroup.add(sill);
+
+  // A guitar hanging on the left wall from a hook under its headstock. Click it for a strum;
+  // it swings on the hook. Built standing up in its own plane, then turned to face the room.
+  const guitar = new THREE.Group();
+  guitar.position.set(-8.5, 1.6, 3.7);
+  guitar.rotation.y = Math.PI / 2;
+  room.add(guitar);
+  const HOOK_Y = 3.98;
+  const guitarSwing = new THREE.Group();
+  guitarSwing.position.y = HOOK_Y;
+  guitar.add(guitarSwing);
+  const guitarParts = new THREE.Group();
+  guitarParts.position.y = -HOOK_Y;
+  guitarSwing.add(guitarParts);
+  // Body outline: a big lower bout and a smaller upper one, pinched at the waist
+  const bodyShape = new THREE.Shape();
+  const halfWidth = (y) => {
+    const lower = Math.abs(y) <= 0.95 ? Math.sqrt(0.95 ** 2 - y ** 2) : 0;
+    const upper = Math.abs(y - 1.2) <= 0.72 ? Math.sqrt(0.72 ** 2 - (y - 1.2) ** 2) : 0;
+    return Math.max(lower, upper) * (1 - 0.1 * Math.exp(-(((y - 0.75) / 0.25) ** 2)));
+  };
+  const outlineYs = Array.from({ length: 41 }, (_, k) => -0.95 + (k / 40) * 2.87);
+  outlineYs.forEach((y, k) => (k ? bodyShape.lineTo(halfWidth(y), y) : bodyShape.moveTo(halfWidth(y), y)));
+  [...outlineYs].reverse().forEach((y) => bodyShape.lineTo(-halfWidth(y), y));
+  const bodyGeo = new THREE.ExtrudeGeometry(bodyShape, { depth: 0.32, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 2 });
+  bodyGeo.translate(0, 0, -0.16);
+  const guitarBody = mesh(bodyGeo, toon("#e98a3d"), { outline: 0.04 });
+  const flat = (geo, color, x, y, z) => {
+    const m = new THREE.Mesh(track(geo), track(new THREE.MeshBasicMaterial({ color })));
+    m.position.set(x, y, z);
+    return m;
+  };
+  const soundRing = flat(new THREE.RingGeometry(0.3, 0.38, 40), "#fffdf5", 0, 1.15, 0.195);
+  const soundHole = flat(new THREE.CircleGeometry(0.3, 40), "#1a1714", 0, 1.15, 0.195);
+  const bridge = mesh(rbox(0.7, 0.14, 0.05, 0.02), toon("#1a1714"), { outline: 0.02 });
+  bridge.position.set(0, -0.15, 0.21);
+  const guitarNeck = mesh(rbox(0.26, 2.3, 0.14, 0.04), toon("#7a4a26"), { outline: 0.03 });
+  guitarNeck.position.set(0, 2.85, 0.06);
+  const fretboard = flat(new THREE.PlaneGeometry(0.24, 2.3), "#2a1a10", 0, 2.85, 0.135);
+  const frets = Array.from({ length: 9 }, (_, k) => flat(new THREE.PlaneGeometry(0.24, 0.02), "#d9d4c7", 0, 3.95 - k * 0.24 * (1 - k * 0.03), 0.137));
+  const headstock = mesh(rbox(0.46, 0.7, 0.1, 0.05), toon("#2a1a10"), { outline: 0.03 });
+  headstock.position.set(0, 4.36, 0.04);
+  const pegMat = toon("#d9d4c7");
+  const pegs = [];
+  [-1, 1].forEach((side) => [0, 1, 2].forEach((k) => {
+    const peg = mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.14, 10), pegMat, { outline: 0.015, cast: false });
+    peg.rotation.z = Math.PI / 2;
+    peg.position.set(side * 0.3, 4.15 + k * 0.2, 0.04);
+    pegs.push(peg);
+  }));
+  const stringMat = track(new THREE.MeshBasicMaterial({ color: "#f4f2ee" }));
+  const stringGeo = track(new THREE.BoxGeometry(0.008, 4.15, 0.008));
+  const strings = Array.from({ length: 6 }, (_, k) => {
+    const str = new THREE.Mesh(stringGeo, stringMat);
+    str.position.set(-0.085 + k * 0.034, 1.925, 0.23);
+    return str;
+  });
+  guitarParts.add(guitarBody, soundRing, soundHole, bridge, guitarNeck, fretboard, ...frets, headstock, ...pegs, ...strings);
+  // The hook: a plate on the wall and two arms the headstock rests on
+  const hookMat = toon("#1a1714");
+  const hookPlate = mesh(rbox(0.34, 0.5, 0.06, 0.02), hookMat, { outline: 0.02 });
+  hookPlate.position.set(0, HOOK_Y, -0.23);
+  guitar.add(hookPlate);
+  [-0.2, 0.2].forEach((x) => {
+    guitar.add(rod(new THREE.Vector3(x, HOOK_Y, -0.22), new THREE.Vector3(x, HOOK_Y, 0.12), 0.03, hookMat, 0.015));
+    guitar.add(rod(new THREE.Vector3(x, HOOK_Y, 0.12), new THREE.Vector3(x, HOOK_Y + 0.12, 0.15), 0.03, hookMat, 0.015));
+  });
+  register(guitarSwing, {
+    onClick: () => {
+      sfx.strum();
+      gsap.fromTo(guitarSwing.rotation, { z: 0.09 * (Math.random() < 0.5 ? -1 : 1) }, { z: 0, duration: 1.6, ease: "elastic.out(1, 0.25)", overwrite: true });
+      // The strings shimmer for a moment
+      gsap.fromTo(stringMat.color, { r: 1, g: 0.87, b: 0 }, { r: 0.957, g: 0.949, b: 0.933, duration: 1.2, ease: "power2.out" });
+    },
+  });
 
   // Project the four window panes onto receiving surfaces, including desk props.
   const paneLight = canvasTexture(512, 512);
@@ -364,9 +485,10 @@ export function createDeskScene({ container, projects, experiences, labels = {},
 
   // Wall clock and a small print give the empty upper area a purpose.
   const clock = new THREE.Group();
-  clock.position.set(-0.3, 5.5, -6.43);
+  // Lined up over the monitor as seen from the desk view
+  clock.position.set(-1.5, 5.5, -6.43);
   room.add(clock);
-  const clockRim = mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.15, 12), toon("#7fb2ff"), { cast: false, outline: 0.06 });
+  const clockRim = mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.15, 12), toon("#7fb2ff"), { outline: 0.06 });
   clockRim.rotation.x = Math.PI / 2;
   const clockFace = new THREE.Mesh(track(new THREE.CircleGeometry(0.76, 48)), track(new THREE.MeshBasicMaterial({ color: "#fffdf5" })));
   clockFace.position.z = 0.09;
@@ -386,56 +508,120 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     hourHand.rotation.z = -((now.getHours() % 12 + now.getMinutes() / 60) / 12) * Math.PI * 2;
   };
   updateRoomClock();
-  roomBox(3.6, 1.9, 0.12, toon("#ffdd00"), -4.7, 4.0, -6.42);
-  const poster = printed(3.35, 1.65, 160, (c, w, h) => {
-    c.fillStyle = "#ffdd00";
-    c.fillRect(0, 0, w, h);
-    c.fillStyle = "#000";
-    c.font = `900 ${Math.round(h * 0.27)}px sans-serif`;
-    c.textAlign = "center";
-    c.fillText("MAKE COOL", w / 2, h * 0.44);
-    c.fillText("STUFF.", w / 2, h * 0.8);
-  });
-  poster.position.set(-4.7, 4.0, -6.34);
-  room.add(poster);
+  const rugTex = canvasTexture(1600, 1150);
+  track(rugTex.texture);
+  drawRug(rugTex.ctx, 1600, 1150);
+  const rugTop = new THREE.Mesh(track(new THREE.PlaneGeometry(16, 11.5)), toon("#ffffff"));
+  rugTop.material.map = rugTex.texture;
+  rugTop.rotation.x = -Math.PI / 2;
+  rugTop.position.set(0.4, FLOOR_Y + 0.07, 2.4);
+  rugTop.receiveShadow = true;
+  rugTop.raycast = noRaycast;
+  const rugBase = mesh(rbox(16, 0.08, 11.5, 0.03), toon("#1a1714"), { outline: 0.03, cast: false });
+  rugBase.position.set(0.4, FLOOR_Y + 0.025, 2.4);
+  rugBase.raycast = noRaycast;
+  room.add(rugBase, rugTop);
 
-  // Seat height is roughly 60% of desk height, with a full-size back and armrests.
-  const chair = new THREE.Group();
-  chair.position.set(-2.9, 0, 6.4);
-  chair.rotation.y = -0.22;
-  room.add(chair);
-  const chairMat = toon("#00e0c6");
-  const chairFrameMat = toon("#1a1714");
-  const chairSeat = mesh(rbox(3.7, 0.35, 3.1, 0.14), chairMat, { outline: 0.06 });
-  chairSeat.position.y = -2.1;
-  const chairBack = mesh(rbox(3.7, 3.8, 0.35, 0.15), chairMat, { outline: 0.06 });
-  chairBack.position.set(0, -0.05, 1.35);
-  const chairPost = mesh(new THREE.CylinderGeometry(0.14, 0.2, 2.7, 12), chairFrameMat, { outline: 0.025 });
-  chairPost.position.y = -3.65;
-  chair.add(chairSeat, chairBack, chairPost);
-  for (let i = 0; i < 5; i++) {
-    const spoke = mesh(rbox(1.9, 0.16, 0.2, 0.04), chairFrameMat, { outline: 0.02 });
-    const angle = (i / 5) * Math.PI * 2;
-    spoke.position.set(Math.cos(angle) * 0.8, FLOOR_Y + 0.25, Math.sin(angle) * 0.8);
-    spoke.rotation.y = -angle;
-    chair.add(spoke);
-  }
-  for (const x of [-1.85, 1.85]) {
-    const arm = mesh(rbox(0.24, 0.18, 2.0, 0.06), chairFrameMat, { outline: 0.025 });
-    arm.position.set(x, -0.75, 0);
-    const support = mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.25, 10), chairFrameMat, { outline: 0.02 });
-    support.position.set(x, -1.42, 0.4);
-    chair.add(arm, support);
-  }
+  // A framed painting: a sunset over the hills
+  // The frame casts onto the wall's shadow catcher
+  roomBox(4.0, 2.9, 0.16, toon("#1a1714"), -5.6, 4.1, -6.44).castShadow = true;
+  const painting = printed(3.75, 2.65, 220, drawPainting);
+  painting.position.set(-5.6, 4.1, -6.35);
+  room.add(painting);
 
-  // A rod between two points (lamp arms, plant stems)
-  const UP = new THREE.Vector3(0, 1, 0);
+  // A rod between two points (lamp arms, plant stems, chair parts)
   function rod(a, b, radius, material, outline = 0.025) {
     const dir = new THREE.Vector3().subVectors(b, a);
     const m = mesh(new THREE.CylinderGeometry(radius, radius, dir.length(), 12), material, { outline });
     m.position.copy(a).addScaledVector(dir, 0.5);
     m.quaternion.setFromUnitVectors(UP, dir.normalize());
     return m;
+  }
+
+  // Seat height is roughly 60% of desk height, with a full-size back and armrests.
+  const chair = new THREE.Group();
+  chair.position.set(-3.1, 0, 7.0);
+  chair.rotation.y = -0.22;
+  room.add(chair);
+  const chairMat = toon("#45474d");
+  const chairFrameMat = toon("#1a1714");
+  // Sized against the desk: the desk is 14 wide (about 140 cm), so the seat is about 55 cm
+  // across and sits at roughly 60% of the desk's height. A racing-style gaming chair: a bucket
+  // seat with raised side bolsters, a tall back that flares into shoulder wings and narrows to
+  // a headrest with two harness slots, stripes down its back, and block armrests.
+  const roundedSlab = (w, h, depth, radius) => {
+    const shape = new THREE.Shape();
+    const x = -w / 2;
+    const y = -h / 2;
+    shape.moveTo(x + radius, y);
+    shape.lineTo(x + w - radius, y);
+    shape.quadraticCurveTo(x + w, y, x + w, y + radius);
+    shape.lineTo(x + w, y + h - radius);
+    shape.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    shape.lineTo(x + radius, y + h);
+    shape.quadraticCurveTo(x, y + h, x, y + h - radius);
+    shape.lineTo(x, y + radius);
+    shape.quadraticCurveTo(x, y, x + radius, y);
+    const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: 0.12, bevelSize: 0.12, bevelSegments: 4, curveSegments: 12 });
+    geo.center();
+    return geo;
+  };
+  const seatGeo = roundedSlab(4.8, 4.3, 0.32, 1.0);
+  seatGeo.rotateX(-Math.PI / 2);
+  const chairSeat = mesh(seatGeo, chairMat, { outline: 0.06 });
+  chairSeat.position.y = -2.05;
+  // Bucket seat bolsters
+  const bolsters = [-2.25, 2.25].map((x) => {
+    const bolster = mesh(rbox(0.8, 0.6, 4.1, 0.28), chairFrameMat, { outline: 0.04 });
+    bolster.position.set(x, -1.8, 0);
+    return bolster;
+  });
+  // The back's outline, bottom to top: lumbar, shoulder wings, neck, headrest
+  const BACK_H = 5.25;
+  const backProfile = [[1.95, 0], [2.2, 1.2], [2.6, 3.0], [2.3, 3.7], [1.7, 4.1], [1.8, 4.8], [1.35, BACK_H]];
+  const backShape = new THREE.Shape();
+  backShape.moveTo(-1.95, 0);
+  backShape.lineTo(1.95, 0);
+  backShape.splineThru(backProfile.slice(1).map(([x, y]) => new THREE.Vector2(x, y)));
+  backShape.lineTo(-1.35, BACK_H);
+  backShape.splineThru(backProfile.slice(0, -1).reverse().map(([x, y]) => new THREE.Vector2(-x, y)));
+  const backGeo = new THREE.ExtrudeGeometry(backShape, { depth: 0.4, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.1, bevelSegments: 3, curveSegments: 16 });
+  backGeo.translate(0, -BACK_H / 2, -0.2);
+  const chairBack = mesh(backGeo, chairMat, { outline: 0.06 });
+  chairBack.position.set(0, -1.7 + BACK_H / 2, 2.05);
+  chairBack.rotation.x = -0.12;
+  // Harness slots by the headrest, printed flat on the back (real holes break the outline)
+  [-0.75, 0.75].forEach((x) => {
+    const slot = new THREE.Mesh(track(new THREE.CircleGeometry(1, 24)), chairFrameMat);
+    slot.scale.set(0.34, 0.17, 1);
+    slot.position.set(x, 4.35 - BACK_H / 2, 0.311);
+    chairBack.add(slot);
+  });
+  // Racing stripes down the back (the side the room sees)
+  [-0.55, 0.55].forEach((x) => {
+    const stripe = new THREE.Mesh(track(new THREE.PlaneGeometry(0.32, 3.4)), chairFrameMat);
+    stripe.position.set(x, -0.55, 0.311);
+    chairBack.add(stripe);
+  });
+  const chairPost = mesh(new THREE.CylinderGeometry(0.2, 0.28, 2.6, 16), chairFrameMat, { outline: 0.03 });
+  chairPost.position.y = -3.6;
+  const backPost = rod(new THREE.Vector3(0, -2.1, 1.6), new THREE.Vector3(0, -1.2, 2.1), 0.16, chairFrameMat, 0.03);
+  chair.add(chairSeat, ...bolsters, chairBack, chairPost, backPost);
+  for (let i = 0; i < 5; i++) {
+    const angle = (i / 5) * Math.PI * 2;
+    const tip = new THREE.Vector3(Math.cos(angle) * 2.3, FLOOR_Y + 0.42, Math.sin(angle) * 2.3);
+    chair.add(rod(new THREE.Vector3(0, FLOOR_Y + 0.55, 0), tip, 0.13, chairFrameMat, 0.025));
+    const wheel = mesh(new THREE.SphereGeometry(0.24, 14, 10), chairFrameMat, { outline: 0.02 });
+    wheel.position.set(tip.x, FLOOR_Y + 0.24, tip.z);
+    chair.add(wheel);
+  }
+  // Block armrests: a post up from under the seat and a padded top
+  for (const x of [-2.95, 2.95]) {
+    const armPost = mesh(rbox(0.32, 1.3, 0.45, 0.08), chairFrameMat, { outline: 0.03 });
+    armPost.position.set(x, -1.5, 0.45);
+    const armPad = mesh(rbox(0.6, 0.22, 2.1, 0.1), chairFrameMat, { outline: 0.03 });
+    armPad.position.set(x, -0.8, 0.2);
+    chair.add(armPost, armPad);
   }
 
   // ---------- desk lamp (back-left): a light switch for the night shift ----------
@@ -531,27 +717,260 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     onHover: (on) => on && gsap.fromTo(foliage.rotation, { z: 0.06 }, { z: 0, duration: 1.2, ease: "elastic.out(1, 0.3)" }),
     onClick: () => {
       gsap.fromTo(foliage.rotation, { z: 0.15 }, { z: 0, duration: 1.4, ease: "elastic.out(1, 0.25)" });
-      sfx.rustle({ duration: 0.5 });
+      sfx.leaves();
     },
   });
+
+  // ---------- shelf (right of the desk): books and a little game collection ----------
+  // Bottom to top: a console with its controllers, a row of books, game cases and a robot,
+  // a book stack with a trophy and a handheld, and a mushroom figure on top. Click anything
+  // on it for a little hop.
+  const shelf = new THREE.Group();
+  // Clear of the About board on the wall (it spans x 1.2–8.0)
+  shelf.position.set(10.85, FLOOR_Y, -5.6);
+  scene.add(shelf);
+  const SHELF_W = 4.2;
+  const SHELF_D = 1.5;
+  const SHELF_H = 8.4;
+  const BOARD = 0.22;
+  const shelfMat = toon("#c98a4b");
+  [-1, 1].forEach((side) => {
+    const panel = mesh(rbox(BOARD, SHELF_H, SHELF_D, 0.04), shelfMat, { outline: 0.05 });
+    panel.position.set(side * (SHELF_W / 2 - BOARD / 2), SHELF_H / 2, 0);
+    shelf.add(panel);
+  });
+  const shelfBack = mesh(rbox(SHELF_W, SHELF_H, 0.12, 0.03), toon("#9c6230"), { outline: 0.04 });
+  shelfBack.position.set(0, SHELF_H / 2, -SHELF_D / 2 + 0.06);
+  shelf.add(shelfBack);
+  const LEVELS = [0.15, 2.25, 4.35, 6.4, SHELF_H - BOARD / 2];
+  LEVELS.forEach((y) => {
+    const board = mesh(rbox(SHELF_W, BOARD, SHELF_D, 0.04), shelfMat, { outline: 0.045 });
+    board.position.y = y;
+    shelf.add(board);
+  });
+  const standOn = (level) => LEVELS[level] + BOARD / 2;
+  const shelfItems = [];
+  const addItem = (obj, sound) => {
+    shelf.add(obj);
+    shelfItems.push({ obj, sound });
+    return obj;
+  };
+  const group = (...children) => {
+    const g = new THREE.Group();
+    g.add(...children);
+    return g;
+  };
+  const at = (obj, x, y, z = 0, rz = 0) => {
+    obj.position.set(x, y, z);
+    obj.rotation.z = rz;
+    return obj;
+  };
+  const PALETTE = ["#ff6b6b", "#ffdd00", "#00e0c6", "#ff90e8", "#8fd694", "#3b82f6", "#ffb35c", "#c4b5fd", "#fffdf5"];
+  const black = toon("#1a1714");
+  const white = toon("#fffdf5");
+
+  // Level 0: console + two controllers
+  const led = new THREE.Mesh(track(new THREE.SphereGeometry(0.05, 10, 8)), track(new THREE.MeshBasicMaterial({ color: "#16a34a" })));
+  const consoleBody = group(
+    mesh(rbox(1.9, 0.5, 1.05, 0.08), white, { outline: 0.035 }),
+    at(mesh(rbox(1.92, 0.08, 1.07, 0.02), toon("#e11d48"), { outline: 0 }), 0, 0.05, 0),
+    at(mesh(rbox(0.5, 0.05, 0.02, 0.01), black, { outline: 0 }), 0.35, -0.08, 0.53),
+    at(led, -0.7, -0.08, 0.54),
+  );
+  addItem(at(consoleBody, -0.75, standOn(0) + 0.25, 0.05), "console");
+  const controller = (color) => {
+    const c = toon(color);
+    const pad = group(
+      mesh(rbox(0.85, 0.2, 0.42, 0.09), c, { outline: 0.03 }),
+      at(mesh(rbox(0.32, 0.22, 0.48, 0.1), c, { outline: 0.03 }), -0.4, 0, 0.1),
+      at(mesh(rbox(0.32, 0.22, 0.48, 0.1), c, { outline: 0.03 }), 0.4, 0, 0.1),
+      at(mesh(rbox(0.2, 0.05, 0.06, 0.01), black, { outline: 0 }), -0.24, 0.11, 0),
+      at(mesh(rbox(0.06, 0.05, 0.2, 0.01), black, { outline: 0 }), -0.24, 0.11, 0),
+      at(mesh(new THREE.SphereGeometry(0.05, 10, 8), toon("#ffdd00"), { outline: 0 }), 0.22, 0.11, -0.05),
+      at(mesh(new THREE.SphereGeometry(0.05, 10, 8), toon("#ff6b6b"), { outline: 0 }), 0.32, 0.11, 0.05),
+    );
+    return pad;
+  };
+  addItem(at(controller("#1a1714"), 1.05, standOn(0) + 0.11, 0.25), "controller").rotation.y = -0.3;
+  const pad2 = addItem(at(controller("#ff90e8"), 1.15, standOn(0) + 0.33, -0.05), "controller");
+  pad2.rotation.set(0, 0.25, 0);
+
+  // Level 1: a row of books, one leaning, and a mushroom figure
+  let x = -1.78;
+  [
+    [0.26, 1.55], [0.22, 1.35], [0.32, 1.7], [0.2, 1.25], [0.28, 1.6], [0.24, 1.45], [0.3, 1.5],
+  ].forEach(([w, h], i) => {
+    const book = mesh(rbox(w, h, 1.0, 0.03), toon(PALETTE[i % PALETTE.length]), { outline: 0.03 });
+    const band = mesh(rbox(w + 0.004, 0.08, 1.004, 0.01), black, { outline: 0 });
+    band.position.y = h * 0.3;
+    addItem(at(group(book, band), x + w / 2, standOn(1) + h / 2, 0.1), "book");
+    x += w + 0.03;
+  });
+  const leaning = mesh(rbox(0.26, 1.4, 1.0, 0.03), toon("#00e0c6"), { outline: 0.03 });
+  addItem(at(group(leaning), x + 0.42, standOn(1) + 0.66, 0.1, -0.32), "book");
+  const mushroom = group(
+    at(mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.42, 14), white, { outline: 0.025 }), 0, 0.21, 0),
+    at(mesh(new THREE.SphereGeometry(0.4, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), toon("#e11d48"), { outline: 0.03 }), 0, 0.38, 0),
+  );
+  [[0.15, 0.62, 0.22], [-0.2, 0.6, 0.18], [0.02, 0.72, -0.12]].forEach(([dx, dy, dz]) =>
+    mushroom.add(at(mesh(new THREE.SphereGeometry(0.07, 10, 8), white, { outline: 0 }), dx, dy, dz)),
+  );
+  addItem(at(mushroom, 1.45, standOn(1), 0.15), "figure");
+
+  // Level 2: game cases with coloured spines, and a little robot
+  x = -1.8;
+  for (let i = 0; i < 9; i++) {
+    const caseMesh = mesh(rbox(0.15, 1.15, 0.82, 0.02), toon(PALETTE[(i * 2 + 1) % PALETTE.length]), { outline: 0.022 });
+    const label = mesh(rbox(0.155, 0.32, 0.4, 0.01), white, { outline: 0 });
+    label.position.set(0, 0.18, 0.21);
+    addItem(at(group(caseMesh, label), x + 0.075, standOn(2) + 0.575, 0.2), "case");
+    x += 0.17;
+  }
+  const robot = group(
+    at(mesh(rbox(0.52, 0.55, 0.42, 0.08), toon("#00e0c6"), { outline: 0.03 }), 0, 0.28, 0),
+    at(mesh(rbox(0.44, 0.38, 0.38, 0.08), white, { outline: 0.03 }), 0, 0.76, 0),
+    at(mesh(rbox(0.08, 0.1, 0.02, 0.01), black, { outline: 0 }), -0.1, 0.78, 0.19),
+    at(mesh(rbox(0.08, 0.1, 0.02, 0.01), black, { outline: 0 }), 0.1, 0.78, 0.19),
+    rod(new THREE.Vector3(0, 0.95, 0), new THREE.Vector3(0, 1.2, 0), 0.025, black, 0),
+    at(mesh(new THREE.SphereGeometry(0.07, 10, 8), toon("#ff6b6b"), { outline: 0.015 }), 0, 1.24, 0),
+  );
+  addItem(at(robot, 1.15, standOn(2), 0.1), "figure");
+
+  // Level 3: a stack of books lying down, a trophy, and a handheld console
+  [[1.3, 0.24, "#ffb35c"], [1.15, 0.2, "#3b82f6"], [1.25, 0.26, "#ff90e8"]].reduce((y, [w, h, color]) => {
+    addItem(at(group(mesh(rbox(w, h, 0.95, 0.03), toon(color), { outline: 0.03 })), -1.05, y + h / 2, 0.1), "book");
+    return y + h;
+  }, standOn(3));
+  const trophyProfile = [[0, 0], [0.28, 0], [0.28, 0.08], [0.08, 0.14], [0.08, 0.42], [0.3, 0.6], [0.36, 0.95], [0.3, 0.95], [0.24, 0.66], [0, 0.6]].map(([px, py]) => new THREE.Vector2(px, py));
+  addItem(at(group(mesh(new THREE.LatheGeometry(trophyProfile, 24), toon("#ffdd00"), { outline: 0.03 })), 0.45, standOn(3), 0.15), "trophy");
+  const handheld = group(
+    mesh(rbox(0.62, 0.95, 0.14, 0.08), toon("#8fd694"), { outline: 0.03 }),
+    at(mesh(rbox(0.44, 0.36, 0.02, 0.02), toon("#1e2a5a"), { outline: 0 }), 0, 0.2, 0.075),
+    at(mesh(rbox(0.16, 0.05, 0.02, 0.01), black, { outline: 0 }), -0.15, -0.2, 0.075),
+    at(mesh(new THREE.SphereGeometry(0.05, 10, 8), toon("#e11d48"), { outline: 0 }), 0.15, -0.2, 0.08),
+  );
+  const handheldItem = addItem(at(handheld, 1.35, standOn(3) + 0.47, -0.2), "console");
+  handheldItem.rotation.x = -0.18;
+
+  // Top: two books lying flat
+  addItem(at(group(mesh(rbox(1.4, 0.24, 1.0, 0.03), toon("#c4b5fd"), { outline: 0.03 })), -0.6, standOn(4) + 0.12, 0), "book");
+  addItem(at(group(mesh(rbox(1.2, 0.22, 0.9, 0.03), toon("#ff6b6b"), { outline: 0.03 })), -0.55, standOn(4) + 0.35, 0, 0.05), "book");
+
+  const SHELF_SOUNDS = {
+    console: () => {
+      sfx.blip();
+      gsap.fromTo(led.scale, { x: 2.2, y: 2.2, z: 2.2 }, { x: 1, y: 1, z: 1, duration: 0.5 });
+    },
+    controller: () => {
+      sfx.click();
+      timers.push(setTimeout(() => sfx.click(), 90));
+    },
+    book: () => sfx.flop({ strength: 0.4 }),
+    case: () => sfx.tick({ pitch: 0.9 }),
+    figure: () => sfx.pop({ pitch: 1.3 }),
+    trophy: () => sfx.ping(),
+  };
+  const itemFor = (obj) => shelfItems.find(({ obj: item }) => {
+    for (let o = obj; o; o = o.parent) if (o === item) return true;
+    return false;
+  });
+  register(shelf, {
+    onClick: (hit) => {
+      const item = itemFor(hit.object);
+      if (!item) return sfx.knock({ strength: 0.6 });
+      const y = item.obj.position.y;
+      gsap.fromTo(item.obj.position, { y }, { keyframes: [{ y: y + 0.28, duration: 0.16, ease: "power2.out" }, { y, duration: 0.3, ease: "bounce.out" }], overwrite: true });
+      SHELF_SOUNDS[item.sound]();
+    },
+  });
+
+  // ---------- cables: monitor, lamp and phone run off the back edge of the desk ----------
+  const cableMat = toon("#1a1714");
+  const DESK_BACK = -4.2;
+  const cable = (points) => {
+    const curve = new THREE.CatmullRomCurve3(points.map(([px, py, pz]) => new THREE.Vector3(px, py, pz)));
+    const wire = mesh(new THREE.TubeGeometry(curve, 72, 0.045, 8), cableMat, { outline: 0 });
+    wire.raycast = noRaycast;
+    scene.add(wire);
+  };
+  cable([[-0.2, 0.06, -3.25], [-0.35, 0.05, -3.85], [-0.45, 0.04, DESK_BACK + 0.04], [-0.5, -0.5, DESK_BACK - 0.22], [-0.7, -2.8, DESK_BACK - 0.55], [-1.1, FLOOR_Y + 0.06, -5.7], [-2.6, FLOOR_Y + 0.06, -6.35]]);
+  cable([[-6.0, 0.06, -3.45], [-6.1, 0.05, -3.9], [-6.15, 0.04, DESK_BACK + 0.04], [-6.2, -0.6, DESK_BACK - 0.25], [-6.4, -3.0, DESK_BACK - 0.6], [-6.8, FLOOR_Y + 0.06, -5.9], [-8.2, FLOOR_Y + 0.06, -6.3]]);
+  cable([[3.85, 0.06, -2.4], [4.0, 0.05, -3.3], [4.1, 0.04, DESK_BACK + 0.04], [4.15, -0.5, DESK_BACK - 0.22], [4.4, -2.8, DESK_BACK - 0.55], [5.0, FLOOR_Y + 0.06, -5.7], [6.5, FLOOR_Y + 0.06, -6.3]]);
 
   // ---------- monitor + terminal ----------
   const monitor = new THREE.Group();
   monitor.position.set(-0.2, 0, -2.75);
   scene.add(monitor);
-  const whiteMat = toon("#ffffff");
-  const base = mesh(rbox(1.6, 0.16, 1.0), whiteMat);
-  base.position.y = 0.08;
-  const neck = mesh(rbox(0.36, 1.1, 0.26), whiteMat);
-  neck.position.set(0, 0.65, -0.15);
-  const body = mesh(rbox(4.5, 2.9, 0.36, 0.12), toon("#00e0c6"), { outline: 0.06 });
-  body.position.y = 2.35;
-  monitor.add(base, neck, body);
+  // iMac-style (silver): a thin aluminium slab with a light bezel around the screen, a silver
+  // chin below it, on a flat foot with a slanted aluminium plate for a stand
+  const aluminium = toon("#c2c6cc");
+  const base = mesh(rbox(1.75, 0.07, 1.3, 0.03), aluminium, { outline: 0.03 });
+  base.position.set(0, 0.035, -0.15);
+  const neck = mesh(rbox(1.3, 1.75, 0.09, 0.03), aluminium, { outline: 0.03 });
+  neck.position.set(0, 0.9, -0.42);
+  neck.rotation.x = 0.16;
+  const body = mesh(rbox(4.6, 3.2, 0.14, 0.1), toon("#9fa4ac"), { outline: 0.06 });
+  body.position.set(0, 2.4, 0);
+  const bezel = mesh(rbox(4.46, 2.62, 0.02, 0.06), toon("#f4f2ee"), { outline: 0, cast: false });
+  bezel.position.set(0, 2.63, 0.075);
+  monitor.add(base, neck, body, bezel);
+  // Sticky notes on the right of the bezel, each with a hard little shadow behind it
+  const noteShadowMat = track(new THREE.MeshBasicMaterial({ color: "#000000" }));
+  [
+    { text: "ship it", color: "#ffdd00", tick: true, x: 1.9, y: 3.66, rz: -0.12 },
+    { text: "drink water!", color: "#ff90e8", x: 2.2, y: 2.25, rz: 0.18 },
+  ].forEach((n) => {
+    const note = printed(0.62, 0.62, 500, (c, w, h) => drawStickyNote(c, w, h, n));
+    note.raycast = noRaycast;
+    const shadow = new THREE.Mesh(track(new THREE.PlaneGeometry(0.62, 0.62)), noteShadowMat);
+    shadow.position.set(0.05, -0.05, -0.004);
+    shadow.raycast = noRaycast;
+    const stuck = new THREE.Group();
+    stuck.position.set(n.x, n.y, 0.1);
+    stuck.rotation.z = n.rz;
+    stuck.add(shadow, note);
+    monitor.add(stuck);
+  });
+
+  // Speakers either side of the monitor: click one to switch the sound on or off. The LED
+  // shows the state (green: on, red: muted).
+  const speakerLeds = [];
+  [-3.05, 2.55].forEach((x) => {
+    const speaker = new THREE.Group();
+    speaker.position.set(x, 0, -3.55);
+    scene.add(speaker);
+    const cabinet = mesh(rbox(0.95, 1.75, 0.85, 0.1), toon("#1a1714"), { outline: 0.045 });
+    cabinet.position.y = 0.875;
+    const woofer = mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.06, 28), toon("#7fb2ff"), { outline: 0.02 });
+    woofer.rotation.x = Math.PI / 2;
+    woofer.position.set(0, 0.55, 0.43);
+    const dustCap = mesh(new THREE.SphereGeometry(0.11, 14, 10), toon("#1a1714"), { outline: 0.015 });
+    dustCap.position.set(0, 0.55, 0.47);
+    const tweeter = mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.06, 20), toon("#ffdd00"), { outline: 0.015 });
+    tweeter.rotation.x = Math.PI / 2;
+    tweeter.position.set(0, 1.25, 0.43);
+    const ledMat = track(new THREE.MeshBasicMaterial({ color: "#16a34a" }));
+    const led = new THREE.Mesh(track(new THREE.SphereGeometry(0.045, 10, 8)), ledMat);
+    led.position.set(0, 1.6, 0.43);
+    speakerLeds.push(ledMat);
+    speaker.add(cabinet, woofer, dustCap, tweeter, led);
+    register(speaker, {
+      onHover: hoverScale(speaker, 1.04),
+      onClick: () => {
+        gsap.fromTo(woofer.scale, { x: 1.18, z: 1.18 }, { x: 1, z: 1, duration: 0.35, ease: "elastic.out(1.2, 0.4)" });
+        onEvent("toggleSound");
+      },
+    });
+  });
+  function setMuted(isMuted) {
+    speakerLeds.forEach((mat) => mat.color.set(isMuted ? "#e11d48" : "#16a34a"));
+  }
+  setMuted(muted);
 
   const term = canvasTexture(640, 384);
   track(term.texture);
   const screen = new THREE.Mesh(track(new THREE.PlaneGeometry(4.0, 2.4)), track(new THREE.MeshBasicMaterial({ map: term.texture })));
-  screen.position.set(0, 2.38, 0.185);
+  screen.position.set(0, 2.63, 0.09);
   monitor.add(screen);
 
   const wrapWords = (words, width = 30) =>
@@ -644,20 +1063,113 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     onClick: () => autotype(AUTORUN[autorunIndex++ % AUTORUN.length]),
   });
 
-  // ---------- ID badge on a lanyard, hooked on the monitor's corner (hero) ----------
-  const strapCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-1.7, 3.83, -2.55),
-    new THREE.Vector3(-2.3, 3.9, -2.54),
-    new THREE.Vector3(-2.6, 3.62, -2.48),
-    new THREE.Vector3(-2.74, 3.15, -2.44),
-    new THREE.Vector3(-2.8, 2.92, -2.42),
-  ]);
-  scene.add(mesh(new THREE.TubeGeometry(strapCurve, 40, 0.05, 6), toon("#ffdd00"), { outline: 0.03 }));
-  const badgePivot = new THREE.Group();
-  badgePivot.position.set(-2.8, 2.92, -2.42);
-  scene.add(badgePivot);
+  // ---------- ID badge on a lanyard, hung from a push pin on the About board's corner (hero) ----------
+  // The board is 6.8 × 4.2 centred at (4.6, 4.6) on the back wall: the pin sits inside its
+  // top-left corner and the badge hangs just off its left edge
+  const BADGE_PIN = new THREE.Vector3(1.4, 6.35, -6.2);
+  const BADGE_CLIP = new THREE.Vector3(1.4, 4.5, -6.1); // straight below the pin: the rope's resting shape
+  const strapMat = toon("#ffdd00");
+  // The strap is a little verlet rope: a chain of points from the pin to the badge's clip,
+  // pulled by gravity and held at fixed lengths, with the badge as a heavy weight at the end.
+  // A nudge (hover, click) kicks the lower points, so the strap bends and the badge lags
+  // behind it, then everything settles back.
+  const ROPE_SEGMENTS = 8;
+  const ROPE_LENGTH = BADGE_PIN.distanceTo(BADGE_CLIP) * 1.02;
+  const ropeSegment = ROPE_LENGTH / ROPE_SEGMENTS;
+  const rope = Array.from({ length: ROPE_SEGMENTS + 1 }, (_, i) => {
+    const p = new THREE.Vector3().lerpVectors(BADGE_PIN, BADGE_CLIP, i / ROPE_SEGMENTS);
+    return { x: p.x, y: p.y, px: p.x, py: p.y, z: p.z };
+  });
+  // Inverse mass: the pin never moves, the badge end is four times heavier than the strap
+  const ropeWeight = (i) => (i === 0 ? 0 : i === ROPE_SEGMENTS ? 0.25 : 1);
+  let ropeClock = 0;
+  let ropeTime = 0;
+  function stepRope(dt) {
+    const gravity = -22;
+    const breeze = Math.sin(ropeTime * 0.8) * 0.5 + Math.sin(ropeTime * 2.1) * 0.25;
+    for (let i = 1; i < rope.length; i++) {
+      const p = rope[i];
+      const vx = (p.x - p.px) * 0.985;
+      const vy = (p.y - p.py) * 0.985;
+      p.px = p.x;
+      p.py = p.y;
+      p.x += vx + (i === ROPE_SEGMENTS ? breeze : 0) * dt * dt;
+      p.y += vy + gravity * dt * dt;
+    }
+    for (let k = 0; k < 8; k++) {
+      for (let i = 0; i < ROPE_SEGMENTS; i++) {
+        const a = rope[i];
+        const b = rope[i + 1];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dist = Math.hypot(dx, dy) || 1e-6;
+        const wa = ropeWeight(i);
+        const wb = ropeWeight(i + 1);
+        const diff = (dist - ropeSegment) / (dist * (wa + wb));
+        a.x += dx * diff * wa;
+        a.y += dy * diff * wa;
+        b.x -= dx * diff * wb;
+        b.y -= dy * diff * wb;
+      }
+    }
+  }
+  // Two strands meeting at the pin and the clip, spread into a V along the way
+  const strandGeo = new THREE.CylinderGeometry(0.05, 0.05, 1, 8);
+  const strands = [-1, 1].map(() => Array.from({ length: ROPE_SEGMENTS }, () => {
+    const piece = mesh(strandGeo, strapMat, { outline: 0.03 });
+    scene.add(piece);
+    return piece;
+  }));
+  const strandA = new THREE.Vector3();
+  const strandB = new THREE.Vector3();
+  const strandDir = new THREE.Vector3();
+  const strandPoint = (i, side, out) => {
+    const t = i / ROPE_SEGMENTS;
+    return out.set(rope[i].x + side * 0.17 * Math.sin(Math.PI * t), rope[i].y, rope[i].z + 0.02);
+  };
+  const strapPin = mesh(new THREE.SphereGeometry(0.11, 14, 10), toon("#e11d48"), { outline: 0.025 });
+  strapPin.position.copy(BADGE_PIN).add(new THREE.Vector3(0, 0, 0.06));
+  scene.add(strapPin);
   const badge = new THREE.Group();
-  badgePivot.add(badge);
+  badge.position.copy(BADGE_CLIP);
+  scene.add(badge);
+  // The badge swings on its clip a little behind the strap's own angle: a damped spring
+  let badgeAngle = 0;
+  let badgeSpin = 0;
+  function updateLanyard(dt) {
+    ropeTime += dt;
+    ropeClock += dt;
+    const STEP = 1 / 120;
+    while (ropeClock >= STEP) {
+      stepRope(STEP);
+      ropeClock -= STEP;
+    }
+    [-1, 1].forEach((side, s) =>
+      strands[s].forEach((piece, i) => {
+        strandPoint(i, side, strandA);
+        strandPoint(i + 1, side, strandB);
+        strandDir.subVectors(strandB, strandA);
+        const length = strandDir.length();
+        piece.position.copy(strandA).addScaledVector(strandDir, 0.5);
+        piece.quaternion.setFromUnitVectors(UP, strandDir.normalize());
+        piece.scale.set(1, length + 0.04, 1);
+      }),
+    );
+    const end = rope[ROPE_SEGMENTS];
+    const before = rope[ROPE_SEGMENTS - 2];
+    badge.position.set(end.x, end.y, BADGE_CLIP.z);
+    const target = Math.atan2(end.x - before.x, before.y - end.y);
+    badgeSpin += (90 * (target - badgeAngle) - 7 * badgeSpin) * dt;
+    badgeAngle += badgeSpin * dt;
+    badge.rotation.z = badgeAngle;
+  }
+  // A sideways push on the lower part of the strap, strongest at the badge
+  const swing = (amount) => {
+    rope.forEach((p, i) => {
+      const reach = i / ROPE_SEGMENTS;
+      p.px -= amount * 0.09 * reach * reach;
+    });
+  };
   const clip = mesh(rbox(0.22, 0.16, 0.08, 0.03), toon("#888888"), { outline: 0.025 });
   const badgeCard = new THREE.Group();
   badgeCard.position.y = -1.0;
@@ -668,7 +1180,6 @@ export function createDeskScene({ container, projects, experiences, labels = {},
   badgeBack.rotation.y = Math.PI;
   badgeCard.add(mesh(rbox(1.1, 1.8, 0.05, 0.04), toon("#ffffff"), { outline: 0.035 }), badgeFront, badgeBack);
   badge.add(clip, badgeCard);
-  const swing = (amount) => gsap.fromTo(badge.rotation, { z: amount }, { z: 0, duration: 1.6, ease: "elastic.out(1, 0.25)" });
   // Zoomed in, clicking the badge turns it over: the links are printed on the back
   let badgeFlipped = false;
   const flipBadge = (to = !badgeFlipped) => {
@@ -695,7 +1206,7 @@ export function createDeskScene({ container, projects, experiences, labels = {},
   const aboutBoard = new THREE.Group();
   aboutBoard.position.set(4.6, 4.6, -6.38);
   scene.add(aboutBoard);
-  const boardFrame = mesh(rbox(6.8, 4.2, 0.16, 0.06), toon("#ffdd00"), { outline: 0.06 });
+  const boardFrame = mesh(rbox(6.8, 4.2, 0.16, 0.06), toon("#9c6230"), { outline: 0.06 });
   const boardFace = printed(6.55, 3.95, 170, drawAboutBoard);
   boardFace.position.z = 0.09;
   aboutBoard.add(boardFrame, boardFace);
@@ -821,122 +1332,103 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     onLeave: () => finishNoteDrag(),
   });
 
-  // ---------- keyboard ----------
+  // ---------- keyboard: a standard 60% layout ----------
+  // Every key is its own cap with its legend printed on top, keyed by KeyboardEvent.code, so the
+  // key you press on your own keyboard presses the very same key on the desk.
   const keyboard = new THREE.Group();
   keyboard.position.set(0.2, 0, 0.75);
   scene.add(keyboard);
-  const keyBase = mesh(rbox(4.6, 0.25, 1.7), toon("#ffdd00"));
+  const keyBase = mesh(rbox(4.6, 0.25, 1.7), toon("#1f1f1f"));
   keyBase.position.y = 0.125;
   keyboard.add(keyBase);
-  // Four rows of 13 keys, then a bottom row of modifiers around a spacebar (cols 3-9)
-  const COLS = 13;
-  const ROWS = 4;
-  const BOTTOM_COLS = [0, 1, 2, 10, 11, 12];
-  const KEY_COUNT = COLS * ROWS + BOTTOM_COLS.length;
-  const SPACE = -1;
-  const rowZ = (r) => -0.68 + r * 0.34;
-  const colX = (c) => -2.04 + c * 0.34;
-  const keyGeo = track(rbox(0.29, 0.18, 0.29, 0.05));
-  const keys = new THREE.InstancedMesh(keyGeo, toon("#ffffff"), KEY_COUNT);
-  const keyHull = new THREE.InstancedMesh(hullGeometry(keyGeo), outlineMat(0.03), KEY_COUNT);
-  keyHull.instanceMatrix = keys.instanceMatrix;
-  keyHull.raycast = noRaycast;
-  keys.castShadow = true;
-  const keyPos = [];
-  const keyDepth = new Float32Array(KEY_COUNT);
-  const dummy = new THREE.Object3D();
-  const ACCENTS = { 0: "#e11d48", 12: "#00e0c6", 25: "#00e0c6", 38: "#3b82f6", 51: "#e11d48" };
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      const id = r * COLS + c;
-      keyPos.push(new THREE.Vector3(colX(c), 0.34, rowZ(r)));
-      keys.setColorAt(id, new THREE.Color(ACCENTS[id] || "#ffffff"));
-    }
-  }
-  BOTTOM_COLS.forEach((c, i) => {
-    keyPos.push(new THREE.Vector3(colX(c), 0.34, rowZ(ROWS)));
-    keys.setColorAt(COLS * ROWS + i, new THREE.Color(i === 0 || i === BOTTOM_COLS.length - 1 ? "#ffdd00" : "#ffffff"));
-  });
-  const spacebar = mesh(rbox(7 * 0.34 - 0.05, 0.18, 0.29, 0.05), toon("#ffffff"), { outline: 0.03 });
-  spacebar.position.set(colX(6), 0.34, rowZ(ROWS));
-  // Shortcut keys, printed on their keycaps: digits fly to the sections, T to the terminal,
-  // C to the chat. They work from your own keyboard too.
+  const KEY_UNIT = 0.292;
+  const KEY_GAP = 0.036;
+  const KEY_Y = 0.34;
+  const letters = (row) => row.split("").map((ch) => [`Key${ch}`, ch]);
+  const KEY_ROWS = [
+    [["Escape", "ESC"], ...Array.from({ length: 10 }, (_, i) => [`Digit${(i + 1) % 10}`, String((i + 1) % 10)]), ["Minus", "-"], ["Equal", "="], ["Backspace", "⌫", 2]],
+    [["Tab", "TAB", 1.5], ...letters("QWERTYUIOP"), ["BracketLeft", "["], ["BracketRight", "]"], ["Backslash", "\\", 1.5]],
+    [["CapsLock", "CAPS", 1.75], ...letters("ASDFGHJKL"), ["Semicolon", ";"], ["Quote", "'"], ["Enter", "ENTER", 2.25]],
+    [["ShiftLeft", "SHIFT", 2.25], ...letters("ZXCVBNM"), ["Comma", ","], ["Period", "."], ["Slash", "/"], ["ShiftRight", "SHIFT", 2.75]],
+    [["ControlLeft", "CTRL", 1.25], ["MetaLeft", "⌘", 1.25], ["AltLeft", "ALT", 1.25], ["Space", "", 6.25], ["AltRight", "ALT", 1.25], ["MetaRight", "⌘", 1.25], ["ContextMenu", "FN", 1.25], ["ControlRight", "CTRL", 1.25]],
+  ];
+  // Shortcut keys, printed in colour: digits fly to the sections, T to the terminal, C to the
+  // chat. They work from your own keyboard too.
   const SHORTCUTS = {
-    1: { shot: "hero", key: 1, color: "#ffdd00" },
-    2: { shot: "about", key: 2, color: "#ff90e8" },
-    3: { shot: "experience", key: 3, color: "#00e0c6" },
-    4: { shot: "projects", key: 4, color: "#f5c76b" },
-    5: { shot: "contact", key: 5, color: "#e9c48a" },
-    t: { shot: "monitor", key: COLS + 5, color: "#8fd694" },
-    c: { shot: "chat", key: 2 * COLS + 3, color: "#7fb2ff" },
+    1: { shot: "hero", code: "Digit1", color: "#ffdd00" },
+    2: { shot: "about", code: "Digit2", color: "#ff90e8" },
+    3: { shot: "experience", code: "Digit3", color: "#00e0c6" },
+    4: { shot: "projects", code: "Digit4", color: "#f5c76b" },
+    5: { shot: "contact", code: "Digit5", color: "#e9c48a" },
+    t: { shot: "monitor", code: "KeyT", color: "#8fd694" },
+    c: { shot: "chat", code: "KeyC", color: "#7fb2ff" },
   };
-  const shortcutByKey = new Map(Object.values(SHORTCUTS).map((sc) => [sc.key, sc]));
-  const keyLabels = new Map(); // key id -> printed label riding on that keycap
-  const addKeyLabel = (id, label, color) => {
-    const plane = printed(0.25, 0.25, 400, (c, w, h) => drawKeyLabel(c, w, h, label, color));
-    plane.rotation.x = -Math.PI / 2;
-    plane.userData.keyId = id;
-    keyboard.add(plane);
-    keyLabels.set(id, plane);
-  };
-  Object.entries(SHORTCUTS).forEach(([label, sc]) => addKeyLabel(sc.key, label.toUpperCase(), sc.color));
-  addKeyLabel(0, "ESC", "#ff6b6b");
-  const updateKey = (id) => {
-    dummy.position.copy(keyPos[id]);
-    dummy.position.y -= keyDepth[id];
-    dummy.updateMatrix();
-    keys.setMatrixAt(id, dummy.matrix);
-    keyLabels.get(id)?.position.set(dummy.position.x, dummy.position.y + 0.092, dummy.position.z);
-  };
-  for (let id = 0; id < KEY_COUNT; id++) updateKey(id);
-  keyboard.add(keys, keyHull, spacebar);
+  const shortcutByCode = new Map(Object.values(SHORTCUTS).map((sc) => [sc.code, sc]));
+  const MODIFIERS = new Set(["Tab", "CapsLock", "ShiftLeft", "ShiftRight", "ControlLeft", "ControlRight", "MetaLeft", "MetaRight", "AltLeft", "AltRight", "ContextMenu", "Backspace"]);
+  const keyColor = (code) => shortcutByCode.get(code)?.color || (code === "Escape" ? "#ff6b6b" : code === "Enter" ? "#00e0c6" : MODIFIERS.has(code) ? "#d9d4c7" : "#fffdf5");
+  const keyMats = new Map();
+  const keyMat = (color) => keyMats.get(color) || keyMats.set(color, toon(color)).get(color);
+  const keyByCode = new Map();
+  KEY_ROWS.forEach((row, r) => {
+    let cursor = -7.5; // the rows are 15 units wide
+    row.forEach(([code, label, width = 1]) => {
+      const w = width * KEY_UNIT - KEY_GAP;
+      const d = KEY_UNIT - KEY_GAP;
+      const color = keyColor(code);
+      const key = new THREE.Group();
+      key.position.set((cursor + width / 2) * KEY_UNIT, KEY_Y, (r - 2) * KEY_UNIT);
+      key.userData.code = code;
+      key.add(mesh(rbox(w, 0.18, d, 0.05), keyMat(color), { outline: 0.03 }));
+      if (label) {
+        const legend = printed(w - 0.05, d - 0.05, 340, (c, cw, ch) => drawKeyLabel(c, cw, ch, label, color));
+        legend.rotation.x = -Math.PI / 2;
+        legend.position.y = 0.092;
+        key.add(legend);
+      }
+      keyboard.add(key);
+      keyByCode.set(code, key);
+      cursor += width;
+    });
+  });
+  keyByCode.set("Backquote", keyByCode.get("Escape")); // 60% boards put Esc where ` sits
 
   let keysPressed = 0;
-  function pressKey(id, { sound = true } = {}) {
-    if (id === SPACE) {
-      gsap.fromTo(spacebar.position, { y: 0.22 }, { y: 0.34, duration: 0.3, ease: "back.out(3)" });
-    } else {
-      const state = { d: 0.12 };
-      gsap.to(state, {
-        d: 0,
-        duration: 0.28,
-        ease: "back.out(3)",
-        onUpdate: () => {
-          keyDepth[id] = state.d;
-          updateKey(id);
-          keys.instanceMatrix.needsUpdate = true;
-        },
-      });
-    }
-    if (sound) id === SPACE ? sfx.thud({ strength: 0.25 }) : sfx.key();
+  function pressKey(code, { sound = true } = {}) {
+    const key = keyByCode.get(code);
+    if (!key) return;
+    gsap.fromTo(key.position, { y: KEY_Y - 0.11 }, { y: KEY_Y, duration: 0.28, ease: "back.out(3)", overwrite: true });
+    if (sound) code === "Space" ? sfx.thud({ strength: 0.25 }) : sfx.key();
     onEvent("keys", { count: ++keysPressed });
   }
   const hitKey = (hit) => {
-    const id = hit.object === spacebar ? SPACE : hit.object.userData.keyId ?? hit.instanceId ?? Math.floor(Math.random() * KEY_COUNT);
-    pressKey(id);
-    if (id === 0) return timers.push(setTimeout(back, 200));
-    const sc = shortcutByKey.get(id);
+    let code = null;
+    for (let o = hit.object; o && !code; o = o.parent) code = o.userData.code;
+    if (!code) return;
+    pressKey(code);
+    if (code === "Escape") return timers.push(setTimeout(back, 200));
+    const sc = shortcutByCode.get(code);
     if (sc) timers.push(setTimeout(() => setFocus(sc.shot), 200));
   };
   register(keyboard, { focus: "keyboard", onClick: hitKey });
   const onKeyDown = (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest?.("input, textarea, [contenteditable]")) return;
-    if (e.key === "Escape") return back();
+    if (e.key === "Escape") {
+      pressKey("Escape");
+      return back();
+    }
     if (byFocus.get(focus.name)?.onKey?.(e)) return e.preventDefault();
     // Shortcuts (not while the terminal has the keyboard: there they're just typing)
     const sc = focus.name !== "monitor" && !e.repeat && SHORTCUTS[e.key.toLowerCase()];
     if (sc) {
-      pressKey(sc.key);
+      pressKey(sc.code);
       return setFocus(sc.shot);
     }
-    if (e.key.length !== 1 && e.key !== "Enter" && e.key !== "Backspace") return;
-    const keyId = e.key === " " ? SPACE : e.key.toLowerCase().charCodeAt(0) % (COLS * ROWS);
-    if (focus.name === "monitor") {
+    if (focus.name === "monitor" && (e.key.length === 1 || e.key === "Enter" || e.key === "Backspace")) {
       e.preventDefault();
       if (e.repeat && e.key === "Enter") return;
       typeKey(e.key);
-      pressKey(keyId, { sound: !termBusy });
-    } else if (!e.repeat) pressKey(keyId);
+      pressKey(e.code, { sound: !termBusy });
+    } else if (!e.repeat) pressKey(e.code);
   };
   window.addEventListener("keydown", onKeyDown);
 
@@ -968,7 +1460,7 @@ export function createDeskScene({ container, projects, experiences, labels = {},
   // Zoomed in, the stack fans out. Click a pass to hold it up to the camera, click it again to
   // turn it over to its itinerary; ← → hold the previous / next one.
   const tickets = new THREE.Group();
-  tickets.position.set(-4.15, 0, -1.9);
+  tickets.position.set(-4.4, 0, 2.7);
   tickets.rotation.y = 0.12;
   scene.add(tickets);
   const TICKET_W = 2.6;
@@ -1007,8 +1499,34 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     gsap.to(entry.t.rotation, { x: 0, y: to.r, duration: 0.4 });
     gsap.to(entry.t.scale, { x: 1, y: 1, z: 1, duration: 0.4 });
   }
+  // Hover works like a wallet's card stack: the hovered pass stays put and every pass lying
+  // over it (the ones behind it in the fan) slides back to open a gap, so it shows whole.
+  // Each pass only ever moves along its own layer, so nothing can pass through anything,
+  // and every offset rides a critically damped spring, so sweeping fast stays smooth.
+  const TICKET_REVEAL = 0.62; // the overlap with the pass behind (fan step 0.45, depth 1.0) plus a margin
+  const SPRING = 160;
+  const DAMPING = 2 * Math.sqrt(SPRING);
+  function hoverTicket(entry, on) {
+    entry.hoverTarget = on ? 1 : 0;
+  }
+  function updateTicketHover(dt) {
+    const hoveredIndex = ticketList.findIndex((entry) => entry.hoverTarget === 1 && entry !== heldTicket);
+    ticketList.forEach((entry, i) => {
+      if (entry === heldTicket) return;
+      const goalZ = hoveredIndex >= 0 && i < hoveredIndex ? -TICKET_REVEAL : 0;
+      // A hair of lift for the hovered one, well under the 0.024 gap between layers
+      const goalY = i === hoveredIndex ? 0.01 : 0;
+      const p = entry.flipper.position;
+      entry.vz = (entry.vz || 0) + (SPRING * (goalZ - p.z) - DAMPING * (entry.vz || 0)) * dt;
+      entry.vy = (entry.vy || 0) + (SPRING * (goalY - p.y) - DAMPING * (entry.vy || 0)) * dt;
+      p.z += entry.vz * dt;
+      p.y += entry.vy * dt;
+    });
+  }
   function holdTicket(entry) {
     if (heldTicket === entry) return;
+    Object.assign(entry, { vz: 0, vy: 0, hoverTarget: 0 });
+    gsap.to(entry.flipper.position, { y: 0, z: 0, duration: 0.3, ease: "power2.out" });
     if (heldTicket) settleTicket(heldTicket, heldTicket.fan);
     heldTicket = entry;
     gsap.to(entry.t.position, { ...HOLD, duration: 0.5, ease: "back.out(1.4)" });
@@ -1051,7 +1569,9 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     register(entry.t, {
       focus: "experience",
       item: true,
-      onHover: (on) => gsap.to(entry.flipper.position, { y: on ? 0.08 : 0, duration: 0.15 }),
+      // Each pass lies partly under the one behind it, so it slides forward out from under
+      // that one first and only then lifts; leaving, it settles down before sliding back
+      onHover: (on) => entry !== heldTicket && hoverTicket(entry, on),
       onClick: clickTicket,
     }),
   );
@@ -1073,7 +1593,7 @@ export function createDeskScene({ container, projects, experiences, labels = {},
   // The chat with Oka's AI assistant runs on the phone's screen: type (or tap a suggested
   // question), the reply streams in, the wheel scrolls back through it.
   const phoneStand = new THREE.Group();
-  phoneStand.position.set(3.3, 0, -2.3);
+  phoneStand.position.set(3.85, 0, -1.95);
   phoneStand.rotation.y = -0.3;
   scene.add(phoneStand);
   const standMat = toon("#222222");
@@ -1164,18 +1684,49 @@ export function createDeskScene({ container, projects, experiences, labels = {},
   renderer.domElement.addEventListener("wheel", onWheel, { passive: false });
 
   // ---------- case files (projects) ----------
-  // A pile of manila folders, one per project.
-  // Zoomed in, they're dealt into a grid. Click one to lift it and open its cover flat; its
-  // sheets then turn like pages (right side forward, left side back, or ← →). The last sheet
-  // carries the links as stamps.
+  // The folders stand in a file drawer, like the 2D Projects section: a dark box with a yellow
+  // front panel, the folders upright inside with the back ones a little higher so every tab
+  // shows. Zoomed in, you browse them right there: the front folder is pulled up to be read,
+  // a tab (or ← →) flips through, and a folder flipped past is refiled at the back. Click the
+  // front one to pull it out onto the desk and open it; its sheets then turn like pages (right
+  // side forward, left side back, or ← →). The last sheet carries the links as stamps.
   const FOLDER_W = 2.2;
   const FOLDER_D = 1.65;
   const SHEET_W = FOLDER_W - 0.08;
   const SHEET_D = FOLDER_D - 0.08;
   const folders = new THREE.Group();
-  folders.position.set(-4.4, 0, 2.2);
-  folders.rotation.y = -0.06;
+  // At the left end of the desk, under the window, its front turned to face the room (+x)
+  folders.position.set(-6.3, 0, -0.5);
+  folders.rotation.y = Math.PI / 2;
   scene.add(folders);
+  // The drawer, in the folders group's own space
+  const DRAWER_W = FOLDER_W + 0.32;
+  const DRAWER_D = projects.length * 0.17 + 0.45;
+  const DRAWER_H = 0.95;
+  const WALL = 0.08;
+  const drawerMat = toon("#2b2b2b");
+  const drawerPart = (w, h, d, x, y, z, material = drawerMat) => {
+    const part = mesh(rbox(w, h, d, 0.02), material, { outline: 0.03 });
+    part.position.set(x, y, z);
+    folders.add(part);
+    return part;
+  };
+  drawerPart(DRAWER_W, WALL, DRAWER_D, 0, WALL / 2, 0);
+  drawerPart(DRAWER_W, DRAWER_H, WALL, 0, DRAWER_H / 2, -DRAWER_D / 2 + WALL / 2);
+  drawerPart(WALL, DRAWER_H, DRAWER_D, -DRAWER_W / 2 + WALL / 2, DRAWER_H / 2, 0);
+  drawerPart(WALL, DRAWER_H, DRAWER_D, DRAWER_W / 2 - WALL / 2, DRAWER_H / 2, 0);
+  const FRONT_H = DRAWER_H * 0.78;
+  // Pulled out, a folder is turned square to the room and laid on the desk in front of the
+  // drawer, between the keyboard and the speaker, its cover opening back toward the drawer.
+  // (In the drawer's own space: +z is out of its front, -x toward the back of the desk.)
+  const OUT = { x: 0.65, y: 0.04, z: DRAWER_D / 2 + 3.55, r: -Math.PI / 2 };
+  drawerPart(DRAWER_W + 0.16, FRONT_H, 0.12, 0, FRONT_H / 2, DRAWER_D / 2 + 0.03, toon("#ffdd00"));
+  const drawerFace = printed(DRAWER_W + 0.1, FRONT_H - 0.08, 300, (c, w, h) => drawDrawerFront(c, w, h, projects.length));
+  drawerFace.position.set(0, FRONT_H / 2, DRAWER_D / 2 + 0.092);
+  folders.add(drawerFace);
+  const drawerHandle = drawerPart(0.7, 0.14, 0.1, 0, 0.12, DRAWER_D / 2 + 0.13, toon("#111111"));
+  drawerHandle.castShadow = false;
+
   const folderGeo = track(rbox(FOLDER_W, 0.03, FOLDER_D, 0.012));
   const sheetGeo = track(rbox(SHEET_W, 0.004, SHEET_D, 0.0015));
   const sheetMat = toon("#ffffff");
@@ -1215,7 +1766,7 @@ export function createDeskScene({ container, projects, experiences, labels = {},
       const front = printed(SHEET_W, SHEET_D, 600, (c, w, h) => drawCaseSheet(c, w, h, project, kind, { index: i }));
       front.rotation.x = -Math.PI / 2;
       front.position.set(SHEET_W / 2, 0.0025, 0);
-      const backSide = printed(SHEET_W, SHEET_D, 300, (c, w, h) => drawCaseBack(c, w, h, project, { index: i }));
+      const backSide = printed(SHEET_W, SHEET_D, 600, (c, w, h) => drawCaseBack(c, w, h, project, { index: i, kind }));
       backSide.rotation.x = Math.PI / 2;
       backSide.position.set(SHEET_W / 2, -0.0025, 0);
       pivot.add(paper, front, backSide);
@@ -1234,31 +1785,87 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     inside.position.set(FOLDER_W / 2, -0.016, 0);
     hinge.add(cover, face, inside);
     body.add(hinge);
-    // First project on top of the pile
-    const stack = { x: (Math.random() - 0.5) * 0.1, y: 0.016 + (projects.length - 1 - i) * 0.08, z: (Math.random() - 0.5) * 0.08, r: (Math.random() - 0.5) * 0.1 };
-    // Dealt into a grid: three on the back row, the rest in front
-    const perRow = 3;
-    const r = Math.floor(i / perRow);
-    const inRow = Math.min(perRow, projects.length - r * perRow);
-    const row = { x: 1.6 + ((i % perRow) - (inRow - 1) / 2) * (FOLDER_W + 0.18), y: 0.65, z: -0.7 + r * (FOLDER_D + 0.2), r: (Math.random() - 0.5) * 0.06 };
-    f.position.set(stack.x, stack.y, stack.z);
-    f.rotation.y = stack.r;
     folders.add(f);
-    return { project, f, body, hinge, sheets, turned: 0, stack, row };
+    return { project, index: i, f, body, hinge, sheets, turned: 0, out: 0 };
   });
   let openFolder = null;
-  const arrangeFolders = (dealt) => {
-    if (openFolder) closeFolder(openFolder);
-    openFolder = null;
-    folderList.forEach(({ f, stack, row }, i) => {
-      const to = dealt ? row : stack;
-      const delay = (dealt ? i : folderList.length - 1 - i) * 0.08;
-      gsap.to(f.position, { x: to.x, z: to.z, duration: 0.5, delay, ease: "power2.inOut" });
-      gsap.to(f.position, { keyframes: [{ y: 0.6, duration: 0.25 }, { y: to.y, duration: 0.25 }], delay });
-      gsap.to(f.rotation, { y: to.r, duration: 0.5, delay });
-      timers.push(setTimeout(() => sfx.slap(), (delay + 0.5) * 1000));
-    });
+  // Standing in the drawer, the folder's -z edge (with its tab) points up and its cover faces
+  // the room. Depth 0 is the front slot; each one further back stands a little higher.
+  const STAND_RX = Math.PI / 2 - 0.1;
+  const n = folderList.length;
+  const slotZ = (d) => DRAWER_D / 2 - 0.28 - d * 0.17;
+  const slotY = (d) => WALL + FOLDER_D / 2 + d * 0.05;
+  const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+  const between = (from, to, t, lo, hi) => from + (to - from) * smooth((t - lo) / (hi - lo));
+  const bezier = (a, b, c, d, t) => {
+    const u = 1 - t;
+    return u * u * u * a + 3 * u * u * t * b + 3 * u * t * t * c + t * t * t * d;
   };
+  // Where the browse stands: which folder is at the front (fractional while flipping)
+  const browse = { p: 0, target: 0 };
+  const depthOf = (entry) => (((entry.index - browse.p) % n) + n) % n;
+  const frontIndex = () => ((Math.round(browse.target) % n) + n) % n;
+  const drawerPose = (entry, out) => {
+    const d = depthOf(entry);
+    if (d > n - 1) {
+      // Being refiled (as in 2D): straight up out of the others, carried back above them,
+      // dropped in behind. f runs 0 (front) → 1 (back slot).
+      const f = n - d;
+      const up = smooth(Math.min(f / 0.3, (1 - f) / 0.3)) * (FOLDER_D + 0.55);
+      out.z = between(slotZ(0), slotZ(n - 1), f, 0.25, 0.7);
+      out.y = slotY(0) + (slotY(n - 1) - slotY(0)) * f + up + (1 - f) * 0.3;
+    } else {
+      out.z = slotZ(d);
+      // The front folder is pulled up to be read
+      out.y = slotY(d) + Math.max(0, 1 - d) * 0.3;
+    }
+    out.x = 0;
+    return out;
+  };
+  // Out of the drawer, a folder follows one Bézier curve: straight up clear of the rim, over
+  // the drawer front, turning flat on the way, and down onto the desk.
+  const FLY_Y = DRAWER_H + FOLDER_D / 2 + 0.45;
+  const slot = { x: 0, y: 0, z: 0 };
+  function poseFolders() {
+    folderList.forEach((entry) => {
+      const { f, out: t } = entry;
+      drawerPose(entry, slot);
+      if (t <= 0) {
+        f.position.set(slot.x, slot.y, slot.z);
+        f.rotation.set(STAND_RX, 0, 0);
+        return;
+      }
+      f.position.set(
+        bezier(slot.x, slot.x, OUT.x, OUT.x, t),
+        bezier(slot.y, FLY_Y + 0.4, FLY_Y, OUT.y, t),
+        bezier(slot.z, slot.z, OUT.z, OUT.z, t),
+      );
+      f.rotation.set(between(STAND_RX, 0, t, 0.3, 0.8), between(0, OUT.r, t, 0.25, 0.85), 0);
+    });
+  }
+  poseFolders();
+  // Flip through to a folder (always forward, so the ones in front are refiled at the back),
+  // or one step either way with ← →
+  function browseTo(target) {
+    if (openFolder || target === browse.target) return;
+    const steps = Math.abs(target - browse.target);
+    browse.target = target;
+    let last = Math.round(browse.p);
+    gsap.to(browse, {
+      p: target,
+      duration: 0.25 + 0.4 * Math.min(steps, 3),
+      ease: "power2.inOut",
+      overwrite: true,
+      onUpdate: () => {
+        const now = Math.round(browse.p);
+        if (now === last) return;
+        last = now;
+        sfx.slide();
+        sfx.knock({ strength: 0.7, delay: 0.22 });
+      },
+    });
+  }
+  const browseToFolder = (entry) => browseTo(browse.target + ((entry.index - frontIndex() + n) % n));
   const folderFor = (obj) => folderList.find(({ f }) => {
     for (let o = obj; o; o = o.parent) if (o === f) return true;
     return false;
@@ -1269,22 +1876,26 @@ export function createDeskScene({ container, projects, experiences, labels = {},
       gsap.to(pivot.position, { y: sheetY(k), duration: 0.3 });
     });
     entry.turned = 0;
-    gsap.to(entry.hinge.rotation, { z: 0, duration: 0.4, delay: 0.1, ease: "power2.in" });
-    gsap.to(entry.f.position, { y: entry.row.y, duration: 0.3, delay: 0.3, ease: "power2.in", onComplete: () => sfx.slap() });
+    // Shut the cover, then back into its slot at the front of the drawer
+    gsap.to(entry.hinge.rotation, { z: 0, duration: 0.4, delay: 0.1, ease: "power2.in", onComplete: () => sfx.slap() });
+    gsap.to(entry, { out: 0, duration: 0.95, delay: 0.45, ease: "power2.inOut", overwrite: true, onComplete: () => sfx.knock({ strength: 0.8 }) });
   }
-  // Lift a folder and open its cover out flat, and move the camera in close
+  // Pull the front folder out onto the desk, open its cover out flat, and move the camera in close
   function openProject(entry) {
-    if (openFolder) closeFolder(openFolder);
+    if (openFolder) return;
     openFolder = entry;
-    gsap.to(entry.f.position, { y: 0.8, duration: 0.3, ease: "back.out(2)" });
-    gsap.to(entry.hinge.rotation, { z: Math.PI, duration: 0.6, delay: 0.15, ease: "power2.inOut" });
-    sfx.rustle({ duration: 0.4 });
-    applyShot();
+    onEvent("projectOpen", { open: true });
+    gsap.to(entry.body.position, { y: 0, z: 0, duration: 0.2, overwrite: true });
+    sfx.slide({ duration: 0.35 });
+    gsap.to(entry, { out: 1, duration: 1.0, ease: "power2.inOut", overwrite: true, onComplete: () => sfx.slap() });
+    gsap.to(entry.hinge.rotation, { z: Math.PI, duration: 0.6, delay: 1.0, ease: "power2.inOut", onStart: () => sfx.rustle({ duration: 0.4 }) });
+    applyShot(false, 1.2);
   }
   function closeProject() {
     if (!openFolder) return;
     closeFolder(openFolder);
     openFolder = null;
+    onEvent("projectOpen", { open: false });
     applyShot();
   }
   function turnSheet(dir) {
@@ -1309,7 +1920,14 @@ export function createDeskScene({ container, projects, experiences, labels = {},
   const clickFolder = (hit) => {
     const entry = folderFor(hit.object);
     if (!entry) return;
-    if (entry !== openFolder) return openProject(entry);
+    if (openFolder) {
+      if (entry !== openFolder) return closeProject();
+    } else {
+      // The front folder comes out; any other one is flipped to the front first
+      if (entry.index === frontIndex() && Math.abs(browse.p - browse.target) < 0.05) return openProject(entry);
+      return browseToFolder(entry);
+    }
+    if (entry.out < 1) return;
     entry.f.worldToLocal(folderPoint.copy(hit.point));
     turnSheet(folderPoint.x > -FOLDER_W / 2 ? 1 : -1);
   };
@@ -1318,19 +1936,28 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     register(entry.f, {
       focus: "projects",
       item: true,
-      onHover: (on) => gsap.to(entry.body.position, { y: on && entry !== openFolder ? 0.1 : 0, duration: 0.15 }),
+      // In the drawer a folder is pulled up a little (its local -z points up while it stands)
+      onHover: (on) =>
+        gsap.to(entry.body.position, { y: 0, z: on && !openFolder ? -0.22 : 0, duration: 0.4, ease: "sine.inOut", overwrite: true }),
       onClick: clickFolder,
       onHotspot: (hs) => openFolder && turnSheet(hs.action === "prev" ? -1 : 1),
     }),
   );
   register(folders, {
     focus: "projects",
-    onArrive: () => arrangeFolders(true),
-    onLeave: () => arrangeFolders(false),
+    onLeave: () => {
+      if (openFolder) closeProject();
+    },
     onClick: clickFolder,
     onKey: (e) => {
-      if (!openFolder || (e.key !== "ArrowRight" && e.key !== "ArrowLeft")) return false;
-      turnSheet(e.key === "ArrowRight" ? 1 : -1);
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") {
+        if (e.key !== "Enter" || openFolder) return false;
+        openProject(folderList[frontIndex()]);
+        return true;
+      }
+      const dir = e.key === "ArrowRight" ? 1 : -1;
+      if (openFolder) turnSheet(dir);
+      else browseTo(browse.target + dir);
       return true;
     },
   });
@@ -1351,28 +1978,30 @@ export function createDeskScene({ container, projects, experiences, labels = {},
   const envelope = new THREE.Group();
   envelope.position.y = 0.04;
   const envBackMat = toon("#e8d3a7");
-  envBackMat.transparent = true;
   const envBack = mesh(rbox(ENV_W, 0.025, ENV_D, 0.012), envBackMat, { outline: 0.025 });
   const envTop = printed(ENV_W, ENV_D, 400, drawEnvelope);
   envTop.rotation.x = -Math.PI / 2;
   envTop.position.y = 0.06;
-  envTop.material.transparent = true;
-  envTop.material.alphaTest = 0.01;
+  envTop.material.alphaTest = 0.5;
   const flap = new THREE.Group();
   flap.position.set(0, 0.075, -ENV_D / 2);
   const flapFace = printed(ENV_W, ENV_D * 0.52, 400, drawEnvelopeFlap);
   flapFace.rotation.x = -Math.PI / 2;
   flapFace.position.z = ENV_D * 0.26;
-  flapFace.material.transparent = true;
+
   flapFace.material.side = THREE.DoubleSide;
-  flapFace.material.alphaTest = 0.01;
+  flapFace.material.alphaTest = 0.5;
   flapFace.castShadow = true;
   flap.add(flapFace);
   envelope.add(envBack, envTop, flap);
-  const envelopeMaterials = [envBackMat, envTop.material, flapFace.material];
   const postcard = new THREE.Group();
   const POSTCARD_REST = { x: 0, y: 0.075, z: 0, r: 0 };
-  const POSTCARD_OUT = { x: 0, y: 0.026, z: 0, r: 0 };
+  // Pulled out, the card is laid down on top of the open envelope, shifted back and a little
+  // askew, so the envelope's lower half (and its PAR AVION mark) still shows beneath it
+  const POSTCARD_OUT = { x: 0.06, y: 0.13, z: -0.3, r: -0.05 };
+  const ENVELOPE_SETTLE = { y: 0.035, z: 0.12 };
+  // Pulled straight out through the open end until the card's far edge clears the envelope
+  const CARD_CLEAR_Z = -(ENV_D / 2 + CARD_D / 2 + 0.06);
   postcard.position.set(POSTCARD_REST.x, POSTCARD_REST.y, POSTCARD_REST.z);
   postcard.visible = false;
   const postFlip = new THREE.Group();
@@ -1476,8 +2105,8 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     envelope.visible = true;
     envelope.position.set(0, 0.04, 0);
     envelope.rotation.set(0, 0, 0);
-    envelopeMaterials.forEach((material) => (material.opacity = 1));
     flap.rotation.x = 0;
+    flap.position.y = 0.075;
     envTop.userData.tex.redraw({ delivered: false });
   }
   function openEnvelope() {
@@ -1485,23 +2114,35 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     gsap.to(mail.scale, { x: 1, y: 1, z: 1, duration: 0.2 });
     applyShot();
     // Match the 2D sequence: arrive, open flap, extract card, drop envelope, settle, stamp.
-    mailIntro = gsap.timeline({ onComplete: () => { cardReady = true; applyShot(false, 0.6); } })
-      .fromTo(envelope.position, { x: -0.6 }, { x: 0, duration: 0.6, ease: "power3.out" })
+    mailIntro = gsap.timeline({ onComplete: () => { cardReady = true; applyShot(false, 0.8); } })
       .call(() => sfx.whoosh({ duration: 0.5 }), null, 0)
       .set(postcard, { visible: true })
-      .to(flap.rotation, { x: -Math.PI, duration: 0.45, ease: "power2.inOut" }, "+=0.05")
-      .call(() => sfx.slide({ duration: 0.4 }), null, "<")
-      .addLabel("out")
-      .to(postcard.position, { z: -ENV_D * 0.95, y: 0.13, duration: 0.75, ease: "power2.inOut" }, "out")
+      .to(flap.rotation, { x: -Math.PI, duration: 0.6, ease: "power2.inOut" }, 0.45)
+      // Open, the flap folds down over the edge onto the desk, so the card slides out over it
+      .to(flap.position, { y: -0.03, duration: 0.2, ease: "power2.in" }, 0.85)
+      .call(() => sfx.slide({ duration: 0.4 }), null, 0.45)
+      .addLabel("out", 0.95)
+      // 1. Straight out through the open end, flat, between the envelope's faces and over the
+      //    open flap, until the card's far edge has cleared the envelope (it never rises while
+      //    any of it is still inside)
+      .to(postcard.position, { y: POSTCARD_REST.y, z: CARD_CLEAR_Z, duration: 0.85, ease: "power2.inOut" }, "out")
       .call(() => sfx.slide({ duration: 0.7 }), null, "out")
-      .to(envelope.position, { z: 1.0, y: -0.3, duration: 0.6, ease: "power2.in" }, "out+=0.55")
-      .to(envelope.rotation, { y: 0.08, duration: 0.6 }, "out+=0.55")
-      .to(envelopeMaterials, { opacity: 0, duration: 0.2 }, "out+=0.95")
-      .set(envelope, { visible: false }, "out+=1.15")
-      .call(() => sfx.whoosh({ duration: 0.5, up: false }), null, "out+=0.55")
-      .to(postcard.position, { x: POSTCARD_OUT.x, y: POSTCARD_OUT.y, z: POSTCARD_OUT.z, duration: 0.6, ease: "power3.inOut" }, "out+=0.8")
-      .to(postcard.scale, { keyframes: [{ x: 1.012, z: 0.97, duration: 0.14 }, { x: 1, z: 1, duration: 0.14 }] }, "out+=1.4")
-      .call(() => sfx.flop({ strength: 0.6 }), null, "out+=1.4")
+      // 2. Clear of it: lifted up and carried back over the envelope, then laid down across it,
+      //    while the envelope eases forward underneath
+      .to(
+        postcard.position,
+        {
+          keyframes: { x: [0, POSTCARD_OUT.x * 0.6, POSTCARD_OUT.x], y: [POSTCARD_REST.y, 0.42, POSTCARD_OUT.y], z: [CARD_CLEAR_Z, (CARD_CLEAR_Z + POSTCARD_OUT.z) / 2, POSTCARD_OUT.z], easeEach: "sine.inOut" },
+          duration: 0.9,
+          ease: "power1.inOut",
+        },
+        "out+=0.85",
+      )
+      .to(postcard.rotation, { y: POSTCARD_OUT.r, duration: 0.9, ease: "sine.inOut" }, "out+=0.85")
+      .to(envelope.position, { z: ENVELOPE_SETTLE.z, y: ENVELOPE_SETTLE.y, duration: 0.8, ease: "sine.inOut" }, "out+=0.85")
+      .to(envelope.rotation, { y: 0.02, duration: 0.8, ease: "sine.inOut" }, "out+=0.85")
+      .to(postcard.scale, { keyframes: [{ x: 1.01, z: 0.98, duration: 0.12 }, { x: 1, z: 1, duration: 0.2 }] }, "out+=1.75")
+      .call(() => sfx.flop({ strength: 0.5 }), null, "out+=1.75")
       .set(postage, { visible: true })
       .fromTo(postage.scale, { x: 2.2, y: 2.2 }, { x: 1, y: 1, duration: 0.45, ease: "back.out(2)" })
       .call(() => sfx.stamp(), null, "<+0.08");
@@ -1531,7 +2172,16 @@ export function createDeskScene({ container, projects, experiences, labels = {},
 
   // ---------- mug (decor) ----------
   const mug = new THREE.Group();
-  mug.position.set(5.6, 0, -0.6);
+  // On a cork coaster, a little closer to the envelope
+  const MUG_Y = 0.06;
+  mug.position.set(5.5, MUG_Y, 0.95);
+  const coaster = mesh(new THREE.CylinderGeometry(0.74, 0.74, 0.06, 32), toon("#c8925a"), { outline: 0.03, cast: false });
+  coaster.position.set(mug.position.x, 0.03, mug.position.z);
+  const coasterRing = new THREE.Mesh(track(new THREE.TorusGeometry(0.6, 0.02, 6, 40)), track(new THREE.MeshBasicMaterial({ color: "#8a5a2b" })));
+  coasterRing.rotation.x = Math.PI / 2;
+  coasterRing.position.set(mug.position.x, 0.062, mug.position.z);
+  coasterRing.raycast = noRaycast;
+  scene.add(coaster, coasterRing);
   scene.add(mug);
   // Hollow cup (lathe profile with a wall), deep enough for the coffee level to drop
   const CUP_FLOOR = 0.12;
@@ -1543,13 +2193,22 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     [0.39, CUP_FLOOR],
     [0, CUP_FLOOR],
   ].map(([x, y]) => new THREE.Vector2(x, y));
-  const mugBody = mesh(new THREE.LatheGeometry(mugProfile, 32), toon("#3b82f6"), { outline: 0.05 });
+  // Open-ended: caps on the outline shell showed as a dark ring inside the opening
+  const mugShell = new THREE.CylinderGeometry(0.5, 0.45, 1.1, 32, 1, true);
+  mugShell.translate(0, 0.55, 0);
+  const mugMat = toon("#fffdf5");
+  const mugBody = mesh(new THREE.LatheGeometry(mugProfile, 32), mugMat, { outline: 0.05, hull: mugShell });
+  // The opening's edge: the outer outline only traces the silhouette
+  const rimLine = new THREE.Mesh(track(new THREE.TorusGeometry(0.43, 0.012, 6, 48)), track(new THREE.MeshBasicMaterial({ color: "#000000" })));
+  rimLine.rotation.x = Math.PI / 2;
+  rimLine.position.y = 1.1;
+  rimLine.raycast = noRaycast;
   const coffee = mesh(new THREE.CylinderGeometry(0.405, 0.405, 0.02, 32), toon("#5b3a1e"), { outline: 0, cast: false });
   coffee.position.y = 0.93;
   const crema = mesh(new THREE.TorusGeometry(0.3, 0.03, 6, 32), toon("#c8925a"), { outline: 0, cast: false });
   crema.rotation.x = Math.PI / 2;
   crema.position.y = 0.945;
-  const handle = mesh(new THREE.TorusGeometry(0.28, 0.08, 10, 20, Math.PI), toon("#3b82f6"), { outline: 0.04 });
+  const handle = mesh(new THREE.TorusGeometry(0.28, 0.08, 10, 20, Math.PI), mugMat, { outline: 0.04 });
   handle.rotation.z = -Math.PI / 2;
   handle.position.set(0.46, 0.58, 0);
   // Steam: little puffs drifting up and shrinking away, forever
@@ -1568,7 +2227,7 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     );
     gsap.fromTo(puff.scale, { x: 0.4, y: 0.4, z: 0.4 }, { keyframes: [{ x: 1.2, y: 1.2, z: 1.2, duration: 1.1 }, { x: 0.01, y: 0.01, z: 0.01, duration: 1.1 }], delay: i * 0.73, repeat: -1 });
   }
-  mug.add(mugBody, coffee, crema, handle);
+  mug.add(mugBody, rimLine, coffee, crema, handle);
 
   // Sipping: each click drinks a bit and a quote pops up over the mug. Finish the cup and the
   // desk switches to the night shift (or back to day), then it's refilled.
@@ -1588,7 +2247,8 @@ export function createDeskScene({ container, projects, experiences, labels = {},
   track(bubbleTex.texture);
   const bubble = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: bubbleTex.texture, depthTest: false, transparent: true })));
   // Move back as well as up: the high camera angle compresses vertical separation.
-  bubble.position.set(mug.position.x - 0.45, 2.0, mug.position.z - 1.3);
+  // Just above and left of the mug as the (mostly top-down) mug shot sees it, tail to the rim
+  bubble.position.set(mug.position.x - 0.5, MUG_Y + 1.85, mug.position.z - 1.1);
   bubble.scale.set(0.001, 0.001, 1);
   bubble.renderOrder = 10;
   bubble.raycast = noRaycast;
@@ -1600,7 +2260,11 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     bubbleTex.texture.needsUpdate = true;
     gsap.fromTo(bubble.scale, { x: 0.3, y: 0.15 }, { x: 1.9, y: 1.0, duration: 0.4, ease: "back.out(2)" });
     clearTimeout(bubbleTimer);
-    bubbleTimer = setTimeout(() => gsap.to(bubble.scale, { x: 0.001, y: 0.001, duration: 0.25, ease: "power2.in" }), 4200);
+    bubbleTimer = setTimeout(hideBubble, 4200);
+  }
+  function hideBubble() {
+    clearTimeout(bubbleTimer);
+    gsap.to(bubble.scale, { x: 0.001, y: 0.001, duration: 0.2, ease: "power2.in", overwrite: true });
   }
   function sip() {
     if (sipping || sipsLeft === 0) return;
@@ -1608,10 +2272,10 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     // Lift and tip the rim toward you, then put it back down
     gsap
       .timeline({ onComplete: () => (sipping = false) })
-      .to(mug.position, { y: 0.7, duration: 0.3, ease: "power2.out" })
+      .to(mug.position, { y: MUG_Y + 0.7, duration: 0.3, ease: "power2.out" })
       .to(mug.rotation, { x: 0.55, duration: 0.3, ease: "power2.out" }, 0)
       .to(mug.rotation, { x: 0, duration: 0.3, ease: "power2.inOut" }, 0.95)
-      .to(mug.position, { y: 0, duration: 0.35, ease: "bounce.out" }, 1.0);
+      .to(mug.position, { y: MUG_Y, duration: 0.35, ease: "bounce.out" }, 1.0);
     // The slurp starts as the rim reaches your lips; the mug is set down after the gulp
     sfx.slurp({ delay: 0.25 });
     timers.push(setTimeout(() => sfx.thud({ strength: 0.35 }), 1200));
@@ -1642,6 +2306,7 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     focus: "mug",
     onArrive: sip,
     onClick: sip,
+    onLeave: hideBubble,
   });
 
   // Lightweight contact-shadow approximations supplement the directional shadows.
@@ -1715,17 +2380,18 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     jointMat.color.set(isDark ? "#3d3749" : "#1a1714");
     sun.color.set(isDark ? "#aabfff" : "#fff1cc");
     // A faint cool overhead fill leaves short shadows outside the desk lamp's cone.
-    sun.position.set(...(isDark ? [-3, 12, -4] : [-14, 7.5, -5.25]));
+    sun.position.set(...(isDark ? [-4, 12, 3] : [-13, 9.5, 4.5]));
     sun.intensity = isDark ? 0.3 : 1.6;
     sun.castShadow = true;
     windowLight.color.set(isDark ? "#94b5ff" : "#ffe5ad");
     // The daytime pane pattern is an accent; only the sun casts directional shadows.
     windowLight.intensity = isDark ? 38 : 70;
     windowLight.castShadow = isDark;
-    floorMat.color.set(isDark ? "#39344f" : "#f5c76b");
-    backWallMat.color.set(isDark ? "#34304b" : "#fff0c9");
-    scene.background = new THREE.Color(isDark ? "#34304b" : "#fff0c9");
-    sideWallMat.color.set(isDark ? "#59406f" : "#ff90e8");
+    floorMat.color.set(isDark ? "#8a82a6" : "#ffffff");
+    // Night keeps the walls white, just moonlit, so the room still reads as the same room
+    backWallMat.color.set(isDark ? "#d6d3e6" : "#ffffff");
+    scene.background = new THREE.Color(isDark ? "#d6d3e6" : "#ffffff");
+    sideWallMat.color.set(isDark ? "#c9c5dc" : "#ffffff");
     trimMat.color.set(isDark ? "#b8b1da" : "#ffffff");
     windowView.userData.tex.redraw();
     setLamp(isDark);
@@ -1753,13 +2419,21 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     const hit = raycaster.intersectObjects(pickables, true)[0];
     return hit ? { hit, entry: entryFor(hit.object) } : null;
   };
+  // For hover: stay on the item already hovered while the pointer is still over any part of
+  // it. A lifted ticket or folder shifts a little on screen; without this the hover would
+  // flick back and forth between it and the one beneath.
+  const pickHover = (e) => {
+    rayFromPointer(e);
+    const hits = raycaster.intersectObjects(pickables, true);
+    if (hovered && hits.some((h) => entryFor(h.object)?.object === hovered.object)) return hovered;
+    return hits[0] ? entryFor(hits[0].object) : null;
+  };
   const setHover = (entry) => {
     if (hovered?.object === entry?.object) return;
     hovered?.onHover?.(false);
     hovered = entry;
     hovered?.onHover?.(true);
     renderer.domElement.style.cursor = entry?.note && focus.name === "about" ? "grab" : entry ? "pointer" : "default";
-    onEvent("hover", { name: entry?.focus || null });
   };
   const onPointerMove = (e) => {
     if (noteDrag) {
@@ -1785,7 +2459,7 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     parallax.tx = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
     parallax.ty = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
     if (e.pointerType === "mouse") {
-      setHover(pick(e)?.entry || null);
+      setHover(pickHover(e));
       mouseAim.x = MOUSE_ORIGIN.x + parallax.tx * 0.6;
       mouseAim.z = MOUSE_ORIGIN.z + parallax.ty * 0.45;
     }
@@ -1868,8 +2542,9 @@ export function createDeskScene({ container, projects, experiences, labels = {},
   const screenPos = new THREE.Vector3();
   const SHOTS = {
     // The camera sits inside the room, with no cutaway edges or outside backdrop.
-    overview: () => ({ target: [0, 2.0, 0.7], dir: [0.48, 0.72, 1] }),
-    hero: () => ({ target: [-2.8, 1.95, -2.4], dir: [0.06, 0.14, 1], fit: [1.9, 2.7] }),
+    overview: () => ({ target: [1.4, 2.0, 0.7], dir: [0.48, 0.72, 1] }),
+    // Clip only what's well in front of the wall (the monitor), not the board behind the badge
+    hero: () => ({ target: [BADGE_CLIP.x, BADGE_CLIP.y - 1.0, BADGE_CLIP.z], dir: [0.06, 0.14, 1], fit: [1.9, 2.7], depth: 2.6 }),
     about: () => ({ target: aboutBoard.position.toArray(), dir: [0, 0.8, 1], fit: [7.3, 4.8] }),
     // The fan, or square on the pass being held up
     experience: () => {
@@ -1878,18 +2553,24 @@ export function createDeskScene({ container, projects, experiences, labels = {},
         return { target: screenPos.toArray(), dir: [0.06, 1, 0.5], fit: [3.4, 3.0] };
       }
       tickets.localToWorld(screenPos.set(HOLD.x, HOLD.y, HOLD.z));
-      return { target: screenPos.toArray(), dir: [0, 1, 0.5], fit: [4.1, 1.9] };
+      return { target: screenPos.toArray(), dir: [0, 1, 0.5], fit: [5.6, 2.9] };
     },
-    // The dealt grid, or close on the open folder (its cover lies open to the left)
+    // The folders standing in the drawer, or close on the one pulled out onto the desk (its
+    // cover lies open to the left)
     projects: () => {
       if (!openFolder) {
-        folders.localToWorld(screenPos.set(1.6, 0.65, 0.25));
-        return { target: screenPos.toArray(), dir: [0.05, 1, 0.55], fit: [7.4, 4.3] };
+        // Square on the drawer's front, wherever it faces
+        // Square on the drawer's front, wherever it faces. A shallow clip keeps the lamp
+        // head (just over the drawer) out of the shot.
+        folders.localToWorld(screenPos.set(0, 1.0, 0.2));
+        screenNormal.set(0.05, 0.62, 1).applyQuaternion(folders.quaternion);
+        return { target: screenPos.toArray(), dir: screenNormal.toArray(), fit: [4.6, 3.9], depth: 2.2 };
       }
-      // Centre on the spine: the open cover lies to its left, the sheets to its right
+      // Centre on the spine: the open cover lies to its left, the sheets to its right. Laid
+      // down, the folder's left is the drawer's -z.
       const narrow = container.clientWidth < 768;
-      openFolder.f.localToWorld(screenPos.set(narrow ? 0 : -FOLDER_W / 2, 0, 0));
-      return { target: [screenPos.x, 0.82, screenPos.z], dir: [0.03, 1, 0.35], fit: narrow ? [FOLDER_W + 0.2, FOLDER_D + 0.4] : [FOLDER_W * 2 + 0.35, FOLDER_D + 0.55] };
+      folders.localToWorld(screenPos.set(OUT.x, OUT.y, OUT.z - (narrow ? 0 : FOLDER_W / 2)));
+      return { target: [screenPos.x, screenPos.y + 0.17, screenPos.z], dir: [0.03, 1, 0.35], fit: narrow ? [FOLDER_W + 0.2, FOLDER_D + 0.4] : [FOLDER_W * 2 + 0.35, FOLDER_D + 0.55] };
     },
     // Face-on to the phone's screen, whatever angle the stand holds it at
     chat: () => {
@@ -1900,15 +2581,20 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     },
     // Square over the postcard where it lands once it slides out of the envelope
     contact: () => {
-      mail.localToWorld(screenPos.set(POSTCARD_OUT.x, POSTCARD_OUT.y, POSTCARD_OUT.z));
-      return { target: screenPos.toArray(), dir: [0.02, 1, 0.25], fit: cardReady ? [1.95, 1.55] : [2.45, 3.5] };
+      // Between the card and the envelope under it, so both stay in frame
+      mail.localToWorld(screenPos.set(POSTCARD_OUT.x, POSTCARD_OUT.y, (POSTCARD_OUT.z + ENVELOPE_SETTLE.z) / 2));
+      return { target: screenPos.toArray(), dir: [0.02, 1, 0.25], fit: cardReady ? [2.2, 1.95] : [2.45, 3.5] };
     },
-    monitor: () => ({ target: [-0.2, 2.4, -2.6], dir: [0.1, 0.32, 1], fit: [5.2, 3.4] }),
+    monitor: () => ({ target: [-0.2, 2.63, -2.66], dir: [0.1, 0.32, 1], fit: [5.2, 3.4] }),
     keyboard: () => ({ target: [0.2, 0.3, 0.75], dir: [0.1, 1, 0.75], fit: [5.4, 2.6] }),
     // A higher angle pushes the plant above the frame and leaves room for the sip quote.
-    mug: () => ({ target: [5.3, 0.95, -1.05], dir: [-0.2, 1, 0.45], fit: [3.1, 4.1] }),
+    mug: () => ({ target: [mug.position.x - 0.3, 0.95 + MUG_Y, mug.position.z - 0.45], dir: [-0.2, 1, 0.45], fit: [3.1, 4.1] }),
   };
-  const cam = { tx: 0, ty: 0, tz: 0, dx: 0, dy: 1, dz: 1, zoom: 1 };
+  const CAM_DISTANCE = 40;
+  // Close-ups clip everything more than this far in front of the prop (chair, lamp, other
+  // props), so nothing in the room can block the view or catch the click
+  const CLOSE_UP_DEPTH = 3.5;
+  const cam = { tx: 0, ty: 0, tz: 0, dx: 0, dy: 1, dz: 1, zoom: 1, near: 0.1 };
 
   function applyShot(instant = false, duration = 0.9) {
     const shot = SHOTS[focus.name]();
@@ -1917,7 +2603,8 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     const h = container.clientHeight || 1;
     const viewW = viewH * (w / h);
     const zoom = shot.fit ? Math.min(viewW / shot.fit[0], viewH / shot.fit[1]) : 1;
-    const to = { tx: shot.target[0], ty: shot.target[1], tz: shot.target[2], dx: d.x, dy: d.y, dz: d.z, zoom };
+    const near = shot.fit ? CAM_DISTANCE - (shot.depth ?? CLOSE_UP_DEPTH) : 0.1;
+    const to = { tx: shot.target[0], ty: shot.target[1], tz: shot.target[2], dx: d.x, dy: d.y, dz: d.z, zoom, near };
     gsap.killTweensOf(cam);
     if (instant) Object.assign(cam, to);
     else gsap.to(cam, { ...to, duration, ease: "power3.inOut" });
@@ -1984,29 +2671,8 @@ export function createDeskScene({ container, projects, experiences, labels = {},
     camera.bottom = -viewH / 2;
     camera.updateProjectionMatrix();
     renderer.setSize(w, h, false);
+    outlineResolution.value.set(w, h);
     if (!intro?.isActive()) applyShot(true);
-  }
-
-  // HUD tags that follow their prop on screen (DOM elements owned by the page)
-  const LABEL_ANCHORS = {
-    hero: new THREE.Vector3(-2.8, 3.25, -2.42),
-    about: aboutBoard.position.clone().add(new THREE.Vector3(0, 2.15, 0.08)),
-    experience: tickets.localToWorld(new THREE.Vector3(0, 0.3, -0.6)),
-    projects: folders.localToWorld(new THREE.Vector3(0, 0.4, -0.6)),
-    chat: new THREE.Vector3(3.3, 2.25, -2.3),
-    contact: new THREE.Vector3(4.6, 0.3, 2.4),
-    monitor: new THREE.Vector3(0.9, 4.05, -2.75),
-  };
-  const projected = new THREE.Vector3();
-  function placeLabels() {
-    const w = container.clientWidth;
-    const h = container.clientHeight;
-    for (const [name, el] of Object.entries(labels)) {
-      const anchor = LABEL_ANCHORS[name];
-      if (!el || !anchor) continue;
-      projected.copy(anchor).project(camera);
-      el.style.transform = `translate(${((projected.x + 1) / 2) * w}px, ${((1 - projected.y) / 2) * h}px) translate(-50%, -100%)`;
-    }
   }
 
   let frame = null;
@@ -2014,22 +2680,29 @@ export function createDeskScene({ container, projects, experiences, labels = {},
   const WORLD_UP = new THREE.Vector3(0, 1, 0);
   const dir = new THREE.Vector3();
   const target = new THREE.Vector3();
+  let lastTick = 0;
   function tick(now) {
     frame = requestAnimationFrame(tick);
+    // Step size for the springs, capped so a background tab doesn't fling them on return
+    const dt = Math.min(0.05, lastTick ? (now - lastTick) / 1000 : 0.016);
+    lastTick = now;
+    updateTicketHover(dt);
+    poseFolders();
     parallax.x += (parallax.tx - parallax.x) * 0.06;
     parallax.y += (parallax.ty - parallax.y) * 0.06;
     // Parallax shrinks as we zoom in so close-ups stay readable
     const sway = focus.name === "about" ? 0 : 1 / Math.sqrt(cam.zoom);
     dir.set(cam.dx + parallax.x * 0.08 * sway, cam.dy - parallax.y * 0.05 * sway, cam.dz).normalize();
     target.set(cam.tx, cam.ty, cam.tz);
-    camera.position.copy(target).addScaledVector(dir, 40);
+    camera.position.copy(target).addScaledVector(dir, CAM_DISTANCE);
     camera.up.copy(WORLD_UP);
     camera.lookAt(target);
-    if (camera.zoom !== cam.zoom) {
+    if (camera.zoom !== cam.zoom || camera.near !== cam.near) {
       camera.zoom = cam.zoom;
+      camera.near = cam.near;
       camera.updateProjectionMatrix();
     }
-    badgePivot.rotation.z = Math.sin(now / 900) * 0.03;
+    updateLanyard(dt);
     plant.rotation.z = Math.sin(now / 1400) * 0.015;
     mouse.position.x += (mouseAim.x - mouse.position.x) * 0.18;
     mouse.position.z += (mouseAim.z - mouse.position.z) * 0.18;
@@ -2053,7 +2726,6 @@ export function createDeskScene({ container, projects, experiences, labels = {},
       redrawChat();
     }
     renderer.render(scene, camera);
-    placeLabels();
   }
 
   // Intro, like a game's start screen: open on the ID badge, then pull back to the desk
@@ -2073,6 +2745,7 @@ export function createDeskScene({ container, projects, experiences, labels = {},
 
   return {
     setTheme,
+    setMuted,
     back,
     focusOn: (name) => SHOTS[name] && setFocus(name),
     runCommand: (cmd) =>
@@ -2105,8 +2778,6 @@ export function createDeskScene({ container, projects, experiences, labels = {},
       window.removeEventListener("blur", onWindowBlur);
       scene.traverse((o) => gsap.killTweensOf([o.position, o.rotation, o.scale]));
       boardNotes.forEach((note) => gsap.killTweensOf([note.ring.material, note.pinShadow.material]));
-      keys.dispose();
-      keyHull.dispose();
       disposables.forEach((d) => d.dispose?.());
       sun.shadow.dispose();
       windowLight.shadow.dispose();

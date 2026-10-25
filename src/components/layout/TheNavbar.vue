@@ -5,7 +5,7 @@
       <div class="flex justify-between items-center">
         <div class="flex-shrink-0 flex items-center">
           <router-link
-            to="/"
+            to="/2d"
             class="font-display text-2xl font-bold tracking-tighter bg-secondary text-black px-3 py-1 border-2 border-black dark:border-primary dark:text-white shadow-neo-sm transform -rotate-2 hover:rotate-0 transition-transform">
             okasp
           </router-link>
@@ -15,7 +15,7 @@
         <div class="hidden md:flex space-x-10 items-center">
           <template v-if="isProjectPage">
             <router-link
-              to="/#projects"
+              to="/2d#projects"
               class="inline-flex items-center gap-2 font-bold hover:translate-x-[-4px] transition-transform text-lg group text-black dark:text-white">
               <span
                 class="material-icons group-hover:text-neo-magenta transition-colors"
@@ -72,7 +72,7 @@
         <div class="flex flex-col space-y-6 px-6 text-black dark:text-white">
           <template v-if="isProjectPage">
             <router-link
-              to="/#projects"
+              to="/2d#projects"
               class="text-2xl font-bold flex items-center gap-2"
               @click="mobileMenuOpen = false">
               <span class="material-icons">arrow_back</span>
@@ -112,15 +112,15 @@ const mobileMenuOpen = ref(false);
 const isProjectPage = computed(() => route.path.startsWith("/projects/"));
 
 const navLinks = [
-  { name: "Home", path: "/", id: "home" },
-  { name: "About", path: "/#about", id: "about" },
-  { name: "Experience", path: "/#experience", id: "experience" },
-  { name: "Projects", path: "/#projects", id: "projects" },
-  { name: "Contact", path: "/#contact", id: "contact" },
+  { name: "Home", path: "/2d", id: "home" },
+  { name: "About", path: "/2d#about", id: "about" },
+  { name: "Experience", path: "/2d#experience", id: "experience" },
+  { name: "Projects", path: "/2d#projects", id: "projects" },
+  { name: "Contact", path: "/2d#contact", id: "contact" },
 ];
 
 // Scroll-spy: highlight the section currently under the navbar.
-// Router active-class can't do this since every link resolves to "/".
+// Router active-class can't do this since every link resolves to "/2d".
 const activeSection = ref("home");
 
 const updateActiveSection = () => {

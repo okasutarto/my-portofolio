@@ -97,6 +97,23 @@ export const projects = [
     demoLink: "https://hnda.studio/",
     codeLink: "",
 
+    // Case-file page: things the generic fields can't express
+    caseFile: {
+      client: "Architecture studio, Jakarta",
+      highlight: "end-to-end architecture and interior practice",
+      quote: "honest spaces, balanced in scale, measured in expression",
+      caption: "hnda.studio — homepage",
+      issues: [
+        { title: "Templates felt generic", text: "Off-the-shelf themes didn't reflect the studio's design language." },
+        { title: "Leads slipped through", text: "No system to capture and follow up on commission inquiries." },
+        { title: "A dev for every edit", text: "The team couldn't update projects without a developer." },
+      ],
+      flows: [
+        { label: "Inquiry flow", nodes: ["Visitor", "Inquiry form", "Fonnte API", "WhatsApp", "Studio"], ping: 3, pingText: "ping!" },
+        { label: "Content flow", nodes: ["Studio team", "Sanity CMS", "Vue 3 site", "hnda.studio"] },
+      ],
+      notes: ["No dev needed to publish", "Every inquiry hits WhatsApp instantly"],
+    },
     metaDescription:
     "Portfolio website for HNDA Studio — an Indonesia-based architecture and interior practice, built with Vue 3, Sanity.io, and Fonnte WhatsApp integration.",
   },
@@ -201,6 +218,22 @@ export const projects = [
     demoLink: "#",
     codeLink: "https://github.com/okasutarto/gelitik",
 
+    caseFile: {
+      client: "Personal project",
+      highlight: "Social Media Management Platform",
+      quote: "one dashboard for every channel",
+      caption: "gelitik — analytics dashboard",
+      issues: [
+        { title: "Too many tabs open", text: "No single tool to monitor multiple social accounts together." },
+        { title: "Scattered analytics", text: "Every platform keeps its numbers in a different place." },
+        { title: "Reporting by hand", text: "Reports were slow, manual work across each app." },
+      ],
+      flows: [
+        { label: "Data flow", nodes: ["Social APIs", "Express API", "Prisma ORM", "PostgreSQL", "Dashboard"], ping: 4, pingText: "update!" },
+        { label: "Auth flow", nodes: ["User", "JWT login", "Protected API", "Chart.js"] },
+      ],
+      notes: ["All channels in one dashboard", "Type-safe from database to UI"],
+    },
     metaDescription:
       "Fullstack social media management and analytics platform built with Vue 3, Node.js, and PostgreSQL",
   },
@@ -302,6 +335,22 @@ export const projects = [
     codeLink: "https://github.com/okasutarto/summarizer",
 
     // SEO
+    caseFile: {
+      client: "Personal project",
+      highlight: "concise, meaningful summaries",
+      quote: "read less, understand more",
+      caption: "summarizer — drop a file",
+      issues: [
+        { title: "Walls of text", text: "Hours spent reading long documents, articles and reports." },
+        { title: "Stuck inside PDFs", text: "Key points buried in PDFs and images were hard to pull out." },
+        { title: "No time to digest", text: "Fast-paced work leaves no room to read everything in full." },
+      ],
+      flows: [
+        { label: "Summary flow", nodes: ["Upload", "Parser / OCR", "OpenAI API", "Key insights"], ping: 3, pingText: "done!" },
+        { label: "Delivery", nodes: ["Next.js UI", "API route", "Summary", "Clipboard"] },
+      ],
+      notes: ["Text, PDF and images in one place", "Summaries in seconds"],
+    },
     metaDescription:
       "AI-powered summarization tool built with Next.js and OpenAI API",
   },
@@ -599,6 +648,22 @@ export const projects = [
     demoLink: "#",
     codeLink: "#",
 
+    caseFile: {
+      client: "Small retail shops",
+      highlight: "Point of Sale backend system",
+      quote: "every sale, every item, accounted for",
+      caption: "warung upin — cashier app",
+      issues: [
+        { title: "POS was too pricey", text: "Existing POS solutions cost more than small shops can afford." },
+        { title: "Stock by guesswork", text: "No proper way to track inventory as items sold." },
+        { title: "Blind spots in sales", text: "Poor reporting made it hard to see how the shop was doing." },
+      ],
+      flows: [
+        { label: "Checkout flow", nodes: ["Cashier", "REST API", "Stock check", "Transaction", "Receipt"], ping: 3, pingText: "paid!" },
+        { label: "Access control", nodes: ["User", "JWT auth", "Role check", "PostgreSQL"] },
+      ],
+      notes: ["Every role gets its own permissions", "Each sale updates stock in real time"],
+    },
     metaDescription:
       "Point of Sale backend system built with Node.js and PostgreSQL",
   },
@@ -693,6 +758,22 @@ export const projects = [
     demoLink: "https://punyagawe.id",
     codeLink: "#",
 
+    caseFile: {
+      client: "Wedding invitation vendor",
+      highlight: "wedding invitations and souvenirs",
+      quote: "from catalog to order, minus the chaos",
+      caption: "punyagawe.id — catalog",
+      issues: [
+        { title: "Catalog chaos", text: "Invitation designs and souvenirs needed one organized catalog." },
+        { title: "Orders need care", text: "Customer data for orders had to be handled securely." },
+        { title: "Slow product search", text: "Browsing a growing catalog needed efficient queries." },
+      ],
+      flows: [
+        { label: "Order flow", nodes: ["Customer", "Catalog", "Express API", "Order saved"], ping: 3, pingText: "order!" },
+        { label: "Data layer", nodes: ["Admin", "JWT auth", "Sequelize", "MySQL"] },
+      ],
+      notes: ["Products managed from one API", "Customer data kept behind auth"],
+    },
     metaDescription:
       "Backend API for wedding invitation and souvenir promotional website",
   },

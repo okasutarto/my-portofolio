@@ -10,7 +10,26 @@
       <router-link to="/#projects" class="next-file !inline-flex !mt-0 px-6">← Back to all projects</router-link>
     </div>
 
-    <div v-else class="max-w-6xl mx-auto px-4 sm:px-6 pt-8 md:pt-12 pb-24">
+    <div v-else class="max-w-6xl mx-auto px-4 sm:px-6 pt-6 md:pt-8 pb-10">
+      <!-- Previous / next file, visible without scrolling -->
+      <nav class="file-nav" aria-label="Project files">
+        <router-link :to="`/projects/${prevProject.id}`" class="file-link" @click="markDir(-1)">
+          <span class="file-arrow" aria-hidden="true">←</span>
+          <span class="min-w-0">
+            <small>Prev · #{{ pad(projects.indexOf(prevProject) + 1) }}</small>
+            <b>{{ prevProject.title }}</b>
+          </span>
+        </router-link>
+        <p class="file-count" aria-live="polite">File {{ fileNo }} / {{ pad(projects.length) }}</p>
+        <router-link :to="`/projects/${nextProject.id}`" class="file-link file-link-next" @click="markDir(1)">
+          <span class="min-w-0">
+            <small>Next · #{{ pad(projects.indexOf(nextProject) + 1) }}</small>
+            <b>{{ nextProject.title }}</b>
+          </span>
+          <span class="file-arrow" aria-hidden="true">→</span>
+        </router-link>
+      </nav>
+
       <div ref="folderRef" class="folder">
         <!-- Section tabs, like folder dividers -->
         <div class="tabs" role="tablist" aria-label="Case file sections">
@@ -189,21 +208,16 @@
         </div>
       </div>
 
-      <router-link ref="nextRef" :to="`/projects/${nextProject.id}`" class="next-file">
-        <span>
-          <small>Next file → #{{ pad(projects.indexOf(nextProject) + 1) }}</small>
-          <b class="font-display">{{ nextProject.title }}</b>
-        </span>
-        <span class="font-display text-3xl" aria-hidden="true">→</span>
-      </router-link>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, shallowRef, computed, watch, nextTick, onMounted, onBeforeUnmount } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { sfx, hush } from "@/composables/useSfx";
 import { projects, getProjectById } from "@/data/projects";
 import { drawScreen } from "@/components/features/phone/screens";
 
@@ -218,6 +232,7 @@ const TILTS = [-4, 3, -2];
 const SCORE_COLORS = ["#ffdd00", "#00e0c6", "#ffb4c8"];
 
 const route = useRoute();
+const router = useRouter();
 const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // The project on the folder; it only changes mid-transition, after the old file is put away.
@@ -229,6 +244,12 @@ const pad = (n) => String(n).padStart(2, "0");
 const cf = computed(() => shown.value?.caseFile || {});
 const fileNo = computed(() => pad(projects.indexOf(shown.value) + 1));
 const nextProject = computed(() => projects[(projects.indexOf(shown.value) + 1) % projects.length]);
+const prevProject = computed(() => projects[(projects.indexOf(shown.value) - 1 + projects.length) % projects.length]);
+
+// Which way the files should slide: set by the prev/next controls (the list wraps around,
+// so index order alone would get #05 → #01 backwards); browser back/forward falls back to it
+let navDir = 0;
+const markDir = (dir) => (navDir = dir);
 const tabLabel = computed(() => TABS.find((t) => t.key === tab.value).label);
 const stamp = computed(() =>
   /ongoing/i.test(shown.value.duration) ? "In progress ⏳" : `Shipped ✓ ${shown.value.year}`,
@@ -280,7 +301,6 @@ const titleRef = ref(null);
 const stampRef = ref(null);
 const stageRef = ref(null);
 const shotRef = ref(null);
-const nextRef = ref(null);
 const tabEls = {};
 
 // ---------- polaroid illustration (same canvas art as the Projects phone) ----------
@@ -290,7 +310,26 @@ const drawShot = () => {
 watch(shotRef, drawShot);
 // Vue reuses the same canvas when the project changes, so redraw for the new one too
 watch(shown, () => nextTick(drawShot));
-document.fonts?.ready.then(drawShot);
+document.fonts?.ready.then(() => {
+  drawShot();
+  // Web fonts change the height of everything above the folder
+  fitFolder();
+});
+
+// ---------- fit the folder to the screen (desktop) ----------
+// On large screens the whole folder stays in view; long tab content scrolls inside the sheet
+const FIT_QUERY = "(min-width: 900px) and (min-height: 600px)";
+const fitFolder = () => {
+  const body = bodyRef.value;
+  if (!body) return;
+  if (!window.matchMedia(FIT_QUERY).matches) {
+    body.style.removeProperty("--fit-h");
+    return;
+  }
+  const top = body.getBoundingClientRect().top + window.scrollY;
+  body.style.setProperty("--fit-h", `${Math.max(440, window.innerHeight - top - 28)}px`);
+};
+const resetStageScroll = () => stageRef.value && (stageRef.value.scrollTop = 0);
 
 // ---------- animation helpers ----------
 let busy = false;
@@ -304,11 +343,14 @@ const shake = (tl, at, strength = 1) =>
     { keyframes: { x: [-7 * strength, 6 * strength, -3 * strength, 0], y: [3, -2, 1, 0] }, duration: 0.32, clearProps: "transform" },
     at,
   );
+// Schedule a sound on a timeline
+const sound = (tl, time, play) => tl.call(play, null, time);
 const thud = { keyframes: { scaleY: [0.95, 1.02, 1], scaleX: [1.03, 0.99, 1] }, transformOrigin: "50% 100%", duration: 0.3, clearProps: "transform" };
 
 // Finish whatever is still animating before starting something new
+// (silently, so fast-forwarding doesn't fire every sound at once)
 const settle = () => {
-  [mainTl, enterTl].forEach((tl) => tl && tl.progress(1).kill());
+  hush(() => [mainTl, enterTl].forEach((tl) => tl && tl.progress(1).kill()));
   mainTl = enterTl = null;
 };
 
@@ -321,15 +363,24 @@ const ENTER = {
       .from(polaroid, { y: -120, rotation: -28, opacity: 0, duration: 0.32, ease: "power2.in", immediateRender: false }, at + 0.1)
       // Swings on the paper clip until it settles
       .to(polaroid, { keyframes: { rotation: [7, -8, 4, -5, -1, -2.5] }, duration: 1.2, ease: "power1.out" }, at + 0.42);
+    sound(tl, at + 0.1, () => sfx.paper());
+    sound(tl, at + 0.42, () => sfx.tick({ pitch: 0.6 }));
+    sound(tl, at + 0.35, () => sfx.scribble({ duration: 0.5 }));
     const note = root.querySelector(".sticky-note");
-    if (note) tl.from(note, { scale: 1.5, rotation: 16, opacity: 0, duration: 0.45, ease: "back.out(2.5)", immediateRender: false }, at + 0.5);
+    if (note) {
+      tl.from(note, { scale: 1.5, rotation: 16, opacity: 0, duration: 0.45, ease: "back.out(2.5)", immediateRender: false }, at + 0.5);
+      sound(tl, at + 0.55, () => sfx.slap());
+    }
     tl.from(root.querySelectorAll(".paper-btn"), { y: 20, opacity: 0, duration: 0.3, stagger: 0.08, immediateRender: false }, at + 0.7);
   },
   challenge(tl, at, root) {
     tl.from(root.querySelectorAll(".stage-h, .lead"), { x: -18, opacity: 0, duration: 0.3, stagger: 0.06, immediateRender: false }, at)
       .from(root.querySelector(".marker"), { scale: 0, rotation: -20, duration: 0.4, ease: "back.out(3)", immediateRender: false }, at + 0.25);
+    sound(tl, at + 0.25, () => sfx.scribble({ duration: 0.35 }));
     root.querySelectorAll(".issue").forEach((card, i) => {
       const t = at + 0.2 + i * 0.28;
+      sound(tl, t + 0.3, () => sfx.slap());
+      sound(tl, t + 0.56, () => sfx.stamp());
       // Slapped down on the desk, each one jolting the stack
       tl.fromTo(
         card,
@@ -348,6 +399,10 @@ const ENTER = {
       .from(root.querySelectorAll(".flow-node"), { scale: 0, duration: 0.3, stagger: 0.05, ease: "back.out(2.5)", immediateRender: false }, at + 0.5)
       .from(root.querySelectorAll(".flow-arrow"), { scale: 0, duration: 0.25, stagger: 0.08, ease: "power2.out", immediateRender: false }, at + 0.8)
       .from(root.querySelectorAll(".bp-notes span"), { y: 14, opacity: 0, stagger: 0.12, duration: 0.3, immediateRender: false }, at + 1.3);
+    sound(tl, at + 0.1, () => sfx.rustle({ duration: 0.5 }));
+    root.querySelectorAll(".flow-node").forEach((_, i) => {
+      if (i % 2 === 0) sound(tl, at + 0.55 + i * 0.05, () => sfx.pop({ pitch: 0.9 + i * 0.05 }));
+    });
     // A packet of data hops along the first flow and lights up its key node
     const firstRow = root.querySelector('.flow-row[data-row="0"]');
     if (!firstRow) return;
@@ -356,20 +411,25 @@ const ENTER = {
     const hops = pingAt >= 0 ? nodes.slice(0, pingAt) : nodes;
     hops.forEach((node, i) => {
       tl.fromTo(node, { backgroundColor: "#ffdd00", color: "#000" }, { backgroundColor: "rgba(255,255,255,0)", color: "#fff", duration: 0.35, ease: "power1.in", clearProps: "backgroundColor,color" }, at + 1.6 + i * 0.22);
+      sound(tl, at + 1.6 + i * 0.22, () => sfx.tick({ pitch: 0.8 + i * 0.12 }));
     });
     if (pingAt < 0) return;
     const ping = nodes[pingAt];
     const t = at + 1.6 + hops.length * 0.22;
     tl.fromTo(ping, { backgroundColor: "rgba(37,211,102,0)" }, { backgroundColor: "#25d366", duration: 0.15, repeat: 3, yoyo: true, clearProps: "backgroundColor" }, t)
       .fromTo(ping.querySelector(".bp-ping"), { opacity: 0, y: 10, scale: 0.6 }, { opacity: 1, y: 0, scale: 1, duration: 0.35, ease: "back.out(3)" }, t);
+    sound(tl, t, () => sfx.ping());
   },
   features(tl, at, root) {
     // Printed out of the slot line by line, then each item gets ticked
     tl.fromTo(root.querySelector(".receipt"), { clipPath: "inset(0 0 100% 0)", y: -40 }, { clipPath: "inset(0 0 -20px 0)", y: 0, duration: 1.1, ease: "steps(18)", clearProps: "clipPath,transform" }, at)
       .fromTo(root.querySelector(".printer span"), { scaleX: 1 }, { keyframes: { scaleX: [1, 0.6, 1, 0.6, 1] }, duration: 1.1, ease: "none" }, at);
+    sound(tl, at, () => sfx.printer({ duration: 1.1, steps: 18 }));
     root.querySelectorAll(".rc-item em").forEach((em, i) => {
       tl.fromTo(em, { scale: 0, rotation: -30 }, { scale: 1, rotation: 0, duration: 0.25, ease: "back.out(3)" }, at + 1.1 + i * 0.09);
+      sound(tl, at + 1.1 + i * 0.09, () => sfx.tick({ pitch: 1 + i * 0.06 }));
     });
+    sound(tl, at + 1.9, () => sfx.pop({ pitch: 1.3 }));
     tl.fromTo(root.querySelector(".rc-total b"), { scale: 1.6, color: "#d6336c" }, { scale: 1, color: "#111", duration: 0.4, ease: "back.out(2)", clearProps: "color,transform" }, at + 1.9);
   },
   results(tl, at, root) {
@@ -378,7 +438,11 @@ const ENTER = {
       const t = at + 0.1 + i * 0.2;
       tl.fromTo(card, { y: -220, rotation: i % 2 ? -20 : 20, opacity: 0 }, { y: 0, rotation: tilt(card), opacity: 1, duration: 0.55, ease: "bounce.out" }, t)
         .fromTo(card.querySelector(".tape"), { scaleX: 0 }, { scaleX: 1, duration: 0.2, ease: "power2.out" }, t + 0.45);
+      sound(tl, t + 0.2, () => sfx.thud({ strength: 0.55 }));
+      sound(tl, t + 0.45, () => sfx.paper());
     });
+    // Counter ticks speed up and rise in pitch, like a scoreboard rolling
+    [0, 0.08, 0.17, 0.27, 0.38, 0.5, 0.64, 0.8].forEach((d, i) => sound(tl, at + 0.7 + d, () => sfx.tick({ pitch: 0.7 + i * 0.08 })));
     // Numbers count up; words flicker on like a neon sign
     root.querySelectorAll("[data-to]").forEach((b) => {
       const to = Number(b.dataset.to);
@@ -389,7 +453,10 @@ const ENTER = {
     });
     root.querySelectorAll("[data-word]").forEach((b) => {
       tl.fromTo(b, { opacity: 0 }, { keyframes: { opacity: [0, 1, 0.2, 1, 0.4, 1] }, duration: 0.6, ease: "none" }, at + 0.9);
+      [0, 0.2, 0.4].forEach((d) => sound(tl, at + 0.9 + d, () => sfx.blip()));
     });
+    sound(tl, at + 1.2, () => sfx.paper());
+    sound(tl, at + 1.93, () => sfx.stamp());
     tl.from(root.querySelector(".learned"), { y: 30, rotation: 3, opacity: 0, duration: 0.4, ease: "back.out(2)", immediateRender: false }, at + 1.2)
       .fromTo(root.querySelector(".verified"), { scale: 3, rotation: -35, opacity: 0 }, { scale: 1, rotation: -9, opacity: 1, duration: 0.25, ease: "power4.in" }, at + 1.7);
     shake(tl, at + 1.95);
@@ -404,13 +471,21 @@ const enter = (key, tl = gsap.timeline(), at = 0) => {
 // Cover swings open and the file gets filled in (folder already on the desk, cover closed)
 const openFile = (tl) => {
   const vals = sheetRef.value.querySelectorAll(".val");
-  tl.to(coverRef.value, { rotationY: -168, duration: 0.85, ease: "power2.inOut" }, "+=0.2")
+  const tCover = tl.duration() + 0.2;
+  tl.to(coverRef.value, { rotationY: -168, duration: 0.85, ease: "power2.inOut" }, tCover)
     .to(coverRef.value, { autoAlpha: 0, duration: 0.15 }, "-=0.15")
-    .from(sheetRef.value, { y: 30, duration: 0.5, ease: "back.out(2)", clearProps: "transform" }, "-=0.5")
-    .fromTo(titleRef.value, { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.5, ease: "steps(11)", clearProps: "clipPath" }, "-=0.25")
-    // Form values are "handwritten" left to right, one after another
-    .fromTo(vals, { clipPath: "inset(0 100% -30% 0)" }, { clipPath: "inset(0 0% -30% 0)", duration: 0.45, stagger: 0.2, ease: "power1.inOut", clearProps: "clipPath" })
-    .fromTo(stampRef.value, { scale: 3.2, rotation: -30, opacity: 0 }, { scale: 1, rotation: 8, opacity: 0.85, duration: 0.28, ease: "power4.in", clearProps: "transform,opacity" }, "-=0.3");
+    .from(sheetRef.value, { y: 30, duration: 0.5, ease: "back.out(2)", clearProps: "transform" }, "-=0.5");
+  sound(tl, tCover, () => sfx.rustle({ duration: 0.8 }));
+  const tTitle = tl.duration() - 0.25;
+  tl.fromTo(titleRef.value, { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.5, ease: "steps(11)", clearProps: "clipPath" }, tTitle);
+  sound(tl, tTitle, () => sfx.printer({ duration: 0.5, steps: 11 }));
+  // Form values are "handwritten" left to right, one after another
+  const tVals = tl.duration();
+  tl.fromTo(vals, { clipPath: "inset(0 100% -30% 0)" }, { clipPath: "inset(0 0% -30% 0)", duration: 0.45, stagger: 0.2, ease: "power1.inOut", clearProps: "clipPath" }, tVals);
+  vals.forEach((_, i) => sound(tl, tVals + i * 0.2, () => sfx.scribble({ duration: 0.4 })));
+  const tStamp = tl.duration() - 0.3;
+  tl.fromTo(stampRef.value, { scale: 3.2, rotation: -30, opacity: 0 }, { scale: 1, rotation: 8, opacity: 0.85, duration: 0.28, ease: "power4.in", clearProps: "transform,opacity" }, tStamp);
+  sound(tl, tStamp + 0.26, () => sfx.stamp());
   shake(tl, ">");
   enter("overview", tl, tl.duration() - 1.2);
   return tl;
@@ -421,6 +496,7 @@ const playIntro = () => {
   gsap.set(coverRef.value, { rotationY: 0, autoAlpha: 1 });
   const tl = (mainTl = gsap.timeline());
   tl.from(folderRef.value, { y: -180, rotation: -7, opacity: 0, duration: 0.5, ease: "power3.in", clearProps: "transform,opacity" }).to(folderRef.value, thud);
+  sound(tl, 0.48, () => sfx.thud());
   openFile(tl);
 };
 
@@ -444,44 +520,54 @@ const switchTab = (key) => {
     .add(async () => {
       tab.value = key;
       await nextTick();
+      resetStageScroll();
       enterTl = enter(key, gsap.timeline({ delay: 0.4 }));
     }, 0.05)
     .to(pages, { rotationX: dir > 0 ? -100 : 100, y: dir > 0 ? -20 : 20, duration: 0.26, stagger: 0.07, ease: "power2.in" }, 0.05)
     .set(pages, { opacity: 0 }, ">")
     .fromTo(sheetRef.value, { y: 6 * dir, scale: 0.985 }, { y: 0, scale: 1, duration: 0.3, ease: "back.out(3)", clearProps: "transform" }, 0.45)
     .add(() => (busy = false), 0.6);
+  sound(tl, 0, () => sfx.click());
+  pages.forEach((_, i) => sound(tl, 0.12 + i * 0.07, () => sfx.paper()));
 };
 
 // ---------- next project: close the file, put it away, the next one slides in and opens ----------
 const switchProject = (next) => {
   if (!next || next === shown.value) return;
+  const dir = navDir || (projects.indexOf(next) > projects.indexOf(shown.value) ? 1 : -1);
+  navDir = 0;
   if (reduced || !folderRef.value) {
+    window.scrollTo(0, 0);
     shown.value = next;
     tab.value = "overview";
     return;
   }
   busy = true;
   settle();
-  const dir = projects.indexOf(next) > projects.indexOf(shown.value) ? 1 : -1;
+  // Bring the whole folder into view while the old file is put away
+  window.scrollTo({ top: 0, behavior: "smooth" });
   const folder = folderRef.value;
-  const nextCard = nextRef.value.$el;
   const tl = (mainTl = gsap.timeline());
-  tl.to(nextCard, { y: 30, opacity: 0, duration: 0.3, ease: "power2.in" }, 0)
-    .set(coverRef.value, { autoAlpha: 1 }, 0.2)
+  tl.set(coverRef.value, { autoAlpha: 1 }, 0.2)
     // The cover swings shut over the current file
     .to(coverRef.value, { rotationY: 0, duration: 0.6, ease: "power2.inOut" }, 0.2)
     .to(folder, { keyframes: { scaleY: [0.98, 1] }, duration: 0.15, clearProps: "transform" }, 0.8)
     // Filed away, like going back into the cabinet
-    .to(folder, { x: `${-115 * dir}vw`, y: 40, rotation: -10 * dir, duration: 0.55, ease: "power2.in" }, 1)
-    .add(async () => {
+    .to(folder, { x: `${-115 * dir}vw`, y: 40, rotation: -10 * dir, duration: 0.55, ease: "power2.in" }, 1);
+  sound(tl, 0.2, () => sfx.rustle({ duration: 0.6 }));
+  sound(tl, 0.78, () => sfx.thud({ strength: 0.45 }));
+  sound(tl, 1, () => sfx.whoosh({ duration: 0.55 }));
+  tl.add(async () => {
       shown.value = next;
       tab.value = "overview";
       await nextTick();
+      resetStageScroll();
       // The next file arrives from the other side, lands with a thud and opens
       const tl2 = (mainTl = gsap.timeline({ onComplete: () => (busy = false) }));
       tl2.fromTo(folder, { x: `${115 * dir}vw`, y: -30, rotation: 9 * dir }, { x: 0, y: 0, rotation: 0, duration: 0.65, ease: "power3.out" })
-        .to(folder, thud)
-        .fromTo(nextCard, { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, clearProps: "transform,opacity", immediateRender: false }, ">-0.1");
+        .to(folder, thud);
+      sound(tl2, 0, () => sfx.whoosh({ duration: 0.6, up: false }));
+      sound(tl2, 0.62, () => sfx.thud());
       openFile(tl2);
     });
 };
@@ -500,7 +586,25 @@ watch(
   },
 );
 
+// ← / → flip between files (ignored while typing, e.g. in the chatbot)
+const onKey = (e) => {
+  if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || busy || !shown.value) return;
+  if (e.target.closest("input, textarea, select, [contenteditable='true']")) return;
+  const dir = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+  if (!dir) return;
+  markDir(dir);
+  router.push(`/projects/${(dir > 0 ? nextProject : prevProject).value.id}`);
+};
+
 onMounted(() => {
+  // The file should open at the top. ScrollTrigger (used on the home page) remembers the
+  // old scroll position and restores it on its next refresh, so clear that memory too.
+  ScrollTrigger.clearScrollMemory();
+  window.scrollTo(0, 0);
+  window.addEventListener("keydown", onKey);
+  window.addEventListener("resize", fitFolder);
+  // Measure before the intro moves the folder around
+  fitFolder();
   if (!shown.value) return;
   if (reduced) {
     gsap.set(coverRef.value, { autoAlpha: 0 });
@@ -509,7 +613,11 @@ onMounted(() => {
   playIntro();
 });
 
-onBeforeUnmount(settle);
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", onKey);
+  window.removeEventListener("resize", fitFolder);
+  settle();
+});
 </script>
 
 <style scoped>
@@ -662,7 +770,7 @@ onBeforeUnmount(settle);
   opacity: 0.6;
 }
 .file-title {
-  font-size: clamp(2rem, 7vw, 3.6rem);
+  font-size: clamp(2rem, 6vw, 3.2rem);
   line-height: 0.95;
   margin-top: 6px;
   letter-spacing: -0.05em;
@@ -683,9 +791,10 @@ onBeforeUnmount(settle);
 }
 .form-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 14px 24px;
-  margin: 26px 0;
+  /* Two columns even on a phone, four on desktop */
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 14px 16px;
+  margin: 18px 0 22px;
 }
 .field dt {
   font: 700 0.62rem "Space Grotesk", sans-serif;
@@ -717,6 +826,41 @@ onBeforeUnmount(settle);
   font-weight: 500;
   line-height: 1.6;
   margin: 0 0 18px;
+}
+
+/* Desktop: the folder is sized to the screen and long content scrolls inside the sheet */
+@media (min-width: 900px) and (min-height: 600px) {
+  .folder-body {
+    display: flex;
+    height: var(--fit-h, auto);
+  }
+  .sheet-stack {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+  }
+  .sheet {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 24px 32px 0;
+  }
+  .stage {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    /* room for card shadows and the paper-clip, plus space at the end of the scroll */
+    padding: 4px 10px 28px 2px;
+    margin-right: -10px;
+    scrollbar-width: thin;
+    scrollbar-color: #00000055 transparent;
+    /* Fade at the bottom edge hints that the sheet scrolls */
+    -webkit-mask-image: linear-gradient(#000 calc(100% - 36px), transparent);
+    mask-image: linear-gradient(#000 calc(100% - 36px), transparent);
+  }
+  .polaroid {
+    max-width: 250px;
+  }
 }
 
 /* Blank pages for the tab rifle */
@@ -1173,6 +1317,81 @@ onBeforeUnmount(settle);
   list-style: "– ";
   font: 600 1.3rem/28px "Caveat", cursive;
   color: #1d4ed8;
+}
+
+/* ---------- Prev / next file ---------- */
+.file-nav {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 30px;
+}
+.file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+  justify-self: start;
+  padding: 8px 14px;
+  color: #111;
+  background: #fffdf5;
+  border: 2.5px solid #000;
+  box-shadow: 4px 4px 0 var(--color-shadow);
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.file-link-next {
+  justify-self: end;
+  text-align: right;
+}
+.file-link:hover {
+  background: #ffdd00;
+  transform: translate(3px, 3px);
+  box-shadow: 1px 1px 0 var(--color-shadow);
+}
+.file-link small {
+  display: block;
+  font: 700 0.62rem "Space Grotesk", sans-serif;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.file-link b {
+  display: block;
+  font: 800 0.95rem "Lexend Mega", sans-serif;
+  letter-spacing: -0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.file-arrow {
+  font: 800 1.3rem "Lexend Mega", sans-serif;
+}
+.file-count {
+  font: 700 0.7rem "Space Grotesk", sans-serif;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+:global(.dark .file-count) {
+  color: #f4ead5;
+}
+@media (max-width: 639px) {
+  .file-nav {
+    grid-template-columns: 1fr 1fr;
+  }
+  .file-count {
+    display: none;
+  }
+  .file-link {
+    gap: 8px;
+    padding: 7px 10px;
+  }
+  .file-link b {
+    font-size: 0.78rem;
+  }
 }
 
 /* ---------- Next file ---------- */

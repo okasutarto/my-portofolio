@@ -506,7 +506,7 @@ const openFromWait = () => {
 };
 const stopWaiting = () => {
   waitingToOpen.value = false;
-  window.removeEventListener("pointerdown", openFromWait);
+  window.removeEventListener("click", openFromWait);
   window.removeEventListener("keydown", openFromWait);
 };
 
@@ -523,7 +523,8 @@ const playIntro = () => {
   }
   tl.add(() => {
     waitingToOpen.value = true;
-    window.addEventListener("pointerdown", openFromWait);
+    // click (not pointerdown): it's the gesture Safari accepts for starting audio
+    window.addEventListener("click", openFromWait);
     window.addEventListener("keydown", openFromWait);
   });
 };

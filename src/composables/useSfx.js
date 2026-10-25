@@ -41,7 +41,9 @@ const unlock = () => {
   if (!ctx) createContext();
   if (ctx && ctx.state === "suspended") ctx.resume();
 };
-["pointerdown", "keydown", "touchstart"].forEach((ev) =>
+// Safari only lets audio start from click/touchend/key events (not pointerdown), so listen
+// to all of them; Chrome is happy with the earliest one
+["pointerdown", "pointerup", "click", "touchend", "keydown"].forEach((ev) =>
   window.addEventListener(ev, unlock, { capture: true, passive: true }),
 );
 

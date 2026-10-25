@@ -18,7 +18,7 @@
       </div>
 
       <!-- Boarding passes, newest first -->
-      <div class="flex flex-col gap-7">
+      <div class="relative flex flex-col gap-7">
         <article
           v-for="ticket in tickets"
           :key="ticket.id"
@@ -273,8 +273,11 @@ onMounted(() => {
   ctx = gsap.context(() => {
     // Each ticket is dealt when it scrolls into view, so motion and sound match what's on screen
     gsap.utils.toArray(".ticket").forEach((ticket, i) => {
+      // Measure from the list + offsetTop: the ticket itself starts rotated and offset,
+      // which would make its own box trigger the animation too early
+      const list = ticket.parentElement;
       const tl = gsap.timeline({
-        scrollTrigger: { trigger: ticket, start: "top 85%" },
+        scrollTrigger: { trigger: list, start: () => `top+=${ticket.offsetTop} 85%` },
       });
       const at = 0;
       const fromRight = i % 2 === 0;

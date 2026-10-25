@@ -13,66 +13,94 @@
           Oka Sutarto Putra, Full Stack Developer &amp; Mobile Engineer
         </h1>
 
-        <span
-          class="hero-in inline-flex items-center gap-2.5 bg-white dark:bg-surface-dark border-2 border-black dark:border-[#f4ead5] shadow-neo-sm px-3.5 py-1.5 font-bold text-sm md:text-base text-black dark:text-white"
-          :class="{ show: shown.status }">
-          <i class="live-dot"></i> Now: Mobile Engineer @ Dusitek
-        </span>
+        <!-- Live status: what Oka is up to, and the time in Pontianak -->
+        <div class="hero-in status" :class="{ show: shown.status }">
+          <span class="status-now">
+            <i class="live-dot"></i>
+            <span class="ticker">
+              <span
+                v-for="(status, i) in STATUSES"
+                :key="status"
+                :class="{ on: i === statusIndex, gone: i === prevStatus }"
+                :aria-hidden="i !== statusIndex">
+                {{ status }}
+              </span>
+            </span>
+          </span>
+          <span class="status-clock" :title="`Local time in Pontianak`">
+            <i class="far fa-clock"></i>{{ clock.h }}<span class="colon">:</span>{{ clock.m }} WIB
+          </span>
+        </div>
 
+        <!-- Headline: words land one by one, "complex" gets scribbled out, the code gets shipped -->
         <p
           class="headline font-body font-bold text-black dark:text-white mx-auto lg:mx-0"
           :class="{ show: shown.headline }">
-          <template v-for="(word, index) in headlineWords" :key="index">
-            <span class="word"
-              ><span :class="{ hl: word.highlight }">{{ word.text }}</span></span
-            >{{ " " }}
-          </template>
+          <span class="w" style="--i: 0">Turning</span>{{ " " }}
+          <span class="w scribbled" style="--i: 1"
+            >complex<svg class="scribble" viewBox="0 0 300 100" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M6 60 C 40 20, 70 85, 105 45 S 160 15, 190 60 S 250 85, 294 35 M 20 80 C 80 40, 140 90, 200 50 S 270 30, 290 70" />
+            </svg>
+            <span class="scribble-note" aria-hidden="true">not anymore</span></span
+          >{{ " " }}
+          <span class="w" style="--i: 2">problems</span>{{ " " }}
+          <span class="w" style="--i: 3">into</span>{{ " " }}
+          <span class="w code" style="--i: 4"
+            ><span class="hl">elegant&nbsp;code.</span><i class="caret" aria-hidden="true"></i
+            ><span class="code-tag" aria-hidden="true">&lt;/&gt; ship it</span></span
+          >
         </p>
 
-        <!-- Terminal card -->
+        <!-- Terminal: really takes commands (help, projects, sudo hire-oka, ...) -->
         <div
-          class="hero-in terminal bg-[#111] dark:bg-[#0d0b09] max-w-[470px] mx-auto lg:mx-0 text-left border-2 border-black dark:border-[#f4ead5] shadow-[6px_6px_0_var(--color-secondary)]"
+          class="hero-in terminal bg-[#111] dark:bg-[#0d0b09] max-w-[520px] mx-auto lg:mx-0 text-left border-2 border-black dark:border-[#f4ead5] shadow-[6px_6px_0_var(--color-secondary)]"
           :class="{ show: shown.terminal }"
-          aria-label="Roles and current focus">
+          @click="focusTerminal">
           <div
             class="flex items-center gap-[7px] px-3 py-2 border-b-2 border-black dark:border-[#f4ead5] bg-white dark:bg-surface-dark text-black dark:text-white text-xs font-bold">
             <i class="term-dot bg-accent-pink"></i>
             <i class="term-dot bg-neo-yellow"></i>
             <i class="term-dot bg-secondary"></i>
             <span class="ml-2 opacity-70">oka@portfolio: ~</span>
+            <span class="ml-auto opacity-55 font-semibold">try typing ↓</span>
           </div>
-          <div class="terminal-body">
-            <template v-for="(line, index) in termLines" :key="index">
-              <span :class="line.prompt ? 'text-primary' : 'text-secondary'">{{
-                line.prompt ? "$" : ">"
-              }}</span>
-              {{ line.text
-              }}<span v-if="line.caret" class="hero-caret">▌</span>{{ "\n" }}
-            </template>
+          <div ref="termBodyRef" class="terminal-body" role="log" aria-live="polite">
+            <p v-for="(line, index) in termLines" :key="index">
+              <span v-for="(seg, j) in line" :key="j" :class="seg.c">{{ seg.t }}</span>
+            </p>
+            <label class="term-input">
+              <span class="text-primary">$</span>
+              <input
+                ref="termInputRef"
+                v-model="termInput"
+                type="text"
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+                aria-label="Terminal: type a command, for example help"
+                @keydown="onTermKey" />
+            </label>
           </div>
         </div>
 
+        <!-- Buttons as keycaps -->
         <div
-          class="hero-in flex flex-col sm:flex-row gap-5 justify-center lg:justify-start mt-8"
+          class="hero-in flex flex-col sm:flex-row gap-5 justify-center lg:justify-start mt-9"
           :class="{ show: shown.ctas }">
-          <a
-            class="group inline-flex items-center justify-center gap-3 px-7 py-4 text-base font-bold text-black bg-primary border-2 border-black dark:border-[#f4ead5] font-display uppercase shadow-neo hover:shadow-none hover:translate-x-[5px] hover:translate-y-[5px] transition-all"
-            href="#projects">
+          <a class="keycap" href="#projects" @click="sfx.key()">
+            <small aria-hidden="true">↵</small>
             View my work
-            <i
-              class="fas fa-arrow-right group-hover:translate-x-1 group-hover:-rotate-12 transition-transform"></i>
+            <i class="fas fa-arrow-right"></i>
           </a>
-          <a
-            class="group inline-flex items-center justify-center gap-3 px-7 py-4 text-base font-bold text-black bg-white border-2 border-black dark:border-[#f4ead5] font-display uppercase shadow-neo hover:shadow-none hover:translate-x-[5px] hover:translate-y-[5px] transition-all"
-            href="#contact">
+          <a class="keycap keycap-light" href="#contact" @click="sfx.key()">
+            <small aria-hidden="true">⌘K</small>
             Get in touch
-            <i
-              class="fas fa-paper-plane group-hover:translate-x-1 group-hover:-rotate-12 transition-transform"></i>
+            <i class="fas fa-paper-plane"></i>
           </a>
         </div>
 
         <div
-          class="hero-in flex flex-wrap gap-3.5 items-center justify-center lg:justify-start mt-7"
+          class="hero-in flex flex-wrap gap-3.5 items-center justify-center lg:justify-start mt-8"
           :class="{ show: shown.socials }">
           <span
             class="font-bold text-xs uppercase tracking-[0.15em] text-black/70 dark:text-white/70 mr-1"
@@ -84,9 +112,10 @@
             target="_blank"
             rel="noopener noreferrer"
             :aria-label="social.label"
-            class="w-12 h-12 flex items-center justify-center border-2 border-black dark:border-[#f4ead5] bg-white dark:bg-surface-dark text-black dark:text-white shadow-neo-sm hover:translate-x-[3px] hover:translate-y-[3px] hover:-rotate-6 hover:shadow-none hover:bg-primary hover:text-black dark:hover:bg-primary dark:hover:text-black transition-all"
-            :href="social.link">
-            <i :class="['fab', social.icon, 'text-xl']"></i>
+            class="keycap keycap-sm"
+            :href="social.link"
+            @click="sfx.key()">
+            <i :class="['fab', social.icon]"></i>
           </a>
         </div>
       </div>
@@ -142,7 +171,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from "vue";
+import { ref, reactive, nextTick, onMounted, onUnmounted } from "vue";
+import { sfx } from "@/composables/useSfx";
+import { projects } from "@/data/projects";
 
 const socials = [
   { icon: "fa-github", label: "GitHub", link: "https://github.com/okasutarto" },
@@ -159,21 +190,19 @@ const socials = [
   { icon: "fa-tiktok", label: "TikTok", link: "https://tiktok.com/@okasp.dev" },
 ];
 
-const headlineWords = [
-  { text: "Turning" },
-  { text: "complex" },
-  { text: "problems" },
-  { text: "into" },
-  { text: "elegant code.", highlight: true },
-];
-
-const roles = ["Full Stack Developer", "Mobile Engineer", "AI Enthusiast"];
+const STATUSES = ["Now: Mobile Engineer @ Dusitek", "Shipping Flutter apps", "Open to a chat ☕", "Based in Pontianak, ID"];
 const GREETING = "Hi there, I'm Oka! ";
 
 const heroRef = ref(null);
 const stageRef = ref(null);
 const portraitRef = ref(null);
 const termLines = ref([]);
+const termInput = ref("");
+const termBodyRef = ref(null);
+const termInputRef = ref(null);
+const statusIndex = ref(0);
+const prevStatus = ref(-1);
+const clock = reactive({ h: "--", m: "--" });
 const bubbleText = ref("");
 const bubbleDone = ref(false);
 const shown = reactive({
@@ -198,44 +227,130 @@ const reducedMotion = window.matchMedia(
 const wait = (ms) =>
   new Promise((resolve) => setTimeout(resolve, reducedMotion ? 0 : ms));
 
-const typeInto = async (setter, text, speed = 38) => {
-  for (let i = 1; i <= text.length && alive; i++) {
-    setter(text.slice(0, i));
-    await wait(speed);
-  }
+// ---------- status chip: rotating status line + Pontianak clock ----------
+const pad = (n) => String(n).padStart(2, "0");
+const tickClock = () => {
+  const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Pontianak" }));
+  clock.h = pad(now.getHours());
+  clock.m = pad(now.getMinutes());
+};
+const nextStatus = () => {
+  prevStatus.value = statusIndex.value;
+  statusIndex.value = (statusIndex.value + 1) % STATUSES.length;
 };
 
-// Terminal: types `whoami` and `focus --now`, then keeps cycling the role line
-const runTerminal = async () => {
-  const lines = termLines.value;
-  lines.push({ prompt: true, text: "" });
-  await typeInto((t) => (lines[0].text = t), "whoami");
-  lines.push({ prompt: false, text: "", caret: true });
-  await typeInto((t) => (lines[1].text = t), roles[0]);
-  await wait(300);
-  lines.push({ prompt: true, text: "" });
-  await typeInto((t) => (lines[2].text = t), "focus --now");
-  lines.push({ prompt: false, text: "AI · Web · Mobile" });
+// ---------- terminal: a tiny shell that takes real commands ----------
+// Each line is a list of segments: { t: text, c: class }
+const say = (...segs) => {
+  termLines.value.push(segs.map((seg) => (typeof seg === "string" ? { t: seg } : seg)));
+  nextTick(() => termBodyRef.value && (termBodyRef.value.scrollTop = termBodyRef.value.scrollHeight));
+};
+const out = (text) => say({ t: "> ", c: "text-secondary" }, text);
+const note = (text) => say({ t: text, c: "dim" });
+const goTo = (id) => setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" }), 700);
 
-  let roleIndex = 0;
-  while (alive && !reducedMotion) {
-    await wait(2200);
-    for (let n = lines[1].text.length; n >= 0 && alive; n--) {
-      lines[1].text = lines[1].text.slice(0, n);
-      await wait(22);
-    }
-    roleIndex = (roleIndex + 1) % roles.length;
-    await typeInto((t) => (lines[1].text = t), roles[roleIndex], 60);
+const COMMANDS = {
+  help: () => {
+    say({ t: "commands ", c: "text-secondary" }, "whoami · about · experience · skills · projects · contact · sudo hire-oka · clear");
+  },
+  whoami: () => out("Oka Sutarto Putra, Mobile Engineer @ Dusitek"),
+  about: () => {
+    out("4+ years building web & mobile. Flutter by day, Vue at heart.");
+    note("→ scrolling to About…");
+    goTo("about");
+  },
+  experience: () => {
+    out("Dusitek · Jublia · and a few more stops along the way");
+    note("→ scrolling to the timeline…");
+    goTo("experience");
+  },
+  skills: () => out("Flutter · Dart · Vue · Node.js · PostgreSQL · OpenAI"),
+  projects: () => {
+    projects.forEach((p, i) => say({ t: `${pad(i + 1)} `, c: "text-secondary" }, p.title));
+    note("→ scrolling to Projects…");
+    goTo("projects");
+  },
+  contact: () => {
+    out("okasputra@gmail.com");
+    note("→ opening the postcard…");
+    goTo("contact");
+  },
+  "sudo hire-oka": () => {
+    note("[sudo] password for recruiter: ********");
+    setTimeout(() => {
+      say({ t: "ACCESS GRANTED ✓", c: "granted" });
+      sfx.stamp();
+    }, 450);
+    setTimeout(() => {
+      note("→ opening the postcard…");
+      goTo("contact");
+    }, 900);
+  },
+  clear: () => {
+    termLines.value = [];
+  },
+};
+
+const history = [];
+let historyIndex = -1;
+const runCommand = (raw) => {
+  const cmd = raw.trim().toLowerCase().replace(/\s+/g, " ");
+  say({ t: "$ ", c: "text-primary" }, raw);
+  if (!cmd) return;
+  history.unshift(cmd);
+  historyIndex = -1;
+  const command = COMMANDS[cmd];
+  if (command) command();
+  else {
+    say({ t: `command not found: ${cmd}`, c: "err" }, { t: " · try 'help'", c: "dim" });
+    sfx.buzz();
   }
+};
+const onTermKey = (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    sfx.key();
+    runCommand(termInput.value);
+    termInput.value = "";
+  } else if (e.key === "ArrowUp" && history.length) {
+    e.preventDefault();
+    historyIndex = Math.min(historyIndex + 1, history.length - 1);
+    termInput.value = history[historyIndex];
+  } else if (e.key === "ArrowDown") {
+    e.preventDefault();
+    historyIndex = Math.max(historyIndex - 1, -1);
+    termInput.value = historyIndex < 0 ? "" : history[historyIndex];
+  } else if (e.key.length === 1 || e.key === "Backspace") {
+    sfx.key();
+  }
+};
+// Clicking anywhere on the terminal puts the cursor in the prompt (unless selecting text)
+const focusTerminal = () => {
+  if (!window.getSelection()?.toString()) termInputRef.value?.focus({ preventScroll: true });
+};
+
+// Boot: "types" whoami at the prompt like someone at the keyboard, then hints that it's live
+const bootTerminal = async () => {
+  for (const ch of "whoami") {
+    if (!alive) return;
+    termInput.value += ch;
+    sfx.key();
+    await wait(70);
+  }
+  await wait(160);
+  runCommand(termInput.value);
+  termInput.value = "";
+  await wait(350);
+  say({ t: "psst… this terminal works. type ", c: "dim" }, { t: "help", c: "text-primary" }, { t: " ↵", c: "dim" });
 };
 
 const introContent = async () => {
   shown.status = true;
   await wait(150);
   shown.headline = true;
-  await wait(700);
+  await wait(900);
   shown.terminal = true;
-  runTerminal();
+  bootTerminal();
   await wait(250);
   shown.ctas = true;
   await wait(150);
@@ -249,14 +364,17 @@ const introPortrait = async () => {
   shown.frame = true;
   await wait(550);
   shown.photo = true;
+  sfx.whoosh({ duration: 0.45, up: false });
   await wait(850);
-  shown.bubble = true;
-  // The portrait gets the spotlight first; the rest of the hero follows once Oka says hi
-  introContent();
-  await wait(250);
-  await typeInto((t) => (bubbleText.value = t), GREETING, 50);
+  // Oka says hi (the whole line at once), then the rest of the hero follows
+  bubbleText.value = GREETING;
   bubbleDone.value = true;
+  shown.bubble = true;
+  sfx.whoosh({ duration: 0.35 });
+  await wait(450);
   shown.years = true;
+  await wait(200);
+  introContent();
 };
 
 // Portrait tilts toward the cursor
@@ -291,8 +409,12 @@ const loadScene = async () => {
   });
 };
 
+let timers = [];
 onMounted(() => {
   introPortrait();
+  tickClock();
+  timers.push(setInterval(tickClock, 10000));
+  if (!reducedMotion) timers.push(setInterval(nextStatus, 3200));
 
   if (!reducedMotion) {
     heroRef.value.addEventListener("mousemove", onMouseMove);
@@ -306,6 +428,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   alive = false;
+  timers.forEach(clearInterval);
   if (heroScene) heroScene.destroy();
   if (heroRef.value) {
     heroRef.value.removeEventListener("mousemove", onMouseMove);
@@ -345,12 +468,78 @@ onUnmounted(() => {
   }
 }
 
+/* ---------- Status chip ---------- */
+.status {
+  display: inline-flex;
+  align-items: stretch;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #111;
+  background: #fff;
+  border: 2.5px solid #000;
+  box-shadow: 4px 4px 0 var(--color-shadow);
+}
+:global(.dark .status) {
+  color: #fff;
+  background: var(--color-surface-dark, #241f1a);
+  border-color: #f4ead5;
+}
+.status-now {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+}
+/* All statuses share one grid cell, so the chip is always as wide as the longest */
+.ticker {
+  display: grid;
+  perspective: 300px;
+  text-align: left;
+}
+.ticker > span {
+  grid-area: 1 / 1;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(70%) rotateX(-70deg);
+  transition:
+    transform 0.45s cubic-bezier(0.34, 1.5, 0.64, 1),
+    opacity 0.3s;
+}
+.ticker > span.gone {
+  transform: translateY(-70%) rotateX(70deg);
+}
+.ticker > span.on {
+  opacity: 1;
+  transform: none;
+}
+.status-clock {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-left: 2.5px solid #000;
+  background: #111;
+  color: #fff;
+  font: 700 0.85rem ui-monospace, "SF Mono", Menlo, monospace;
+}
+.status-clock i {
+  color: var(--color-primary);
+}
+.status-clock .colon {
+  animation: blink 1s steps(1) infinite;
+}
+@media (min-width: 640px) {
+  .status-clock {
+    display: flex;
+  }
+}
+
 /* ---------- Headline ---------- */
 .headline {
   font-size: clamp(2.1rem, 10vw, 3rem);
   line-height: 1.08;
-  letter-spacing: -0.03em;
-  margin: 24px auto 30px;
+  letter-spacing: -0.035em;
+  margin: 26px auto 30px;
   max-width: 15ch;
 }
 @media (min-width: 1024px) {
@@ -359,37 +548,133 @@ onUnmounted(() => {
     margin-inline: 0;
   }
 }
-/* Words slide up from a mask; clip only the bottom so the highlighter can overflow */
-.word {
+/* Words land one after another like stickers */
+.w {
   display: inline-block;
-  vertical-align: top;
-  padding: 0 0.02em 0.08em;
-  clip-path: inset(-60% -30% -0.25em -30%);
+  opacity: 0;
+  transform: translateY(40px) rotate(6deg) scale(0.9);
+  transform-origin: 0 100%;
 }
-.word > span {
-  display: inline-block;
-  transform: translateY(135%);
-  transition: transform 0.7s cubic-bezier(0.22, 1.2, 0.36, 1);
+.headline.show .w {
+  animation: word-in 0.55s cubic-bezier(0.34, 1.6, 0.64, 1) forwards;
+  animation-delay: calc(var(--i) * 0.11s);
 }
-.headline.show .word > span {
-  transform: none;
+@keyframes word-in {
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
-/* Highlighter stroke draws in from the left after the words land */
-.word > .hl {
+/* "complex" gets scribbled out with a red marker, with a note above */
+.scribbled {
+  position: relative;
+}
+.scribble {
+  position: absolute;
+  left: -4%;
+  top: 10%;
+  width: 108%;
+  height: 82%;
+  overflow: visible;
+  pointer-events: none;
+}
+.scribble path {
+  fill: none;
+  stroke: #ef4444;
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 1200;
+}
+.headline.show .scribble path {
+  animation: scribble 0.8s 1.2s ease-in-out forwards;
+}
+@keyframes scribble {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.scribble-note {
+  position: absolute;
+  left: 8%;
+  top: -0.6em;
+  font: 600 0.36em "Caveat", cursive;
+  letter-spacing: 0;
+  color: #ef4444;
+  white-space: nowrap;
+  opacity: 0;
+  transform: rotate(-6deg) scale(0.4);
+}
+.headline.show .scribble-note {
+  animation: note-in 0.4s 1.9s cubic-bezier(0.34, 1.8, 0.64, 1) forwards;
+}
+@keyframes note-in {
+  to {
+    opacity: 1;
+    transform: rotate(-6deg) scale(1);
+  }
+}
+/* "elegant code." gets highlighted, a blinking caret and a "ship it" tag */
+.code {
+  position: relative;
+}
+.code .hl {
   padding: 0 0.04em;
-  background: linear-gradient(var(--color-primary), var(--color-primary))
-    no-repeat 0 88% / 0% 36%;
-  transition:
-    transform 0.7s cubic-bezier(0.22, 1.2, 0.36, 1),
-    background-size 0.7s 1.1s cubic-bezier(0.6, 0, 0.2, 1);
+  background: linear-gradient(var(--color-primary), var(--color-primary)) no-repeat 0 88% / 0% 36%;
 }
-.headline.show .word > .hl {
-  background-size: 100% 36%;
+.headline.show .code .hl {
+  animation: highlight 0.6s 1.7s cubic-bezier(0.6, 0, 0.2, 1) forwards;
+}
+@keyframes highlight {
+  to {
+    background-size: 100% 36%;
+  }
+}
+.caret {
+  display: inline-block;
+  width: 0.08em;
+  height: 0.82em;
+  margin-left: 0.05em;
+  vertical-align: -0.06em;
+  background: currentColor;
+  animation: blink 1s steps(1) infinite;
+}
+.code-tag {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: 0.3em;
+  margin-left: 0.45em;
+  white-space: nowrap;
+  font: 700 0.22em ui-monospace, "SF Mono", Menlo, monospace;
+  letter-spacing: 0;
+  color: var(--color-secondary);
+  background: #111;
+  border: 2px solid #000;
+  padding: 3px 8px;
+  opacity: 0;
+  transform: rotate(4deg) scale(0.3);
+}
+@media (min-width: 1024px) {
+  .code-tag {
+    display: block;
+  }
+}
+.headline.show .code-tag {
+  animation: tag-in 0.4s 2.3s cubic-bezier(0.34, 1.8, 0.64, 1) forwards;
+}
+@keyframes tag-in {
+  to {
+    opacity: 1;
+    transform: rotate(4deg) scale(1);
+  }
 }
 
 /* ---------- Terminal ---------- */
 .terminal {
   color: #f4ead5;
+  cursor: text;
 }
 .term-dot {
   width: 11px;
@@ -398,12 +683,137 @@ onUnmounted(() => {
   border: 1.5px solid #000;
 }
 .terminal-body {
-  padding: 14px 18px;
+  height: 9.6em;
+  overflow-y: auto;
+  padding: 12px 16px;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 0.95rem;
-  line-height: 1.75;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  scrollbar-width: thin;
+  scrollbar-color: #444 transparent;
+}
+.terminal-body p {
+  margin: 0;
   white-space: pre-wrap;
-  min-height: 7.4em;
+  overflow-wrap: anywhere;
+}
+.dim {
+  opacity: 0.55;
+}
+.err {
+  color: #ff8a8a;
+}
+.granted {
+  display: inline-block;
+  margin: 4px 0;
+  padding: 1px 10px;
+  border: 2px solid #4ade80;
+  color: #4ade80;
+  font-weight: 700;
+  transform: rotate(-3deg);
+  animation: granted 0.35s cubic-bezier(0.5, 0, 0.75, 0) both;
+}
+@keyframes granted {
+  from {
+    opacity: 0;
+    transform: rotate(-20deg) scale(2.6);
+  }
+}
+.term-input {
+  display: flex;
+  gap: 8px;
+}
+.term-input input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  background: none;
+  border: 0;
+  outline: 0;
+  caret-color: var(--color-primary);
+}
+
+/* ---------- Keycaps ---------- */
+/* Buttons drawn as keyboard keys: a top face, a darker side below it and a hard shadow.
+   Pressing pushes the cap down onto its side. */
+.keycap {
+  --cap: var(--color-primary);
+  --side: #b89a00;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 28px 18px;
+  font: 800 1rem "Lexend Mega", sans-serif;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  color: #111;
+  background: var(--cap);
+  border: 2.5px solid #000;
+  border-radius: 12px;
+  box-shadow:
+    0 8px 0 -2.5px var(--side),
+    0 8px 0 0 #000,
+    6px 14px 0 0 #0003;
+  transition:
+    transform 0.08s,
+    box-shadow 0.08s,
+    background 0.15s;
+  user-select: none;
+}
+/* Shine on the top face */
+.keycap::before {
+  content: "";
+  position: absolute;
+  inset: 5px 7px 9px;
+  border-radius: 8px;
+  background: linear-gradient(#ffffff55, #ffffff00 60%);
+  pointer-events: none;
+}
+.keycap small {
+  position: absolute;
+  top: 5px;
+  right: 10px;
+  font: 700 0.6rem ui-monospace, "SF Mono", Menlo, monospace;
+  letter-spacing: 0;
+  opacity: 0.6;
+}
+.keycap:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 10px 0 -2.5px var(--side),
+    0 10px 0 0 #000,
+    6px 16px 0 0 #0003;
+}
+.keycap:active {
+  transform: translateY(7px);
+  box-shadow:
+    0 1px 0 -2.5px var(--side),
+    0 1px 0 0 #000,
+    2px 4px 0 0 #0003;
+}
+.keycap-light {
+  --cap: #fff;
+  --side: #b9b4a6;
+}
+.keycap-sm {
+  --cap: #fff;
+  --side: #b9b4a6;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  font-size: 1.3rem;
+  border-radius: 10px;
+}
+.keycap-sm:hover {
+  --cap: var(--color-secondary);
+  --side: #00968a;
+}
+.keycap i {
+  position: relative;
 }
 
 /* ---------- Portrait ---------- */
@@ -557,12 +967,26 @@ onUnmounted(() => {
 
 @media (prefers-reduced-motion: reduce) {
   .hero-in,
-  .word > span,
-  .hl,
+  .ticker > span,
   .back-block,
   .frame,
   .years {
     transition: none !important;
+  }
+  .w,
+  .scribble-note,
+  .code-tag {
+    opacity: 1;
+    transform: none;
+    animation: none !important;
+  }
+  .scribble path {
+    stroke-dashoffset: 0;
+    animation: none !important;
+  }
+  .code .hl {
+    background-size: 100% 36%;
+    animation: none !important;
   }
   .photo.up,
   .bubble.pop {

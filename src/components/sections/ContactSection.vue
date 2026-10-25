@@ -181,6 +181,7 @@
 <script setup>
 import { ref, reactive, onMounted, onBeforeUnmount } from "vue";
 import gsap from "gsap";
+import { sfx } from "@/composables/useSfx";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import emailjs from "@emailjs/browser";
 import { EMAILJS_CONFIG } from "@/config/emailjs";
@@ -254,7 +255,10 @@ const validateForm = () => {
 };
 
 const submitForm = async () => {
-  if (!validateForm()) return;
+  if (!validateForm()) {
+    sfx.buzz();
+    return;
+  }
   status.value = "sending";
 
   try {
@@ -272,6 +276,9 @@ const submitForm = async () => {
     );
     posthog.capture("contact_form_sent");
     status.value = "sent";
+    // The card flies off to the mailbox, then gets its "delivered" stamp
+    sfx.whoosh({ duration: 0.6 });
+    sfx.stamp({ delay: 0.7 });
 
     // Card flies off, "delivered" stamp shows, then a fresh card comes back
     clearTimeout(resetTimer);
@@ -284,6 +291,7 @@ const submitForm = async () => {
   } catch (error) {
     console.error("EmailJS Error:", error);
     status.value = "error";
+    sfx.buzz();
   }
 };
 
@@ -315,18 +323,24 @@ onMounted(() => {
       })
       // 1. Envelope slides in
       .to(envelope, { x: 0, rotate: 0, opacity: 1, duration: 0.6, ease: "power3.out" })
+      .call(() => sfx.whoosh({ duration: 0.5 }), null, "<")
       .set(card, { opacity: 1 })
       // 2. Flap opens; halfway through it passes behind the card
       .to(flapRef.value, { rotateX: 180, duration: 0.45, ease: "power2.inOut" }, "+=0.05")
+      .call(() => sfx.rustle({ duration: 0.45 }), null, "<")
       .set(flapRef.value, { zIndex: 5 }, "-=0.22")
       // 3. Card slides up out of the envelope...
       .to(card, { yPercent: -42, scale: 1, duration: 0.55, ease: "power2.out" })
+      .call(() => sfx.paper(), null, "<")
       // 4. ...the envelope drops away, and the card lands on the table
       .to(envelope, { yPercent: 70, rotate: 5, opacity: 0, duration: 0.5, ease: "power2.in" }, "<+0.25")
+      .call(() => sfx.whoosh({ duration: 0.5, up: false }), null, "<")
       .to(card, { yPercent: 0, duration: 0.65, ease: "bounce.out" })
+      .call(() => sfx.thud({ strength: 0.6 }), null, "<+0.24")
       .set(card, { clearProps: "transform,opacity" })
       // 5. Stamp slapped on, then the side column
       .from(stampRef.value, { scale: 2.2, rotate: -20, opacity: 0, duration: 0.45, ease: "back.out(2)" })
+      .call(() => sfx.stamp(), null, "<+0.08")
       .to(side, { y: 0, opacity: 1, duration: 0.5, stagger: 0.09, ease: "power3.out", clearProps: "transform,opacity" }, ">+0.1");
   }, sectionRef.value);
 });

@@ -194,6 +194,7 @@
 <script>
 import { ref, computed, watch, onMounted } from "vue";
 import BotFace from "./BotFace.vue";
+import { sfx } from "../../composables/useSfx";
 import { useRouter } from "vue-router";
 import { getStreamingResponse } from "../../services/openai";
 import { usePostHog } from "@/composables/usePostHog";
@@ -246,9 +247,12 @@ export default {
 
     const toggleChat = () => {
       isOpen.value = !isOpen.value;
+      if (!isOpen.value) sfx.click();
       if (isOpen.value) {
         hopping.value = true;
         setTimeout(() => (hopping.value = false), 500);
+        sfx.pop({ pitch: 1.2 });
+        sfx.whoosh({ duration: 0.4, delay: 0.12 });
         showTooltip.value = false;
         posthog.capture("chatbot_opened");
       }
@@ -291,6 +295,7 @@ export default {
       });
 
       posthog.capture("chatbot_message_sent");
+      sfx.pop({ pitch: 1.3 });
       isWaitingForResponse.value = true;
       userInput.value = "";
 
@@ -354,6 +359,8 @@ export default {
           // typing effect keeps pace with the stream instead of trailing seconds behind it
           const step = Math.max(2, Math.ceil(tokenBuffer.length / 8));
           messages.value[messageIndex].text += tokenBuffer.slice(0, step);
+          // The robot "talks" while the answer streams in (throttled inside sfx)
+          sfx.blip();
           tokenBuffer = tokenBuffer.slice(step);
           scrollToBottom();
 
@@ -370,6 +377,7 @@ export default {
       } catch (error) {
         isWaitingForResponse.value = false;
         isStreaming.value = false;
+        sfx.buzz();
         messages.value.push({
           sender: "bot",
           text: "Sorry, I encountered an error. Please try again later.",

@@ -18,7 +18,7 @@
       </div>
 
       <!-- Boarding passes, newest first -->
-      <div class="flex flex-col gap-7">
+      <div class="relative flex flex-col gap-7">
         <article
           v-for="ticket in tickets"
           :key="ticket.id"
@@ -182,6 +182,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
 import gsap from "gsap";
+import { sfx } from "@/composables/useSfx";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { experiences } from "@/data/experience";
 
@@ -239,7 +240,11 @@ const splitNumbers = (text) =>
 const sectionRef = ref(null);
 const openId = ref(null);
 const toggle = (id) => {
-  openId.value = openId.value === id ? null : id;
+  const opening = openId.value !== id;
+  openId.value = opening ? id : null;
+  // Tearing the stub off rips; putting it back is just a rustle of paper
+  if (opening) sfx.tear();
+  else sfx.paper();
 };
 
 let ctx = null;
@@ -270,12 +275,15 @@ const scramble = (el, duration) => {
 onMounted(() => {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   ctx = gsap.context(() => {
-    const tl = gsap.timeline({
-      scrollTrigger: { trigger: ".ticket", start: "top 80%" },
-    });
-
+    // Each ticket is dealt when it scrolls into view, so motion and sound match what's on screen
     gsap.utils.toArray(".ticket").forEach((ticket, i) => {
-      const at = i * 0.22;
+      // Measure from the list + offsetTop: the ticket itself starts rotated and offset,
+      // which would make its own box trigger the animation too early
+      const list = ticket.parentElement;
+      const tl = gsap.timeline({
+        scrollTrigger: { trigger: list, start: () => `top+=${ticket.offsetTop} 85%` },
+      });
+      const at = 0;
       const fromRight = i % 2 === 0;
       const plane = ticket.querySelector(".plane");
       const trail = ticket.querySelector(".trail");
@@ -317,6 +325,12 @@ onMounted(() => {
       ticket.querySelectorAll(".flap").forEach((el, k) => {
         tl.add(scramble(el, 0.7 + k * 0.15), at + 0.35);
       });
+
+      // Sounds: thrown, lands, letters clatter, stamp
+      tl.call(() => sfx.whoosh({ duration: 0.45 }), null, at)
+        .call(() => sfx.slap(), null, at + 0.48)
+        .call(() => sfx.printer({ duration: 0.7, steps: 10 }), null, at + 0.35)
+        .call(() => sfx.stamp(), null, at + 1.68);
     });
   }, sectionRef.value);
 });

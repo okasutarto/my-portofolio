@@ -131,7 +131,10 @@ function validateInput(message) {
 async function validateInputWithAI(openai, message) {
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4.1-nano', // Cheapest/fastest model for validation
+      // gpt-4.1-nano was shut down on 2026-10-23; this is OpenAI's recommended replacement.
+      // Reasoning is off: a one-word YES/NO doesn't need it, and it keeps the check fast.
+      model: 'gpt-5.6-luna',
+      reasoning_effort: 'none',
       messages: [
         {
           role: 'system',
@@ -163,11 +166,12 @@ async function validateInputWithAI(openai, message) {
           content: message
         }
       ],
-      max_tokens: 5,
-      temperature: 0, // Deterministic response
+      // Reasoning models take max_completion_tokens and only the default temperature
+      max_completion_tokens: 10,
     });
 
-    const answer = response.choices[0]?.message?.content?.trim().toUpperCase();
+    // Tolerate "Yes." / "YES!" from the newer model
+    const answer = response.choices[0]?.message?.content?.toUpperCase().replace(/[^A-Z]/g, '');
     
     if (answer === 'YES') {
       return { isValid: true };

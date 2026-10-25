@@ -71,13 +71,16 @@ async function streamChat(req, res) {
     const abortController = new AbortController();
     const streamPromise = openai.chat.completions.create(
       {
-        model: 'gpt-4.1-mini',
+        // gpt-4.1-mini shuts down on 2027-01-14; this is OpenAI's recommended replacement.
+        // It's a reasoning model, so reasoning is turned off to keep replies instant.
+        model: 'gpt-6-luna',
+        reasoning_effort: 'none',
         messages: [
           systemMessage,
           { role: 'user', content: trimmedMessage }
         ],
         stream: true,
-        max_tokens: 1000,
+        max_completion_tokens: 1000,
       },
       { signal: abortController.signal }
     );

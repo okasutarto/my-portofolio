@@ -275,28 +275,29 @@ onMounted(() => {
     });
 
     gsap.utils.toArray(".ticket").forEach((ticket, i) => {
-      const at = i * 0.55;
+      const at = i * 0.22;
+      const fromRight = i % 2 === 0;
       const plane = ticket.querySelector(".plane");
       const trail = ticket.querySelector(".trail");
       const stamp = ticket.querySelector(".status-stamp");
 
       tl
-        // 1. Printed: revealed top-down in jerky steps, like a receipt coming out
+        // 1. Dealt like a card: thrown in from alternating sides with a spin, then lands
         .fromTo(
           ticket,
-          { clipPath: "inset(0% -3% 100% -3%)", y: -24 },
-          {
-            clipPath: "inset(0% -3% -6% -3%)",
-            y: 0,
-            duration: 0.9,
-            ease: "steps(12)",
-            clearProps: "clipPath,transform",
-          },
+          { x: fromRight ? "60vw" : "-60vw", y: -60, rotation: fromRight ? 14 : -14, opacity: 0 },
+          { x: 0, y: 0, rotation: 0, opacity: 1, duration: 0.6, ease: "back.out(1.3)" },
           at,
         )
+        // A tiny squash as it hits the table
+        .to(
+          ticket,
+          { keyframes: { scaleY: [1, 0.96, 1], scaleX: [1, 1.015, 1] }, duration: 0.25, transformOrigin: "50% 100%" },
+          at + 0.5,
+        )
         // 3. The plane flies to the destination, drawing its dotted trail
-        .fromTo(trail, { scaleX: 0 }, { scaleX: 1, duration: 0.9, ease: "power2.inOut" }, at + 0.45)
-        .fromTo(plane, { "--fly": 0 }, { "--fly": 1, duration: 0.9, ease: "power2.inOut" }, at + 0.45)
+        .fromTo(trail, { scaleX: 0 }, { scaleX: 1, duration: 0.9, ease: "power2.inOut" }, at + 0.75)
+        .fromTo(plane, { "--fly": 0 }, { "--fly": 1, duration: 0.9, ease: "power2.inOut" }, at + 0.75)
         // 4. Landed: the status stamp slams down and the ticket shakes
         .from(
           stamp,
@@ -308,13 +309,13 @@ onMounted(() => {
             ease: "back.out(2)",
             clearProps: "transform,opacity",
           },
-          at + 1.3,
+          at + 1.6,
         )
-        .to(ticket, { keyframes: { x: [-6, 5, -3, 0] }, duration: 0.3, clearProps: "transform" }, at + 1.42);
+        .to(ticket, { keyframes: { x: [-6, 5, -3, 0] }, duration: 0.3, clearProps: "transform" }, at + 1.72);
 
       // 2. Departure-board letters flip into place
       ticket.querySelectorAll(".flap").forEach((el, k) => {
-        tl.add(scramble(el, 0.7 + k * 0.15), at + 0.25);
+        tl.add(scramble(el, 0.7 + k * 0.15), at + 0.35);
       });
     });
   }, sectionRef.value);

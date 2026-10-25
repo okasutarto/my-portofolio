@@ -10,6 +10,12 @@ export const experiences = [
     current: true,
     type: "Full-time",
     color: "linear-gradient(135deg, #02569B 0%, #13B9FD 100%)",
+    // Headline numbers shown on the collapsed row (metric) and inside it (stats)
+    metric: { label: "2 platforms", tone: "secondary" },
+    stats: [
+      { value: "2", label: "platforms, 1 codebase", tone: "secondary" },
+      { value: "Flutter", label: "cross-platform", tone: "primary" },
+    ],
     achievements: [
       "Building cross-platform mobile apps for Android and iOS from a single Flutter codebase.",
       "Implementing scalable state management and clean architecture for maintainable features.",
@@ -29,6 +35,11 @@ export const experiences = [
     current: false,
     type: "Full-time",
     color: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    metric: { label: "+40% engagement", tone: "primary" },
+    stats: [
+      { value: "+40%", label: "user engagement", tone: "primary" },
+      { value: "2.5", label: "years", tone: "secondary" },
+    ],
     achievements: [
       "Led end-to-end integration of a 3rd-party email editor, driving a 40% increase in user engagement.",
       "Built modular systems for high-traffic event platforms, handling hybrid legacy-to-modern codebases.",
@@ -55,6 +66,11 @@ export const experiences = [
     current: false,
     type: "Part-time",
     color: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)",
+    metric: { label: "−60% query time", tone: "pink" },
+    stats: [
+      { value: "−60%", label: "query response time", tone: "pink" },
+      { value: "99.9%", label: "API uptime", tone: "secondary" },
+    ],
     achievements: [
       "Reduced database query response times by 60% through PostgreSQL indexing strategies.",
       "Architected secure RESTful APIs (Node.js/Express) achieving 99.9% uptime.",
@@ -81,6 +97,11 @@ export const experiences = [
     current: false,
     type: "Full-time",
     color: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+    metric: { label: "Vue + React", tone: "violet" },
+    stats: [
+      { value: "2", label: "UI frameworks", tone: "violet" },
+      { value: "Scrum", label: "agile team", tone: "primary" },
+    ],
     achievements: [
       "Engineered responsive, reusable component libraries using both Vue.js and React.js.",
       "Integrated APIs and real-time data features",

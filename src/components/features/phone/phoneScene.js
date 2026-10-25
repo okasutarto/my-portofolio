@@ -3,6 +3,7 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { drawScreen, SCREEN_W, SCREEN_H } from "./screens";
+import { STACKED_QUERY, topInset, stackedPhoneHeight } from "./layout";
 
 // Portrait phone
 const W = 1.62;
@@ -17,11 +18,11 @@ const SH = SW * (SCREEN_H / SCREEN_W);
 // shadow), so the orbit ellipse keeps every cube at least ORBIT_RZ from the phone's axis.
 const ORBIT_RZ = 2.0;
 
-const STACKED_QUERY = "(max-width: 767px)";
 
-export function createPhoneScene({ container, projects, colorFor }) {
+export function createPhoneScene({ container, projects, colorFor, onProgress }) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  // 1.5x is visually indistinguishable here and much lighter on retina GPUs
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.domElement.className = "absolute inset-0 w-full h-full block";
   renderer.domElement.style.touchAction = "pan-y";
@@ -140,6 +141,7 @@ export function createPhoneScene({ container, projects, colorFor }) {
         rx: 2.0 + (i % 3) * 0.25,
         y: (i % 2 ? 1 : -1) * (0.3 + (i % 4) * 0.35),
         s: 0.3 + (i % 5) * 0.08,
+        i,
       };
       scene.add(m);
       blocks.push(m);
@@ -161,6 +163,9 @@ export function createPhoneScene({ container, projects, colorFor }) {
     tex.userData.draw();
     return tex;
   });
+
+  // Upload textures and compile shaders up front instead of on the first visible frame
+  textures.forEach((t) => renderer.initTexture(t));
 
   let shown = -1;
   const showTexture = (i) => {
@@ -216,25 +221,53 @@ export function createPhoneScene({ container, projects, colorFor }) {
     if (!w || !h) return;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
-    const stacked = window.matchMedia(STACKED_QUERY).matches;
-    // Phone sits in the right column on desktop, in the top area when stacked
-    camera.position.set(0, 0, stacked ? 15.5 : 8.4);
-    if (stacked) camera.setViewOffset(w, h, 0, h * 0.14, w, h);
-    else camera.setViewOffset(w, h, -w * 0.18, -h * 0.04, w, h);
+    if (window.matchMedia(STACKED_QUERY).matches) {
+      // Stacked: size the phone to fit between the navbar and the text below it,
+      // then shift the view so its top sits right under the navbar
+      const inset = topInset();
+      const phonePx = stackedPhoneHeight(h, inset);
+      const visible = (H * 1.08 * h) / phonePx; // world units visible vertically
+      camera.position.set(0, 0, visible / (2 * Math.tan(THREE.MathUtils.degToRad(15))));
+      const centerY = inset + phonePx / 2;
+      camera.setViewOffset(w, h, 0, h / 2 - centerY, w, h);
+    } else {
+      // Desktop: phone sits in the right column
+      camera.position.set(0, 0, 8.4);
+      camera.setViewOffset(w, h, -w * 0.18, -h * 0.04, w, h);
+    }
     camera.updateProjectionMatrix();
   };
   const resizeObserver = new ResizeObserver(resize);
   resizeObserver.observe(container);
   resize();
+  renderer.compile(scene, camera);
 
   // ---------- Loop ----------
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const clock = new THREE.Clock();
   let smooth = 0;
+  let reported = -1;
+  // Entrance: the phone waits off-stage (above) until playIntro() is called
+  let introStart = null;
+  const clamp01 = (v) => Math.min(1, Math.max(0, v));
+  const easeOutBounce = (x) => {
+    const n = 7.5625;
+    const d = 2.75;
+    if (x < 1 / d) return n * x * x;
+    if (x < 2 / d) return n * (x -= 1.5 / d) * x + 0.75;
+    if (x < 2.5 / d) return n * (x -= 2.25 / d) * x + 0.9375;
+    return n * (x -= 2.625 / d) * x + 0.984375;
+  };
+  const easeOutBack = (x) => 1 + 2.7 * Math.pow(x - 1, 3) + 1.7 * Math.pow(x - 1, 2);
 
   const tick = () => {
     const t = clock.getElapsedTime();
     smooth += (progress - smooth) * 0.12;
+    // Report the eased progress so the DOM card can turn in lockstep with the phone
+    if (onProgress && Math.abs(smooth - reported) > 0.0005) {
+      reported = smooth;
+      onProgress(smooth);
+    }
 
     // One full spin per project; the texture swaps while the back faces the camera
     phone.rotation.y = reduced ? 0 : smooth * Math.PI * 2;
@@ -247,7 +280,9 @@ export function createPhoneScene({ container, projects, colorFor }) {
     }
     pivot.rotation.y = dragRot + mouse.x * 0.25;
     pivot.rotation.x = mouse.y * 0.15 + Math.sin(t * 0.8) * 0.04;
-    pivot.position.y = Math.sin(t * 1.2) * 0.06;
+    // Intro: the phone drops in from above and bounces, then the cubes pop in
+    const intro = reduced ? 1 : introStart === null ? 0 : clamp01((t - introStart) / 1.1);
+    pivot.position.y = Math.sin(t * 1.2) * 0.06 + (1 - easeOutBounce(intro)) * 5;
 
     // Squash a little mid-spin for a cartoony feel
     const mid = Math.abs(Math.sin(smooth * Math.PI));
@@ -255,7 +290,7 @@ export function createPhoneScene({ container, projects, colorFor }) {
     const silhouette =
       Math.abs(Math.cos(phone.rotation.y)) * (W - 0.1) + Math.abs(Math.sin(phone.rotation.y)) * D;
     shadow.scale.set((silhouette / W) * phone.scale.x * 1.03, phone.scale.y * 1.05, 1);
-    shadowMat.color.set(document.documentElement.classList.contains("dark") ? 0x9d4edd : 0x000000);
+    shadowMat.color.set(document.documentElement.classList.contains("dark") ? 0x8fd694 : 0x000000);
 
     blocks.forEach((b) => {
       const d = b.userData;
@@ -267,6 +302,8 @@ export function createPhoneScene({ container, projects, colorFor }) {
       );
       b.rotation.x = t * d.s;
       b.rotation.y = t * d.s * 1.3;
+      const pop = reduced ? 1 : introStart === null ? 0 : clamp01((t - introStart - 0.7 - d.i * 0.07) / 0.35);
+      b.scale.setScalar(Math.max(0.001, easeOutBack(pop)));
     });
 
     renderer.render(scene, camera);
@@ -277,6 +314,10 @@ export function createPhoneScene({ container, projects, colorFor }) {
     // p: 0..(projects.length - 1)
     setProgress(p) {
       progress = p;
+    },
+    // Drop the phone in and pop the cubes (once)
+    playIntro() {
+      if (introStart === null) introStart = clock.getElapsedTime();
     },
     start() {
       if (frame === null && !destroyed) {

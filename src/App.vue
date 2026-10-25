@@ -2,7 +2,8 @@
   <div class="min-h-screen flex flex-col">
     <CustomCursor />
     <TheNavbar />
-    <main class="flex-grow bg-grid-pattern">
+    <div class="page-dots" aria-hidden="true"></div>
+    <main class="flex-grow">
       <MainLayout>
         <router-view v-slot="{ Component }">
           <transition name="page" mode="out-in">
@@ -25,10 +26,12 @@ import MainLayout from "./layouts/MainLayout.vue";
 import ChatBot from "./components/features/ChatBot.vue";
 import CustomCursor from "./components/ui/CustomCursor.vue";
 import { useTheme } from "./composables/useTheme";
+import { useSpotlight } from "./composables/useSpotlight";
 import { inject } from "@vercel/analytics";
 import { SpeedInsights } from "@vercel/speed-insights/vue";
 
 const { initTheme } = useTheme();
+useSpotlight();
 
 // Initialize Vercel Analytics
 inject();

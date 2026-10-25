@@ -8,18 +8,19 @@
       <div ref="stageRef" class="absolute inset-0 z-0"></div>
 
       <div
-        class="relative z-10 h-full max-w-7xl mx-auto px-4 md:px-12 grid grid-cols-1 md:grid-cols-12 content-start md:content-center pt-[57vh] md:pt-0 pointer-events-none">
-        <Transition name="swap" mode="out-in">
-          <div
-            :key="active.id"
-            class="md:col-span-5 pointer-events-auto md:bg-white md:dark:bg-surface-dark md:border-2 md:border-black md:dark:border-primary md:shadow-neo md:p-8">
+        class="relative z-10 h-full max-w-7xl mx-auto px-4 md:px-12 grid grid-cols-1 md:grid-cols-12 content-start md:content-center md:!pt-0 pointer-events-none"
+        :style="{ paddingTop: `${textTop}px` }">
+        <!-- Outer wrapper: one-off entrance. Inner card: follows the scroll between projects -->
+        <div ref="cardIntroRef" class="md:col-span-5">
+        <div
+            class="info-card pointer-events-auto md:bg-white md:dark:bg-surface-dark md:border-2 md:border-black md:dark:border-primary md:shadow-neo md:p-8"
+            :style="cardStyle">
             <div
-              class="font-display font-bold leading-none text-5xl md:text-8xl text-white"
-              style="-webkit-text-stroke: 3px #000; paint-order: stroke fill; text-shadow: 6px 6px 0 var(--color-secondary)">
+              class="outlined-num relative isolate font-display font-bold leading-none text-5xl md:text-8xl text-white"
+              :data-num="String(activeIndex + 1).padStart(2, '0')">
               {{ String(activeIndex + 1).padStart(2, "0")
               }}<span
-                class="text-xl md:text-3xl text-black dark:text-white align-top ml-1"
-                style="-webkit-text-stroke: 0; text-shadow: none"
+                class="text-xl md:text-3xl text-black dark:text-white align-top ml-2"
                 >/ {{ String(projects.length).padStart(2, "0") }}</span
               >
             </div>
@@ -31,16 +32,17 @@
             </span>
 
             <h3
-              class="font-display font-bold uppercase tracking-tight leading-none text-2xl md:text-5xl text-black dark:text-white mb-3 md:mb-4">
+              class="font-display font-bold uppercase tracking-tight leading-none text-2xl text-black dark:text-white mb-3 md:mb-4 [overflow-wrap:anywhere]"
+              :class="titleSize">
               {{ active.title }}
             </h3>
             <p
-              class="font-medium leading-relaxed text-sm md:text-lg text-gray-800 dark:text-gray-200 border-l-4 pl-4 max-w-md mb-4 md:mb-5 line-clamp-3 md:line-clamp-none"
+              class="font-medium leading-relaxed text-sm md:text-lg text-gray-800 dark:text-gray-200 border-l-4 pl-4 max-w-md mb-4 md:mb-5 line-clamp-3 [@media(max-width:767px)_and_(max-height:740px)]:line-clamp-2 md:line-clamp-none"
               :class="typeStyle(active.type).border">
               {{ active.description }}
             </p>
 
-            <div class="flex flex-wrap gap-2 mb-4 md:mb-6">
+            <div class="flex flex-wrap gap-2 mb-4 md:mb-6 [@media(max-width:767px)_and_(max-height:740px)]:hidden">
               <span
                 v-for="(tech, techIndex) in active.technologies.slice(0, 5)"
                 :key="tech"
@@ -74,12 +76,12 @@
               </a>
             </div>
           </div>
-        </Transition>
+        </div>
       </div>
 
       <!-- Progress -->
       <div
-        class="absolute left-4 md:left-12 top-[7.5rem] md:top-auto md:bottom-6 z-10 flex gap-2"
+        class="absolute left-4 bottom-4 md:left-12 md:bottom-6 z-10 flex gap-2"
         aria-hidden="true">
         <span
           v-for="(project, index) in projects"
@@ -92,7 +94,7 @@
           "></span>
       </div>
       <div
-        class="absolute right-4 md:right-12 top-28 z-10 bg-neo-magenta text-white border-2 border-black px-3 py-1 text-xs font-bold uppercase shadow-neo-sm rotate-3 pointer-events-none">
+        class="hidden md:block absolute right-12 top-28 z-10 bg-neo-magenta text-white border-2 border-black px-3 py-1 text-xs font-bold uppercase shadow-neo-sm rotate-3 pointer-events-none">
         Drag to spin ✦
       </div>
     </div>
@@ -101,6 +103,8 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
+import gsap from "gsap";
+import { STACKED_QUERY, topInset, stackedPhoneHeight } from "./phone/layout";
 
 const props = defineProps({
   projects: { type: Array, required: true },
@@ -116,13 +120,61 @@ const typeStyle = (type) => TYPE_STYLES[type] || TYPE_STYLES.Fullstack;
 const isLink = (url) => url && url !== "#";
 
 const trackRef = ref(null);
+const cardIntroRef = ref(null);
+let introPlayed = false;
+// First time the showcase is seen, the card slides in while the phone drops in
+const playIntro = () => {
+  if (introPlayed || !cardIntroRef.value) return;
+  introPlayed = true;
+  if (phoneScene) phoneScene.playIntro();
+  gsap.to(cardIntroRef.value, {
+    x: 0,
+    rotate: 0,
+    opacity: 1,
+    duration: 0.8,
+    delay: 0.35,
+    ease: "back.out(1.6)",
+    clearProps: "transform,opacity",
+  });
+};
 const stageRef = ref(null);
 const activeIndex = ref(0);
+// Stacked layout: the text starts right under the phone (same maths as the 3D scene)
+const textTop = ref(0);
+const updateTextTop = () => {
+  if (!window.matchMedia(STACKED_QUERY).matches) {
+    textTop.value = 0;
+    return;
+  }
+  const h = window.innerHeight;
+  const inset = topInset();
+  textTop.value = Math.round(inset + stackedPhoneHeight(h, inset) + 16);
+};
 const active = computed(() => props.projects[activeIndex.value]);
+// -0.5..0.5: how far the scroll is from the current project
+const offset = ref(0);
+// The card slides aside, tilts and fades like a sheet being pulled out, then the next
+// one comes in from the other side (deliberately different from the phone's spin)
+const cardStyle = computed(() => {
+  const o = offset.value;
+  return {
+    transform: `translate(${-o * 90}px, ${Math.abs(o) * 36}px) rotate(${-o * 10}deg)`,
+    opacity: Math.max(0, 1 - Math.abs(o) * 1.8),
+  };
+});
+
+// Lexend Mega is very wide: size the title by its longest word so it never overflows
+const titleSize = computed(() => {
+  const longest = Math.max(...active.value.title.split(/\s+/).map((w) => w.length));
+  if (longest <= 8) return "md:text-5xl";
+  if (longest <= 11) return "md:text-4xl";
+  return "md:text-3xl";
+});
 
 let phoneScene = null;
 let loading = false;
 let observer = null;
+let introObserver = null;
 let visible = false;
 
 const supportsWebGL = () => {
@@ -139,12 +191,21 @@ const onScroll = () => {
   const rect = trackRef.value.getBoundingClientRect();
   const total = rect.height - window.innerHeight;
   const p = Math.min(Math.max(-rect.top / total, 0), 1) * (props.projects.length - 1);
-  activeIndex.value = Math.round(p);
+  // With the 3D scene running, it eases p and reports back (applyProgress), so the
+  // card and the phone turn together; without it, apply the raw value directly
   if (phoneScene) phoneScene.setProgress(p);
+  else applyProgress(p);
+};
+
+// The content swaps at the halfway point, while the card is faded out
+const applyProgress = (p) => {
+  activeIndex.value = Math.round(p);
+  offset.value = p - Math.round(p);
 };
 
 const loadScene = async () => {
-  // three.js is loaded only once the section is about to be seen
+  if (loading || phoneScene) return;
+  loading = true;
   const { createPhoneScene } = await import(
     /* webpackChunkName: "phone-scene" */ "./phone/phoneScene"
   );
@@ -153,7 +214,9 @@ const loadScene = async () => {
     container: stageRef.value,
     projects: props.projects,
     colorFor: (project) => typeStyle(project.type).color,
+    onProgress: applyProgress,
   });
+  if (introPlayed) phoneScene.playIntro();
   onScroll();
   if (visible) phoneScene.start();
 };
@@ -168,40 +231,72 @@ onMounted(() => {
   }
 
   window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", updateTextTop);
+  updateTextTop();
   onScroll();
 
-  // Load near the viewport, and only render while on screen
-  observer = new IntersectionObserver(
-    ([entry]) => {
-      visible = entry.isIntersecting;
-      if (visible && !phoneScene && !loading) {
-        loading = true;
-        loadScene();
-      }
-      else if (phoneScene) visible ? phoneScene.start() : phoneScene.stop();
-    },
-    { rootMargin: "300px 0px" },
-  );
+  // Build the scene while the browser is idle (shader compile and texture upload are
+  // the expensive part), so nothing heavy happens while the user scrolls toward it.
+  const idle =
+    window.requestIdleCallback ||
+    ((cb) => setTimeout(cb, 1500));
+  idle(() => loadScene(), { timeout: 4000 });
+
+  // Only render while the section is actually on screen
+  observer = new IntersectionObserver(([entry]) => {
+    visible = entry.isIntersecting;
+    if (!phoneScene) {
+      if (visible) loadScene();
+      return;
+    }
+    if (visible) phoneScene.start();
+    else phoneScene.stop();
+  });
   observer.observe(trackRef.value);
+
+  // Intro plays when the card itself is actually on screen; until then it waits off to the side
+  gsap.set(cardIntroRef.value, { x: -140, rotate: -6, opacity: 0 });
+  introObserver = new IntersectionObserver(
+    ([entry]) => {
+      if (!entry.isIntersecting) return;
+      playIntro();
+      introObserver.disconnect();
+    },
+    { threshold: 0.3 },
+  );
+  introObserver.observe(cardIntroRef.value);
 });
 
 onUnmounted(() => {
   window.removeEventListener("scroll", onScroll);
+  window.removeEventListener("resize", updateTextTop);
   if (observer) observer.disconnect();
+  if (introObserver) introObserver.disconnect();
   if (phoneScene) phoneScene.destroy();
 });
 </script>
 
 <style scoped>
-.swap-enter-active,
-.swap-leave-active {
-  transition:
-    opacity 0.2s,
-    transform 0.2s;
+/* White number with a solid black outline and a teal offset copy behind it.
+   Built from text-shadows instead of -webkit-text-stroke + paint-order, which some
+   mobile browsers don't support (the stroke ends up thin and covered). */
+.outlined-num {
+  --o: #000;
+  text-shadow:
+    3px 0 var(--o), -3px 0 var(--o), 0 3px var(--o), 0 -3px var(--o),
+    2px 2px var(--o), -2px -2px var(--o), 2px -2px var(--o), -2px 2px var(--o);
 }
-.swap-enter-from,
-.swap-leave-to {
-  opacity: 0;
-  transform: translateY(16px) rotate(-1deg);
+.outlined-num::before {
+  content: attr(data-num);
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  z-index: -1;
+  color: var(--color-secondary);
+  text-shadow: inherit;
 }
+.outlined-num span {
+  text-shadow: none;
+}
+
 </style>

@@ -61,33 +61,46 @@ async function streamChat(req, res) {
     }
     
     // ===================
-    // STEP 2: AI VALIDATOR (Semantic - understands intent)
+    // STEP 2 + 3: AI VALIDATOR AND MAIN RESPONSE, IN PARALLEL
     // ===================
-    const aiValidation = await validateInputWithAI(openai, trimmedMessage);
+    // The validator and the main completion start together so the visitor doesn't
+    // wait for two OpenAI round trips back to back. Nothing from the main stream is
+    // sent until the validator approves; if it rejects, the stream is aborted.
+    const validationPromise = validateInputWithAI(openai, trimmedMessage);
+    const systemMessage = await createSystemMessage();
+    const abortController = new AbortController();
+    const streamPromise = openai.chat.completions.create(
+      {
+        // gpt-4.1-mini shuts down on 2027-01-14; this is OpenAI's recommended replacement.
+        // It's a reasoning model, so reasoning is turned off to keep replies instant.
+        model: 'gpt-6-luna',
+        reasoning_effort: 'none',
+        messages: [
+          systemMessage,
+          { role: 'user', content: trimmedMessage }
+        ],
+        stream: true,
+        max_completion_tokens: 1000,
+      },
+      { signal: abortController.signal }
+    );
+    // Mark as handled so an early failure isn't an unhandled rejection while we
+    // wait for the validator; the error still surfaces when it's awaited below
+    streamPromise.catch(() => {});
+
+    const aiValidation = await validationPromise;
     if (!aiValidation.isValid) {
+      abortController.abort();
       const fallbackMessage = FALLBACK_RESPONSES[aiValidation.reason] || FALLBACK_RESPONSES.off_topic;
       return sendFallbackSSE(fallbackMessage);
     }
-    
-    // ===================
-    // STEP 3: MAIN AI RESPONSE
-    // ===================
-    const systemMessage = await createSystemMessage();
-    
+
+    const stream = await streamPromise;
+
     // Set headers for SSE
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
-    
-    const stream = await openai.chat.completions.create({
-      model: 'gpt-4.1-mini',
-      messages: [
-        systemMessage,
-        { role: 'user', content: trimmedMessage }
-      ],
-      stream: true,
-      max_tokens: 1000,
-    });
     
     // ===================
     // STEP 4: OUTPUT GUARDRAIL & POST-PROCESSING

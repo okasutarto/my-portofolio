@@ -1,13 +1,13 @@
 <template>
   <section
     id="projects"
-    class="py-24 px-4 md:px-12 bg-background-light dark:bg-background-dark transition-colors duration-300 bg-grid-pattern overflow-x-clip">
+    class="py-24 px-4 md:px-12 bg-[rgba(0,224,198,0.09)] dark:bg-[rgba(143,214,148,0.04)] transition-colors duration-300 bg-grid-pattern overflow-x-clip">
     <div class="max-w-7xl mx-auto">
       <!-- Section Header -->
-      <div class="mb-20 text-center relative">
+      <div class="mb-12 text-center relative">
         <h2
-          ref="sectionTitle"
-          class="text-4xl md:text-6xl font-display font-bold uppercase tracking-tighter relative z-10 inline-block bg-black text-white dark:bg-primary dark:text-black px-8 py-4 border-2 border-black dark:border-primary shadow-neo-sm transform -rotate-1 opacity-0">
+          v-title-reveal="'box'"
+          class="text-4xl md:text-6xl font-display font-bold uppercase tracking-tighter relative z-10 inline-block bg-black text-white dark:bg-primary dark:text-black px-8 py-4 border-2 border-black dark:border-primary shadow-neo-sm transform -rotate-1">
           My Projects
         </h2>
         <div
@@ -23,7 +23,7 @@
     <!-- 3D phone showcase (full-bleed so the scene isn't clipped by the section padding) -->
     <template v-if="use3d">
       <PhoneShowcase
-        class="-mx-4 md:-mx-12"
+        class="-mx-4 md:-mx-12 -mt-20 lg:-mt-[14vh]"
         :projects="projects"
         @unsupported="use3d = false" />
       <div class="max-w-7xl mx-auto mt-12">
@@ -218,7 +218,6 @@ import PhoneShowcase from "@/components/features/PhoneShowcase.vue";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const sectionTitle = ref(null);
 const projectCards = reactive([]);
 const tiltEls = [];
 const projects = reactive(projectsData);
@@ -316,22 +315,6 @@ const animateCards = () => {
 };
 
 onMounted(() => {
-  // Header animation
-  animations.push(
-    gsap.to(sectionTitle.value, {
-      opacity: 1,
-      y: 0,
-      rotate: -1,
-      duration: 1,
-      ease: "back.out(1.7)",
-      scrollTrigger: {
-        trigger: sectionTitle.value,
-        start: "top 85%",
-        toggleActions: "play none none reverse",
-      },
-    }),
-  );
-
   animateCards();
 });
 

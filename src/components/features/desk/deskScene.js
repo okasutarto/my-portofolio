@@ -8,7 +8,7 @@
 // The 2D site's look carried into 3D:
 // - thick black outlines: inverted hulls pushed out along smoothed normals
 // - flat toon shading with three hard bands
-// - hard offset shadows: crisp shadow maps caught by pure-black ShadowMaterial planes
+// - window light and shadows on the actual toon-shaded surfaces
 import * as THREE from "three";
 import gsap from "gsap";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
@@ -49,15 +49,15 @@ const PALETTES = {
 export const SECTIONS = ["hero", "about", "experience", "projects", "contact"];
 
 // Smallest area of the scene that always stays in view (world units)
-const VIEW_W = 21;
-const VIEW_H = 14;
+const VIEW_W = 21.5;
+const VIEW_H = 14.5;
 
 export function createDeskScene({ container, projects, experiences, skills = [], labels = {}, dark = false, onEvent = () => {} }) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFShadowMap;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.domElement.className = "absolute inset-0 w-full h-full block";
   renderer.domElement.style.touchAction = "none";
   container.appendChild(renderer.domElement);
@@ -65,17 +65,18 @@ export function createDeskScene({ container, projects, experiences, skills = [],
   const scene = new THREE.Scene();
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
 
-  // Light from almost straight above, a touch back-left: shadows stay short and all fall the
-  // same way (down-right on screen), like the 2D site's box-shadow: 6px 6px
-  scene.add(new THREE.AmbientLight(0xffffff, 1.35));
-  const sun = new THREE.DirectionalLight(0xffffff, 1.9);
-  sun.position.set(-1.6, 14, -1.3);
+  // Daylight enters from the upper panes of the left window, across the desk.
+  const ambient = new THREE.AmbientLight(0xffffff, 1.15);
+  scene.add(ambient);
+  const sun = new THREE.DirectionalLight(0xfff1cc, 1.8);
+  sun.position.set(-14, 7.5, -5.25);
+  sun.target.position.set(0, -0.3, 1);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
-  Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 14, bottom: -14, near: 1, far: 40 });
+  Object.assign(sun.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20, near: 1, far: 60 });
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.02;
-  scene.add(sun);
+  scene.add(sun, sun.target);
 
   const timers = [];
   let destroyed = false;
@@ -136,6 +137,7 @@ export function createDeskScene({ container, projects, experiences, skills = [],
     track(geo);
     const m = new THREE.Mesh(geo, material);
     m.castShadow = cast;
+    m.receiveShadow = true;
     if (outline) {
       const hull = new THREE.Mesh(hullGeometry(geo), outlineMat(outline));
       hull.raycast = noRaycast;
@@ -162,21 +164,6 @@ export function createDeskScene({ container, projects, experiences, skills = [],
   const hoverScale = (obj, amount = 1.05) => (on) =>
     gsap.to(obj.scale, { x: on ? amount : 1, y: on ? amount : 1, z: on ? amount : 1, duration: 0.18, ease: "back.out(3)" });
 
-  // Pure-colour planes that only show where a shadow lands
-  const shadowMats = [];
-  function shadowCatcher(w, d, y) {
-    const mat = track(new THREE.ShadowMaterial({ color: PALETTES.light.shadow, opacity: 1 }));
-    mat.polygonOffset = true;
-    mat.polygonOffsetFactor = -2;
-    shadowMats.push(mat);
-    const plane = new THREE.Mesh(track(new THREE.PlaneGeometry(w, d)), mat);
-    plane.rotation.x = -Math.PI / 2;
-    plane.position.y = y;
-    plane.receiveShadow = true;
-    plane.raycast = noRaycast;
-    scene.add(plane);
-    return plane;
-  }
   const shadowFill = track(new THREE.MeshBasicMaterial({ color: PALETTES.light.shadow }));
 
   // ---------- interaction registry ----------
@@ -260,6 +247,7 @@ export function createDeskScene({ container, projects, experiences, skills = [],
   typer.addEventListener("keydown", onTyperKey);
 
   // ---------- the desk ----------
+  const FLOOR_Y = -5.2;
   const deskMat = toon(PALETTES.light.desk);
   const desk = mesh(rbox(14, 0.7, 8.4, 0.14), deskMat, { outline: 0.06 });
   desk.position.y = -0.35;
@@ -271,12 +259,164 @@ export function createDeskScene({ container, projects, experiences, skills = [],
     [-6.4, 3.6],
     [6.4, 3.6],
   ].forEach(([x, z]) => {
-    const leg = mesh(rbox(0.7, 3, 0.7, 0.1), legMat, { outline: 0.06 });
-    leg.position.set(x, -2.2, z);
+    const leg = mesh(rbox(0.55, 4.5, 0.55, 0.08), legMat, { outline: 0.05 });
+    leg.position.set(x, -2.95, z);
     scene.add(leg);
   });
-  shadowCatcher(14, 8.4, 0.003);
-  shadowCatcher(80, 80, -3.7);
+
+  // ---------- full-viewport room: walls and floor extend beyond every camera shot ----------
+  const room = new THREE.Group();
+  scene.add(room);
+  const floorMat = toon("#f5c76b");
+  const backWallMat = toon("#fff0c9");
+  const sideWallMat = toon("#ff90e8");
+  const trimMat = toon("#ffffff");
+  const roomBox = (w, h, d, material, x, y, z, outline = 0.055) => {
+    const part = mesh(new THREE.BoxGeometry(w, h, d), material, { outline, cast: false });
+    part.position.set(x, y, z);
+    room.add(part);
+    return part;
+  };
+  roomBox(200, 0.25, 200, floorMat, 0, FLOOR_Y - 0.17, 1.2);
+  roomBox(200, 100, 0.24, backWallMat, 0, FLOOR_Y + 50, -6.68);
+  roomBox(0.24, 100, 200, sideWallMat, -8.88, FLOOR_Y + 50, 1.2);
+  roomBox(200, 0.22, 0.16, trimMat, 0, FLOOR_Y + 0.17, -6.45, 0.025);
+  roomBox(0.16, 0.22, 200, trimMat, -8.65, FLOOR_Y + 0.17, 1.2, 0.025);
+  // Broad floor tiles keep the room graphic rather than adding a noisy texture.
+  const floorGrid = new THREE.GridHelper(200, 64, "#1a1714", "#1a1714");
+  track(floorGrid.geometry);
+  track(floorGrid.material);
+  floorGrid.material.transparent = true;
+  floorGrid.material.opacity = 0.3;
+  floorGrid.position.y = FLOOR_Y - 0.036;
+  floorGrid.raycast = noRaycast;
+  room.add(floorGrid);
+
+  // A framed illustration on the left wall: four panes, a sun/moon and angular trees.
+  let roomDark = false;
+  const windowGroup = new THREE.Group();
+  windowGroup.position.set(-8.7, 3.9, -2.65);
+  windowGroup.rotation.y = Math.PI / 2;
+  room.add(windowGroup);
+  const windowFrame = mesh(new THREE.BoxGeometry(4.4, 4.5, 0.18), trimMat, { cast: false, outline: 0.07 });
+  const windowView = printed(4.0, 4.1, 160, (c, w, h) => {
+    c.fillStyle = roomDark ? "#243257" : "#7fdfff";
+    c.fillRect(0, 0, w, h);
+    c.fillStyle = "#ffdd00";
+    c.beginPath();
+    c.arc(w * 0.75, h * 0.22, w * 0.12, 0, Math.PI * 2);
+    c.fill();
+    if (roomDark) {
+      c.fillStyle = "#fffdf5";
+      [[0.15, 0.15], [0.4, 0.28], [0.57, 0.1]].forEach(([x, y]) => c.fillRect(w * x, h * y, 8, 8));
+    }
+    c.fillStyle = roomDark ? "#43885e" : "#8fd694";
+    c.fillRect(0, h * 0.8, w, h * 0.2);
+    [[0.2, 0.42, "#166534"], [0.5, 0.53, "#22a65c"], [0.82, 0.48, "#166534"]].forEach(([x, top, color]) => {
+      c.fillStyle = color;
+      c.beginPath();
+      c.moveTo(w * x, h * top);
+      c.lineTo(w * (x + 0.16), h * 0.94);
+      c.lineTo(w * (x - 0.16), h * 0.94);
+      c.closePath();
+      c.fill();
+      c.lineWidth = 5;
+      c.strokeStyle = "#000";
+      c.stroke();
+    });
+    c.fillStyle = "#000";
+    c.fillRect(w / 2 - 7, 0, 14, h);
+    c.fillRect(0, h / 2 - 7, w, 14);
+  });
+  windowView.position.z = 0.105;
+  windowGroup.add(windowFrame, windowView);
+  const sill = mesh(new THREE.BoxGeometry(4.65, 0.18, 0.6), trimMat, { cast: false, outline: 0.045 });
+  sill.position.set(0, -2.3, 0.14);
+  windowGroup.add(sill);
+
+  // Project the four window panes onto receiving surfaces, including desk props.
+  const paneLight = canvasTexture(512, 512);
+  track(paneLight.texture);
+  paneLight.ctx.fillStyle = "#000";
+  paneLight.ctx.fillRect(0, 0, 512, 512);
+  paneLight.ctx.fillStyle = "#fff";
+  for (const x of [80, 264]) for (const y of [80, 264]) paneLight.ctx.fillRect(x, y, 168, 168);
+  paneLight.texture.needsUpdate = true;
+  const windowLight = new THREE.SpotLight(0xffe5ad, 110, 55, 0.58, 0.04, 2);
+  windowLight.position.set(-8.4, 4.5, -2.65);
+  windowLight.target.position.set(1, -1, 1);
+  windowLight.map = paneLight.texture;
+  windowLight.castShadow = true;
+  windowLight.shadow.mapSize.set(1024, 1024);
+  windowLight.shadow.bias = -0.0002;
+  windowLight.shadow.normalBias = 0.03;
+  scene.add(windowLight, windowLight.target);
+
+  // Wall clock and a small print give the empty upper area a purpose.
+  const clock = new THREE.Group();
+  clock.position.set(5.3, 4.0, -6.43);
+  room.add(clock);
+  const clockRim = mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.15, 12), toon("#7fb2ff"), { cast: false, outline: 0.06 });
+  clockRim.rotation.x = Math.PI / 2;
+  const clockFace = new THREE.Mesh(track(new THREE.CircleGeometry(0.76, 48)), track(new THREE.MeshBasicMaterial({ color: "#fffdf5" })));
+  clockFace.position.z = 0.09;
+  const clockHandMat = toon("#000000");
+  const hourHand = new THREE.Group();
+  const minuteHand = new THREE.Group();
+  [[hourHand, 0.42], [minuteHand, 0.62]].forEach(([pivot, length]) => {
+    const hand = mesh(new THREE.BoxGeometry(0.075, length, 0.025), clockHandMat, { cast: false, outline: 0 });
+    hand.position.y = length / 2;
+    pivot.position.z = 0.13;
+    pivot.add(hand);
+  });
+  clock.add(clockRim, clockFace, hourHand, minuteHand);
+  const updateRoomClock = () => {
+    const now = new Date();
+    minuteHand.rotation.z = -(now.getMinutes() / 60) * Math.PI * 2;
+    hourHand.rotation.z = -((now.getHours() % 12 + now.getMinutes() / 60) / 12) * Math.PI * 2;
+  };
+  updateRoomClock();
+  roomBox(3.6, 1.9, 0.12, toon("#ffdd00"), -0.1, 4.35, -6.42);
+  const poster = printed(3.35, 1.65, 160, (c, w, h) => {
+    c.fillStyle = "#ffdd00";
+    c.fillRect(0, 0, w, h);
+    c.fillStyle = "#000";
+    c.font = `900 ${Math.round(h * 0.27)}px sans-serif`;
+    c.textAlign = "center";
+    c.fillText("MAKE COOL", w / 2, h * 0.44);
+    c.fillText("STUFF.", w / 2, h * 0.8);
+  });
+  poster.position.set(-0.1, 4.35, -6.34);
+  room.add(poster);
+
+  // Seat height is roughly 60% of desk height, with a full-size back and armrests.
+  const chair = new THREE.Group();
+  chair.position.set(-2.9, 0, 6.4);
+  chair.rotation.y = -0.22;
+  room.add(chair);
+  const chairMat = toon("#00e0c6");
+  const chairFrameMat = toon("#1a1714");
+  const chairSeat = mesh(rbox(3.7, 0.35, 3.1, 0.14), chairMat, { outline: 0.06 });
+  chairSeat.position.y = -2.1;
+  const chairBack = mesh(rbox(3.7, 3.8, 0.35, 0.15), chairMat, { outline: 0.06 });
+  chairBack.position.set(0, -0.05, 1.35);
+  const chairPost = mesh(new THREE.CylinderGeometry(0.14, 0.2, 2.7, 12), chairFrameMat, { outline: 0.025 });
+  chairPost.position.y = -3.65;
+  chair.add(chairSeat, chairBack, chairPost);
+  for (let i = 0; i < 5; i++) {
+    const spoke = mesh(rbox(1.9, 0.16, 0.2, 0.04), chairFrameMat, { outline: 0.02 });
+    const angle = (i / 5) * Math.PI * 2;
+    spoke.position.set(Math.cos(angle) * 0.8, FLOOR_Y + 0.25, Math.sin(angle) * 0.8);
+    spoke.rotation.y = -angle;
+    chair.add(spoke);
+  }
+  for (const x of [-1.85, 1.85]) {
+    const arm = mesh(rbox(0.24, 0.18, 2.0, 0.06), chairFrameMat, { outline: 0.025 });
+    arm.position.set(x, -0.75, 0);
+    const support = mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.25, 10), chairFrameMat, { outline: 0.02 });
+    support.position.set(x, -1.42, 0.4);
+    chair.add(arm, support);
+  }
 
   // A rod between two points (lamp arms, plant stems)
   const UP = new THREE.Vector3(0, 1, 0);
@@ -1373,7 +1513,8 @@ export function createDeskScene({ container, projects, experiences, skills = [],
   const bubbleTex = canvasTexture(760, 400);
   track(bubbleTex.texture);
   const bubble = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: bubbleTex.texture, depthTest: false, transparent: true })));
-  bubble.position.set(mug.position.x - 0.75, 1.95, mug.position.z);
+  // Move back as well as up: the high camera angle compresses vertical separation.
+  bubble.position.set(mug.position.x - 0.45, 2.0, mug.position.z - 1.3);
   bubble.scale.set(0.001, 0.001, 1);
   bubble.renderOrder = 10;
   bubble.raycast = noRaycast;
@@ -1449,17 +1590,29 @@ export function createDeskScene({ container, projects, experiences, skills = [],
     .catch(() => {});
   const clockTimer = setInterval(() => {
     badgeFront.userData.tex.redraw();
+    updateRoomClock();
   }, 60000);
 
   // ---------- theme ----------
   let darkNow = dark;
   function setTheme(isDark) {
     darkNow = isDark;
+    roomDark = isDark;
+    ambient.intensity = isDark ? 0.8 : 1.15;
+    sun.color.set(isDark ? "#aabfff" : "#fff1cc");
+    sun.intensity = isDark ? 0.65 : 1.8;
+    windowLight.color.set(isDark ? "#94b5ff" : "#ffe5ad");
+    windowLight.intensity = isDark ? 16 : 110;
+    floorMat.color.set(isDark ? "#39344f" : "#f5c76b");
+    backWallMat.color.set(isDark ? "#34304b" : "#fff0c9");
+    scene.background = new THREE.Color(isDark ? "#34304b" : "#fff0c9");
+    sideWallMat.color.set(isDark ? "#59406f" : "#ff90e8");
+    trimMat.color.set(isDark ? "#b8b1da" : "#ffffff");
+    windowView.userData.tex.redraw();
     setLamp(isDark);
     const p = isDark ? PALETTES.dark : PALETTES.light;
     deskMat.color.set(p.desk);
     shadowFill.color.set(p.shadow);
-    shadowMats.forEach((m) => m.color.set(p.shadow));
   }
   setTheme(dark);
 
@@ -1523,7 +1676,8 @@ export function createDeskScene({ container, projects, experiences, skills = [],
   const screenNormal = new THREE.Vector3();
   const screenPos = new THREE.Vector3();
   const SHOTS = {
-    overview: () => ({ target: [0, 0.4, 0.3], dir: [0.3, 0.85, 1] }),
+    // The camera sits inside the room, with no cutaway edges or outside backdrop.
+    overview: () => ({ target: [0, 1.0, 0.7], dir: [0.48, 0.72, 1] }),
     hero: () => ({ target: [-2.8, 1.95, -2.4], dir: [0.06, 0.14, 1], fit: [1.9, 2.7] }),
     // The open spread: both pages either side of the spine
     about: () => ({ target: [-5.05, 0.15, -1.9], dir: [0.02, 1, 0.3], fit: [4.0, 2.7] }),
@@ -1554,8 +1708,8 @@ export function createDeskScene({ container, projects, experiences, skills = [],
     },
     monitor: () => ({ target: [-0.2, 2.4, -2.6], dir: [0.1, 0.32, 1], fit: [5.2, 3.4] }),
     keyboard: () => ({ target: [0.2, 0.3, 0.75], dir: [0.1, 1, 0.75], fit: [5.4, 2.6] }),
-    // Room above the mug for the quote bubble
-    mug: () => ({ target: [5.1, 1.3, -0.6], dir: [0.35, 0.55, 1], fit: [3.6, 3.4] }),
+    // A higher angle pushes the plant above the frame and leaves room for the sip quote.
+    mug: () => ({ target: [5.3, 0.95, -1.05], dir: [-0.2, 1, 0.45], fit: [3.1, 4.1] }),
   };
   const cam = { tx: 0, ty: 0, tz: 0, dx: 0, dy: 1, dz: 1, zoom: 1 };
 
@@ -1625,8 +1779,8 @@ export function createDeskScene({ container, projects, experiences, skills = [],
     const w = container.clientWidth || 1;
     const h = container.clientHeight || 1;
     const aspect = w / h;
-    // Portrait screens zoom in a little so the desk fills the width
-    viewH = Math.max(VIEW_H, (aspect < 1 ? 16 : VIEW_W) / aspect);
+    // Keep desk props large enough to tap while the room fills the rest of the screen.
+    viewH = Math.max(VIEW_H, (aspect < 1 ? 18 : VIEW_W) / aspect);
     camera.left = (-viewH * aspect) / 2;
     camera.right = (viewH * aspect) / 2;
     camera.top = viewH / 2;
@@ -1743,6 +1897,8 @@ export function createDeskScene({ container, projects, experiences, skills = [],
       keys.dispose();
       keyHull.dispose();
       disposables.forEach((d) => d.dispose?.());
+      sun.shadow.dispose();
+      windowLight.shadow.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     },

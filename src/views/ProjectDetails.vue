@@ -617,8 +617,7 @@ const switchTab = (key) => {
     .set(pages, { opacity: 0 }, ">")
     .fromTo(sheetRef.value, { y: 6 * dir, scale: 0.985 }, { y: 0, scale: 1, duration: 0.3, ease: "back.out(3)", clearProps: "transform" }, 0.45)
     .add(() => (busy = false), 0.6);
-  sound(tl, 0, () => sfx.click());
-  pages.forEach((_, i) => sound(tl, 0.12 + i * 0.07, () => sfx.paper()));
+  sound(tl, 0.06, () => sfx.riffle({ count: pages.length + 2, duration: 0.42 }));
 };
 
 // ---------- next project: close the file, put it away, the next one slides in and opens ----------
@@ -1496,32 +1495,6 @@ onBeforeUnmount(() => {
   }
   .file-link b {
     font-size: 0.78rem;
-  }
-}
-
-/* Wide screens: prev/next sit on the right end of the tabs row to save height */
-@media (min-width: 900px) {
-  .file-nav {
-    position: absolute;
-    z-index: 3;
-    top: -6px;
-    right: 0;
-    display: flex;
-    gap: 10px;
-    margin: 0;
-  }
-  .file-count {
-    display: none;
-  }
-  .file-link {
-    padding: 6px 12px;
-  }
-  .file-link b {
-    max-width: 150px;
-    font-size: 0.82rem;
-  }
-  .tabs {
-    margin-right: 360px;
   }
 }
 

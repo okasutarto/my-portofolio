@@ -100,6 +100,14 @@ const SOUNDS = {
     }
     noise(t, { freq: 1800, q: 0.6, attack: 0.01, peak: 0.12, decay: 0.09 });
   },
+  // Thumbing through a stack of pages: soft swishes in quick succession over a breath of air
+  riffle(t, { count = 6, duration = 0.4 } = {}) {
+    noise(t, { filter: "lowpass", freq: 900, attack: 0.03, peak: 0.13, decay: duration });
+    for (let i = 0; i < count; i++) {
+      const at = t + (duration / count) * i + Math.random() * 0.015;
+      noise(at, { freq: vary(2000, 0.3), q: 0.9, attack: 0.006, peak: 0.16 + Math.random() * 0.06, decay: 0.05 + Math.random() * 0.03 });
+    }
+  },
   // A cover or a big sheet moving: a crinkle of many short crackles that swells and fades
   rustle(t, { duration = 0.6 } = {}) {
     for (let at = t; at < t + duration; at += 0.012 + Math.random() * 0.03) {
@@ -180,7 +188,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3 };
+const MIN_GAP = { riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || ctx.state !== "running" || document.hidden) return;

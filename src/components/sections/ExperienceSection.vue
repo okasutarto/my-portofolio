@@ -271,12 +271,12 @@ const scramble = (el, duration) => {
 onMounted(() => {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   ctx = gsap.context(() => {
-    const tl = gsap.timeline({
-      scrollTrigger: { trigger: ".ticket", start: "top 80%" },
-    });
-
+    // Each ticket is dealt when it scrolls into view, so motion and sound match what's on screen
     gsap.utils.toArray(".ticket").forEach((ticket, i) => {
-      const at = i * 0.22;
+      const tl = gsap.timeline({
+        scrollTrigger: { trigger: ticket, start: "top 85%" },
+      });
+      const at = 0;
       const fromRight = i % 2 === 0;
       const plane = ticket.querySelector(".plane");
       const trail = ticket.querySelector(".trail");

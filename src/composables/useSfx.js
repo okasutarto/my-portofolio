@@ -176,6 +176,10 @@ function play(name, options = {}) {
 // sfx.thud(), sfx.paper({ delay: 0.1 }), ...
 export const sfx = Object.fromEntries(Object.keys(SOUNDS).map((name) => [name, (options) => play(name, options)]));
 
+// True when sounds would actually be heard: not muted and unlocked by a user gesture.
+// Lets an intro wait for a click instead of playing silently.
+export const audioReady = () => muted.value || (!!ctx && ctx.state === "running");
+
 // Run something (e.g. fast-forwarding a timeline) without any of its sounds
 export function hush(fn) {
   hushDepth++;

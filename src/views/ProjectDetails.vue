@@ -62,6 +62,11 @@
             <div class="cover-face cover-back"></div>
           </div>
 
+          <!-- First visit with no click yet: wait closed so the opening can be heard -->
+          <button v-if="waitingToOpen" type="button" class="open-hint font-display" @click="openFromWait">
+            ▶ Click to open
+          </button>
+
           <div ref="stackRef" class="sheet-stack">
             <div class="sheet-under"></div>
             <article ref="sheetRef" class="sheet">
@@ -217,7 +222,7 @@ import { ref, shallowRef, computed, watch, nextTick, onMounted, onBeforeUnmount 
 import { useRoute, useRouter } from "vue-router";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { sfx, hush } from "@/composables/useSfx";
+import { sfx, hush, audioReady } from "@/composables/useSfx";
 import { projects, getProjectById } from "@/data/projects";
 import { drawScreen } from "@/components/features/phone/screens";
 
@@ -239,6 +244,7 @@ const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 // shallowRef keeps the raw object so it can still be found in `projects` by identity.
 const shown = shallowRef(getProjectById(route.params.id));
 const tab = ref("overview");
+const waitingToOpen = ref(false);
 
 const pad = (n) => String(n).padStart(2, "0");
 const cf = computed(() => shown.value?.caseFile || {});
@@ -358,9 +364,9 @@ const settle = () => {
 const ENTER = {
   overview(tl, at, root) {
     const polaroid = root.querySelector(".polaroid");
-    tl.from(root.querySelectorAll(".stage-h, .memo"), { x: -18, opacity: 0, duration: 0.35, stagger: 0.08, immediateRender: false }, at)
+    tl.from(root.querySelectorAll(".stage-h, .memo"), { x: -18, opacity: 0, duration: 0.35, stagger: 0.08 }, at)
       .add(() => root.querySelectorAll(".hl").forEach((h) => h.classList.add("on")), at + 0.2)
-      .from(polaroid, { y: -120, rotation: -28, opacity: 0, duration: 0.32, ease: "power2.in", immediateRender: false }, at + 0.1)
+      .from(polaroid, { y: -120, rotation: -28, opacity: 0, duration: 0.32, ease: "power2.in" }, at + 0.1)
       // Swings on the paper clip until it settles
       .to(polaroid, { keyframes: { rotation: [7, -8, 4, -5, -1, -2.5] }, duration: 1.2, ease: "power1.out" }, at + 0.42);
     sound(tl, at + 0.1, () => sfx.paper());
@@ -368,14 +374,14 @@ const ENTER = {
     sound(tl, at + 0.35, () => sfx.scribble({ duration: 0.5 }));
     const note = root.querySelector(".sticky-note");
     if (note) {
-      tl.from(note, { scale: 1.5, rotation: 16, opacity: 0, duration: 0.45, ease: "back.out(2.5)", immediateRender: false }, at + 0.5);
+      tl.from(note, { scale: 1.5, rotation: 16, opacity: 0, duration: 0.45, ease: "back.out(2.5)" }, at + 0.5);
       sound(tl, at + 0.55, () => sfx.slap());
     }
-    tl.from(root.querySelectorAll(".paper-btn"), { y: 20, opacity: 0, duration: 0.3, stagger: 0.08, immediateRender: false }, at + 0.7);
+    tl.from(root.querySelectorAll(".paper-btn"), { y: 20, opacity: 0, duration: 0.3, stagger: 0.08 }, at + 0.7);
   },
   challenge(tl, at, root) {
-    tl.from(root.querySelectorAll(".stage-h, .lead"), { x: -18, opacity: 0, duration: 0.3, stagger: 0.06, immediateRender: false }, at)
-      .from(root.querySelector(".marker"), { scale: 0, rotation: -20, duration: 0.4, ease: "back.out(3)", immediateRender: false }, at + 0.25);
+    tl.from(root.querySelectorAll(".stage-h, .lead"), { x: -18, opacity: 0, duration: 0.3, stagger: 0.06 }, at)
+      .from(root.querySelector(".marker"), { scale: 0, rotation: -20, duration: 0.4, ease: "back.out(3)" }, at + 0.25);
     sound(tl, at + 0.25, () => sfx.scribble({ duration: 0.35 }));
     root.querySelectorAll(".issue").forEach((card, i) => {
       const t = at + 0.2 + i * 0.28;
@@ -393,12 +399,12 @@ const ENTER = {
     });
   },
   solution(tl, at, root) {
-    tl.from(root.querySelectorAll(".stage-h, .lead"), { x: -18, opacity: 0, duration: 0.3, stagger: 0.06, immediateRender: false }, at)
+    tl.from(root.querySelectorAll(".stage-h, .lead"), { x: -18, opacity: 0, duration: 0.3, stagger: 0.06 }, at)
       // Blueprint unrolls from the top, boxes pop in, arrows get drawn
       .fromTo(root.querySelector(".blueprint"), { clipPath: "inset(0 0 100% 0)" }, { clipPath: "inset(0 0 0% 0)", duration: 0.5, ease: "power2.inOut", clearProps: "clipPath" }, at + 0.1)
-      .from(root.querySelectorAll(".flow-node"), { scale: 0, duration: 0.3, stagger: 0.05, ease: "back.out(2.5)", immediateRender: false }, at + 0.5)
-      .from(root.querySelectorAll(".flow-arrow"), { scale: 0, duration: 0.25, stagger: 0.08, ease: "power2.out", immediateRender: false }, at + 0.8)
-      .from(root.querySelectorAll(".bp-notes span"), { y: 14, opacity: 0, stagger: 0.12, duration: 0.3, immediateRender: false }, at + 1.3);
+      .from(root.querySelectorAll(".flow-node"), { scale: 0, duration: 0.3, stagger: 0.05, ease: "back.out(2.5)" }, at + 0.5)
+      .from(root.querySelectorAll(".flow-arrow"), { scale: 0, duration: 0.25, stagger: 0.08, ease: "power2.out" }, at + 0.8)
+      .from(root.querySelectorAll(".bp-notes span"), { y: 14, opacity: 0, stagger: 0.12, duration: 0.3 }, at + 1.3);
     sound(tl, at + 0.1, () => sfx.rustle({ duration: 0.5 }));
     root.querySelectorAll(".flow-node").forEach((_, i) => {
       if (i % 2 === 0) sound(tl, at + 0.55 + i * 0.05, () => sfx.pop({ pitch: 0.9 + i * 0.05 }));
@@ -433,7 +439,7 @@ const ENTER = {
     tl.fromTo(root.querySelector(".rc-total b"), { scale: 1.6, color: "#d6336c" }, { scale: 1, color: "#111", duration: 0.4, ease: "back.out(2)", clearProps: "color,transform" }, at + 1.9);
   },
   results(tl, at, root) {
-    tl.from(root.querySelector(".stage-h"), { x: -18, opacity: 0, duration: 0.3, immediateRender: false }, at);
+    tl.from(root.querySelector(".stage-h"), { x: -18, opacity: 0, duration: 0.3 }, at);
     root.querySelectorAll(".score").forEach((card, i) => {
       const t = at + 0.1 + i * 0.2;
       tl.fromTo(card, { y: -220, rotation: i % 2 ? -20 : 20, opacity: 0 }, { y: 0, rotation: tilt(card), opacity: 1, duration: 0.55, ease: "bounce.out" }, t)
@@ -457,7 +463,7 @@ const ENTER = {
     });
     sound(tl, at + 1.2, () => sfx.paper());
     sound(tl, at + 1.93, () => sfx.stamp());
-    tl.from(root.querySelector(".learned"), { y: 30, rotation: 3, opacity: 0, duration: 0.4, ease: "back.out(2)", immediateRender: false }, at + 1.2)
+    tl.from(root.querySelector(".learned"), { y: 30, rotation: 3, opacity: 0, duration: 0.4, ease: "back.out(2)" }, at + 1.2)
       .fromTo(root.querySelector(".verified"), { scale: 3, rotation: -35, opacity: 0 }, { scale: 1, rotation: -9, opacity: 1, duration: 0.25, ease: "power4.in" }, at + 1.7);
     shake(tl, at + 1.95);
   },
@@ -492,12 +498,34 @@ const openFile = (tl) => {
 };
 
 // First visit: the folder drops onto the desk, then opens
+// Opened by any click or key once the folder is waiting (that gesture also unlocks audio)
+const openFromWait = () => {
+  if (!waitingToOpen.value) return;
+  stopWaiting();
+  mainTl = openFile(gsap.timeline());
+};
+const stopWaiting = () => {
+  waitingToOpen.value = false;
+  window.removeEventListener("pointerdown", openFromWait);
+  window.removeEventListener("keydown", openFromWait);
+};
+
 const playIntro = () => {
   gsap.set(coverRef.value, { rotationY: 0, autoAlpha: 1 });
   const tl = (mainTl = gsap.timeline());
   tl.from(folderRef.value, { y: -180, rotation: -7, opacity: 0, duration: 0.5, ease: "power3.in", clearProps: "transform,opacity" }).to(folderRef.value, thud);
   sound(tl, 0.48, () => sfx.thud());
-  openFile(tl);
+  // Browsers block audio until the visitor interacts. On a direct visit, land closed and
+  // wait for a click so the opening isn't silent; coming from the site, just open.
+  if (audioReady()) {
+    openFile(tl);
+    return;
+  }
+  tl.add(() => {
+    waitingToOpen.value = true;
+    window.addEventListener("pointerdown", openFromWait);
+    window.addEventListener("keydown", openFromWait);
+  });
 };
 
 // ---------- tabs: thumb through the pages, land on the new artifact ----------
@@ -544,6 +572,7 @@ const switchProject = (next) => {
   }
   busy = true;
   settle();
+  stopWaiting();
   // Bring the whole folder into view while the old file is put away
   window.scrollTo({ top: 0, behavior: "smooth" });
   const folder = folderRef.value;
@@ -616,6 +645,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKey);
   window.removeEventListener("resize", fitFolder);
+  stopWaiting();
   settle();
 });
 </script>
@@ -691,9 +721,14 @@ onBeforeUnmount(() => {
   border-radius: 0 14px 14px 14px;
   backface-visibility: hidden;
 }
+/* Label (and the click-to-open hint below it) sit near the top so they stay on screen
+   even when the folder is taller than the viewport */
 .cover-front {
+  --label-top: clamp(48px, 14vh, 140px);
   display: grid;
-  place-items: center;
+  justify-items: center;
+  align-content: start;
+  padding-top: var(--label-top);
   background: #dcc391 repeating-linear-gradient(90deg, #0000 0 40px, #00000008 40px 41px);
 }
 .cover-back {
@@ -735,6 +770,32 @@ onBeforeUnmount(() => {
   text-transform: uppercase;
   letter-spacing: -0.03em;
   opacity: 0.8;
+}
+
+.open-hint {
+  position: absolute;
+  z-index: 11;
+  left: 50%;
+  top: calc(clamp(48px, 14vh, 140px) + 160px);
+  transform: translateX(-50%) rotate(-3deg);
+  font-size: 0.95rem;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  color: #000;
+  background: #ffdd00;
+  border: 3px solid #000;
+  box-shadow: 5px 5px 0 #000;
+  padding: 12px 22px;
+  animation: hint-pulse 1.4s ease-in-out infinite;
+}
+.open-hint:focus-visible {
+  outline: 3px solid #000;
+  outline-offset: 4px;
+}
+@keyframes hint-pulse {
+  50% {
+    transform: translateX(-50%) rotate(-3deg) scale(1.07);
+  }
 }
 
 /* ---------- Sheet ---------- */

@@ -2376,7 +2376,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
     ambient.intensity = isDark ? 1.0 : 0.65;
     skyFill.intensity = isDark ? 0 : 1.45;
     readabilityFill.intensity = isDark ? 0.55 : 0.35;
-    chairFrameMat.color.set(isDark ? "#4c465c" : "#1a1714");
     jointMat.color.set(isDark ? "#3d3749" : "#1a1714");
     sun.color.set(isDark ? "#aabfff" : "#fff1cc");
     // A faint cool overhead fill leaves short shadows outside the desk lamp's cone.

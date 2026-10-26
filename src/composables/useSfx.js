@@ -16,6 +16,9 @@ let ctx = null;
 let out = null;
 let noiseBuffer = null;
 let hushDepth = 0;
+// True while a gesture's resume() is pending: sounds scheduled now play once it lands, so the
+// very click that unlocks audio is heard too
+let resuming = false;
 const lastPlayed = {};
 
 function createContext() {
@@ -53,7 +56,12 @@ const unlock = async () => {
       primer.connect(out);
       primer.onended = () => primer.disconnect();
       primer.start(0);
-      await resumed;
+      resuming = true;
+      try {
+        await resumed;
+      } finally {
+        resuming = false;
+      }
     }
     return ctx.state === "running";
   } catch {
@@ -348,7 +356,7 @@ const SOUNDS = {
 const MIN_GAP = { slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15 };
 
 function play(name, options = {}) {
-  if (muted.value || hushDepth > 0 || !ctx || ctx.state !== "running" || document.hidden) return;
+  if (muted.value || hushDepth > 0 || !ctx || (ctx.state !== "running" && !resuming) || document.hidden) return;
   const now = ctx.currentTime;
   const at = now + (options.delay || 0);
   const gap = MIN_GAP[name] ?? 0.02;
@@ -374,7 +382,6 @@ export function hush(fn) {
   }
 }
 
-// Called directly by the entry buttons, before mounting any animated content.
 export async function setSoundEnabled(enabled) {
   if (enabled && !(await unlock())) return false;
   muted.value = !enabled;

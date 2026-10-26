@@ -168,9 +168,8 @@ export function drawBadge(c, w, h, { back = false, now = new Date() } = {}) {
   c.textBaseline = "middle";
   const hotspots = [];
   if (back) {
+    // White card, black print: the same stock as the front
     c.fillStyle = "#000";
-    c.fillRect(0, 0, w, h);
-    c.fillStyle = "#ffdd00";
     c.font = `800 40px ${DISPLAY}`;
     c.fillText("IF FOUND,", w / 2, 120);
     c.fillText("PLEASE HIRE.", w / 2, 172);
@@ -187,7 +186,7 @@ export function drawBadge(c, w, h, { back = false, now = new Date() } = {}) {
       c.fillText(link.label, w / 2, box.y + box.h / 2 + 2);
       hotspots.push({ ...box, href: link.href });
     });
-    c.fillStyle = "#fff";
+    c.fillStyle = "#000";
     c.font = `700 22px ${BODY}`;
     c.fillText("property of okasp", w / 2, h - 60);
   } else {

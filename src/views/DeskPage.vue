@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="desk-page fixed inset-0 overflow-hidden select-none">
-      <div ref="stageRef" class="absolute inset-0"></div>
+      <div ref="stageRef" class="desk-stage absolute inset-0" :class="{ 'is-ready': ready }"></div>
 
       <!-- Top-left: title + way out -->
       <div class="absolute top-4 left-4 flex flex-col items-start gap-2 pointer-events-none">
@@ -67,6 +67,8 @@ const COMMAND_CHIPS = ["help", "whoami", "projects", "hobbies", "sudo hire oka"]
 const stageRef = ref(null);
 const scene = ref(null);
 const unsupported = ref(false);
+// The room fades in once its first frame is drawn; until then the backdrop matches its wall
+const ready = ref(false);
 const focus = ref("overview");
 const introPlaying = ref(true);
 const projectOpen = ref(false);
@@ -95,7 +97,8 @@ const hint = computed(() => {
 
 function onEvent(name, payload = {}) {
   // An empty coffee cup (or the lamp) flips the desk to the night shift, or back to day
-  if (name === "nightShift" && payload.dark !== isDark.value) toggleTheme();
+  if (name === "ready") ready.value = true;
+  else if (name === "nightShift" && payload.dark !== isDark.value) toggleTheme();
   else if (name === "toggleSound") toggleMute();
   else if (name === "projectOpen") projectOpen.value = payload.open;
   else if (name === "focus") {
@@ -119,7 +122,7 @@ onMounted(async () => {
       muted: muted.value,
       onEvent,
     });
-    setTimeout(() => (introPlaying.value = false), 2600);
+    setTimeout(() => (introPlaying.value = false), 1600);
   } catch (err) {
     console.error(err);
     unsupported.value = true;
@@ -134,6 +137,17 @@ onUnmounted(() => {
 <style scoped>
 .desk-page {
   z-index: 20;
+  background: #e6e2dc;
+}
+:global(.dark) .desk-page {
+  background: #26233a;
+}
+.desk-stage {
+  opacity: 0;
+  transition: opacity 0.5s ease-out;
+}
+.desk-stage.is-ready {
+  opacity: 1;
 }
 .hud-btn {
   @apply inline-flex items-center gap-1 border-3 border-black px-3 py-1.5 text-xs md:text-sm font-bold uppercase shadow-neo-sm transition-transform;

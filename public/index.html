@@ -38,7 +38,20 @@
     <noscript>
       <strong>We're sorry but this app doesn't work properly without JavaScript enabled. Please enable it to continue.</strong>
     </noscript>
-    <div id="app"></div>
+    <div id="app"><div id="boot-backdrop" hidden></div></div>
+    <script>
+      // The desk (front page) paints its wall colour before the app loads, instead of a white page.
+      // Vue replaces it on mount, and the desk page keeps the same colour until its room fades in.
+      (function () {
+        var path = location.pathname;
+        if (path !== "/" && path !== "/desk") return;
+        var dark = false;
+        try { dark = localStorage.getItem("theme") === "dark"; } catch (e) {}
+        var backdrop = document.getElementById("boot-backdrop");
+        backdrop.style.cssText = "position:fixed;inset:0;background:" + (dark ? "#26233a" : "#e6e2dc");
+        backdrop.hidden = false;
+      })();
+    </script>
     <!-- built files will be auto injected -->
   </body>
 </html>

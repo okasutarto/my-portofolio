@@ -853,8 +853,21 @@ export function createDeskScene({ container, projects, experiences, dark = false
   handheldItem.rotation.x = -0.18;
 
   // Top: two books lying flat
-  addItem(at(group(mesh(rbox(1.4, 0.24, 1.0, 0.03), toon("#c4b5fd"), { outline: 0.03 })), -0.6, standOn(4) + 0.12, 0), "book");
-  addItem(at(group(mesh(rbox(1.2, 0.22, 0.9, 0.03), toon("#ff6b6b"), { outline: 0.03 })), -0.55, standOn(4) + 0.35, 0, 0.05), "book");
+  addItem(at(group(mesh(rbox(1.4, 0.24, 1.0, 0.03), toon("#c4b5fd"), { outline: 0.03 })), 0.75, standOn(4) + 0.12, 0), "book");
+  addItem(at(group(mesh(rbox(1.2, 0.22, 0.9, 0.03), toon("#ff6b6b"), { outline: 0.03 })), 0.8, standOn(4) + 0.35, 0, 0.05), "book");
+
+  // To their left, where it shows from the desk, Luffy's straw hat: a wide straw brim, a round crown and the red band
+  const straw = toon("#f2c14e");
+  const strawHat = group(
+    at(mesh(new THREE.CylinderGeometry(0.74, 0.76, 0.05, 40), straw, { outline: 0.03 }), 0, 0.025, 0),
+    at(mesh(new THREE.TorusGeometry(0.74, 0.03, 8, 40), toon("#d9a43a"), { outline: 0 }), 0, 0.04, 0),
+    at(mesh(new THREE.CylinderGeometry(0.4, 0.42, 0.2, 32), straw, { outline: 0.03 }), 0, 0.15, 0),
+    at(mesh(new THREE.CylinderGeometry(0.43, 0.43, 0.13, 32), toon("#d62828"), { outline: 0.02 }), 0, 0.12, 0),
+    at(mesh(new THREE.SphereGeometry(0.4, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), straw, { outline: 0.03 }), 0, 0.25, 0),
+  );
+  strawHat.children[1].rotation.x = Math.PI / 2;
+  strawHat.children[4].scale.y = 0.8;
+  addItem(at(strawHat, -0.95, standOn(4), 0.05, 0.06), "hat").rotation.y = 0.4;
 
   const SHELF_SOUNDS = {
     console: () => {
@@ -869,6 +882,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     case: () => sfx.tick({ pitch: 0.9 }),
     figure: () => sfx.pop({ pitch: 1.3 }),
     trophy: () => sfx.ping(),
+    hat: () => sfx.rustle({ duration: 0.3 }),
   };
   const itemFor = (obj) => shelfItems.find(({ obj: item }) => {
     for (let o = obj; o; o = o.parent) if (o === item) return true;
@@ -1184,7 +1198,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   let badgeFlipped = false;
   const flipBadge = (to = !badgeFlipped) => {
     badgeFlipped = to;
-    gsap.to(badgeCard.rotation, { y: to ? Math.PI : 0, duration: 0.6, ease: "back.out(1.4)" });
+    gsap.to(badgeCard.rotation, { y: to ? Math.PI : 0, duration: 0.6, ease: "back.out(1.4)", overwrite: true });
+    // Turning, the card is wider than its gap to the board: lift it clear, then let it settle back
+    gsap.fromTo(badgeCard.position, { z: 0 }, { keyframes: [{ z: 0.6, duration: 0.25, ease: "power2.out" }, { z: 0, duration: 0.35, ease: "power2.in" }] });
     sfx.whoosh({ duration: 0.3 });
   };
   register(badge, {
@@ -1197,7 +1213,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
     onLeave: () => badgeFlipped && flipBadge(false),
     // Arrival: a full spin (flashing the back: "if found, please hire") then a settle
     onArrive: () => {
-      gsap.fromTo(badge.rotation, { y: 0 }, { y: Math.PI * 2, duration: 1.1, ease: "power3.out" });
+      if (badgeFlipped) return;
+      gsap.fromTo(badgeCard.rotation, { y: 0 }, { y: Math.PI * 2, duration: 1.1, ease: "power3.out", onComplete: () => !badgeFlipped && (badgeCard.rotation.y = 0) });
+      gsap.fromTo(badgeCard.position, { z: 0 }, { keyframes: [{ z: 0.6, duration: 0.3, ease: "power2.out" }, { z: 0, duration: 0.8, ease: "power2.inOut" }] });
       sfx.whoosh({ duration: 0.5 });
     },
   });
@@ -1220,16 +1238,21 @@ export function createDeskScene({ container, projects, experiences, dark = false
     location: [-0.02, -0.75, 1.0, 1.1],
     resume: [-1.95, -0.8, 2.35, 0.3],
   };
+  // Papers are printed smaller than their layout slot, leaving room on the board to move them
+  const NOTE_SCALE = 0.78;
   const pinGeo = new THREE.SphereGeometry(0.06, 12, 8);
   let noteDrag = null;
   let noteLayer = 0;
   const boardNotes = ABOUT_NOTES.map((note) => {
-    const [x, y, w, h] = noteLayout[note.id];
+    const [x, y, slotW, slotH] = noteLayout[note.id];
+    const w = slotW * NOTE_SCALE;
+    const h = slotH * NOTE_SCALE;
     const paper = new THREE.Group();
     paper.position.set(x, y, 0.15);
     paper.rotation.z = -THREE.MathUtils.clamp(note.rotate, -2, 2) * Math.PI / 180;
     const backing = mesh(new THREE.BoxGeometry(w, h, 0.025), toon("#fffdf5"), { outline: 0.018 });
-    const face = printed(w, h, 230, (c, pw, ph) => drawAboutNote(c, pw, ph, note));
+    // Same canvas as a full-size paper, so the print keeps its layout and sharpness
+    const face = printed(w, h, 230 / NOTE_SCALE, (c, pw, ph) => drawAboutNote(c, pw, ph, note));
     face.position.z = 0.014;
     const pinY = h / 2 - Math.min(0.1, h * 0.15);
     const pin = new THREE.Group();
@@ -2413,9 +2436,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
     raycaster.setFromCamera(ndc, camera);
     return raycaster.ray;
   };
+  // Close-ups clip whatever is in front of the prop (camera.near). Those props aren't drawn, so
+  // they mustn't catch the pointer either: the monitor sits right in front of the badge.
+  const viewPoint = new THREE.Vector3();
+  const visibleHits = () => raycaster.intersectObjects(pickables, true)
+    .filter((h) => -viewPoint.copy(h.point).applyMatrix4(camera.matrixWorldInverse).z >= camera.near);
   const pick = (e) => {
     rayFromPointer(e);
-    const hit = raycaster.intersectObjects(pickables, true)[0];
+    const hit = visibleHits()[0];
     return hit ? { hit, entry: entryFor(hit.object) } : null;
   };
   // For hover: stay on the item already hovered while the pointer is still over any part of
@@ -2423,7 +2451,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // flick back and forth between it and the one beneath.
   const pickHover = (e) => {
     rayFromPointer(e);
-    const hits = raycaster.intersectObjects(pickables, true);
+    const hits = visibleHits();
     if (hovered && hits.some((h) => entryFor(h.object)?.object === hovered.object)) return hovered;
     return hits[0] ? entryFor(hits[0].object) : null;
   };
@@ -2725,21 +2753,22 @@ export function createDeskScene({ container, projects, experiences, dark = false
       redrawChat();
     }
     renderer.render(scene, camera);
+    if (firstFrame) {
+      firstFrame = false;
+      onEvent("ready");
+    }
   }
 
-  // Intro, like a game's start screen: open on the ID badge, then pull back to the desk
+  // Intro: the room fades in on the overview and settles back from slightly closer
   let intro = null;
   const ro = new ResizeObserver(resize);
   ro.observe(container);
   resize();
-  focus.name = "hero";
-  applyShot(true);
-  focus.name = "overview";
+  const settledZoom = cam.zoom;
+  cam.zoom = settledZoom * 1.08;
   swing(0.3);
-  intro = gsap.delayedCall(0.9, () => {
-    applyShot(false, 1.8);
-    sfx.whoosh({ duration: 1.2, up: false });
-  });
+  intro = gsap.to(cam, { zoom: settledZoom, duration: 1.4, ease: "power2.out", delay: 0.15 });
+  let firstFrame = true;
   frame = requestAnimationFrame(tick);
 
   return {

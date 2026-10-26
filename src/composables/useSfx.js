@@ -469,11 +469,16 @@ const SOUNDS = {
     tone(t + 0.05, { freq: 1560 * pitch, peak: 0.06, decay: 0.25 });
   },
   // A wall clock striking: a bell "ding-dong" with a soft metallic shimmer
-  chime(t) {
-    [[659.25, 0], [523.25, 0.42]].forEach(([freq, d]) => {
-      tone(t + d, { freq, peak: 0.22, decay: 1.1 });
-      tone(t + d, { type: "triangle", freq: freq * 2.76, peak: 0.05, decay: 0.5 });
-    });
+  // A wall clock striking: a soft, low gong per stroke (the hour's count, up to `count`), each
+  // with the little wooden clack of its hammer
+  clockStrike(t, { count = 3 } = {}) {
+    for (let i = 0; i < count; i++) {
+      const at = t + i * 0.62;
+      noise(at, { filter: "bandpass", freq: 2600, q: 2, peak: 0.12, decay: 0.03 });
+      tone(at, { freq: 174.6, peak: 0.2, decay: 1.5 });
+      tone(at, { freq: 174.6 * 2.76, peak: 0.05, decay: 0.7 });
+      tone(at, { freq: 174.6 * 5.4, peak: 0.02, decay: 0.25 });
+    }
   },
   // An office chair's gas lift letting go: a short pneumatic "pssht"
   hiss(t) {
@@ -493,18 +498,23 @@ const SOUNDS = {
     tone(t, { freq: 95, to: 50, peak: 0.6 * strength, decay: 0.14 });
     noise(t, { filter: "lowpass", freq: 700, peak: 0.25 * strength, decay: 0.05 });
   },
-  // Steel leaving a scabbard: a scrape rising into a long ringing "shiiing"
+  // A katana drawn: steel sliding out along the saya's wooden mouth, a dry "shhk" that rises,
+  // ending in a low, short hum of the freed blade (no bright bell ring)
   shing(t) {
-    noise(t, { filter: "highpass", freq: 3500, to: 7500, q: 0.8, attack: 0.02, peak: 0.16, decay: 0.28 });
-    tone(t + 0.12, { freq: 2350, to: 2420, attack: 0.005, peak: 0.12, decay: 0.9 });
-    tone(t + 0.12, { freq: 3520, to: 3600, attack: 0.005, peak: 0.07, decay: 0.7 });
-    tone(t + 0.12, { type: "triangle", freq: 5280, attack: 0.005, peak: 0.03, decay: 0.5 });
+    noise(t, { filter: "bandpass", freq: 900, to: 3800, q: 2.2, attack: 0.05, peak: 0.22, decay: 0.32 });
+    noise(t + 0.02, { filter: "highpass", freq: 2500, to: 5200, q: 0.7, attack: 0.04, peak: 0.07, decay: 0.3 });
+    tone(t + 0.3, { type: "triangle", freq: 620, to: 590, attack: 0.01, peak: 0.05, decay: 0.35 });
   },
-  // A blade sliding home: a short scrape and the guard's click against the scabbard
+  // Sheathed: the scrape going home, falling in pitch, then the dull wooden "tak" of the guard
+  // seating against the saya's mouth
   sheathe(t) {
-    noise(t, { filter: "highpass", freq: 5000, to: 2500, q: 0.8, attack: 0.01, peak: 0.08, decay: 0.18 });
-    tone(t + 0.2, { type: "triangle", freq: 1900, peak: 0.16, decay: 0.05 });
-    noise(t + 0.2, { filter: "highpass", freq: 3000, attack: 0.001, peak: 0.12, decay: 0.02 });
+    noise(t, { filter: "bandpass", freq: 3200, to: 1000, q: 2, attack: 0.03, peak: 0.16, decay: 0.24 });
+    noise(t + 0.27, { filter: "bandpass", freq: 900, q: 3, attack: 0.001, peak: 0.42, decay: 0.045 });
+    tone(t + 0.27, { type: "triangle", freq: 320, to: 180, attack: 0.001, peak: 0.28, decay: 0.08 });
+  },
+  // A flying slash leaving: a whoosh that drops in pitch and fades as it goes
+  whooshAway(t) {
+    noise(t, { filter: "bandpass", freq: 2600, to: 280, q: 1.8, attack: 0.03, peak: 0.32, decay: 0.95 });
   },
   // The Infinity Stones powering up: a low hum climbing in pitch with a shimmer over it
   power(t, { duration = 1.4 } = {}) {
@@ -547,7 +557,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { meow: 0.3, purr: 1.5, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, patter: 0.4, chime: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, shing: 0.5, sheathe: 0.4, power: 1.4, snap: 0.2, dust: 1, riser: 0.5 };
+const MIN_GAP = { meow: 0.3, purr: 1.5, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, shing: 0.5, sheathe: 0.4, whooshAway: 0.4, power: 1.4, snap: 0.2, dust: 1, riser: 0.5 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || (ctx.state !== "running" && !resuming) || document.hidden) return;

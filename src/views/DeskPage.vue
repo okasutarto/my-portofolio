@@ -94,7 +94,8 @@ const hint = computed(() => {
   if (focus.value === "monitor") return isDesktop.value ? "Type a command and hit Enter, or open Spotifree from the dock ♫" : "Tap a command, or the dock to open Spotifree ♫";
   if (focus.value === "keyboard") return "1–5 jump to a section · T terminal · C chat · Esc back";
   if (focus.value === "window") return isDesktop.value ? "Click for birds (a shooting star at night). Three quick clicks bring the rain" : "Tap for birds or a shooting star. Three quick taps bring the rain";
-  if (focus.value === "shelf") return isDesktop.value ? "Click the console to play, a controller for a cheat, the trophy for your secrets" : "Tap the console to play, a controller for a cheat, the trophy for your secrets";
+  if (focus.value === "shelf") return isDesktop.value ? "Scroll / drag ↕ to explore · Click the console to play, controller for a cheat, trophy for secrets" : "Swipe ↕ to explore · Tap the console to play, controller for a cheat, trophy for secrets";
+  if (focus.value === "family") return "Our Little Family ♡ · Esc or Back to desk";
   if (focus.value === "mug") return "Click the mug for a sip. Finish the cup for the night shift";
   if (focus.value === "experience") return isDesktop.value ? "Click a pass to hold it up, again to flip it (← → to browse)" : "Tap a pass to hold it, tap again to flip it";
   if (focus.value === "projects" && projectOpen.value) return isDesktop.value ? "Click the pages to turn them (or ← →)" : "Tap the pages to turn them";

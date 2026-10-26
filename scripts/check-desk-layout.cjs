@@ -18,7 +18,7 @@ const FOLDER_W = num('FOLDER_W');
 const FOLDER_D = num('FOLDER_D');
 const DRAWER_D = vm.runInNewContext(source.match(/const DRAWER_D = ([^;]+);/)[1], { projects: { length: 5 } });
 const OUT = vm.runInNewContext(`(${source.match(/const OUT = ([^;]+);/)[1]})`, { DRAWER_D, FOLDER_D });
-const context = { THREE, screenPos: new THREE.Vector3(), screenNormal: new THREE.Vector3(), heldTicket: null, openFolder: null, selectedNote: null, OUT, FOLDER_W, FOLDER_D, container: { clientWidth: 1200 } };
+const context = { THREE, gymCalendar: { position: new THREE.Vector3(10.5, 5.8, -4.38) }, shelfLook: 1.7, shelf: { position: new THREE.Vector3(10.5, -5.2, -3.75) }, FLOOR_Y: -5.2, screenPos: new THREE.Vector3(), screenNormal: new THREE.Vector3(), heldTicket: null, openFolder: null, selectedNote: null, OUT, FOLDER_W, FOLDER_D, container: { clientWidth: 1200, clientHeight: 800 } };
 for (const name of ['tickets', 'folders', 'aboutBoard']) {
   context[name] = new THREE.Group();
   vm.runInNewContext(source.match(new RegExp(name + '\\.position\\.set\\([^;]+;'))[0], context);
@@ -27,6 +27,7 @@ for (const name of ['tickets', 'folders', 'aboutBoard']) {
 }
 const shotStart = source.indexOf('  const SHOTS =');
 const shots = vm.runInNewContext(source.slice(shotStart, source.indexOf('  const cam =', shotStart)) + '; SHOTS', context);
+assert.ok(Math.abs(shots.shelf().target[0] - context.shelf.position.x) < 0.5, 'shelf should sit near the centre of its close-up');
 const near = (target, object, distance = 1) => new THREE.Vector3(...target).distanceTo(object.position) < distance;
 assert.ok(near(shots.experience().target, context.tickets));
 const drawerShot = () => near(shots.projects().target, context.folders, 1.5);
@@ -39,6 +40,18 @@ context.openFolder = null;
 assert.ok(context.tickets.position.z > 0 && context.tickets.position.x < -3, 'tickets sit at the front-left of the desk');
 assert.ok(context.folders.position.x < -5.5 && context.folders.position.z > -4.85 && context.folders.position.z < -0.3, 'the drawer stands at the left end of the desk, under the window');
 assert.ok(new THREE.Vector3(...shots.about().target).distanceTo(context.aboutBoard.position) < 0.01);
+
+// Portrait framing fits the shelf width without exposing a large empty floor area.
+context.container.clientWidth = 390;
+context.container.clientHeight = 844;
+const portraitShelf = shots.shelf();
+const portraitH = Math.max(portraitShelf.fit[1], portraitShelf.fit[0] * 844 / 390);
+assert.ok(portraitShelf.target[1] - portraitH / 2 >= context.FLOOR_Y - 1.21);
+context.shelfLook = 9;
+assert.ok(shots.shelf().target[1] > portraitShelf.target[1], 'upper collection stays reachable');
+context.shelfLook = 1.7;
+context.container.clientWidth = 1200;
+context.container.clientHeight = 800;
 
 // Framing must follow props if they move, rather than retaining the old coordinates.
 context.tickets.position.x += 1;
@@ -70,6 +83,8 @@ assert.equal(notesOverlap(dragged, notes[1]), true, 'dropping onto another note 
 const upStart = source.indexOf('  const onPointerUp =');
 const opens = [];
 const resumeContext = {
+  shelfDrag: null,
+  stickyDrag: null,
   noteDrag: null,
   lanyardDrag: null,
   finishNoteDrag() { const drag = resumeContext.noteDrag; resumeContext.noteDrag = null; return drag; },

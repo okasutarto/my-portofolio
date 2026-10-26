@@ -294,16 +294,15 @@ function drawIcon(c, id, x, y, s) {
     c.stroke();
   } else if (id === "messages") {
     c.fillStyle = "#fff";
+    // One closed outline keeps the tail joined to the balloon without a seam.
+    c.lineJoin = "round";
     c.beginPath();
-    c.ellipse(16, 15, 10, 7.5, 0, 0, Math.PI * 2);
+    c.ellipse(16, 15, 10, 7.5, 0, 2.35, 1.85 + Math.PI * 2);
+    c.lineTo(8, 25);
+    c.lineTo(16 + Math.cos(2.35) * 10, 15 + Math.sin(2.35) * 7.5);
+    c.closePath();
     c.fill();
     c.stroke();
-    c.beginPath();
-    c.moveTo(10, 20);
-    c.lineTo(8, 25);
-    c.lineTo(14, 21.5);
-    c.fill();
-    [12, 16, 20].forEach((dx) => c.fillRect(dx - 1, 14, 2, 2));
   }
   c.restore();
 }

@@ -520,12 +520,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
     if (outside.clicks.length >= 3) {
       outside.clicks = [];
       outside.rainTarget = outside.rainTarget ? 0 : 0.9;
+      discover("rain");
       sfx.patter({ duration: 0.8 });
       return;
     }
     if (dayPart() === "night") {
       if (outside.t - outside.starAt < 1.6) return;
       outside.starAt = outside.t;
+      discover("star");
       sfx.sparkle({ delay: 0.15 });
     } else {
       if (outside.t - outside.flockAt < 2) return;
@@ -613,6 +615,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   register(guitarSwing, {
     onClick: () => {
       sfx.strum();
+      discover("guitar");
       gsap.fromTo(guitarSwing.rotation, { z: 0.09 * (Math.random() < 0.5 ? -1 : 1) }, { z: 0, duration: 1.6, ease: "elastic.out(1, 0.25)", overwrite: true });
       // The strings shimmer for a moment
       gsap.fromTo(stringMat.color, { r: 1, g: 0.87, b: 0 }, { r: 0.957, g: 0.949, b: 0.933, duration: 1.2, ease: "power2.out" });
@@ -695,6 +698,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     onClick: () => {
       if (clockBusy) return;
       clockBusy = true;
+      discover("clock");
       gsap.to(minuteHand.rotation, { z: minuteHand.rotation.z - Math.PI * 4, duration: 1.4, ease: "power2.inOut" });
       gsap.to(hourHand.rotation, {
         z: hourHand.rotation.z - Math.PI * 2, duration: 1.4, ease: "power2.inOut",
@@ -749,6 +753,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     onClick: () => {
       if (paintingBusy) return;
       paintingBusy = true;
+      discover("painting");
       gsap.fromTo(paintingHang.rotation, { z: 0.09 }, { z: 0, duration: 1.6, ease: "elastic.out(1, 0.25)" });
       // Squashed edge-on and back (a turn round its vertical axis would go through the wall)
       gsap.timeline({ onComplete: () => (paintingBusy = false) })
@@ -896,6 +901,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     onClick: () => {
       if (chairBusy) return;
       chairBusy = true;
+      discover("chair");
       const z = chair.position.z;
       gsap.timeline({ onComplete: () => (chairBusy = false) })
         .to(chairTop.position, { y: -0.35, duration: 0.18, ease: "power2.in" })
@@ -976,6 +982,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     onClick: () => {
       if (lampHopping) return;
       lampHopping = true;
+      discover("lamp");
       gsap.timeline({ onComplete: () => (lampHopping = false) })
         .to(lamp.scale, { y: 0.88, duration: 0.12, ease: "power2.in" })
         .to(lamp.scale, { y: 1.06, duration: 0.15, ease: "power2.out" })
@@ -1127,6 +1134,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     }
   }
   function callButterfly() {
+    discover("butterfly");
     if (flight.active) return;
     flight.active = true;
     flight.t = 0;
@@ -1210,12 +1218,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
     shelfLeds.push({ ledMat, glowMat, offset: i * 0.12 });
   });
   const ledColor = new THREE.Color();
+  // Until this time the strips race through the colours (the Konami code's party)
+  let ledPartyUntil = 0;
   function updateShelfLeds(now) {
+    const party = now < ledPartyUntil;
     shelfLeds.forEach(({ ledMat, glowMat, offset }) => {
-      ledColor.setHSL((now / 12000 + offset) % 1, 0.9, 0.62);
+      ledColor.setHSL((now / (party ? 600 : 12000) + offset * (party ? 3 : 1)) % 1, 0.9, 0.62);
       ledMat.color.copy(ledColor);
       glowMat.color.copy(ledColor);
-      glowMat.opacity = darkNow ? 0.9 : 0.4;
+      glowMat.opacity = party ? 1 : darkNow ? 0.9 : 0.4;
     });
   }
   // A neon sign on the back panel above the console: "GAME ON" with a little controller. By
@@ -1301,6 +1312,58 @@ export function createDeskScene({ container, projects, experiences, dark = false
     g.add(...children);
     return g;
   };
+  // ---------- secrets: every hidden interaction found, kept on the trophy's plate ----------
+  const SECRETS = ["snap", "katana", "rat", "catKeys", "rain", "star", "lamp", "painting", "chair", "guitar", "luffy", "clock", "butterfly", "lofi", "badge", "gymPR", "konami", "console"];
+  // What the trophy hints at, one at a time, for the secrets still to find
+  const SECRET_HINTS = {
+    snap: "a golden glove wants to snap",
+    katana: "a blade waits on top of the shelf",
+    rat: "something on the desk has a tail",
+    catKeys: "pester the cat, three times",
+    rain: "knock on the window, three times fast",
+    star: "at night, look out of the window",
+    lamp: "the lamp is shy, but bouncy",
+    painting: "art changes when you touch it",
+    chair: "give the chair a spin",
+    guitar: "those strings want strumming",
+    luffy: "a straw hat has something to say",
+    clock: "turn back time",
+    butterfly: "make every bud on the plant bloom",
+    lofi: "put some music on the monitor",
+    badge: "turn the badge over",
+    gymPR: "ten reps, no rest",
+    konami: "an old cheat code, it starts up, up...",
+    console: "press start",
+  };
+  const secretsFound = new Set((() => {
+    try {
+      return JSON.parse(localStorage.getItem("desk-secrets") || "[]").filter((id) => SECRETS.includes(id));
+    } catch {
+      return [];
+    }
+  })());
+  function discover(id) {
+    if (secretsFound.has(id) || !SECRETS.includes(id)) return;
+    secretsFound.add(id);
+    try {
+      localStorage.setItem("desk-secrets", JSON.stringify([...secretsFound]));
+    } catch {
+      // Still counted for this visit
+    }
+    trophyPlate.userData.tex.redraw();
+    onEvent("secret", { found: secretsFound.size, total: SECRETS.length });
+    if (secretsFound.size === SECRETS.length) timers.push(setTimeout(celebrateSecrets, 1200));
+  }
+  // All of them: the trophy lights up gold and throws confetti
+  function celebrateSecrets() {
+    trophy.getWorldPosition(shelfBubbleAt);
+    burst(shelfBubbleAt.x, shelfBubbleAt.y + 1.2, shelfBubbleAt.z);
+    sfx.sparkle();
+    gsap.fromTo(cup.material.emissive, { r: 1, g: 0.8, b: 0.2 }, { r: 0.25, g: 0.18, b: 0, duration: 2.5, ease: "power2.out" });
+    gsap.fromTo(trophy.scale, { x: 1.3, y: 1.3, z: 1.3 }, { x: 1, y: 1, z: 1, duration: 0.8, ease: "elastic.out(1.2, 0.4)" });
+    shelfSay(trophy, "ALL SECRETS FOUND! 🏆", "the trophy", 3200, 0.5);
+  }
+
   const PALETTE = ["#ff6b6b", "#ffdd00", "#00e0c6", "#ff90e8", "#8fd694", "#3b82f6", "#ffb35c", "#c4b5fd", "#fffdf5"];
   const black = toon("#1a1714");
   const white = toon("#fffdf5");
@@ -1338,7 +1401,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     [-0.33, 0.33].forEach((sx) => pad.add(at(mesh(rbox(0.22, 0.08, 0.1, 0.03), black, { outline: 0.01 }), sx, 0.08, -0.2)));
     return pad;
   };
-  addItem(at(controller("#1a1714"), 1.05, standOn(0) + 0.11, 0.25), "controller").rotation.y = -0.3;
+  const pad1 = addItem(at(controller("#1a1714"), 1.05, standOn(0) + 0.11, 0.25), "controller");
+  pad1.rotation.y = -0.3;
   const pad2 = addItem(at(controller("#ff90e8"), 1.15, standOn(0) + 0.33, -0.05), "controller");
   pad2.rotation.set(0, 0.25, 0);
 
@@ -1431,11 +1495,21 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // A gold cup with handles on a black plinth with a little plate
   const cup = mesh(new THREE.LatheGeometry(trophyProfile, 24), toon("#ffdd00"), { outline: 0.03 });
   cup.position.y = 0.22;
-  const trophy = group(
-    at(mesh(rbox(0.62, 0.22, 0.5, 0.04), black, { outline: 0.02 }), 0, 0.11, 0),
-    at(mesh(rbox(0.32, 0.09, 0.02, 0.01), toon("#ffdd00"), { outline: 0 }), 0, 0.11, 0.255),
-    cup,
-  );
+  // The plate on its plinth keeps score of the room's secrets found so far
+  const trophyPlate = printed(0.4, 0.13, 700, (c, w, h) => {
+    c.fillStyle = "#ffd34d";
+    c.fillRect(0, 0, w, h);
+    c.strokeStyle = "#8a6416";
+    c.lineWidth = h * 0.08;
+    c.strokeRect(0, 0, w, h);
+    c.fillStyle = "#1a1714";
+    c.font = `900 ${Math.round(h * 0.62)}px 'Lexend Mega', sans-serif`;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText(`${secretsFound.size}/${SECRETS.length}`, w / 2, h * 0.55);
+  });
+  trophyPlate.position.set(0, 0.11, 0.252);
+  const trophy = group(at(mesh(rbox(0.62, 0.22, 0.5, 0.04), black, { outline: 0.02 }), 0, 0.11, 0), trophyPlate, cup);
   [-1, 1].forEach((side) => {
     const handle = mesh(new THREE.TorusGeometry(0.12, 0.03, 8, 16, Math.PI), toon("#ffdd00"), { outline: 0.01 });
     handle.position.set(side * 0.36, 0.98, 0);
@@ -1522,6 +1596,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     onClick: () => {
       gsap.fromTo(hatPeg.rotation, { z: 0.05 }, { z: -0.25, duration: 1.6, ease: "elastic.out(1, 0.2)" });
       sfx.shishishi();
+      discover("luffy");
       hatPeg.getWorldPosition(hatAt);
       hatBubble.sprite.position.copy(hatAt).add(new THREE.Vector3(3.4, 2.6, 0));
       hatBubble.say(LUFFY_QUOTES[luffyIndex++ % LUFFY_QUOTES.length]);
@@ -1693,6 +1768,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   function slashKatana() {
     if (slashing) return;
     slashing = true;
+    discover("katana");
     const technique = TECHNIQUES[techniqueIndex++ % TECHNIQUES.length];
     const home = KATANA_HOME;
     // Fully drawn: the guard pulled the blade's length away from the scabbard's mouth
@@ -1995,6 +2071,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   function snapFingers() {
     if (snapping) return;
     snapping = true;
+    discover("snap");
     setFocus("gauntlet");
     const tl = gsap.timeline({ onComplete: () => (snapping = false) });
     // Hand poses: each finger's knuckle, middle and tip joints (pinky to index), and the thumb
@@ -2116,10 +2193,55 @@ export function createDeskScene({ container, projects, experiences, dark = false
     for (let o = obj; o; o = o.parent) if (o === item) return true;
     return false;
   });
+  // Zoomed in on the shelf: the console switches on and starts Snake on the monitor, a
+  // controller buzzes and hints at a cheat code, the trophy reads out the secrets found
+  // One bubble, out on the wall to the right of what was clicked, its tail pointing straight
+  // across at it (the tip sits at the bubble's left edge, 0.47 of its width from the middle)
+  const SHELF_BUBBLE_W = 4.0;
+  const shelfBubbleAt = new THREE.Vector3();
+  const shelfBubble = speechBubble(SHELF_BUBBLE_W, 2.1, { size: 40, tail: "side-left", style: "manga" });
+  function shelfSay(obj, text, by = "the shelf", hold = 3200, lift = 0.3) {
+    obj.getWorldPosition(shelfBubbleAt);
+    shelfBubble.sprite.position.copy(shelfBubbleAt).add(new THREE.Vector3(SHELF_BUBBLE_W * 0.47 + 0.15, lift, 0.3));
+    shelfBubble.say({ text, by }, hold);
+  }
+  let consoleOn = false;
+  function powerConsole() {
+    discover("console");
+    sfx.power({ duration: 0.8 });
+    led.material.color.set("#4ade80");
+    gsap.fromTo(led.scale, { x: 3, y: 3, z: 3 }, { x: 1.4, y: 1.4, z: 1.4, duration: 0.6, ease: "back.out(3)" });
+    [pad1, pad2].forEach((pad, i) => gsap.fromTo(pad.rotation, { z: 0.08 }, { z: 0, duration: 0.5, delay: i * 0.08, ease: "elastic.out(1.5, 0.15)" }));
+    shelfSay(consoleBody, consoleOn ? "Continue?" : "PRESS START", "the shelf", 3200, 0);
+    consoleOn = true;
+    // Off to the monitor, where Snake is waiting
+    timers.push(setTimeout(() => {
+      setFocus("monitor");
+      timers.push(setTimeout(() => {
+        desktop.launch("snake");
+        redrawScreen();
+      }, 900));
+    }, 900));
+  }
+  function buzzController(pad) {
+    const x = pad.position.x;
+    gsap.fromTo(pad.position, { x: x - 0.04 }, { x, duration: 0.05, repeat: 7, yoyo: true, ease: "none", onComplete: () => (pad.position.x = x) });
+    sfx.patter({ duration: 0.35 });
+    shelfSay(pad, "↑ ↑ ↓ ↓ ← → ← → B A", "try it on the keyboard", 3200, 0);
+  }
   register(shelf, {
+    focus: "shelf",
     onClick: (hit) => {
       const item = itemFor(hit.object);
       if (!item) return sfx.knock({ strength: 0.6 });
+      if (item.obj === consoleBody) powerConsole();
+      else if (item.obj === pad1 || item.obj === pad2) buzzController(item.obj);
+      else if (item.obj === trophy) {
+        // The score, and a hint toward one of the secrets still to find
+        const left = SECRETS.filter((id) => !secretsFound.has(id));
+        const text = left.length ? `${secretsFound.size}/${SECRETS.length} found. Hint: ${SECRET_HINTS[left[Math.floor(Math.random() * left.length)]]}` : "ALL SECRETS FOUND! 🏆";
+        shelfSay(trophy, text, "the trophy", 4500, 0.5);
+      }
       // Always from where it rests: a click mid-hop must not start the next hop higher up
       const y = item.obj.userData.restY;
       gsap.fromTo(item.obj.position, { y }, { keyframes: [{ y: y + 0.28, duration: 0.16, ease: "power2.out" }, { y, duration: 0.3, ease: "bounce.out" }], overwrite: true });
@@ -2215,6 +2337,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
         reps++;
         if (reps >= 10) {
           showReps("NEW PR!", "#ff90e8");
+          discover("gymPR");
           burst(gym.position.x, FLOOR_Y + 1.6, gym.position.z);
           sfx.sparkle();
           reps = 0;
@@ -2265,21 +2388,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
       sfx.stamp();
     },
   });
-
-  // ---------- cables: monitor, lamp and phone run off the back edge of the desk ----------
-  const cableMat = toon("#1a1714");
-  const DESK_BACK = -4.2;
-  const cable = (points) => {
-    const curve = new THREE.CatmullRomCurve3(points.map(([px, py, pz]) => new THREE.Vector3(px, py, pz)));
-    const wire = mesh(new THREE.TubeGeometry(curve, 72, 0.045, 8), cableMat, { outline: 0 });
-    wire.raycast = noRaycast;
-    scene.add(wire);
-  };
-  // Down the gap behind the desk, then along the foot of the wall
-  const GAP = DESK_BACK - 0.12;
-  cable([[-0.2, 0.06, -3.25], [-0.35, 0.05, -3.85], [-0.45, 0.04, DESK_BACK + 0.04], [-0.5, -0.5, GAP], [-0.7, -2.8, GAP], [-1.1, FLOOR_Y + 0.06, GAP], [-2.6, FLOOR_Y + 0.06, GAP]]);
-  cable([[-6.0, 0.06, -3.45], [-6.1, 0.05, -3.9], [-6.15, 0.04, DESK_BACK + 0.04], [-6.2, -0.6, GAP], [-6.4, -3.0, GAP], [-6.8, FLOOR_Y + 0.06, GAP], [SIDE_X + 0.25, FLOOR_Y + 0.06, GAP]]);
-  cable([[3.85, 0.06, -2.4], [4.0, 0.05, -3.3], [4.1, 0.04, DESK_BACK + 0.04], [4.15, -0.5, GAP], [4.4, -2.8, GAP], [5.0, FLOOR_Y + 0.06, GAP], [6.5, FLOOR_Y + 0.06, GAP]]);
 
   // ---------- monitor + terminal ----------
   const monitor = new THREE.Group();
@@ -2444,6 +2552,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       return;
     }
     const fresh = !lofi.playing;
+    discover("lofi");
     if (lofi.play(index) && fresh) desktop.notify("spotifree", "Now playing", TRACKS[lofi.index].title);
     redrawScreen();
   }
@@ -2854,6 +2963,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   let badgeFlipped = false;
   const flipBadge = (to = !badgeFlipped) => {
     badgeFlipped = to;
+    discover("badge");
     gsap.to(badgeCard.rotation, { y: to ? Math.PI : 0, duration: 0.6, ease: "back.out(1.4)", overwrite: true });
     // Turning, the card is wider than its gap to the board: lift it clear, then let it settle back
     gsap.fromTo(badgeCard.position, { z: 0 }, { keyframes: [{ z: 0.45, duration: 0.25, ease: "power2.out" }, { z: 0, duration: 0.35, ease: "power2.in" }] });
@@ -3122,6 +3232,25 @@ export function createDeskScene({ container, projects, experiences, dark = false
     } else if (!e.repeat) pressKey(e.code);
   };
   window.addEventListener("keydown", onKeyDown);
+  // The Konami code, typed anywhere: the shelf throws a party
+  const KONAMI = ["ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "b", "a"];
+  let konamiAt = 0;
+  const onKonami = (e) => {
+    const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    konamiAt = key === KONAMI[konamiAt] ? konamiAt + 1 : key === KONAMI[0] ? 1 : 0;
+    if (konamiAt < KONAMI.length) return;
+    konamiAt = 0;
+    discover("konami");
+    ledPartyUntil = performance.now() + 5000;
+    shelf.getWorldPosition(shelfBubbleAt);
+    burst(shelfBubbleAt.x, FLOOR_Y + 6, shelfBubbleAt.z + 0.8);
+    burst(0, 1.2, 0.5);
+    sfx.groove();
+    sfx.meow({ delay: 0.4 });
+    gsap.fromTo(neonOn.material, { opacity: 0 }, { opacity: 1, duration: 0.12, repeat: 9, yoyo: true, onComplete: () => (neonOn.material.opacity = darkNow ? 1 : 0) });
+    shelfSay(consoleBody, "+30 LIVES!", "cheat activated", 3200, 0);
+  };
+  window.addEventListener("keydown", onKonami);
 
   // ---------- mouse (decor) ----------
   const mouse = new THREE.Group();
@@ -3171,6 +3300,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   function scamper() {
     if (mouseRunning) return;
     mouseRunning = true;
+    discover("rat");
     critter.forEach((part, i) => gsap.to(part.scale, { ...part.userData.scale, duration: 0.3, delay: i * 0.04, ease: "back.out(3)" }));
     sfx.squeak();
     catSpotsMouse();
@@ -3643,6 +3773,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // The keyboard run: up onto its left end, a trot to the right with a key under every step,
   // Enter at the end (the terminal duly complains), then back to bed
   function catKeyboardRun() {
+    discover("catKeys");
     catBusy = true;
     const top = keyboard.position.y + KEY_Y + 0.09;
     const z = keyboard.position.z + 0.05;
@@ -4746,6 +4877,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const SHOTS = {
     // The camera sits inside the room, with no cutaway edges or outside backdrop.
     overview: () => ({ target: [1.8, 3.0, 0.7], dir: [0.48, 0.72, 1] }),
+    // Straight on and a touch from above, the shelf left of centre with bare wall to its right for
+    // the speech bubble; the near plane cuts away the desk and dumbbells in front of it
+    shelf: () => ({ target: [shelf.position.x + 1.5, FLOOR_Y + 4.2, shelf.position.z], dir: [0.03, 0.12, 1], fit: [8.8, 9.6], depth: 1.4 }),
     // Clip only what's well in front of the wall (the monitor), not the board behind the badge
     hero: () => ({ target: [badgePin.x, badgePin.y - (BADGE_PIN.y - BADGE_CLIP.y) - 0.74, BADGE_CLIP.z], dir: [0.06, 0.14, 1], fit: [1.5, 2.1], depth: 0.9 }),
     about: () => ({ target: aboutBoard.position.toArray(), dir: [0, 0.8, 1], fit: [7.3, 4.8] }),
@@ -5020,6 +5154,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       window.removeEventListener("resize", resize);
       window.visualViewport?.removeEventListener("resize", resize);
       window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keydown", onKonami);
       typer.removeEventListener("input", onTyperInput);
       typer.removeEventListener("keydown", onTyperKey);
       typer.remove();

@@ -24,6 +24,16 @@
         </div>
       </transition>
 
+      <!-- Top-right: a secret just found (the trophy on the shelf keeps the count) -->
+      <transition name="hud-pop">
+        <div
+          v-if="secretToast"
+          :key="secretToast"
+          class="absolute top-4 right-4 pointer-events-none bg-black text-primary font-bold text-sm md:text-base px-3 py-2 border-4 border-black shadow-[5px_5px_0_0_#ff90e8] rotate-1">
+          {{ secretToast }}
+        </div>
+      </transition>
+
       <!-- Bottom: monitor command chips, then the hint -->
       <div class="absolute bottom-6 inset-x-4 flex flex-col items-center gap-3 pointer-events-none">
         <transition name="hud-pop">
@@ -71,6 +81,8 @@ const unsupported = ref(false);
 const focus = ref("overview");
 const introPlaying = ref(true);
 const projectOpen = ref(false);
+const secretToast = ref("");
+let secretTimer = null;
 const zoomed = computed(() => focus.value !== "overview");
 const isDesktop = useMediaQuery("(min-width: 768px)");
 const { isDark, toggleTheme } = useTheme();
@@ -82,6 +94,7 @@ const hint = computed(() => {
   if (focus.value === "monitor") return isDesktop.value ? "Type a command and hit Enter, or open Spotifree from the dock ♫" : "Tap a command, or the dock to open Spotifree ♫";
   if (focus.value === "keyboard") return "1–5 jump to a section · T terminal · C chat · Esc back";
   if (focus.value === "window") return isDesktop.value ? "Click for birds (a shooting star at night). Three quick clicks bring the rain" : "Tap for birds or a shooting star. Three quick taps bring the rain";
+  if (focus.value === "shelf") return isDesktop.value ? "Click the console to play, a controller for a cheat, the trophy for your secrets" : "Tap the console to play, a controller for a cheat, the trophy for your secrets";
   if (focus.value === "mug") return "Click the mug for a sip. Finish the cup for the night shift";
   if (focus.value === "experience") return isDesktop.value ? "Click a pass to hold it up, again to flip it (← → to browse)" : "Tap a pass to hold it, tap again to flip it";
   if (focus.value === "projects" && projectOpen.value) return isDesktop.value ? "Click the pages to turn them (or ← →)" : "Tap the pages to turn them";
@@ -101,6 +114,11 @@ function onEvent(name, payload = {}) {
   else if (name === "nightShift" && payload.dark !== isDark.value) toggleTheme();
   else if (name === "toggleSound") toggleMute();
   else if (name === "projectOpen") projectOpen.value = payload.open;
+  else if (name === "secret") {
+    secretToast.value = payload.found === payload.total ? "🏆 All secrets found!" : `✦ Secret found ${payload.found}/${payload.total}`;
+    clearTimeout(secretTimer);
+    secretTimer = setTimeout(() => (secretToast.value = ""), 2600);
+  }
   else if (name === "focus") {
     focus.value = payload.name;
   }

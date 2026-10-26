@@ -413,6 +413,56 @@ const SOUNDS = {
       noise(at, { freq: vary(2500, 0.3), q: 2, attack: 0.002, peak: 0.06, decay: 0.012 });
     }
   },
+  // A cat: a nasal rise and fall through a vowel-ish band (higher and shorter for a "mrrp")
+  meow(t, { short = false } = {}) {
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth";
+    const f = vary(short ? 640 : 520, 0.08);
+    const len = short ? 0.22 : 0.55;
+    osc.frequency.setValueAtTime(f, t);
+    osc.frequency.linearRampToValueAtTime(f * 1.55, t + len * 0.35);
+    osc.frequency.linearRampToValueAtTime(f * 1.05, t + len);
+    const formant = ctx.createBiquadFilter();
+    formant.type = "bandpass";
+    formant.Q.value = 3;
+    formant.frequency.setValueAtTime(900, t);
+    formant.frequency.linearRampToValueAtTime(1600, t + len * 0.4);
+    formant.frequency.linearRampToValueAtTime(1000, t + len);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.35, t + 0.05);
+    gain.gain.setValueAtTime(0.35, t + len * 0.7);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    osc.connect(formant).connect(gain).connect(out);
+    osc.start(t);
+    osc.stop(t + len + 0.05);
+  },
+  // A purr: a low rumble pulsing about 25 times a second
+  purr(t, { duration = 1.6 } = {}) {
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer;
+    src.loop = true;
+    const low = ctx.createBiquadFilter();
+    low.type = "lowpass";
+    low.frequency.value = 180;
+    const pulse = ctx.createGain();
+    pulse.gain.value = 0.5;
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 24;
+    const depth = ctx.createGain();
+    depth.gain.value = 0.5;
+    lfo.connect(depth).connect(pulse.gain);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.9, t + 0.25);
+    gain.gain.setValueAtTime(0.9, t + duration - 0.4);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+    src.connect(low).connect(pulse).connect(gain).connect(out);
+    src.start(t);
+    lfo.start(t);
+    src.stop(t + duration + 0.05);
+    lfo.stop(t + duration + 0.05);
+  },
   // A flower popping open: a soft rising pluck
   bloom(t, { pitch = 1 } = {}) {
     tone(t, { type: "triangle", freq: 520 * pitch, to: 1040 * pitch, attack: 0.01, peak: 0.18, decay: 0.18 });
@@ -497,7 +547,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, patter: 0.4, chime: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, shing: 0.5, sheathe: 0.4, power: 1.4, snap: 0.2, dust: 1, riser: 0.5 };
+const MIN_GAP = { meow: 0.3, purr: 1.5, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, patter: 0.4, chime: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, shing: 0.5, sheathe: 0.4, power: 1.4, snap: 0.2, dust: 1, riser: 0.5 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || (ctx.state !== "running" && !resuming) || document.hidden) return;
@@ -515,6 +565,35 @@ export const sfx = Object.fromEntries(Object.keys(SOUNDS).map((name) => [name, (
 // True when sounds would actually be heard: not muted and unlocked by a user gesture.
 // Lets an intro wait for a click instead of playing silently.
 export const audioReady = () => muted.value || (!!ctx && ctx.state === "running");
+
+// Rain against the window: a looping hiss whose level follows the weather (0–1). It goes
+// quiet while muted, and the loop is only built once there's rain to hear.
+let rainLoop = null;
+export function setRainLevel(level) {
+  const target = muted.value || !ctx || document.hidden ? 0 : level;
+  if (!rainLoop && target <= 0.01) return;
+  if (!rainLoop) {
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer;
+    src.loop = true;
+    const high = ctx.createBiquadFilter();
+    high.type = "highpass";
+    high.frequency.value = 700;
+    const low = ctx.createBiquadFilter();
+    low.type = "lowpass";
+    low.frequency.value = 5200;
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    src.connect(high).connect(low).connect(gain).connect(out);
+    src.start();
+    rainLoop = { src, gain, ctx };
+  }
+  if (rainLoop.ctx !== ctx) {
+    rainLoop = null;
+    return setRainLevel(level);
+  }
+  rainLoop.gain.gain.setTargetAtTime(target * 0.09, ctx.currentTime, 0.6);
+}
 
 // The live context and the master bus, for music that should share the sfx chain (the
 // compressor and limiter); null until a gesture has created the context

@@ -16,19 +16,26 @@ const DISPLAY = "'Lexend Mega', sans-serif";
 const BODY = "'Space Grotesk', sans-serif";
 const GREEN = "#1fdf64";
 
-// Apps with a window open on the screen; the others fly the camera to their prop
-const DOCK_APPS = [
-  { id: "files", label: "Projects", focus: "projects" },
-  { id: "terminal", label: "Terminal" },
-  { id: "spotifree", label: "Spotifree" },
-  { id: "notes", label: "About me", focus: "about" },
-  { id: "mail", label: "Mail", focus: "contact" },
-  { id: "messages", label: "AI Chat", focus: "chat" },
-];
-const DOCK_W = DOCK_APPS.length * (ICON + ICON_GAP) + ICON_GAP;
-const DOCK_X = (SCREEN_W - DOCK_W) / 2;
-const iconCenter = (i) => DOCK_X + ICON_GAP + i * (ICON + ICON_GAP) + ICON / 2;
-const iconOf = (id) => DOCK_APPS.findIndex((a) => a.id === id);
+// Every app: those with a window open on the screen; the others fly the camera to their prop
+const APPS = {
+  launchpad: { id: "launchpad", label: "Launchpad" },
+  files: { id: "files", label: "Projects", focus: "projects" },
+  terminal: { id: "terminal", label: "Terminal" },
+  spotifree: { id: "spotifree", label: "Spotifree" },
+  code: { id: "code", label: "VS Kode" },
+  snake: { id: "snake", label: "Snake" },
+  notes: { id: "notes", label: "About me", focus: "about" },
+  mail: { id: "mail", label: "Mail", focus: "contact" },
+  messages: { id: "messages", label: "AI Chat", focus: "chat" },
+};
+// Kept in the dock; Snake only shows there while it's open (it lives in Launchpad)
+const DOCK_KEPT = ["launchpad", "files", "terminal", "spotifree", "code", "notes", "mail", "messages"];
+const LAUNCHPAD_APPS = ["terminal", "spotifree", "code", "snake", "files", "notes", "mail", "messages"];
+function dockLayout(ids) {
+  const w = ids.length * (ICON + ICON_GAP) + ICON_GAP;
+  const x = (SCREEN_W - w) / 2;
+  return { x, w, center: (i) => x + ICON_GAP + i * (ICON + ICON_GAP) + ICON / 2 };
+}
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -180,7 +187,7 @@ function drawWallpaper(c, name) {
 function drawIcon(c, id, x, y, s) {
   const u = s / 32;
   roundRect(c, x, y, s, s, 8 * u);
-  c.fillStyle = { files: "#ffdd00", terminal: "#1a1714", spotifree: GREEN, notes: "#fffdf5", mail: "#7fb2ff", messages: "#ff90e8" }[id];
+  c.fillStyle = { launchpad: "#3a3550", files: "#ffdd00", terminal: "#1a1714", spotifree: GREEN, code: "#4f7cff", snake: "#8fd694", notes: "#fffdf5", mail: "#7fb2ff", messages: "#ff90e8" }[id];
   c.fill();
   c.lineWidth = 2;
   c.strokeStyle = "#000";
@@ -191,7 +198,45 @@ function drawIcon(c, id, x, y, s) {
   c.lineWidth = 2;
   c.strokeStyle = "#000";
   c.fillStyle = "#000";
-  if (id === "files") {
+  if (id === "launchpad") {
+    // A grid of little app squares
+    ["#ff90e8", "#ffdd00", "#00e0c6", "#7fb2ff", "#ffb35c", "#8fd694", "#fffdf5", "#ff6b6b", "#c4b5fd"].forEach((color, i) => {
+      c.fillStyle = color;
+      c.fillRect(7 + (i % 3) * 6.5, 7 + Math.floor(i / 3) * 6.5, 4.5, 4.5);
+    });
+  } else if (id === "code") {
+    // Angle brackets and a slash
+    c.strokeStyle = "#fff";
+    c.lineWidth = 2.6;
+    c.lineCap = "round";
+    c.lineJoin = "round";
+    c.beginPath();
+    c.moveTo(11, 11);
+    c.lineTo(6.5, 16);
+    c.lineTo(11, 21);
+    c.moveTo(21, 11);
+    c.lineTo(25.5, 16);
+    c.lineTo(21, 21);
+    c.moveTo(17.5, 9.5);
+    c.lineTo(14.5, 22.5);
+    c.stroke();
+  } else if (id === "snake") {
+    c.strokeStyle = "#1a1714";
+    c.lineWidth = 4;
+    c.lineCap = "round";
+    c.lineJoin = "round";
+    c.beginPath();
+    c.moveTo(7, 23);
+    c.lineTo(7, 17);
+    c.lineTo(16, 17);
+    c.lineTo(16, 10);
+    c.lineTo(24, 10);
+    c.stroke();
+    c.fillStyle = "#ff6b6b";
+    c.beginPath();
+    c.arc(24, 22, 2.6, 0, Math.PI * 2);
+    c.fill();
+  } else if (id === "files") {
     c.fillStyle = "#ffb35c";
     c.beginPath();
     c.moveTo(6, 11);
@@ -451,12 +496,343 @@ function drawSpotifree(c, w, h, player, hotspots) {
   });
 }
 
+// ---------- VS Kode: an editor that writes code by itself ----------
+const MONO = "ui-monospace, Menlo, monospace";
+const CODE_FILES = [
+  {
+    name: "hireOka.ts",
+    lang: "TypeScript",
+    text: `// hireOka.ts: the one function every team needs
+import { coffee, ship } from "./life";
+
+type Offer = { role: string; remote: boolean };
+
+export async function hireOka(offer: Offer) {
+  const dev = await coffee("double shot");
+  if (!offer.remote) dev.pack("laptop");
+  return ship({
+    who: "Oka Sutarto Putra",
+    stack: ["Vue", "React", "Flutter", "Node"],
+    vibe: "neo-brutal",
+    bugs: 0, // most days
+  });
+}`,
+  },
+  {
+    name: "Desk.vue",
+    lang: "Vue",
+    text: `<template>
+  <div class="desk" @click="explore">
+    <Cat name="Oyen" :asleep="!night" />
+    <Monitor app="Spotifree" lofi />
+  </div>
+</template>
+
+<script setup>
+import { ref } from "vue";
+const night = ref(new Date().getHours() > 18);
+const explore = () => console.log("almost everything clicks");
+</script>`,
+  },
+  {
+    name: "coffee.js",
+    lang: "JavaScript",
+    text: `// coffee.js: the real build step
+const cups = [];
+
+export function brew(strength = 2) {
+  for (let i = 0; i < strength; i++) {
+    cups.push({ hot: true, at: Date.now() });
+  }
+  return cups.length > 3 ? "ship it" : "one more";
+}`,
+  },
+];
+const KEYWORDS = new Set(["const", "let", "function", "return", "if", "else", "for", "export", "default", "import", "from", "await", "async", "new", "true", "false", "null", "type", "class"]);
+const SYNTAX = { keyword: "#ff90e8", string: "#8fd694", comment: "#7a7f99", number: "#ffb35c", call: "#7fb2ff", tag: "#ffdd00", plain: "#e8e6f0" };
+// Splits a line into coloured runs
+function tokenize(line) {
+  const out = [];
+  const re = /(\/\/.*$)|("[^"]*"?|'[^']*'?|`[^`]*`?)|(<\/?[A-Za-z]+)|(\b\d+\b)|([A-Za-z_$][\w$]*)(?=\s*\()|([A-Za-z_$][\w$]*)|(\s+)|(.)/g;
+  let m;
+  while ((m = re.exec(line))) {
+    const [text, comment, str, tag, num, call, word] = m;
+    const kind = comment ? "comment" : str ? "string" : tag ? "tag" : num ? "number" : call ? (KEYWORDS.has(call) ? "keyword" : "call") : word && KEYWORDS.has(word) ? "keyword" : "plain";
+    out.push([text, SYNTAX[kind]]);
+  }
+  return out;
+}
+// The keystrokes for a file: every character, with the odd typo typed and rubbed out
+function keystrokes(text) {
+  const ops = [];
+  for (const ch of text) {
+    if (/[a-z]/.test(ch) && Math.random() < 0.025) ops.push(String.fromCharCode(97 + Math.floor(Math.random() * 26)), "\b");
+    ops.push(ch);
+  }
+  return ops;
+}
+function createTypist() {
+  const state = { file: 0, ops: keystrokes(CODE_FILES[0].text), at: 0, text: "", next: 0, doneAt: null, fastUntil: 0 };
+  // Catch up to time t: a human-ish rhythm, a beat after every line, now and then a long think
+  state.step = (t) => {
+    if (t - state.next > 1) state.next = t;
+    for (let n = 0; n < 12 && t >= state.next; n++) {
+      if (state.at >= state.ops.length) {
+        if (state.doneAt === null) state.doneAt = t;
+        if (t - state.doneAt < 3) return;
+        state.file = (state.file + 1) % CODE_FILES.length;
+        Object.assign(state, { ops: keystrokes(CODE_FILES[state.file].text), at: 0, text: "", doneAt: null });
+      }
+      const op = state.ops[state.at++];
+      state.text = op === "\b" ? state.text.slice(0, -1) : state.text + op;
+      let wait = op === "\n" ? 0.28 : op === "\b" ? 0.12 : 0.035 + Math.random() * 0.07;
+      if (op === " " && Math.random() < 0.04) wait += 0.7;
+      if (t < state.fastUntil) wait /= 3;
+      state.next = Math.max(state.next, t - 0.05) + wait;
+    }
+  };
+  return state;
+}
+function drawCode(c, w, h, typist, t) {
+  const file = CODE_FILES[typist.file];
+  const ACT = 24;
+  const SIDE = 92;
+  const TABS = 18;
+  const STATUS = 14;
+  c.fillStyle = "#1a1b26";
+  c.fillRect(0, 0, w, h);
+  // activity bar and explorer
+  c.fillStyle = "#13141c";
+  c.fillRect(0, 0, ACT, h);
+  ["#e8e6f0", "#5b5f7a", "#5b5f7a", "#5b5f7a"].forEach((color, i) => {
+    c.strokeStyle = color;
+    c.lineWidth = 1.4;
+    c.strokeRect(7, 9 + i * 22, 10, 10);
+  });
+  c.fillStyle = "#20212d";
+  c.fillRect(ACT, 0, SIDE, h);
+  c.textBaseline = "top";
+  c.font = `700 7px ${BODY}`;
+  c.fillStyle = "#8a8fab";
+  c.fillText("EXPLORER", ACT + 8, 7);
+  c.fillText("▾ PORTFOLIO", ACT + 8, 20);
+  CODE_FILES.forEach((f, i) => {
+    const y = 32 + i * 13;
+    if (i === typist.file) {
+      c.fillStyle = "#2f3145";
+      c.fillRect(ACT, y - 2, SIDE, 13);
+    }
+    c.font = `500 8px ${BODY}`;
+    c.fillStyle = i === typist.file ? "#fff" : "#a9adc6";
+    c.fillText(f.name, ACT + 16, y);
+  });
+  const ex = ACT + SIDE;
+  // tab
+  c.fillStyle = "#13141c";
+  c.fillRect(ex, 0, w - ex, TABS);
+  c.fillStyle = "#1a1b26";
+  c.fillRect(ex, 0, 84, TABS);
+  c.fillStyle = "#ffdd00";
+  c.fillRect(ex, 0, 84, 2);
+  c.fillStyle = "#e8e6f0";
+  c.font = `500 8px ${BODY}`;
+  c.fillText(file.name, ex + 9, 5);
+  c.fillText(typist.at < typist.ops.length ? "●" : "×", ex + 72, 5);
+  // code
+  const LINE = 11;
+  const lines = typist.text.split("\n");
+  const rows = Math.floor((h - TABS - STATUS - 6) / LINE);
+  const first = Math.max(0, lines.length - rows);
+  c.font = `500 8.5px ${MONO}`;
+  for (let i = first; i < lines.length; i++) {
+    const y = TABS + 4 + (i - first) * LINE;
+    c.fillStyle = i === lines.length - 1 ? "#e8e6f0" : "#4b4f68";
+    c.textAlign = "right";
+    c.fillText(String(i + 1), ex + 20, y);
+    c.textAlign = "left";
+    let x = ex + 28;
+    tokenize(lines[i]).forEach(([text, color]) => {
+      c.fillStyle = color;
+      c.fillText(text, x, y);
+      x += c.measureText(text).width;
+    });
+    if (i === lines.length - 1 && Math.floor(t * 2) % 2 === 0) {
+      c.fillStyle = "#ffdd00";
+      c.fillRect(x + 1, y - 1, 1.5, 10);
+    }
+  }
+  // status bar
+  const last = lines[lines.length - 1];
+  c.fillStyle = "#4f7cff";
+  c.fillRect(0, h - STATUS, w, STATUS);
+  c.fillStyle = "#fff";
+  c.font = `600 7.5px ${BODY}`;
+  c.textBaseline = "middle";
+  c.fillText("⎇ main   ✓ 0 problems", 8, h - STATUS / 2);
+  c.textAlign = "right";
+  c.fillText(`Ln ${lines.length}, Col ${last.length + 1}   ${file.lang}`, w - 8, h - STATUS / 2);
+  c.textAlign = "left";
+}
+
+// ---------- Snake ----------
+const SNAKE_COLS = 16;
+const SNAKE_ROWS = 12;
+const CELL = 12;
+const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+const KEY_DIRS = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", w: "up", s: "down", a: "left", d: "right", W: "up", S: "down", A: "left", D: "right" };
+const readBest = () => {
+  try {
+    return Number(localStorage.getItem("snake-best")) || 0;
+  } catch {
+    return 0;
+  }
+};
+function createSnake(sound) {
+  const game = { state: "ready", body: [], dir: "right", queue: [], food: null, score: 0, best: readBest(), stepAt: 0 };
+  const placeFood = () => {
+    const free = [];
+    for (let x = 0; x < SNAKE_COLS; x++) for (let y = 0; y < SNAKE_ROWS; y++) if (!game.body.some((p) => p.x === x && p.y === y)) free.push({ x, y });
+    game.food = free[Math.floor(Math.random() * free.length)];
+  };
+  game.reset = (dir = "right") => {
+    Object.assign(game, { state: "play", body: [{ x: 6, y: 6 }, { x: 5, y: 6 }, { x: 4, y: 6 }], dir: "right", queue: [dir], score: 0, stepAt: 0 });
+    placeFood();
+  };
+  // A turn (or a start): turns are queued so two quick ones both land, and never straight back
+  game.steer = (dir) => {
+    if (game.state !== "play") return game.reset(dir === "left" ? "right" : dir);
+    const last = game.queue[game.queue.length - 1] || game.dir;
+    const [dx, dy] = DIRS[dir];
+    const [lx, ly] = DIRS[last];
+    if (dx === -lx && dy === -ly) return;
+    if (game.queue.length < 3) game.queue.push(dir);
+  };
+  game.step = (t) => {
+    if (game.state !== "play") return;
+    if (!game.stepAt) game.stepAt = t;
+    const every = Math.max(0.07, 0.14 - game.score * 0.004);
+    if (t - game.stepAt > 1) game.stepAt = t;
+    while (t - game.stepAt >= every && game.state === "play") {
+      game.stepAt += every;
+      if (game.queue.length) game.dir = game.queue.shift();
+      const [dx, dy] = DIRS[game.dir];
+      const head = { x: game.body[0].x + dx, y: game.body[0].y + dy };
+      const hit = head.x < 0 || head.y < 0 || head.x >= SNAKE_COLS || head.y >= SNAKE_ROWS || game.body.slice(0, -1).some((p) => p.x === head.x && p.y === head.y);
+      if (hit) {
+        game.state = "over";
+        if (game.score > game.best) {
+          game.best = game.score;
+          try {
+            localStorage.setItem("snake-best", String(game.best));
+          } catch {
+            // The best score just isn't kept between visits
+          }
+        }
+        sound("buzz");
+        return;
+      }
+      game.body.unshift(head);
+      if (head.x === game.food.x && head.y === game.food.y) {
+        game.score++;
+        sound("pop");
+        placeFood();
+      } else game.body.pop();
+    }
+  };
+  return game;
+}
+function drawSnake(c, w, h, game, hotspots) {
+  c.fillStyle = "#fffdf5";
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = "#1a1714";
+  c.textBaseline = "middle";
+  c.font = `800 8px ${DISPLAY}`;
+  c.fillText(`SCORE ${game.score}`, 10, 10);
+  c.textAlign = "right";
+  c.fillText(`BEST ${Math.max(game.best, game.score)}`, w - 10, 10);
+  c.textAlign = "left";
+  const bx = (w - SNAKE_COLS * CELL) / 2;
+  const by = 20;
+  c.fillStyle = "#1a1714";
+  c.fillRect(bx - 2, by - 2, SNAKE_COLS * CELL + 4, SNAKE_ROWS * CELL + 4);
+  for (let x = 0; x < SNAKE_COLS; x++) for (let y = 0; y < SNAKE_ROWS; y++) {
+    c.fillStyle = (x + y) % 2 ? "#2a2724" : "#24211f";
+    c.fillRect(bx + x * CELL, by + y * CELL, CELL, CELL);
+  }
+  // a coffee bean to eat
+  if (game.food) {
+    const fx = bx + game.food.x * CELL + CELL / 2;
+    const fy = by + game.food.y * CELL + CELL / 2;
+    c.fillStyle = "#a0622d";
+    c.beginPath();
+    c.ellipse(fx, fy, 4.2, 3.2, 0.6, 0, Math.PI * 2);
+    c.fill();
+    c.strokeStyle = "#3b2312";
+    c.lineWidth = 1.2;
+    c.beginPath();
+    c.moveTo(fx - 2.4, fy - 1.6);
+    c.quadraticCurveTo(fx, fy + 0.8, fx + 2.4, fy + 1.6);
+    c.stroke();
+  }
+  game.body.forEach((p, i) => {
+    c.fillStyle = i === 0 ? "#22c55e" : "#8fd694";
+    c.fillRect(bx + p.x * CELL + 1, by + p.y * CELL + 1, CELL - 2, CELL - 2);
+    if (i === 0) {
+      // Two eyes either side of the way it's heading
+      c.fillStyle = "#1a1714";
+      const [dx, dy] = DIRS[game.dir];
+      const cx = bx + p.x * CELL + CELL / 2 + dx * 2;
+      const cy = by + p.y * CELL + CELL / 2 + dy * 2;
+      [-1, 1].forEach((side) => c.fillRect(cx - dy * 2.6 * side - 1, cy + dx * 2.6 * side - 1, 2, 2));
+    }
+  });
+  if (game.state !== "play") {
+    c.fillStyle = "rgba(26,23,20,.75)";
+    c.fillRect(bx, by, SNAKE_COLS * CELL, SNAKE_ROWS * CELL);
+    c.fillStyle = "#ffdd00";
+    c.textAlign = "center";
+    c.font = `800 10px ${DISPLAY}`;
+    c.fillText(game.state === "over" ? "GAME OVER" : "SNAKE", w / 2, by + SNAKE_ROWS * CELL / 2 - 8);
+    c.fillStyle = "#fffdf5";
+    c.font = `600 8px ${BODY}`;
+    c.fillText(game.state === "over" ? "an arrow or a tap to play again" : "press an arrow (or WASD) to start", w / 2, by + SNAKE_ROWS * CELL / 2 + 8);
+    c.textAlign = "left";
+  }
+  hotspots.push({ id: "snakeStart", x: bx, y: by, w: SNAKE_COLS * CELL, h: SNAKE_ROWS * CELL });
+  // On-screen arrows, for touch screens
+  const py = by + SNAKE_ROWS * CELL + 8;
+  [["left", "◀"], ["up", "▲"], ["down", "▼"], ["right", "▶"]].forEach(([dir, glyph], i) => {
+    const x = w / 2 - 66 + i * 34;
+    c.fillStyle = "#1a1714";
+    roundRect(c, x + 2, py + 2, 30, 18, 4);
+    c.fill();
+    c.fillStyle = "#ffdd00";
+    roundRect(c, x, py, 30, 18, 4);
+    c.fill();
+    c.lineWidth = 1.5;
+    c.strokeStyle = "#1a1714";
+    c.stroke();
+    c.fillStyle = "#1a1714";
+    c.textAlign = "center";
+    c.font = `800 9px ${BODY}`;
+    c.fillText(glyph, x + 15, py + 9.5);
+    c.textAlign = "left";
+    hotspots.push({ id: "snakeDir", dir, x, y: py, w: 30, h: 18 });
+  });
+}
+
 export function createDesktop({ terminal, player, actions }) {
   // Positions are the windows' homes; maximized they fill the space between bar and dock
   const windows = {
-    terminal: { id: "terminal", title: "oka@desk: ~", home: { x: 18, y: 32, w: 368, h: 212 }, bar: "#ff7a1a", open: true },
-    spotifree: { id: "spotifree", title: "Spotifree", home: { x: 376, y: 40, w: 250, h: 272 }, bar: "#000", open: false },
+    terminal: { id: "terminal", title: "oka@desk: ~", home: { x: 18, y: 32, w: 368, h: 212 }, bar: "#ff7a1a", ink: "#000", open: true },
+    spotifree: { id: "spotifree", title: "Spotifree", home: { x: 376, y: 40, w: 250, h: 272 }, bar: "#000", ink: "#fff", open: false },
+    code: { id: "code", title: "portfolio — VS Kode", home: { x: 44, y: 38, w: 420, h: 268 }, bar: "#13141c", ink: "#fff", open: false },
+    snake: { id: "snake", title: "Snake", home: { x: 404, y: 52, w: 212, h: 238 }, bar: "#8fd694", ink: "#000", open: false },
   };
+  const typist = createTypist();
+  const snake = createSnake((name) => actions.sound?.(name));
+  // Launchpad: a grid of every app over the dimmed desktop
+  const pad = { open: false, t0: -9 };
   Object.values(windows).forEach((win) => Object.assign(win, { min: false, max: false, anim: null, surface: null }));
   let order = ["terminal"];
   let hoverX = null;
@@ -477,8 +853,15 @@ export function createDesktop({ terminal, player, actions }) {
     order = order.filter((o) => o !== id).concat(id);
   };
 
+  const dockIds = () => (windows.snake.open ? [...DOCK_KEPT, "snake"] : DOCK_KEPT);
+  const iconX = (id) => {
+    const ids = dockIds();
+    return dockLayout(ids).center(Math.max(0, ids.indexOf(id)));
+  };
+
   function launch(id) {
-    const app = DOCK_APPS.find((a) => a.id === id);
+    const app = APPS[id];
+    if (id === "launchpad") return Object.assign(pad, { open: !pad.open, t0: now() });
     if (app?.focus) return actions.focus(app.focus);
     const win = windows[id];
     raise(id);
@@ -537,7 +920,12 @@ export function createDesktop({ terminal, player, actions }) {
       local.push({ id: "term", x: 0, y: TITLE_H, w: r.w, h: bodyH });
     } else {
       const inner = [];
-      drawSpotifree(c, r.w, r.h - TITLE_H, player, inner);
+      if (win.id === "spotifree") drawSpotifree(c, r.w, r.h - TITLE_H, player, inner);
+      else if (win.id === "snake") drawSnake(c, r.w, r.h - TITLE_H, snake, inner);
+      else {
+        drawCode(c, r.w, r.h - TITLE_H, typist, t);
+        inner.push({ id: "code", x: 0, y: 0, w: r.w, h: r.h - TITLE_H });
+      }
       inner.forEach((hs) => local.push({ ...hs, y: hs.y + TITLE_H }));
     }
     c.restore();
@@ -560,7 +948,7 @@ export function createDesktop({ terminal, player, actions }) {
       { id: "min", win: win.id, x: 19, y: 2, w: 14, h: 16 },
       { id: "max", win: win.id, x: 33, y: 2, w: 14, h: 16 },
     );
-    c.fillStyle = win.id === "terminal" ? "#000" : "#fff";
+    c.fillStyle = win.ink;
     c.font = `700 10px ${BODY}`;
     c.textAlign = "center";
     c.textBaseline = "middle";
@@ -585,7 +973,7 @@ export function createDesktop({ terminal, player, actions }) {
     const S = win.surface.canvas;
     const anim = win.anim;
     const p = anim ? clamp01((t - anim.t0) / anim.dur) : 1;
-    const icon = { x: iconCenter(iconOf(win.id)), y: DOCK_Y + DOCK_H / 2 };
+    const icon = { x: iconX(win.id), y: DOCK_Y + DOCK_H / 2 };
     if (anim && (anim.kind === "min" || anim.kind === "open" || anim.kind === "restore")) {
       if (t < anim.t0) return;
       // q: 0 the full window, 1 tucked into the icon
@@ -635,6 +1023,9 @@ export function createDesktop({ terminal, player, actions }) {
     const hotspots = [];
     const theme = THEMES[themeName];
     drawWallpaper(c, themeName);
+    // The editor types on while it's showing; the snake only moves while it's the front window
+    if (windows.code.open && !windows.code.min) typist.step(t);
+    if (front()?.id === "snake") snake.step(t);
 
     // windows, back to front; finished animations settle their state
     order.forEach((id) => {
@@ -662,7 +1053,7 @@ export function createDesktop({ terminal, player, actions }) {
     c.fillText("✦", 10, MENU_H / 2);
     c.font = `700 10px ${BODY}`;
     const active = front();
-    const appName = active ? (active.id === "terminal" ? "Terminal" : "Spotifree") : "Finder";
+    const appName = active ? APPS[active.id].label : "Finder";
     c.fillText(appName, 28, MENU_H / 2);
     c.font = `500 10px ${BODY}`;
     let mx = 28 + c.measureText(appName).width + 14;
@@ -697,15 +1088,18 @@ export function createDesktop({ terminal, player, actions }) {
     c.textAlign = "left";
 
     // dock
-    roundRect(c, DOCK_X, DOCK_Y, DOCK_W, DOCK_H, 12);
+    const ids = dockIds();
+    const dock = dockLayout(ids);
+    roundRect(c, dock.x, DOCK_Y, dock.w, DOCK_H, 12);
     c.fillStyle = theme.dock;
     c.fill();
     c.lineWidth = 2;
     c.strokeStyle = theme.edge;
     c.stroke();
     let tip = null;
-    DOCK_APPS.forEach((app, i) => {
-      const cx = iconCenter(i);
+    ids.forEach((id, i) => {
+      const app = APPS[id];
+      const cx = dock.center(i);
       const near = hoverX === null ? 0 : clamp01(1 - Math.abs(cx - hoverX) / 54);
       const s = ICON * (1 + 0.45 * easeInOut(near));
       let lift = 0;
@@ -717,7 +1111,7 @@ export function createDesktop({ terminal, player, actions }) {
       const y = DOCK_Y + DOCK_H - 7 - s - lift;
       drawIcon(c, app.id, cx - s / 2, y, s);
       const win = windows[app.id];
-      if (win?.open) {
+      if (win?.open || (app.id === "launchpad" && pad.open)) {
         c.fillStyle = theme.ink;
         c.beginPath();
         c.arc(cx, DOCK_Y + DOCK_H - 3.5, 1.8, 0, Math.PI * 2);
@@ -749,6 +1143,37 @@ export function createDesktop({ terminal, player, actions }) {
       c.textAlign = "center";
       c.fillText(tip.label, tip.x, tip.y - 8.5);
       c.textAlign = "left";
+    }
+
+    // Launchpad over everything but the notifications: the desktop dims, the icons zoom in
+    const pt = t - pad.t0;
+    const shown = pad.open ? clamp01(pt / 0.25) : 1 - clamp01(pt / 0.2);
+    if (shown > 0) {
+      c.fillStyle = `rgba(20,18,30,${0.6 * shown})`;
+      c.fillRect(0, 0, SCREEN_W, SCREEN_H);
+      c.save();
+      c.globalAlpha = shown;
+      const k = lerp(1.15, 1, easeOut(shown));
+      c.translate(SCREEN_W / 2, SCREEN_H / 2);
+      c.scale(k, k);
+      c.translate(-SCREEN_W / 2, -SCREEN_H / 2);
+      if (pad.open) hotspots.push({ id: "padClose", x: 0, y: 0, w: SCREEN_W, h: SCREEN_H });
+      LAUNCHPAD_APPS.forEach((id, i) => {
+        const col = i % 4;
+        const row = Math.floor(i / 4);
+        const size = 52;
+        const x = SCREEN_W / 2 - 2 * 96 + col * 96 + (96 - size) / 2;
+        const y = 90 + row * 104;
+        drawIcon(c, id, x, y, size);
+        c.fillStyle = "#fff";
+        c.font = `700 10px ${BODY}`;
+        c.textAlign = "center";
+        c.textBaseline = "top";
+        c.fillText(APPS[id].label, x + size / 2, y + size + 8);
+        c.textAlign = "left";
+        if (pad.open) hotspots.push({ id: "pad", app: id, x: x - 12, y: y - 6, w: size + 24, h: size + 30 });
+      });
+      c.restore();
     }
 
     // notification banner, sliding in from the right under the menu bar
@@ -783,7 +1208,15 @@ export function createDesktop({ terminal, player, actions }) {
   }
 
   function click(hs) {
-    if (hs.id === "dock") return launch(hs.app);
+    if (hs.id === "padClose") return Object.assign(pad, { open: false, t0: now() });
+    if (hs.id === "pad") {
+      Object.assign(pad, { open: false, t0: now() });
+      return launch(hs.app);
+    }
+    if (hs.id === "dock") {
+      if (pad.open && hs.app !== "launchpad") Object.assign(pad, { open: false, t0: now() });
+      return launch(hs.app);
+    }
     if (hs.focusWin) raise(hs.focusWin);
     if (hs.id === "close") return close(hs.win);
     if (hs.id === "min") return minimize(hs.win);
@@ -793,6 +1226,10 @@ export function createDesktop({ terminal, player, actions }) {
     if (hs.id === "prev") return actions.prev();
     if (hs.id === "track") return actions.playTrack(hs.index);
     if (hs.id === "term") return actions.terminalClick();
+    // A click in the editor makes it type faster for a few seconds
+    if (hs.id === "code") typist.fastUntil = now() + 4;
+    if (hs.id === "snakeDir") return snake.steer(hs.dir);
+    if (hs.id === "snakeStart" && snake.state !== "play") return snake.reset();
   }
 
   return {
@@ -802,7 +1239,28 @@ export function createDesktop({ terminal, player, actions }) {
     // Something is moving on the screen: keep redrawing every frame
     busy: () => {
       const t = now();
-      return !!(bounce || notice || Object.values(windows).some((w) => w.anim && t < w.anim.t0 + w.anim.dur + 0.05));
+      return !!(
+        bounce ||
+        notice ||
+        t - pad.t0 < 0.3 ||
+        (windows.code.open && !windows.code.min) ||
+        (front()?.id === "snake" && snake.state === "play") ||
+        Object.values(windows).some((w) => w.anim && t < w.anim.t0 + w.anim.dur + 0.05)
+      );
+    },
+    // A key while zoomed in on the screen; true when the desktop used it (Snake's arrows/WASD)
+    key(e) {
+      if (front()?.id !== "snake") return false;
+      const dir = KEY_DIRS[e.key];
+      if (dir) {
+        snake.steer(dir);
+        return true;
+      }
+      if ((e.key === " " || e.key === "Enter") && snake.state !== "play") {
+        snake.reset();
+        return true;
+      }
+      return false;
     },
     // The pointer over the screen (layout units), or null: the dock magnifies under it
     hover(x, y) {

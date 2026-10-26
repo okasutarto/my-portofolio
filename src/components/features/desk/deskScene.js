@@ -14,7 +14,7 @@ import gsap from "gsap";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import emailjs from "@emailjs/browser";
-import { sfx, GROOVE_BEAT } from "@/composables/useSfx";
+import { sfx, GROOVE_BEAT, setRainLevel } from "@/composables/useSfx";
 import { ABOUT_NOTES } from "@/data/about";
 import { FOLDER_COLORS } from "@/data/projectFiles";
 import { EMAILJS_CONFIG } from "@/config/emailjs";
@@ -429,7 +429,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
   roomBox(0.16, 0.22, 200, trimMat, SIDE_X + 0.23, FLOOR_Y + 0.17, 1.2, 0.025);
 
   // A framed illustration on the left wall: four panes, a sun/moon and angular trees.
-  let roomDark = false;
   const windowGroup = new THREE.Group();
   windowGroup.position.set(SIDE_X + 0.18, 4.7, -1.1);
   windowGroup.rotation.y = Math.PI / 2;
@@ -440,16 +439,45 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const windowFrame = mesh(new THREE.BoxGeometry(4.4, 4.5, 0.18), frameWood, { cast: false, outline: 0.07 });
   // The view outside is animated (see drawWindowView): redrawn from the render loop, often
   // while it's zoomed in on, a few times a second otherwise
-  const outside = { t: 0, flockAt: -99, starAt: -99, drawnAt: 0 };
-  const windowView = printed(4.0, 4.1, 220, (c, w, h) => drawWindowView(c, w, h, { ...outside, dark: roomDark }));
+  // The sky matches the room: night while the room is dark, and while it's light the visitor's
+  // own time of day (morning, day or evening, with a late dusk standing in for night, so the
+  // lamp and the view always agree). Now and then it rains.
+  const outside = { t: 0, flockAt: -99, starAt: -99, drawnAt: 0, rain: 0, rainTarget: 0, clicks: [], night: dark };
+  const dayPart = (hour = new Date().getHours() + new Date().getMinutes() / 60) =>
+    outside.night ? "night" : hour >= 5 && hour < 10 ? "morning" : hour >= 10 && hour < 16 ? "day" : "evening";
+  const windowView = printed(4.0, 4.1, 220, (c, w, h) => drawWindowView(c, w, h, { ...outside, time: dayPart() }));
   windowView.position.z = 0.105;
   windowGroup.add(windowFrame, windowView);
   const sill = mesh(new THREE.BoxGeometry(4.65, 0.18, 0.6), frameWood, { cast: false, outline: 0.045 });
   sill.position.set(0, -2.3, 0.14);
   windowGroup.add(sill);
-  // Click the window to look out; click again for a flock of birds (or, at night, a shooting star)
+  // Weather: a quarter of visits open on a shower; after that a shower now and then, a minute
+  // or two long, every few minutes at most
+  function weather(first = false) {
+    if (destroyed) return;
+    let wait;
+    if (outside.rainTarget) {
+      outside.rainTarget = 0;
+      wait = 180000 + Math.random() * 120000;
+    } else if (Math.random() < (first ? 0.25 : 0.3)) {
+      outside.rainTarget = 0.6 + Math.random() * 0.4;
+      wait = 60000 + Math.random() * 60000;
+    } else wait = 180000 + Math.random() * 120000;
+    timers.push(setTimeout(weather, wait));
+  }
+  timers.push(setTimeout(() => weather(true), 4000));
+  // Click the window to look out; click again for a flock of birds (or, at night, a shooting
+  // star). Three quick clicks bring the rain, or stop it.
   const lookOut = () => {
-    if (roomDark) {
+    const now = performance.now();
+    outside.clicks = outside.clicks.filter((at) => now - at < 1500).concat(now);
+    if (outside.clicks.length >= 3) {
+      outside.clicks = [];
+      outside.rainTarget = outside.rainTarget ? 0 : 0.9;
+      sfx.patter({ duration: 0.8 });
+      return;
+    }
+    if (dayPart() === "night") {
       if (outside.t - outside.starAt < 1.6) return;
       outside.starAt = outside.t;
       sfx.sparkle({ delay: 0.15 });
@@ -2045,6 +2073,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     redrawScreen();
   }
   function setMuted(isMuted) {
+    setRainLevel(isMuted ? 0 : outside.rain);
     speakerLeds.forEach((mat) => mat.color.set(isMuted ? "#e11d48" : "#16a34a"));
     const changed = isMuted !== soundMuted;
     soundMuted = isMuted;
@@ -2104,6 +2133,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       playTrack: (i) => startMusic(i),
       focus: (name) => setFocus(name),
       terminalClick: () => autotype(AUTORUN[autorunIndex++ % AUTORUN.length]),
+      sound: (name) => sfx[name]?.(),
     },
   });
   let screenDrawnAt = 0;
@@ -2237,9 +2267,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
       const moved = hit ? desktop.hover(hit.uv.x * SCREEN_W, (1 - hit.uv.y) * SCREEN_H) : desktop.hover(null);
       if (moved) redrawScreen();
     },
-    // Spotifree up front takes space and the arrows; anything typed goes to the terminal
+    // Snake or Spotifree up front take their keys; anything else typed goes to the terminal
     onKey: (e) => {
       if (focus.name !== "monitor") return false;
+      // Snake up front takes the arrows and WASD
+      if (desktop.key(e)) {
+        redrawScreen();
+        return true;
+      }
       if (desktop.active() === "spotifree" && !e.repeat) {
         if (e.key === " ") return lofi.playing ? (lofi.pause(), redrawScreen(), true) : (startMusic(), true);
         if (e.key === "ArrowRight") return lofi.next(), true;
@@ -2938,6 +2973,265 @@ export function createDeskScene({ container, projects, experiences, dark = false
       const next = Math.max(0, Math.min(ticketList.length - 1, at + (e.key === "ArrowRight" ? 1 : -1)));
       holdTicket(ticketList[at < 0 ? 0 : next]);
       return true;
+    },
+  });
+
+  // ---------- Oyen, the cat ----------
+  // A ginger cat curled up asleep: on the rug just under the desk's front edge by day, and at night up on the desk in the warm
+  // pool of the lamp (she jumps across when the room switches). Click her and she wakes for a
+  // moment (a meow, a purr, a word in a bubble); every third time she gets up and walks right
+  // across the keyboard instead, typing nonsense into the terminal on the way.
+  const fur = toon("#ff9f45");
+  const furDark = toon("#d9741f");
+  const furLight = toon("#fffdf5");
+  const catInk = toon("#1a1714");
+  const cat = new THREE.Group();
+  cat.scale.setScalar(0.85);
+  const catBody = new THREE.Group();
+  cat.add(catBody);
+  const belly = mesh(new THREE.SphereGeometry(1, 24, 16), fur, { outline: 0.03 });
+  belly.scale.set(1.15, 0.55, 0.85);
+  belly.position.y = 0.55;
+  catBody.add(belly);
+  // Tabby stripes over the back, and a white chest
+  [-0.55, -0.1, 0.35].forEach((x) => {
+    const stripe = mesh(new THREE.SphereGeometry(1, 16, 10), furDark, { outline: 0, cast: false });
+    stripe.scale.set(0.12, 0.08, 0.62);
+    stripe.position.set(x, 1.04, 0);
+    catBody.add(stripe);
+  });
+  catBody.add(at(mesh(new THREE.SphereGeometry(0.42, 16, 12), furLight, { outline: 0.015 }), 0.85, 0.55, 0.15));
+  // Legs, shown only when she stands; paws tucked in front when she's curled
+  const catLegs = [[0.62, 0.32], [0.62, -0.32], [-0.62, 0.32], [-0.62, -0.32]].map(([x, z]) => {
+    const leg = new THREE.Group();
+    leg.position.set(x, 0.62, z);
+    leg.add(at(mesh(new THREE.CylinderGeometry(0.13, 0.12, 0.62, 12), fur, { outline: 0.015 }), 0, -0.31, 0));
+    leg.add(at(mesh(new THREE.SphereGeometry(0.14, 12, 8), furLight, { outline: 0.012 }), 0, -0.6, 0.02));
+    leg.visible = false;
+    cat.add(leg);
+    return leg;
+  });
+  const paws = new THREE.Group();
+  paws.add(
+    at(mesh(new THREE.SphereGeometry(0.16, 12, 8), furLight, { outline: 0.012 }), 1.05, 0.14, 0.62),
+    at(mesh(new THREE.SphereGeometry(0.16, 12, 8), furLight, { outline: 0.012 }), 1.32, 0.14, 0.36),
+  );
+  cat.add(paws);
+  // Head: ears, a white muzzle, a pink nose, and eyes shut (lines) or open (dots)
+  const catHead = new THREE.Group();
+  cat.add(catHead);
+  const skull = mesh(new THREE.SphereGeometry(0.5, 20, 14), fur, { outline: 0.02 });
+  skull.scale.y = 0.88;
+  catHead.add(skull);
+  [-1, 1].forEach((side) => {
+    const ear = mesh(new THREE.ConeGeometry(0.17, 0.34, 12), fur, { outline: 0.012 });
+    ear.position.set(side * 0.27, 0.42, -0.02);
+    ear.rotation.z = -side * 0.3;
+    const inner = mesh(new THREE.ConeGeometry(0.09, 0.2, 10), toon("#ff90b0"), { outline: 0, cast: false });
+    inner.position.set(0, -0.04, 0.06);
+    ear.add(inner);
+    catHead.add(ear);
+  });
+  const muzzle = mesh(new THREE.SphereGeometry(0.22, 14, 10), furLight, { outline: 0.01 });
+  muzzle.scale.set(1.25, 0.8, 0.8);
+  muzzle.position.set(0, -0.14, 0.38);
+  catHead.add(muzzle, at(mesh(new THREE.SphereGeometry(0.055, 10, 8), toon("#ff6b8a"), { outline: 0.006 }), 0, -0.06, 0.52));
+  const eyesShut = [-1, 1].map((side) => at(mesh(rbox(0.16, 0.035, 0.03, 0.012), catInk, { outline: 0, cast: false }), side * 0.18, 0.06, 0.44, side * 0.22));
+  const eyesOpen = [-1, 1].map((side) => {
+    const eye = at(mesh(new THREE.SphereGeometry(0.07, 12, 8), catInk, { outline: 0, cast: false }), side * 0.18, 0.07, 0.43);
+    eye.visible = false;
+    return eye;
+  });
+  catHead.add(...eyesShut, ...eyesOpen);
+  // Tail: wrapped round her front when curled, held up in a hook when she walks
+  const tailTube = (points, radius) => mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points.map(([x, y, z]) => new THREE.Vector3(x, y, z))), 32, radius, 10), fur, { outline: 0.015 });
+  const tailCurl = new THREE.Group();
+  tailCurl.add(tailTube([[-1.05, 0.35, -0.2], [-1.2, 0.25, 0.4], [-0.6, 0.2, 0.95], [0.3, 0.18, 1.0], [0.85, 0.2, 0.85]], 0.13));
+  tailCurl.add(at(mesh(new THREE.SphereGeometry(0.14, 12, 8), furDark, { outline: 0.012 }), 0.88, 0.2, 0.84));
+  const tailUp = new THREE.Group();
+  tailUp.add(tailTube([[-1.0, 0.75, 0], [-1.35, 1.2, 0], [-1.4, 1.75, 0], [-1.2, 2.05, 0]], 0.12));
+  tailUp.add(at(mesh(new THREE.SphereGeometry(0.13, 12, 8), furDark, { outline: 0.012 }), -1.2, 2.05, 0));
+  tailUp.visible = false;
+  cat.add(tailCurl, tailUp);
+  const HEAD_CURLED = new THREE.Vector3(1.0, 0.55, 0.42);
+  const HEAD_UP = new THREE.Vector3(1.25, 1.55, 0);
+  catHead.position.copy(HEAD_CURLED);
+  catHead.rotation.set(0.15, 0.35, 0.1);
+
+  // Curled (asleep) or standing: what shows, where the body and head go
+  function catPose(standing, duration = 0.3) {
+    catLegs.forEach((leg) => (leg.visible = standing));
+    paws.visible = !standing;
+    tailCurl.visible = !standing;
+    tailUp.visible = standing;
+    gsap.to(catBody.position, { y: standing ? 0.5 : 0, duration, ease: "power2.out", overwrite: true });
+    gsap.to(catBody.scale, { y: standing ? 0.85 : 1, duration, ease: "power2.out", overwrite: true });
+    gsap.to(catHead.position, { ...(standing ? HEAD_UP : HEAD_CURLED), duration, ease: "power2.out", overwrite: true });
+    gsap.to(catHead.rotation, { x: standing ? 0 : 0.15, y: standing ? 0.6 : 0.35, z: standing ? 0 : 0.1, duration, overwrite: true });
+    catEyes(standing);
+  }
+  function catEyes(open) {
+    eyesShut.forEach((e) => (e.visible = !open));
+    eyesOpen.forEach((e) => (e.visible = open));
+  }
+
+  // Her two beds: the rug under the desk, and the desk by the lamp. Both stay in view on wide
+  // and tall screens alike. From under the desk she steps out in front of it (`via`) before
+  // jumping, so she never passes through the top.
+  const CAT_BEDS = {
+    floor: { parent: scene, position: new THREE.Vector3(1.4, FLOOR_Y + 0.08, 0.3), yaw: 0.25, via: new THREE.Vector3(1.8, FLOOR_Y + 0.08, 5.4) },
+    desk: { parent: scene, position: new THREE.Vector3(-3.85, 0, -0.55), yaw: 0.45 },
+  };
+  const bedFor = (night) => CAT_BEDS[night ? "desk" : "floor"];
+  let catBed = bedFor(dark);
+  catBed.parent.add(cat);
+  cat.position.copy(catBed.position);
+  cat.rotation.y = catBed.yaw;
+  let catBusy = false;
+  const worldYaw = (object) => {
+    const q = new THREE.Quaternion();
+    object.getWorldQuaternion(q);
+    return new THREE.Euler().setFromQuaternion(q, "YXZ").y;
+  };
+
+  // A hop to a world point: up on her legs, a squash, an arc through the air, a squash on landing
+  function catHop(tl, to, yaw, peak = 2.2) {
+    const from = new THREE.Vector3();
+    const hop = { p: 0 };
+    tl.call(() => {
+      cat.getWorldPosition(from);
+      const yawNow = worldYaw(cat);
+      scene.attach(cat);
+      cat.rotation.set(0, yawNow, 0);
+      sfx.whoosh({ duration: 0.35 });
+    })
+      .to(cat.scale, { y: 0.85 * 0.8, duration: 0.15, ease: "power2.in" })
+      .to(cat.rotation, { y: yaw, duration: 0.25, ease: "power2.out" }, "<")
+      .to(hop, {
+        p: 1,
+        duration: 0.7,
+        ease: "none",
+        onStart: () => gsap.to(cat.scale, { y: 0.85, duration: 0.2 }),
+        onUpdate: () => {
+          cat.position.lerpVectors(from, to, hop.p);
+          // Higher for a bigger climb, so she clears the desk's edge
+          cat.position.y += Math.sin(hop.p * Math.PI) * (peak + Math.abs(to.y - from.y) * 0.5);
+        },
+      })
+      .to(cat.scale, { y: 0.85 * 0.82, duration: 0.1, ease: "power2.out" })
+      .call(() => sfx.thud({ strength: 0.35 }))
+      .to(cat.scale, { y: 0.85, duration: 0.35, ease: "elastic.out(1.2, 0.4)" });
+  }
+  // Out from under the desk first, when that's where she is
+  function catLeave(tl) {
+    if (catBed.via) catHop(tl, catBed.via, 0.6, 0.3);
+  }
+  // Settle into a bed: hop there (by way of the front of the desk for the floor), turn round
+  // once and curl up
+  function catToBed(tl, bed) {
+    const target = bed.parent.localToWorld(bed.position.clone());
+    if (bed.via) {
+      catHop(tl, bed.via, worldYaw(bed.parent) + bed.yaw);
+      catHop(tl, target, worldYaw(bed.parent) + bed.yaw, 0.3);
+    } else catHop(tl, target, worldYaw(bed.parent) + bed.yaw);
+    tl.to(cat.rotation, { y: `+=${Math.PI * 2}`, duration: 0.6, ease: "power1.inOut" })
+      .call(() => {
+        catPose(false, 0.4);
+        bed.parent.attach(cat);
+        cat.position.copy(bed.position);
+        cat.rotation.set(0, bed.yaw, 0);
+        catBed = bed;
+      });
+  }
+  function catMove(night) {
+    const bed = bedFor(night);
+    if (bed === catBed) return;
+    const go = () => {
+      if (catBusy) return timers.push(setTimeout(go, 500));
+      catBusy = true;
+      const tl = gsap.timeline({ delay: 0.6, onComplete: () => (catBusy = false) });
+      tl.call(() => {
+        catPose(true);
+        sfx.meow({ short: true });
+      });
+      tl.to({}, { duration: 0.4 });
+      catLeave(tl);
+      catToBed(tl, bed);
+    };
+    go();
+  }
+
+  const CAT_LINES = ["mrrp?", "meow~", "purrr…", "zzz…", "feed me 🐟", "5 more minutes"];
+  let catLine = 0;
+  let catClicks = 0;
+  const catBubble = speechBubble(3.0, 1.6, { size: 46, tail: "left", style: "manga" });
+  const catBubbleAt = new THREE.Vector3();
+  // The bubble rides along above her (she may be trotting across the keyboard)
+  const placeCatBubble = () => {
+    cat.getWorldPosition(catBubbleAt);
+    catBubble.sprite.position.copy(catBubbleAt).add(new THREE.Vector3(1.7, 2.6, 0.4));
+  };
+  function catSay(text) {
+    placeCatBubble();
+    catBubble.say({ text, by: "Oyen" }, 2600);
+  }
+  // The keyboard run: up onto its left end, a trot to the right with a key under every step,
+  // Enter at the end (the terminal duly complains), then back to bed
+  function catKeyboardRun() {
+    catBusy = true;
+    const top = keyboard.position.y + KEY_Y + 0.09;
+    const z = keyboard.position.z + 0.05;
+    const tl = gsap.timeline({ onComplete: () => (catBusy = false) });
+    tl.call(() => {
+      catPose(true);
+      showTerminal();
+    });
+    tl.to({}, { duration: 0.35 });
+    catLeave(tl);
+    catHop(tl, new THREE.Vector3(keyboard.position.x - 2.0, top, z), 0, 1.6);
+    tl.call(() => catSay("✨ helping ✨"));
+    const trot = { p: 0 };
+    let lastStep = 0;
+    tl.to(trot, {
+      p: 1,
+      duration: 2.4,
+      ease: "none",
+      onUpdate: () => {
+        cat.position.x = keyboard.position.x - 2.0 + trot.p * 4.1;
+        catLegs.forEach((leg, i) => (leg.rotation.z = Math.sin(trot.p * 28 + (i % 2) * Math.PI) * 0.45));
+        const step = Math.floor(trot.p * 14);
+        if (step !== lastStep) {
+          lastStep = step;
+          const ch = "ASDFJKLQWERUIOPZXCVNM"[Math.floor(Math.random() * 21)];
+          pressKey(`Key${ch}`);
+          typeKey(ch.toLowerCase());
+        }
+      },
+    });
+    tl.call(() => {
+      catLegs.forEach((leg) => (leg.rotation.z = 0));
+      pressKey("Enter");
+      typeKey("Enter");
+    });
+    tl.to({}, { duration: 0.3 });
+    catToBed(tl, bedFor(darkNow));
+  }
+  register(cat, {
+    onHover: (on) => on && !catBusy && gsap.fromTo(catHead.rotation, { z: 0.25 }, { z: catHead.rotation.z, duration: 0.6, ease: "elastic.out(1, 0.3)" }),
+    onClick: () => {
+      if (catBusy) return;
+      if (++catClicks % 3 === 0) return catKeyboardRun();
+      catBusy = true;
+      catEyes(true);
+      gsap.fromTo(catHead.position, { y: catHead.position.y }, { y: catHead.position.y + 0.25, duration: 0.25, yoyo: true, repeat: 1, ease: "power2.out" });
+      gsap.fromTo(tailCurl.rotation, { y: 0 }, { y: 0.15, duration: 0.2, yoyo: true, repeat: 5, ease: "sine.inOut" });
+      sfx.meow();
+      sfx.purr({ delay: 0.5, duration: 1.6 });
+      catSay(CAT_LINES[catLine++ % CAT_LINES.length]);
+      timers.push(setTimeout(() => {
+        catEyes(false);
+        catBusy = false;
+      }, 2000));
     },
   });
 
@@ -3733,7 +4027,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
   let darkNow = dark;
   function setTheme(isDark) {
     darkNow = isDark;
-    roomDark = isDark;
     ambient.intensity = isDark ? 1.0 : 0.65;
     skyFill.intensity = isDark ? 0 : 1.45;
     readabilityFill.intensity = isDark ? 0.55 : 0.35;
@@ -3763,6 +4056,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // The monitor's desktop follows the room
   const setRoomTheme = (isDark) => {
     setTheme(isDark);
+    outside.night = isDark;
+    windowView.userData.tex.redraw();
+    catMove(isDark);
     desktop.setTheme(isDark);
     redrawScreen();
   };
@@ -4152,6 +4448,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
     }
     updateLanyard(dt);
     outside.t += dt;
+    outside.rain += (outside.rainTarget - outside.rain) * Math.min(1, dt * 0.35);
+    if (Math.abs(outside.rain - (outside.heard ?? -1)) > 0.02) {
+      outside.heard = outside.rain;
+      setRainLevel(soundMuted ? 0 : outside.rain);
+    }
     if (now - outside.drawnAt > (focus.name === "window" ? 33 : 150)) {
       outside.drawnAt = now;
       windowView.userData.tex.redraw();
@@ -4177,6 +4478,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       if (!termBusy) redrawTerminal();
       typing?.redraw();
     }
+    if (catBubble.sprite.scale.x > 0.01) placeCatBubble();
     // The desktop animates (windows, dock, the player's visualizer) at about 30 fps
     if ((desktop.busy() || lofi.playing) && now - screenDrawnAt > 33) redrawScreen();
     // The typing dots bounce while a reply hasn't started arriving
@@ -4226,6 +4528,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       finishNoteDrag(null, false);
       destroyed = true;
       lofi.destroy();
+      setRainLevel(0);
       cancelAnimationFrame(frame);
       timers.forEach(clearTimeout);
       clearTimeout(arriveTimer);

@@ -60,7 +60,7 @@ function roundRect(c, x, y, w, h, r) {
 // ---------- theme: the desktop follows the room's day and night ----------
 const THEMES = {
   light: {
-    sky: ["#fbf7ef", "#efe6d8"], dots: "rgba(26,23,20,.07)", line: "#1a1714",
+    sky: ["#d8cbff", "#ffd2c2"], dots: "rgba(26,23,20,.08)", line: "#1a1714",
     shapes: ["#ff90e8", "#00e0c6", "#ffdd00", "#7fb2ff", "#ffb35c"],
     bar: "rgba(255,253,245,.92)", ink: "#1a1714", edge: "#000",
     dock: "rgba(255,253,245,.75)", tip: "#1a1714", tipInk: "#fffdf5", card: "#fffdf5",

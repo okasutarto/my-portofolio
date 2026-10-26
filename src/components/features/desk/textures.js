@@ -814,12 +814,71 @@ export function drawPostcard(c, w, h) {
   c.strokeRect(5, 5, w - 10, h - 10);
 }
 
+// Airmail's red-white-blue barber stripes, as a pattern to fill a border band with
+function airmailStripes(c, band) {
+  const tile = document.createElement("canvas");
+  tile.width = tile.height = Math.round(band * 4);
+  const t = tile.getContext("2d");
+  const n = tile.width;
+  // White ground with 45° stripes, red then blue, each a quarter of the tile wide; the tile is
+  // one red and one blue across, so it repeats seamlessly
+  t.fillStyle = "#fffdf5";
+  t.fillRect(0, 0, n, n);
+  const s = n / 4;
+  for (let k = -2; k <= 2; k++) {
+    const x = k * (n / 2);
+    t.fillStyle = k % 2 === 0 ? "#e11d48" : "#1d4ed8";
+    t.beginPath();
+    t.moveTo(x, n);
+    t.lineTo(x + s, n);
+    t.lineTo(x + s + n, 0);
+    t.lineTo(x + n, 0);
+    t.closePath();
+    t.fill();
+  }
+  return c.createPattern(tile, "repeat");
+}
+// Paper grain: a scatter of tiny light and dark flecks
+function paperGrain(c, w, h, count) {
+  for (let i = 0; i < count; i++) {
+    c.fillStyle = i % 2 ? "rgba(90,60,20,.08)" : "rgba(255,255,255,.18)";
+    c.fillRect((Math.sin(i * 12.9898) * 0.5 + 0.5) * w, (Math.cos(i * 78.233) * 0.5 + 0.5) * h, 2 + (i % 3), 1.5);
+  }
+}
+
 export function drawEnvelope(c, w, h, { delivered = false } = {}) {
   c.clearRect(0, 0, w, h);
-  c.beginPath();
-  c.moveTo(0, 0); c.lineTo(w / 2, h * 0.52); c.lineTo(w, 0);
-  c.lineTo(w, h); c.lineTo(0, h); c.closePath();
+  const outline = () => {
+    c.beginPath();
+    c.moveTo(0, 0); c.lineTo(w / 2, h * 0.52); c.lineTo(w, 0);
+    c.lineTo(w, h); c.lineTo(0, h); c.closePath();
+  };
+  outline();
   c.fillStyle = "#dcc391"; c.fill();
+  c.save();
+  outline();
+  c.clip();
+  paperGrain(c, w, h, 900);
+  // the side flaps' folds, running in from the corners, with a faint shadow under each
+  c.strokeStyle = "rgba(120,85,35,.45)";
+  c.lineWidth = 3;
+  c.beginPath();
+  c.moveTo(0, h); c.lineTo(w * 0.42, h * 0.58);
+  c.moveTo(w, h); c.lineTo(w * 0.58, h * 0.58);
+  c.stroke();
+  c.fillStyle = "rgba(120,85,35,.08)";
+  c.beginPath();
+  c.moveTo(0, h); c.lineTo(w * 0.42, h * 0.58); c.lineTo(w / 2, h * 0.52); c.lineTo(w * 0.58, h * 0.58); c.lineTo(w, h);
+  c.closePath();
+  c.fill();
+  // the airmail border along the sides and the bottom
+  const band = h * 0.06;
+  c.fillStyle = airmailStripes(c, band);
+  c.fillRect(0, 0, band, h);
+  c.fillRect(w - band, 0, band, h);
+  c.fillRect(0, h - band, w, band);
+  c.restore();
+  outline();
   c.lineWidth = 6; c.strokeStyle = "#000"; c.stroke();
   c.save(); c.translate(w * 0.08, h * 0.76); c.rotate(-0.07);
   c.strokeStyle = "#1d4ed8"; c.fillStyle = "#1d4ed8"; c.lineWidth = 3;
@@ -838,9 +897,57 @@ export function drawEnvelope(c, w, h, { delivered = false } = {}) {
 }
 export function drawEnvelopeFlap(c, w, h) {
   c.clearRect(0, 0, w, h);
-  c.beginPath(); c.moveTo(0, 0); c.lineTo(w, 0); c.lineTo(w / 2, h); c.closePath();
-  c.fillStyle = "#e2cb9c"; c.fill();
+  const outline = () => {
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(w, 0); c.lineTo(w / 2, h); c.closePath();
+  };
+  outline();
+  // a touch lighter toward the fold, like paper catching the light
+  const shade = c.createLinearGradient(0, 0, 0, h);
+  shade.addColorStop(0, "#ecd7aa");
+  shade.addColorStop(1, "#dcc391");
+  c.fillStyle = shade; c.fill();
+  c.save();
+  outline();
+  c.clip();
+  paperGrain(c, w, h, 400);
+  c.fillStyle = airmailStripes(c, h * 0.075);
+  c.fillRect(0, 0, w, h * 0.075);
+  c.restore();
+  outline();
   c.strokeStyle = "#000"; c.lineWidth = 6; c.stroke();
+  // a red wax seal pressed over the flap's point, stamped with a star
+  const sx = w / 2;
+  const sy = h * 0.8;
+  const sr = h * 0.13;
+  c.fillStyle = "#000";
+  c.beginPath();
+  for (let i = 0; i <= 18; i++) {
+    const a = (i / 18) * Math.PI * 2;
+    const r = sr * (1 + (i % 2 ? 0.08 : -0.04));
+    c.lineTo(sx + 4 + Math.cos(a) * r, sy + 4 + Math.sin(a) * r);
+  }
+  c.fill();
+  c.fillStyle = "#c81e3a";
+  c.beginPath();
+  for (let i = 0; i <= 18; i++) {
+    const a = (i / 18) * Math.PI * 2;
+    const r = sr * (1 + (i % 2 ? 0.08 : -0.04));
+    c.lineTo(sx + Math.cos(a) * r, sy + Math.sin(a) * r);
+  }
+  c.fill();
+  c.lineWidth = 3;
+  c.stroke();
+  c.strokeStyle = "rgba(0,0,0,.35)";
+  c.beginPath();
+  c.arc(sx, sy, sr * 0.68, 0, Math.PI * 2);
+  c.stroke();
+  c.fillStyle = "rgba(255,220,220,.75)";
+  c.font = `900 ${Math.round(sr * 0.9)}px ${DISPLAY}`;
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.fillText("✦", sx, sy + sr * 0.05);
+  c.textAlign = "left";
+  c.textBaseline = "alphabetic";
 }
 // Pontianak's Tugu Khatulistiwa (the Equator Monument), neo-brutalist: four pillars on a
 // plinth carrying a globe with the equator ring round it and the arrow through it. Centred on
@@ -992,46 +1099,371 @@ export function drawAboutBoard(c, w, h) {
   c.textAlign = "left";
 }
 
-export function drawAboutNote(c, w, h, note) {
-  const colors = { years: "#ffdd00", projects: "#00e0c6", companies: "#7fb2ff", stack: "#ff90e8", now: "#c4b5fd", resume: "#000" };
-  c.fillStyle = colors[note.id] || "#fffdf5";
+// Each paper on the board is its own kind of stationery: a page torn from a lined notebook, sticky
+// notes with a doodle each, a sticker sheet of the stack, an index card for what's being built, a
+// little map postcard, and a label-maker strip for the resume.
+const PAPER_COLORS = { years: "#ffdd00", projects: "#00e0c6", companies: "#7fb2ff", stack: "#ff90e8", now: "#c4b5fd", resume: "#141414" };
+// Fine grain and a faint shadow where the paper lifts off the board at its lower right corner
+function paperFinish(c, w, h, seed = 1) {
+  let r = seed * 9301;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < (w * h) / 900; i++) {
+    c.fillStyle = rand() < 0.5 ? "rgba(0,0,0,.035)" : "rgba(255,255,255,.08)";
+    c.fillRect(rand() * w, rand() * h, 1 + rand() * 2, 1);
+  }
+  const curl = c.createLinearGradient(w * 0.75, h * 0.75, w, h);
+  curl.addColorStop(0, "rgba(0,0,0,0)");
+  curl.addColorStop(1, "rgba(0,0,0,.14)");
+  c.fillStyle = curl;
   c.fillRect(0, 0, w, h);
-  const ink = note.id === "resume" ? "#fff" : "#000";
-  const pad = w * 0.075;
-  c.fillStyle = ink;
-  c.textAlign = "left";
-  c.textBaseline = "top";
-  if (note.type === "stat") {
-    c.font = `900 ${Math.round(h * 0.46)}px ${DISPLAY}`;
-    c.fillText(note.value, pad, h * 0.24);
-    fitFont(c, note.label.toUpperCase(), 800, BODY, Math.round(h * 0.11), w - 2 * pad);
-    c.fillText(note.label.toUpperCase(), pad, h * 0.78);
-  } else if (note.type === "stack") {
-    c.font = `900 ${Math.round(w * 0.065)}px ${DISPLAY}`;
-    c.fillText("STACK", pad, h * 0.13);
-    let y = h * 0.28;
-    ABOUT_STACK.forEach((group) => {
-      c.font = `800 ${Math.round(w * 0.04)}px ${BODY}`;
-      c.fillText(group.label.toUpperCase(), pad, y);
-      c.font = `600 ${Math.round(w * 0.04)}px ${BODY}`;
-      const lines = wrap(c, group.items.join(" · "), w - 2 * pad, 2);
-      const bodyY = y + w * 0.044;
-      lines.forEach((line, k) => c.fillText(line, pad, bodyY + k * w * 0.047));
-      y = bodyY + lines.length * w * 0.047 + h * 0.025;
-    });
-  } else {
-    const titleSize = note.id === "resume" ? h * 0.32 : Math.min(w * (note.id === "location" ? 0.12 : 0.073), h * 0.17);
-    fitFont(c, note.title.toUpperCase(), 900, BODY, Math.round(titleSize), w - 2 * pad);
-    const top = h * (note.id === "resume" ? 0.6 : note.id === "location" ? 0.25 : note.id === "now" ? 0.33 : 0.17);
-    c.fillText(note.title.toUpperCase(), pad, top);
-    if (note.body) {
-      const size = Math.min(w * (note.id === "now" ? 0.038 : note.id === "location" ? 0.075 : note.id === "who" ? 0.043 : 0.047), h * 0.12);
-      c.font = `500 ${Math.round(size)}px ${BODY}`;
-      const lineHeight = size * 1.4;
-      const bodyY = top + titleSize + h * 0.08;
-      const lines = wrap(c, note.body.replace(/<[^>]*>/g, ""), w - 2 * pad, Math.max(1, Math.floor((h - bodyY - h * 0.08) / lineHeight)));
-      lines.forEach((line, i) => c.fillText(line, pad, bodyY + i * lineHeight));
+}
+// Text with a hard offset shadow, like the site's headings
+function shadowText(c, text, x, y, color, shadow, d) {
+  c.fillStyle = shadow;
+  c.fillText(text, x + d, y + d);
+  c.fillStyle = color;
+  c.fillText(text, x, y);
+}
+const HAND = "'Caveat', cursive";
+
+function drawWhoNote(c, w, h, note) {
+  // lined notebook paper torn from a spiral pad
+  c.fillStyle = "#fffdf5";
+  c.fillRect(0, 0, w, h);
+  const rule = h * 0.085;
+  const first = h * 0.3;
+  c.strokeStyle = "rgba(59,130,246,.28)";
+  c.lineWidth = Math.max(1, w * 0.003);
+  for (let y = first; y < h - rule * 0.3; y += rule) {
+    c.beginPath();
+    c.moveTo(0, y);
+    c.lineTo(w, y);
+    c.stroke();
+  }
+  const margin = w * 0.12;
+  c.strokeStyle = "rgba(225,29,72,.5)";
+  c.beginPath();
+  c.moveTo(margin, 0);
+  c.lineTo(margin, h);
+  c.stroke();
+  // punched holes down the left, and the torn perforation along the top
+  [0.3, 0.55, 0.8].forEach((k) => {
+    c.fillStyle = "#cb9b67";
+    c.beginPath();
+    c.arc(w * 0.055, h * k, w * 0.018, 0, Math.PI * 2);
+    c.fill();
+    c.strokeStyle = "rgba(0,0,0,.25)";
+    c.lineWidth = 1.5;
+    c.stroke();
+  });
+  c.fillStyle = "rgba(0,0,0,.12)";
+  for (let x = 0; x < w; x += w * 0.025) c.fillRect(x, h * 0.03, w * 0.012, w * 0.006);
+  // the heading in marker, then the note in handwriting sitting on the rules
+  c.textBaseline = "alphabetic";
+  fitFont(c, note.title.toUpperCase(), 800, DISPLAY, Math.round(h * 0.11), w - margin - w * 0.1);
+  shadowText(c, note.title.toUpperCase(), margin + w * 0.035, first - rule * 0.35, "#1a1714", "#ffdd00", w * 0.006);
+  const size = rule * 0.82;
+  c.font = `700 ${Math.round(size)}px ${HAND}`;
+  const plain = note.body.replace(/<[^>]*>/g, "");
+  const marked = (note.body.match(/<mark[^>]*>(.*?)<\/mark>/) || [])[1] || "";
+  const words = plain.split(" ");
+  const markStart = marked ? plain.indexOf(marked) : -1;
+  let x = margin + w * 0.035;
+  let y = first + rule - rule * 0.18;
+  let at = 0;
+  words.forEach((word) => {
+    const ww = c.measureText(word + " ").width;
+    if (x + ww > w - w * 0.04) {
+      x = margin + w * 0.035;
+      y += rule;
     }
+    if (y > h - rule * 0.2) return;
+    // the name gets a highlighter stroke
+    if (markStart >= 0 && at >= markStart && at < markStart + marked.length) {
+      c.fillStyle = "rgba(255,221,0,.75)";
+      c.fillRect(x - 2, y - size * 0.62, c.measureText(word).width + 6, size * 0.68);
+    }
+    c.fillStyle = "#1e2a5a";
+    c.fillText(word, x, y);
+    x += ww;
+    at += word.length + 1;
+  });
+  // a doodled star in the corner
+  c.strokeStyle = "#e11d48";
+  c.lineWidth = w * 0.006;
+  c.beginPath();
+  const sx = w * 0.9;
+  const sy = h * 0.88;
+  for (let i = 0; i < 5; i++) {
+    const a = -Math.PI / 2 + (i * 4 * Math.PI) / 5;
+    c[i ? "lineTo" : "moveTo"](sx + Math.cos(a) * w * 0.04, sy + Math.sin(a) * w * 0.04);
+  }
+  c.closePath();
+  c.stroke();
+  paperFinish(c, w, h, 3);
+}
+
+// A tiny doodle per statistic: a calendar page, a folder, a building
+function statDoodle(c, id, x, y, s) {
+  c.save();
+  c.translate(x, y);
+  c.lineWidth = s * 0.07;
+  c.strokeStyle = "#1a1714";
+  c.fillStyle = "rgba(255,255,255,.85)";
+  c.lineJoin = "round";
+  if (id === "years") {
+    c.fillRect(0, s * 0.15, s, s * 0.85);
+    c.strokeRect(0, s * 0.15, s, s * 0.85);
+    c.fillStyle = "#e11d48";
+    c.fillRect(0, s * 0.15, s, s * 0.22);
+    c.strokeRect(0, s * 0.15, s, s * 0.22);
+    [0.25, 0.75].forEach((k) => {
+      c.beginPath();
+      c.moveTo(s * k, 0);
+      c.lineTo(s * k, s * 0.3);
+      c.stroke();
+    });
+    c.fillStyle = "#1a1714";
+    for (let i = 0; i < 6; i++) c.fillRect(s * (0.14 + (i % 3) * 0.28), s * (0.5 + Math.floor(i / 3) * 0.24), s * 0.14, s * 0.12);
+  } else if (id === "projects") {
+    c.beginPath();
+    c.moveTo(0, s * 0.2);
+    c.lineTo(s * 0.4, s * 0.2);
+    c.lineTo(s * 0.5, s * 0.32);
+    c.lineTo(s, s * 0.32);
+    c.lineTo(s, s * 0.95);
+    c.lineTo(0, s * 0.95);
+    c.closePath();
+    c.fill();
+    c.stroke();
+    c.beginPath();
+    c.moveTo(s * 0.25, s * 0.66);
+    c.lineTo(s * 0.45, s * 0.8);
+    c.lineTo(s * 0.78, s * 0.5);
+    c.strokeStyle = "#16a34a";
+    c.lineWidth = s * 0.1;
+    c.stroke();
+  } else {
+    c.fillRect(s * 0.1, s * 0.1, s * 0.5, s * 0.9);
+    c.strokeRect(s * 0.1, s * 0.1, s * 0.5, s * 0.9);
+    c.fillRect(s * 0.6, s * 0.4, s * 0.35, s * 0.6);
+    c.strokeRect(s * 0.6, s * 0.4, s * 0.35, s * 0.6);
+    c.fillStyle = "#1a1714";
+    for (let i = 0; i < 6; i++) c.fillRect(s * (0.2 + (i % 2) * 0.2), s * (0.22 + Math.floor(i / 2) * 0.22), s * 0.1, s * 0.1);
+  }
+  c.restore();
+}
+function drawStatNote(c, w, h, note) {
+  const base = PAPER_COLORS[note.id];
+  c.fillStyle = base;
+  c.fillRect(0, 0, w, h);
+  // the sticky strip along the top, a shade deeper
+  c.fillStyle = "rgba(0,0,0,.07)";
+  c.fillRect(0, 0, w, h * 0.2);
+  c.textBaseline = "alphabetic";
+  c.font = `900 ${Math.round(h * 0.42)}px ${DISPLAY}`;
+  shadowText(c, note.value, w * 0.08, h * 0.68, "#1a1714", "rgba(255,255,255,.7)", w * 0.02);
+  fitFont(c, note.label.toUpperCase(), 800, BODY, Math.round(h * 0.1), w * 0.84);
+  c.fillStyle = "#1a1714";
+  c.fillText(note.label.toUpperCase(), w * 0.08, h * 0.86);
+  // an underline scribble under the label
+  c.strokeStyle = "rgba(26,23,20,.55)";
+  c.lineWidth = h * 0.012;
+  c.beginPath();
+  for (let x = w * 0.08; x <= w * 0.62; x += w * 0.04) c.lineTo(x, h * 0.91 + Math.sin(x * 0.2) * h * 0.008);
+  c.stroke();
+  // In the top right corner, clear of the number and the pin in the middle
+  statDoodle(c, note.id, w * 0.72, h * 0.05, w * 0.2);
+  paperFinish(c, w, h, note.id.length);
+}
+
+function drawStackNote(c, w, h) {
+  // a sticker sheet: each tool a little sticker with a hard shadow
+  c.fillStyle = PAPER_COLORS.stack;
+  c.fillRect(0, 0, w, h);
+  c.strokeStyle = "rgba(0,0,0,.12)";
+  c.setLineDash([w * 0.012, w * 0.012]);
+  c.lineWidth = 2;
+  c.strokeRect(w * 0.03, h * 0.04, w * 0.94, h * 0.92);
+  c.setLineDash([]);
+  const pad = w * 0.075;
+  c.textBaseline = "top";
+  c.font = `900 ${Math.round(w * 0.065)}px ${DISPLAY}`;
+  shadowText(c, "STACK", pad, h * 0.09, "#1a1714", "#fffdf5", w * 0.006);
+  const STICKERS = ["#fffdf5", "#ffdd00", "#00e0c6", "#7fb2ff", "#c4b5fd"];
+  // Each group on its own row: its name in the left column, its stickers wrapping to the right
+  let y = h * 0.27;
+  const chipH = w * 0.064;
+  const left = pad + w * 0.17;
+  ABOUT_STACK.forEach((group, g) => {
+    c.font = `800 ${Math.round(w * 0.032)}px ${BODY}`;
+    c.fillStyle = "rgba(26,23,20,.7)";
+    c.fillText(group.label.toUpperCase(), pad, y + chipH * 0.25);
+    let x = left;
+    c.font = `700 ${Math.round(w * 0.038)}px ${BODY}`;
+    group.items.forEach((item, i) => {
+      const cw = c.measureText(item).width + w * 0.04;
+      if (x + cw > w - pad) {
+        x = left;
+        y += chipH + w * 0.014;
+      }
+      c.fillStyle = "#1a1714";
+      c.beginPath();
+      c.roundRect(x + 3, y + 3, cw, chipH, chipH / 2);
+      c.fill();
+      c.fillStyle = STICKERS[(g + i) % STICKERS.length];
+      c.beginPath();
+      c.roundRect(x, y, cw, chipH, chipH / 2);
+      c.fill();
+      c.lineWidth = 2;
+      c.strokeStyle = "#1a1714";
+      c.stroke();
+      c.fillStyle = "#1a1714";
+      c.fillText(item, x + w * 0.02, y + chipH * 0.2);
+      x += cw + w * 0.016;
+    });
+    y += chipH + w * 0.03;
+  });
+  paperFinish(c, w, h, 7);
+}
+
+function drawNowNote(c, w, h, note) {
+  // an index card: a red heading rule, blue lines, a progress bar and a WIP stamp
+  c.fillStyle = PAPER_COLORS.now;
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = "rgba(255,255,255,.35)";
+  c.fillRect(0, 0, w, h);
+  c.strokeStyle = "rgba(225,29,72,.45)";
+  c.lineWidth = 2;
+  c.beginPath();
+  c.moveTo(0, h * 0.42);
+  c.lineTo(w, h * 0.42);
+  c.stroke();
+  c.strokeStyle = "rgba(59,130,246,.25)";
+  [0.62, 0.78, 0.94].forEach((k) => {
+    c.beginPath();
+    c.moveTo(0, h * k);
+    c.lineTo(w, h * k);
+    c.stroke();
+  });
+  const pad = w * 0.06;
+  c.textBaseline = "alphabetic";
+  c.font = `900 ${Math.round(h * 0.17)}px ${DISPLAY}`;
+  shadowText(c, note.title.toUpperCase(), pad, h * 0.37, "#1a1714", "#fffdf5", w * 0.004);
+  c.font = `700 ${Math.round(h * 0.14)}px ${HAND}`;
+  c.fillStyle = "#1e2a5a";
+  wrap(c, note.body, w * 0.66, 3).forEach((line, i) => c.fillText(line, pad, h * (0.6 + i * 0.16)));
+  // progress, and a rubber stamp
+  const bx = w * 0.76;
+  const bw = w * 0.19;
+  c.fillStyle = "#fffdf5";
+  c.fillRect(bx, h * 0.73, bw, h * 0.1);
+  c.fillStyle = "#16a34a";
+  c.fillRect(bx, h * 0.73, bw * 0.7, h * 0.1);
+  c.strokeStyle = "#1a1714";
+  c.lineWidth = 2;
+  c.strokeRect(bx, h * 0.73, bw, h * 0.1);
+  c.save();
+  c.translate(w * 0.86, h * 0.5);
+  c.rotate(-0.18);
+  c.strokeStyle = "rgba(225,29,72,.8)";
+  c.lineWidth = h * 0.025;
+  c.strokeRect(-w * 0.08, -h * 0.1, w * 0.16, h * 0.2);
+  c.fillStyle = "rgba(225,29,72,.85)";
+  c.font = `900 ${Math.round(h * 0.13)}px ${DISPLAY}`;
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.fillText("WIP", 0, h * 0.01);
+  c.restore();
+  c.textAlign = "left";
+  paperFinish(c, w, h, 5);
+}
+
+function drawLocationNote(c, w, h, note) {
+  // a little map card: the coast, the Kapuas river, and the equator running right through town
+  c.fillStyle = "#fffdf5";
+  c.fillRect(0, 0, w, h);
+  const mx = w * 0.08;
+  const my = h * 0.44;
+  const mw = w * 0.84;
+  const mh = h * 0.34;
+  c.fillStyle = "#a8ecff";
+  c.fillRect(mx, my, mw, mh);
+  c.fillStyle = "#8fd694";
+  c.beginPath();
+  c.moveTo(mx + mw * 0.3, my);
+  c.bezierCurveTo(mx + mw * 0.2, my + mh * 0.4, mx + mw * 0.35, my + mh * 0.7, mx + mw * 0.25, my + mh);
+  c.lineTo(mx + mw, my + mh);
+  c.lineTo(mx + mw, my);
+  c.closePath();
+  c.fill();
+  c.strokeStyle = "#3b82f6";
+  c.lineWidth = h * 0.02;
+  c.beginPath();
+  c.moveTo(mx + mw * 0.3, my + mh * 0.55);
+  c.bezierCurveTo(mx + mw * 0.55, my + mh * 0.45, mx + mw * 0.7, my + mh * 0.75, mx + mw, my + mh * 0.6);
+  c.stroke();
+  c.setLineDash([w * 0.03, w * 0.025]);
+  c.strokeStyle = "#e11d48";
+  c.lineWidth = h * 0.012;
+  c.beginPath();
+  c.moveTo(mx, my + mh * 0.3);
+  c.lineTo(mx + mw, my + mh * 0.3);
+  c.stroke();
+  c.setLineDash([]);
+  c.strokeStyle = "#1a1714";
+  c.lineWidth = 2;
+  c.strokeRect(mx, my, mw, mh);
+  // the pin on town
+  const px = mx + mw * 0.36;
+  const py = my + mh * 0.3;
+  c.fillStyle = "#d946ef";
+  c.beginPath();
+  c.arc(px, py - h * 0.05, h * 0.035, Math.PI, 0);
+  c.lineTo(px, py);
+  c.closePath();
+  c.fill();
+  c.stroke();
+  c.fillStyle = "#1a1714";
+  c.textBaseline = "alphabetic";
+  c.font = `700 ${Math.round(h * 0.05)}px ${BODY}`;
+  c.fillText("0° EQUATOR", mx + mw * 0.45, my + mh * 0.25);
+  // Below the pin, which sits at the top middle
+  fitFont(c, note.title.toUpperCase(), 900, BODY, Math.round(h * 0.11), w * 0.84);
+  c.fillText(note.title.toUpperCase(), w * 0.08, h * 0.37);
+  c.font = `600 ${Math.round(h * 0.075)}px ${BODY}`;
+  c.fillStyle = "rgba(26,23,20,.7)";
+  c.fillText(note.body, w * 0.08, h * 0.9);
+  paperFinish(c, w, h, 11);
+}
+
+function drawResumeNote(c, w, h, note) {
+  // embossed label-maker tape
+  c.fillStyle = PAPER_COLORS.resume;
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = "rgba(255,255,255,.06)";
+  for (let y = 0; y < h; y += 4) c.fillRect(0, y, w, 1);
+  c.fillStyle = "rgba(255,255,255,.12)";
+  [w * 0.015, w * 0.975].forEach((x) => c.fillRect(x, 0, w * 0.01, h));
+  c.textBaseline = "middle";
+  fitFont(c, note.title.toUpperCase(), 900, BODY, Math.round(h * 0.44), w * 0.8);
+  c.fillStyle = "rgba(0,0,0,.6)";
+  c.fillText(note.title.toUpperCase(), w * 0.07 + 2, h * 0.55 + 2);
+  c.fillStyle = "#f4f1ea";
+  c.fillText(note.title.toUpperCase(), w * 0.07, h * 0.55);
+}
+
+export function drawAboutNote(c, w, h, note) {
+  c.textAlign = "left";
+  if (note.type === "stat") drawStatNote(c, w, h, note);
+  else if (note.type === "stack") drawStackNote(c, w, h);
+  else if (note.id === "who") drawWhoNote(c, w, h, note);
+  else if (note.id === "now") drawNowNote(c, w, h, note);
+  else if (note.id === "location") drawLocationNote(c, w, h, note);
+  else if (note.id === "resume") drawResumeNote(c, w, h, note);
+  else {
+    c.fillStyle = "#fffdf5";
+    c.fillRect(0, 0, w, h);
   }
   c.textBaseline = "alphabetic";
   return note.href ? [{ x: 0, y: 0, w, h, href: note.href }] : [];
@@ -1128,6 +1560,125 @@ export function drawDeskMat(c, w, h) {
   c.fillRect(0, 0, w, h);
   c.fillStyle = "rgba(255,255,255,.05)";
   for (let y = 24; y < h; y += 32) for (let x = 24; x < w; x += 32) c.fillRect(x, y, 3, 3);
+}
+
+// ---------- room details: the clock face, the guitar's top, straw, the chair's quilting ----------
+// The wall clock's dial: bold hour bars and four numerals
+export function drawClockFace(c, w, h) {
+  const cx = w / 2;
+  const r = w / 2;
+  c.fillStyle = "#fffdf5";
+  c.fillRect(0, 0, w, h);
+  for (let i = 0; i < 60; i += 5) {
+    const a = (i / 60) * Math.PI * 2;
+    const inner = r * 0.78;
+    c.strokeStyle = "#1a1714";
+    c.lineWidth = r * 0.035;
+    c.lineCap = "round";
+    c.beginPath();
+    c.moveTo(cx + Math.sin(a) * inner, cx - Math.cos(a) * inner);
+    c.lineTo(cx + Math.sin(a) * r * 0.92, cx - Math.cos(a) * r * 0.92);
+    c.stroke();
+  }
+  c.fillStyle = "#1a1714";
+  c.font = `900 ${Math.round(r * 0.2)}px ${DISPLAY}`;
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  [["12", 0], ["3", 90], ["6", 180], ["9", 270]].forEach(([n, deg]) => {
+    const a = (deg * Math.PI) / 180;
+    c.fillText(n, cx + Math.sin(a) * r * 0.6, cx - Math.cos(a) * r * 0.6 + r * 0.01);
+  });
+  c.textAlign = "left";
+  c.textBaseline = "alphabetic";
+}
+
+// The guitar's top, laid out in the body outline's own units (x -1..1 across, y -0.95..1.92):
+// a soft sunburst from honey to darker edges, and one cream ring round the soundhole
+export function drawGuitarTop(c, w, h) {
+  const toX = (x) => ((x + 1) / 2) * w;
+  const toY = (y) => (1 - (y + 0.95) / 2.87) * h;
+  const burst = c.createRadialGradient(toX(0), toY(0.1), w * 0.12, toX(0), toY(0.3), w * 0.62);
+  burst.addColorStop(0, "#f7a556");
+  burst.addColorStop(0.6, "#e98a3d");
+  burst.addColorStop(1, "#a8521e");
+  c.fillStyle = burst;
+  c.fillRect(0, 0, w, h);
+  c.strokeStyle = "#fffdf5";
+  c.lineWidth = w * 0.035;
+  c.beginPath();
+  c.ellipse(toX(0), toY(1.15), (0.38 / 2) * w, (0.38 / 2.87) * h, 0, 0, Math.PI * 2);
+  c.stroke();
+}
+
+// Woven straw: rows of plaited strands, each a little lighter in the middle
+export function drawStraw(c, w, h) {
+  c.fillStyle = "#e9b543";
+  c.fillRect(0, 0, w, h);
+  const row = h / 16;
+  for (let r = 0; r < 16; r++) {
+    for (let x = (r % 2) * 12; x < w; x += 24) {
+      const g = c.createLinearGradient(x, r * row, x + 22, r * row + row);
+      g.addColorStop(0, "#d79f2e");
+      g.addColorStop(0.5, "#f8d06b");
+      g.addColorStop(1, "#c98e24");
+      c.fillStyle = g;
+      c.beginPath();
+      c.moveTo(x, r * row + row * 0.15);
+      c.lineTo(x + 22, r * row + row * 0.5);
+      c.lineTo(x, r * row + row * 0.85);
+      c.closePath();
+      c.fill();
+    }
+    c.fillStyle = "rgba(120,70,10,.35)";
+    c.fillRect(0, r * row, w, 1.5);
+  }
+}
+
+// The chair back's diamond quilting, stitched in maroon thread
+export function drawChairQuilt(c, w, h) {
+  c.clearRect(0, 0, w, h);
+  const step = w / 6;
+  c.strokeStyle = "rgba(140,30,60,.85)";
+  c.lineWidth = Math.max(2, w * 0.006);
+  c.setLineDash([w * 0.018, w * 0.012]);
+  for (let k = -h; k < w + h; k += step) {
+    c.beginPath();
+    c.moveTo(k, 0);
+    c.lineTo(k + h, h);
+    c.moveTo(k, 0);
+    c.lineTo(k - h, h);
+    c.stroke();
+  }
+  c.setLineDash([]);
+  // a soft shade in each diamond, as if padded
+  c.fillStyle = "rgba(0,0,0,.08)";
+  for (let y = 0; y < h; y += step) for (let x = 0; x < w; x += step) c.fillRect(x + step * 0.5, y + step * 0.5, step * 0.5, step * 0.5);
+}
+
+// The embroidered emblem on the chair's back: a controller in an orange roundel
+export function drawChairEmblem(c, w, h) {
+  c.clearRect(0, 0, w, h);
+  c.fillStyle = "#1a1714";
+  c.beginPath();
+  c.arc(w / 2, h / 2, w * 0.48, 0, Math.PI * 2);
+  c.fill();
+  c.fillStyle = "#f47b20";
+  c.beginPath();
+  c.arc(w / 2, h / 2, w * 0.42, 0, Math.PI * 2);
+  c.fill();
+  c.strokeStyle = "#1a1714";
+  c.lineWidth = w * 0.05;
+  c.lineJoin = "round";
+  c.beginPath();
+  c.roundRect(w * 0.24, h * 0.36, w * 0.52, h * 0.3, h * 0.14);
+  c.stroke();
+  c.fillStyle = "#1a1714";
+  c.fillRect(w * 0.33, h * 0.48, w * 0.1, w * 0.035);
+  c.fillRect(w * 0.363, h * 0.445, w * 0.035, w * 0.1);
+  c.beginPath();
+  c.arc(w * 0.62, h * 0.47, w * 0.03, 0, Math.PI * 2);
+  c.arc(w * 0.67, h * 0.54, w * 0.03, 0, Math.PI * 2);
+  c.fill();
 }
 
 // ---------- floor: wood planks that tile seamlessly in both directions ----------
@@ -1328,16 +1879,16 @@ function drawSunset(c, w, h, ink) {
   c.fillRect(w * 0.7, h * 0.765, w * 0.025, h * 0.03);
 }
 
-// ---------- rug under the desk: plain dusty blue with a thin cream inset border ----------
-export function drawRug(c, w, h) {
-  c.fillStyle = "#8fa8d6";
+// ---------- rug under the desk: plain charcoal with a thin cream inset border ----------
+export function drawRug(c, w, h, { base = "#4a4b50", border = "#f3ead8" } = {}) {
+  c.fillStyle = base;
   c.fillRect(0, 0, w, h);
   // the faintest weave, so it reads as fabric rather than paint
   c.fillStyle = "rgba(0,0,0,.035)";
   for (let y = 0; y < h; y += 10) c.fillRect(0, y, w, 3);
   const inset = w * 0.045;
   c.lineWidth = Math.max(5, w / 200);
-  c.strokeStyle = "#f3ead8";
+  c.strokeStyle = border;
   c.strokeRect(inset, inset, w - inset * 2, h - inset * 2);
   c.lineWidth = Math.max(8, w / 80);
   c.strokeStyle = "#1a1714";
@@ -1907,14 +2458,18 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
     c.stroke();
   }
 
-  // The window's own cross bars: white, like the frame, with a black outline
+  // The window's own cross bars: wood, like the frame, with a black outline and a lighter
+  // bevel down the middle
   const bar = u * 2.4;
   c.fillStyle = "#000";
   c.fillRect(w / 2 - bar / 2 - line, 0, bar + line * 2, h);
   c.fillRect(0, h / 2 - bar / 2 - line, w, bar + line * 2);
-  c.fillStyle = "#ffffff";
+  c.fillStyle = "#b8743c";
   c.fillRect(w / 2 - bar / 2, 0, bar, h);
   c.fillRect(0, h / 2 - bar / 2, w, bar);
+  c.fillStyle = "rgba(255,220,170,.35)";
+  c.fillRect(w / 2 - bar * 0.15, 0, bar * 0.3, h);
+  c.fillRect(0, h / 2 - bar * 0.15, w, bar * 0.3);
 
   // Drops on the glass, sliding down now and then, each with a little wet trail
   if (rain > 0.05) {

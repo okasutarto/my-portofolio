@@ -41,6 +41,12 @@
               {{ link.name }}
             </router-link>
           </template>
+          <!-- Back to the 3D desk, the site's front door -->
+          <router-link
+            to="/"
+            class="inline-flex items-center gap-1 font-bold text-base px-3 py-1 bg-black text-white border-2 border-black dark:border-primary shadow-neo-sm rotate-1 hover:rotate-0 hover:-translate-y-0.5 transition-transform">
+            3D Desk <span aria-hidden="true">→</span>
+          </router-link>
           <SoundToggle />
           <ThemeSwitcher />
         </div>
@@ -94,6 +100,12 @@
               {{ link.name }}
             </router-link>
           </template>
+          <router-link
+            to="/"
+            class="text-2xl font-bold p-2 border-2 border-black dark:border-primary bg-black text-white shadow-neo-sm"
+            @click="mobileMenuOpen = false">
+            3D Desk →
+          </router-link>
         </div>
       </div>
     </transition>

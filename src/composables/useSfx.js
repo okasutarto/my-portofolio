@@ -76,7 +76,9 @@ export function initializeAudio() {
 
 // First interaction enables audio if autoplay was blocked.
 // Later gestures also recover Safari audio after an interruption.
-["click", "touchend", "keydown"].forEach((event) =>
+// Browsers only allow audio after a real gesture (a press, a tap or a key); moving the pointer
+// or scrolling doesn't count, so the earliest moment is the first press anywhere.
+["pointerdown", "click", "touchend", "keydown"].forEach((event) =>
   window.addEventListener(event, () => {
     if (!muted.value && (!ctx || ctx.state !== "running")) void unlock();
   }, { capture: true, passive: true }),
@@ -160,6 +162,8 @@ const CHORDS = [
   [82.41, 123.47, 164.81, 196, 246.94, 329.63], // Em
 ];
 let chordIndex = 0;
+// The groove's tempo (seconds per beat): exported so the speakers can pump in time
+export const GROOVE_BEAT = 0.2;
 
 // ---------- the sounds ----------
 const SOUNDS = {
@@ -365,6 +369,62 @@ const SOUNDS = {
     tone(t, { freq: 2800, to: 1600, attack: 0.005, peak: 0.12, decay: 0.5 });
     [0, 0.07, 0.15, 0.24].forEach((d, i) => tone(t + d, { type: "triangle", freq: 2093 * (1 + i * 0.25), peak: 0.07, decay: 0.18 }));
   },
+  // The speakers coming on: a two-bar groove (kick, hats, a bass line and a bright riff).
+  // Beat i lands at t + i * GROOVE_BEAT, so visuals can pulse in time.
+  groove(t) {
+    const beat = GROOVE_BEAT;
+    const bass = [65.41, 65.41, 98, 87.31, 65.41, 65.41, 116.54, 98];
+    const riff = [523.25, 659.25, 783.99, 659.25, 880, 783.99, 659.25, 1046.5];
+    for (let i = 0; i < 8; i++) {
+      const at = t + i * beat;
+      if (i % 2 === 0) tone(at, { freq: 150, to: 45, peak: 0.7, decay: 0.16 });
+      noise(at + beat / 2, { filter: "highpass", freq: 7000, peak: 0.12, decay: 0.03 });
+      if (i % 4 === 2) noise(at, { freq: 1800, q: 0.8, peak: 0.3, decay: 0.09 });
+      tone(at, { type: "sawtooth", freq: bass[i], peak: 0.12, decay: beat * 0.8 });
+      tone(at + beat / 2, { type: "square", freq: riff[i], peak: 0.06, decay: beat * 0.4 });
+    }
+    tone(t + 8 * beat, { type: "triangle", freq: 1046.5, peak: 0.12, decay: 0.5 });
+    tone(t + 8 * beat, { type: "triangle", freq: 1318.5, peak: 0.08, decay: 0.5 });
+  },
+  // The speakers switching off: a tape-stop slide down and a soft thump
+  powerDown(t) {
+    tone(t, { type: "sawtooth", freq: 440, to: 55, attack: 0.01, peak: 0.16, decay: 0.45 });
+    tone(t + 0.45, { freq: 90, to: 40, peak: 0.4, decay: 0.12 });
+  },
+  // A cartoon mouse: two high squeaks
+  squeak(t) {
+    tone(t, { freq: vary(2400, 0.05), to: 3300, attack: 0.01, peak: 0.13, decay: 0.07 });
+    tone(t + 0.1, { freq: vary(2700, 0.05), to: 3600, attack: 0.01, peak: 0.11, decay: 0.08 });
+  },
+  // Little feet scampering over the desk
+  patter(t, { duration = 0.6 } = {}) {
+    for (let at = t; at < t + duration; at += 0.05 + Math.random() * 0.03) {
+      noise(at, { freq: vary(2500, 0.3), q: 2, attack: 0.002, peak: 0.06, decay: 0.012 });
+    }
+  },
+  // A flower popping open: a soft rising pluck
+  bloom(t, { pitch = 1 } = {}) {
+    tone(t, { type: "triangle", freq: 520 * pitch, to: 1040 * pitch, attack: 0.01, peak: 0.18, decay: 0.18 });
+    tone(t + 0.05, { freq: 1560 * pitch, peak: 0.06, decay: 0.25 });
+  },
+  // A wall clock striking: a bell "ding-dong" with a soft metallic shimmer
+  chime(t) {
+    [[659.25, 0], [523.25, 0.42]].forEach(([freq, d]) => {
+      tone(t + d, { freq, peak: 0.22, decay: 1.1 });
+      tone(t + d, { type: "triangle", freq: freq * 2.76, peak: 0.05, decay: 0.5 });
+    });
+  },
+  // An office chair's gas lift letting go: a short pneumatic "pssht"
+  hiss(t) {
+    noise(t, { filter: "highpass", freq: 4200, to: 1800, q: 0.7, attack: 0.01, peak: 0.25, decay: 0.32 });
+    tone(t, { freq: 120, to: 70, peak: 0.12, decay: 0.12 });
+  },
+  // A chair swivelling: a few dry creaks of the base, dropping in pitch as it slows
+  creak(t) {
+    for (let i = 0; i < 4; i++) {
+      tone(t + i * 0.16 + i * i * 0.03, { type: "sawtooth", freq: vary(260 - i * 30, 0.08), to: 200 - i * 25, attack: 0.01, peak: 0.05, decay: 0.08 });
+    }
+  },
   // Plain UI click
   click(t) {
     tone(t, { freq: 900, to: 550, peak: 0.2, decay: 0.03 });
@@ -372,7 +432,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6 };
+const MIN_GAP = { slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, patter: 0.4, chime: 1.2, hiss: 0.4, creak: 0.8 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || (ctx.state !== "running" && !resuming) || document.hidden) return;

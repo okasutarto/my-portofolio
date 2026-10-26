@@ -60,6 +60,8 @@ import {
   SIP_QUOTES,
   LUFFY_QUOTES,
 } from "./textures";
+import { createDesktop, SCREEN_W, SCREEN_H } from "./desktop";
+import { createLofi, TRACKS } from "./lofi";
 
 const PALETTES = {
   light: { desk: "#ffffff", shadow: "#000000" },
@@ -1896,8 +1898,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // Sticky notes on the right of the bezel, each with a hard little shadow behind it
   const noteShadowMat = track(new THREE.MeshBasicMaterial({ color: "#000000" }));
   [
-    { text: "ship it", color: "#ffdd00", tick: true, x: 1.9, y: 3.66, rz: -0.12 },
-    { text: "drink water!", color: "#ff90e8", x: 2.2, y: 2.25, rz: 0.18 },
+    // Stuck to the right edge of the bezel, half hanging off it, clear of the screen
+    { text: "ship it", color: "#ffdd00", tick: true, x: 2.36, y: 3.4, rz: -0.12 },
+    { text: "drink water!", color: "#ff90e8", x: 2.4, y: 2.15, rz: 0.18 },
   ].forEach((n) => {
     const note = printed(0.62, 0.62, 500, (c, w, h) => drawStickyNote(c, w, h, n));
     note.raycast = noRaycast;
@@ -1994,12 +1997,45 @@ export function createDeskScene({ container, projects, experiences, dark = false
       },
     });
   });
+  // Spotifree on the monitor plays through these: the cones kick with the drums and notes
+  // float up on some of the snares
+  let noteSide = 0;
+  const lofi = createLofi({
+    onHit: (kind) => {
+      speakers.forEach((speaker) => pump(speaker, kind === "kick" ? 0.7 : 0.35));
+      if (kind === "snare" && Math.random() < 0.5) floatNote(speakers[noteSide++ % speakers.length]);
+    },
+    onTrack: (i) => {
+      desktop.notify("spotifree", "Now playing", TRACKS[i].title);
+      redrawScreen();
+    },
+  });
+  // A track asked for while the sound is off: it starts once the speakers are switched on
+  let pendingTrack = null;
+  function startMusic(index = lofi.index) {
+    if (soundMuted) {
+      pendingTrack = index;
+      onEvent("toggleSound");
+      return;
+    }
+    const fresh = !lofi.playing;
+    if (lofi.play(index) && fresh) desktop.notify("spotifree", "Now playing", TRACKS[lofi.index].title);
+    redrawScreen();
+  }
   function setMuted(isMuted) {
     speakerLeds.forEach((mat) => mat.color.set(isMuted ? "#e11d48" : "#16a34a"));
     const changed = isMuted !== soundMuted;
     soundMuted = isMuted;
     if (!changed) return;
-    if (!isMuted) {
+    if (isMuted && lofi.playing) {
+      lofi.pause();
+      redrawScreen();
+    }
+    if (!isMuted && pendingTrack !== null) {
+      const index = pendingTrack;
+      pendingTrack = null;
+      startMusic(index);
+    } else if (!isMuted) {
       // Sound on: the groove, with the cones pumping on every beat and notes on the off-beats
       sfx.groove({ delay: 0.05 });
       for (let i = 0; i < 9; i++) {
@@ -2025,12 +2061,37 @@ export function createDeskScene({ container, projects, experiences, dark = false
 
   // Printed at twice its layout size (drawTerminal still works in 640 × 384) so the text stays
   // crisp when the camera zooms right in on the screen
+  // The terminal is drawn off screen, then shown in its window on the desktop
   const term = canvasTexture(1280, 768);
   term.ctx.scale(2, 2);
   track(term.texture);
-  const screen = new THREE.Mesh(track(new THREE.PlaneGeometry(4.0, 2.4)), track(new THREE.MeshBasicMaterial({ map: term.texture })));
+  const screenTex = canvasTexture(SCREEN_W * 2, SCREEN_H * 2);
+  screenTex.ctx.scale(2, 2);
+  track(screenTex.texture);
+  const screen = new THREE.Mesh(track(new THREE.PlaneGeometry(4.0, 2.4)), track(new THREE.MeshBasicMaterial({ map: screenTex.texture })));
   screen.position.set(0, 2.63, 0.09);
+  screen.userData.tex = screenTex;
   monitor.add(screen);
+  const desktop = createDesktop({
+    terminal: term,
+    player: lofi,
+    actions: {
+      toggle: () => (lofi.playing ? lofi.pause() : startMusic()),
+      next: () => lofi.next(),
+      prev: () => lofi.restartOrPrev(),
+      playTrack: (i) => startMusic(i),
+      focus: (name) => setFocus(name),
+      terminalClick: () => autotype(AUTORUN[autorunIndex++ % AUTORUN.length]),
+    },
+  });
+  let screenDrawnAt = 0;
+  function redrawScreen() {
+    screenDrawnAt = performance.now();
+    // Hotspots come back in layout units; the canvas is printed at twice that
+    screenTex.hotspots = desktop.draw(screenTex.ctx, { alert: termAlert, alertOn: cursorOn })
+      .map((hs) => ({ ...hs, x: hs.x * 2, y: hs.y * 2, w: hs.w * 2, h: hs.h * 2 }));
+    screenTex.texture.needsUpdate = true;
+  }
 
   const wrapWords = (words, width = 30) =>
     words.reduce((lines, word) => {
@@ -2061,7 +2122,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   let termAlert = false;
   const redrawTerminal = () => {
     drawTerminal(term.ctx, 640, 384, [...termLines, "> " + input], cursorOn, { alert: termAlert, alertOn: cursorOn });
-    term.texture.needsUpdate = true;
+    redrawScreen();
   };
 
   function execute(raw) {
@@ -2132,6 +2193,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
   };
   timers.push(setTimeout(welcome, 1500));
 
+  const showTerminal = () => {
+    if (desktop.active() === "terminal") return;
+    desktop.launch("terminal");
+    redrawScreen();
+  };
   register(monitor, {
     focus: "monitor",
     onEnter: () => {
@@ -2139,7 +2205,27 @@ export function createDeskScene({ container, projects, experiences, dark = false
       welcome();
       redrawTerminal();
     },
-    onClick: () => autotype(AUTORUN[autorunIndex++ % AUTORUN.length]),
+    // Zoomed in, clicks land on the desktop's hotspots (dock, windows, player)
+    onHotspot: (hs) => {
+      desktop.click(hs);
+      redrawScreen();
+    },
+    onHover: (on) => !on && desktop.hover(null) && redrawScreen(),
+    onPointer: (hit) => {
+      const moved = hit ? desktop.hover(hit.uv.x * SCREEN_W, (1 - hit.uv.y) * SCREEN_H) : desktop.hover(null);
+      if (moved) redrawScreen();
+    },
+    // Spotifree up front takes space and the arrows; anything typed goes to the terminal
+    onKey: (e) => {
+      if (focus.name !== "monitor") return false;
+      if (desktop.active() === "spotifree" && !e.repeat) {
+        if (e.key === " ") return lofi.playing ? (lofi.pause(), redrawScreen(), true) : (startMusic(), true);
+        if (e.key === "ArrowRight") return lofi.next(), true;
+        if (e.key === "ArrowLeft") return lofi.restartOrPrev(), true;
+      }
+      if (e.key.length === 1 || e.key === "Enter" || e.key === "Backspace") showTerminal();
+      return false;
+    },
   });
 
   // ---------- ID badge on a lanyard, hung from a push pin on the About board's corner (hero) ----------
@@ -2833,7 +2919,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   });
 
   // ---------- phone on a stand (AI chat) ----------
-  // The chat with Oka's AI assistant runs on the phone's screen: type (or tap a suggested
+  // The chat with the AI assistant runs on the phone's screen: type (or tap a suggested
   // question), the reply streams in, the wheel scrolls back through it.
   const phoneStand = new THREE.Group();
   phoneStand.position.set(3.85, 0, -1.95);
@@ -3729,6 +3815,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     parallax.ty = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
     if (e.pointerType === "mouse") {
       setHover(pickHover(e));
+      if (hovered?.onPointer) {
+        const hit = visibleHits()[0];
+        hovered.onPointer(hit?.object === screen && hit.uv ? hit : null);
+      }
       if (lanyardUnder(e)?.strap) renderer.domElement.style.cursor = "grab";
       mouseAim.x = MOUSE_ORIGIN.x + parallax.tx * 0.6;
       mouseAim.z = MOUSE_ORIGIN.z + parallax.ty * 0.45;
@@ -4057,6 +4147,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
       if (!termBusy) redrawTerminal();
       typing?.redraw();
     }
+    // The desktop animates (windows, dock, the player's visualizer) at about 30 fps
+    if ((desktop.busy() || lofi.playing) && now - screenDrawnAt > 33) redrawScreen();
     // The typing dots bounce while a reply hasn't started arriving
     const lastMessage = chat.messages[chat.messages.length - 1];
     if (lastMessage?.pending && !lastMessage.text && now - chatTypingAt > 50) {
@@ -4094,12 +4186,16 @@ export function createDeskScene({ container, projects, experiences, dark = false
     setMuted,
     back,
     focusOn: (name) => SHOTS[name] && setFocus(name),
-    runCommand: (cmd) =>
-      focus.name === "monitor" ? autotype(cmd) : (setFocus("monitor"), timers.push(setTimeout(() => autotype(cmd), 700))),
+    runCommand: (cmd) => {
+      showTerminal();
+      if (focus.name === "monitor") autotype(cmd);
+      else setFocus("monitor"), timers.push(setTimeout(() => autotype(cmd), 700));
+    },
 
     destroy() {
       finishNoteDrag(null, false);
       destroyed = true;
+      lofi.destroy();
       cancelAnimationFrame(frame);
       timers.forEach(clearTimeout);
       clearTimeout(arriveTimer);

@@ -516,6 +516,10 @@ export const sfx = Object.fromEntries(Object.keys(SOUNDS).map((name) => [name, (
 // Lets an intro wait for a click instead of playing silently.
 export const audioReady = () => muted.value || (!!ctx && ctx.state === "running");
 
+// The live context and the master bus, for music that should share the sfx chain (the
+// compressor and limiter); null until a gesture has created the context
+export const audioBus = () => (ctx && out && ctx.state !== "closed" ? { ctx, out, noiseBuffer } : null);
+
 // Run something (e.g. fast-forwarding a timeline) without any of its sounds
 export function hush(fn) {
   hushDepth++;

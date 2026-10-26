@@ -626,7 +626,7 @@ export function drawCaseBack(c, w, h, project, { inside = false, index = 0, kind
   return hotspots.map((hs) => ({ ...hs, x: w - hs.x - hs.w, y: h - hs.y - hs.h }));
 }
 
-// ---------- phone: a chat with Oka's AI assistant ----------
+// ---------- phone: a chat with the desk's AI assistant ----------
 // `chat` is the scene's live state ({ messages, input, active, waiting, scroll }); the
 // renderer writes chat.maxScroll back so the wheel can clamp.
 export const CHAT_QUESTIONS = [
@@ -702,8 +702,8 @@ export function drawChatScreen(c, w, h, chat, { unread = false, caret = false, n
     c.fillStyle = "#000";
     c.textBaseline = "top";
     c.font = `500 25px ${BODY}`;
-    c.fillText("hey! i'm oka's AI twin.", 46, top + 40);
-    c.fillText("ask me anything about him", 46, top + 74);
+    c.fillText("hey! i'm the desk's AI.", 46, top + 40);
+    c.fillText("ask me anything about oka", 46, top + 74);
     c.font = `700 20px ${BODY}`;
     c.fillText("TRY ONE:", 30, top + 160);
     CHAT_QUESTIONS.forEach((q, i) => {
@@ -737,7 +737,7 @@ export function drawChatScreen(c, w, h, chat, { unread = false, caret = false, n
   c.fillRect(72, 92, 10, 10);
   c.fillRect(50, 116, 30, 6);
   c.font = `800 28px ${DISPLAY}`;
-  c.fillText("OKA'S AI", 122, 92);
+  c.fillText("DESK AI", 122, 92);
   c.font = `700 20px ${BODY}`;
   c.fillStyle = chat.waiting ? "#b45309" : "#166534";
   c.fillText(chat.waiting ? "● typing…" : "● online", 122, 124);

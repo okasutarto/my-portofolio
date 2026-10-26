@@ -79,7 +79,7 @@ const { muted, toggleMute } = useSfx();
 
 const hint = computed(() => {
   if (introPlaying.value) return "";
-  if (focus.value === "monitor") return isDesktop.value ? "Type a command and hit Enter. Try: help" : "Tap a command, or tap the screen";
+  if (focus.value === "monitor") return isDesktop.value ? "Type a command and hit Enter, or open Spotifree from the dock ♫" : "Tap a command, or the dock to open Spotifree ♫";
   if (focus.value === "keyboard") return "1–5 jump to a section · T terminal · C chat · Esc back";
   if (focus.value === "window") return isDark.value ? "Click the sky and make a wish" : "Click the window to call the birds over";
   if (focus.value === "mug") return "Click the mug for a sip. Finish the cup for the night shift";

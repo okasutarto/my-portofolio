@@ -1555,11 +1555,38 @@ export function drawWoodTop(c, w, h) {
 
 // ---------- desk mat under the keyboard and mouse ----------
 // Plain charcoal felt with a faint dot grid
+// The desk mat: deep navy felt (clear of the black keyboard on it) with a faint dot grid,
+// a stitched edge, and a few rolling waves printed across its right-hand corner
 export function drawDeskMat(c, w, h) {
-  c.fillStyle = "#26242b";
+  c.fillStyle = "#2b3a5c";
   c.fillRect(0, 0, w, h);
-  c.fillStyle = "rgba(255,255,255,.05)";
+  c.fillStyle = "rgba(255,255,255,.07)";
   for (let y = 24; y < h; y += 32) for (let x = 24; x < w; x += 32) c.fillRect(x, y, 3, 3);
+  // waves, curling in from the bottom-right corner
+  c.lineWidth = 6;
+  c.lineCap = "round";
+  [["#3f5583", 0], ["#4f6aa0", 1], ["#7fb2ff", 2]].forEach(([color, k]) => {
+    c.strokeStyle = color;
+    c.beginPath();
+    const y0 = h * (0.62 + k * 0.12);
+    c.moveTo(w * 0.62, y0 + 30);
+    for (let x = w * 0.62; x <= w; x += 60) {
+      c.quadraticCurveTo(x + 15, y0 - 26, x + 30, y0);
+      c.quadraticCurveTo(x + 45, y0 + 26, x + 60, y0);
+    }
+    c.stroke();
+  });
+  // a little wordmark in the top-left
+  c.fillStyle = "rgba(255,253,245,.35)";
+  c.font = "900 26px 'Lexend Mega', sans-serif";
+  c.textBaseline = "top";
+  c.fillText("OKA · DESK", 40, 34);
+  // the stitched edge
+  c.strokeStyle = "rgba(255,253,245,.45)";
+  c.lineWidth = 3;
+  c.setLineDash([14, 9]);
+  c.strokeRect(14, 14, w - 28, h - 28);
+  c.setLineDash([]);
 }
 
 // ---------- room details: the clock face, the guitar's top, straw, the chair's quilting ----------
@@ -1635,34 +1662,66 @@ export function drawStraw(c, w, h) {
 }
 
 // The chair back's diamond quilting, stitched in maroon thread
-export function drawChairQuilt(c, w, h) {
+export function drawChairQuilt(c, w, h, { accent = "#00c2ad" } = {}) {
   c.clearRect(0, 0, w, h);
-  const step = w / 6;
-  c.strokeStyle = "rgba(140,30,60,.85)";
-  c.lineWidth = Math.max(2, w * 0.006);
-  c.setLineDash([w * 0.018, w * 0.012]);
-  for (let k = -h; k < w + h; k += step) {
+  // A grid of padded diamonds: each one lighter in the middle and shaded toward its seams,
+  // stitched round in the accent colour
+  const dw = w / 5;
+  const dh = dw * 1.3;
+  const diamond = (cx, cy) => {
     c.beginPath();
-    c.moveTo(k, 0);
-    c.lineTo(k + h, h);
-    c.moveTo(k, 0);
-    c.lineTo(k - h, h);
-    c.stroke();
+    c.moveTo(cx, cy - dh / 2);
+    c.lineTo(cx + dw / 2, cy);
+    c.lineTo(cx, cy + dh / 2);
+    c.lineTo(cx - dw / 2, cy);
+    c.closePath();
+  };
+  for (let row = -1; row * (dh / 2) < h + dh; row++) {
+    for (let col = -1; col * dw < w + dw; col++) {
+      const cx = col * dw + (row % 2 ? dw / 2 : 0);
+      const cy = row * (dh / 2);
+      const pad = c.createRadialGradient(cx, cy - dh * 0.08, 0, cx, cy, dw * 0.55);
+      pad.addColorStop(0, "rgba(255,255,255,.10)");
+      pad.addColorStop(1, "rgba(0,0,0,.16)");
+      diamond(cx, cy);
+      c.fillStyle = pad;
+      c.fill();
+    }
+  }
+  c.strokeStyle = accent;
+  c.globalAlpha = 0.75;
+  c.lineWidth = Math.max(2, w * 0.006);
+  c.setLineDash([w * 0.014, w * 0.01]);
+  for (let row = -1; row * (dh / 2) < h + dh; row++) {
+    for (let col = -1; col * dw < w + dw; col++) {
+      diamond(col * dw + (row % 2 ? dw / 2 : 0), row * (dh / 2));
+      c.stroke();
+    }
   }
   c.setLineDash([]);
-  // a soft shade in each diamond, as if padded
-  c.fillStyle = "rgba(0,0,0,.08)";
-  for (let y = 0; y < h; y += step) for (let x = 0; x < w; x += step) c.fillRect(x + step * 0.5, y + step * 0.5, step * 0.5, step * 0.5);
+  c.globalAlpha = 1;
+  // Fade it out toward the panel's edges, so it sits in the padding with no hard border
+  c.globalCompositeOperation = "destination-in";
+  [[0, 0, w, 0], [0, 0, 0, h]].forEach(([x0, y0, x1, y1]) => {
+    const fade = c.createLinearGradient(x0, y0, x1, y1);
+    fade.addColorStop(0, "rgba(0,0,0,0)");
+    fade.addColorStop(0.14, "rgba(0,0,0,1)");
+    fade.addColorStop(0.86, "rgba(0,0,0,1)");
+    fade.addColorStop(1, "rgba(0,0,0,0)");
+    c.fillStyle = fade;
+    c.fillRect(0, 0, w, h);
+  });
+  c.globalCompositeOperation = "source-over";
 }
 
-// The embroidered emblem on the chair's back: a controller in an orange roundel
-export function drawChairEmblem(c, w, h) {
+// The embroidered emblem on the chair's back: a controller in a roundel of the accent colour
+export function drawChairEmblem(c, w, h, { accent = "#00c2ad" } = {}) {
   c.clearRect(0, 0, w, h);
   c.fillStyle = "#1a1714";
   c.beginPath();
   c.arc(w / 2, h / 2, w * 0.48, 0, Math.PI * 2);
   c.fill();
-  c.fillStyle = "#f47b20";
+  c.fillStyle = accent;
   c.beginPath();
   c.arc(w / 2, h / 2, w * 0.42, 0, Math.PI * 2);
   c.fill();
@@ -2136,7 +2195,9 @@ function mixHex(a, b, k) {
   return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, "0")}`;
 }
 // Raindrops stuck to the glass: where each sits, how big, and how fast it slides
-const GLASS_DROPS = Array.from({ length: 22 }, (_, i) => ({ x: (i * 0.383 + 0.07) % 1, y: (i * 0.617) % 1, r: 0.8 + ((i * 0.29) % 1) * 1.2, v: 0.004 + ((i * 0.53) % 1) * 0.02 }));
+const GLASS_DROPS = Array.from({ length: 22 }, (_, i) => ({ x: (i * 0.383 + 0.07) % 1, y: (i * 0.617) % 1, r: 1.1 + ((i * 0.29) % 1) * 1.5, v: 0.004 + ((i * 0.53) % 1) * 0.02 }));
+// Fine beads of water stuck to the glass between the drops
+const GLASS_BEADS = Array.from({ length: 70 }, (_, i) => ({ x: (i * 0.6180339 + 0.11) % 1, y: (i * 0.4142 + 0.37) % 1, r: 0.25 + ((i * 0.7071) % 1) * 0.45 }));
 // The sky through the day: top band, middle, horizon; the sun's height, colour and side
 const SKIES = {
   morning: { sky: ["#ffb98a", "#ffd4a8", "#fff0d6"], sun: [0.26, 0.38, "#ffcf5c"], cloud: "#fff3e3" },
@@ -2475,26 +2536,95 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   c.fillRect(w / 2 - bar * 0.15, 0, bar * 0.3, h);
   c.fillRect(0, h / 2 - bar * 0.15, w, bar * 0.3);
 
-  // Drops on the glass, sliding down now and then, each with a little wet trail
+  // Water on the glass: fine beads all over, and bigger drops that cling, then run, leaving a
+  // tapering wet trail with a few beads left behind in it
   if (rain > 0.05) {
-    c.globalAlpha = Math.min(1, rain * 1.3);
-    GLASS_DROPS.forEach((drop, i) => {
-      // They hold still most of the time, then run
-      const slide = Math.max(0, Math.sin(t * 0.6 + i * 1.9)) ** 6;
-      const y = ((drop.y + t * drop.v + slide * 0.04) % 1) * h;
-      const x = drop.x * w + Math.sin(i + y / h * 6) * u * 0.4;
-      const r = drop.r * u;
-      c.fillStyle = "rgba(255,255,255,.18)";
-      c.fillRect(x - r * 0.25, y - r * 6, r * 0.5, r * 6);
+    const wet = Math.min(1, rain * 1.3);
+    // a drop: a rounded teardrop, clear and a touch blue, catching the light at its top-left
+    // and glinting at its bottom-right, with a faint shadow cast on the glass beside it
+    const drop = (x, y, r, stretch = 1) => {
+      const tip = r * (1.5 + (stretch - 1) * 1.2);
+      const shape = () => {
+        c.beginPath();
+        c.moveTo(x, y - tip);
+        c.bezierCurveTo(x + r * 0.35, y - tip * 0.55, x + r, y - r * 0.4, x + r, y);
+        c.arc(x, y, r, 0, Math.PI);
+        c.bezierCurveTo(x - r, y - r * 0.4, x - r * 0.35, y - tip * 0.55, x, y - tip);
+        c.closePath();
+      };
+      c.save();
+      c.translate(r * 0.35, r * 0.4);
+      shape();
+      c.fillStyle = "rgba(10,20,40,.18)";
+      c.fill();
+      c.restore();
+      shape();
+      const body = c.createLinearGradient(x, y - tip, x, y + r);
+      body.addColorStop(0, "rgba(255,255,255,.55)");
+      body.addColorStop(0.55, dark ? "rgba(150,180,240,.35)" : "rgba(190,225,255,.4)");
+      body.addColorStop(1, dark ? "rgba(70,95,160,.55)" : "rgba(110,160,215,.55)");
+      c.fillStyle = body;
+      c.fill();
+      c.lineWidth = Math.max(1, u * 0.22);
+      c.strokeStyle = "rgba(10,20,40,.55)";
+      c.stroke();
+      // the highlight: a crescent hugging the upper-left, and a glint low on the right
+      c.beginPath();
+      c.arc(x - r * 0.12, y - r * 0.05, r * 0.62, Math.PI * 1.05, Math.PI * 1.6);
+      c.lineWidth = Math.max(1, r * 0.28);
+      c.strokeStyle = "rgba(255,255,255,.9)";
+      c.stroke();
+      c.beginPath();
+      c.arc(x + r * 0.45, y + r * 0.45, r * 0.16, 0, Math.PI * 2);
+      c.fillStyle = "rgba(255,255,255,.85)";
+      c.fill();
+    };
+    c.globalAlpha = wet;
+    GLASS_BEADS.forEach((b, i) => {
+      if (i / GLASS_BEADS.length > rain + 0.15) return;
+      const x = b.x * w;
+      const y = b.y * h;
+      const r = b.r * u;
       c.beginPath();
       c.arc(x, y, r, 0, Math.PI * 2);
-      c.fillStyle = "rgba(220,240,255,.45)";
+      c.fillStyle = dark ? "rgba(170,195,255,.35)" : "rgba(220,240,255,.5)";
       c.fill();
-      c.lineWidth = Math.max(1, u * 0.25);
-      c.strokeStyle = "rgba(0,0,0,.45)";
+      c.lineWidth = Math.max(0.8, u * 0.12);
+      c.strokeStyle = "rgba(10,20,40,.35)";
       c.stroke();
       c.fillStyle = "rgba(255,255,255,.9)";
-      c.fillRect(x - r * 0.45, y - r * 0.5, r * 0.35, r * 0.35);
+      c.beginPath();
+      c.arc(x - r * 0.3, y - r * 0.3, r * 0.3, 0, Math.PI * 2);
+      c.fill();
+    });
+    GLASS_DROPS.forEach((d, i) => {
+      // They hold still most of the time, then run
+      const slide = Math.max(0, Math.sin(t * 0.6 + i * 1.9)) ** 6;
+      const y = ((d.y + t * d.v + slide * 0.04) % 1) * h;
+      const x = d.x * w + Math.sin(i + (y / h) * 6) * u * 0.4;
+      const r = d.r * u;
+      // the wet trail above it: a narrow, fading streak, longer while it's running
+      const trail = r * (3 + slide * 9);
+      const streak = c.createLinearGradient(x, y - trail, x, y);
+      streak.addColorStop(0, "rgba(255,255,255,0)");
+      streak.addColorStop(1, dark ? "rgba(190,210,255,.35)" : "rgba(235,248,255,.5)");
+      c.beginPath();
+      c.moveTo(x - r * 0.12, y - trail);
+      c.quadraticCurveTo(x - r * 0.5, y - trail * 0.4, x - r * 0.55, y - r);
+      c.lineTo(x + r * 0.55, y - r);
+      c.quadraticCurveTo(x + r * 0.5, y - trail * 0.4, x + r * 0.12, y - trail);
+      c.closePath();
+      c.fillStyle = streak;
+      c.fill();
+      // beads left behind in the trail
+      [0.45, 0.75].forEach((k, j) => {
+        if (slide < 0.05 && j) return;
+        c.beginPath();
+        c.arc(x + (j ? -1 : 1) * r * 0.15, y - trail * k, r * (0.22 - j * 0.06), 0, Math.PI * 2);
+        c.fillStyle = "rgba(255,255,255,.7)";
+        c.fill();
+      });
+      drop(x, y, r, 1 + slide * 0.5);
     });
     c.globalAlpha = 1;
   }
@@ -2650,86 +2780,127 @@ export function drawRepBadge(c, w, h, text, fill = "#ffdd00") {
   c.textBaseline = "alphabetic";
 }
 
-// A month of training on the wall: done days stamped, today ringed, the streak in the header.
-// `done` holds the day numbers trained this month.
-export function drawGymCalendar(c, w, h, { now = new Date(), done = new Set() } = {}) {
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const today = now.getDate();
-  const days = new Date(year, month + 1, 0).getDate();
-  const lead = (new Date(year, month, 1).getDay() + 6) % 7; // weeks start on Monday
-  let streak = 0;
-  for (let d = done.has(today) ? today : today - 1; d >= 1 && done.has(d); d--) streak++;
-
-  c.fillStyle = "#fffdf5";
-  c.fillRect(0, 0, w, h);
-  // header: title and the streak
-  const head = h * 0.24;
-  c.fillStyle = "#ff7a1a";
-  c.fillRect(0, 0, w, head);
-  c.fillStyle = "#000";
-  c.fillRect(0, head - 4, w, 8);
-  c.textBaseline = "middle";
-  fitFont(c, "GYM STREAK", 800, DISPLAY, Math.round(head * 0.34), w * 0.56);
-  c.fillText("GYM STREAK", w * 0.05, head * 0.36);
-  c.font = `700 ${Math.round(head * 0.24)}px ${BODY}`;
-  c.fillText(now.toLocaleString("en-US", { month: "long" }).toUpperCase() + " " + year, w * 0.05, head * 0.74);
-  brutalBox(c, w * 0.66, head * 0.16, w * 0.29, head * 0.62, "#ffdd00", { shadow: 6, line: 5 });
-  c.fillStyle = "#000";
-  c.textAlign = "center";
-  c.font = `800 ${Math.round(head * 0.3)}px ${DISPLAY}`;
-  c.fillText(`${streak} 🔥`, w * 0.66 + w * 0.145 - 3, head * 0.47);
-  // weekday initials and the grid
-  const gx = w * 0.05;
-  const gw = w * 0.9;
-  const cell = gw / 7;
-  const top = head + h * 0.1;
-  const rows = Math.ceil((lead + days) / 7);
-  const ch = (h * 0.96 - top) / rows;
-  c.font = `800 ${Math.round(h * 0.045)}px ${BODY}`;
-  "MTWTFSS".split("").forEach((l, i) => c.fillText(l, gx + cell * (i + 0.5), head + h * 0.05));
-  for (let d = 1; d <= days; d++) {
-    const i = lead + d - 1;
-    const x = gx + (i % 7) * cell;
-    const y = top + Math.floor(i / 7) * ch;
-    const pad = 4;
-    if (done.has(d)) {
-      c.fillStyle = ["#8fd694", "#00e0c6", "#ff90e8", "#7fb2ff"][d % 4];
-      c.fillRect(x + pad, y + pad, cell - pad * 2, ch - pad * 2);
-    }
-    c.lineWidth = d === today ? 7 : 3;
-    c.strokeStyle = d === today ? "#e11d48" : "#000";
-    c.strokeRect(x + pad, y + pad, cell - pad * 2, ch - pad * 2);
-    c.fillStyle = "#000";
-    c.font = `700 ${Math.round(ch * 0.34)}px ${BODY}`;
-    c.fillText(done.has(d) ? "✓" : String(d), x + cell / 2, y + ch / 2 + 2);
-  }
-  c.lineWidth = 10;
-  c.strokeStyle = "#000";
-  c.strokeRect(0, 0, w, h);
-  c.textAlign = "left";
-  c.textBaseline = "alphabetic";
-}
-
 // ---------- katana ----------
 // The slash: a thick white crescent with a black outline, tapering at both ends
-export function drawSlash(c, w, h) {
+// Each sword cuts its own trail:
+// "wado"    a clean, thin white crescent with a crisp ink edge and a pale blue sheen
+// "kitetsu" a ragged crescent, jagged along its outer edge, bleeding from red to purple
+// "enma"    a heavy crescent of dark purple Haki with a violet glow and red sparks of lightning
+export function drawSlash(c, w, h, { style = "wado" } = {}) {
   c.clearRect(0, 0, w, h);
-  const arc = (r1, r2) => {
+  const cx = w / 2;
+  const arc = (r1, r2, jag = 0) => {
     c.beginPath();
-    c.ellipse(w / 2, h * 0.95, w * 0.46 * r1, h * 0.85 * r1, 0, Math.PI * 1.08, Math.PI * 1.92);
-    c.ellipse(w / 2, h * 1.02, w * 0.44 * r2, h * 0.72 * r2, 0, Math.PI * 1.92, Math.PI * 1.08, true);
+    const steps = 48;
+    for (let i = 0; i <= steps; i++) {
+      const a = Math.PI * (1.08 + (i / steps) * 0.84);
+      const bite = jag && i % 2 ? jag : 0;
+      const x = cx + Math.cos(a) * w * 0.46 * r1 * (1 + bite);
+      const y = h * 0.95 + Math.sin(a) * h * 0.85 * r1 * (1 + bite);
+      if (i) c.lineTo(x, y);
+      else c.moveTo(x, y);
+    }
+    c.ellipse(cx, h * 1.02, w * 0.44 * r2, h * 0.72 * r2, 0, Math.PI * 1.92, Math.PI * 1.08, true);
     c.closePath();
   };
-  arc(1.02, 0.98);
+  if (style === "kitetsu") {
+    arc(1.03, 0.95, 0.05);
+    c.fillStyle = "#1a1714";
+    c.fill();
+    arc(1, 0.97, 0.045);
+    const g = c.createLinearGradient(0, 0, w, 0);
+    g.addColorStop(0, "#7c3aed");
+    g.addColorStop(0.5, "#e11d48");
+    g.addColorStop(1, "#7c3aed");
+    c.fillStyle = g;
+    c.fill();
+    // a pale core along the inner edge
+    arc(0.985, 0.975);
+    c.fillStyle = "rgba(255,240,245,.85)";
+    c.fill();
+    return;
+  }
+  if (style === "enma") {
+    // the glow first, then the body, then lightning crackling off it
+    c.save();
+    c.shadowColor = "#a855f7";
+    c.shadowBlur = h * 0.12;
+    arc(1.06, 0.92);
+    c.fillStyle = "#1b0b2e";
+    c.fill();
+    c.restore();
+    arc(1.04, 0.94);
+    const g = c.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, "#2a0f45");
+    g.addColorStop(1, "#6b21a8");
+    c.fillStyle = g;
+    c.fill();
+    c.lineWidth = 5;
+    c.strokeStyle = "#c084fc";
+    c.stroke();
+    c.strokeStyle = "#ff2d55";
+    c.lineWidth = 4;
+    c.lineJoin = "miter";
+    [0.18, 0.42, 0.66, 0.86].forEach((f, i) => {
+      const a = Math.PI * (1.1 + f * 0.8);
+      let x = cx + Math.cos(a) * w * 0.47;
+      let y = h * 0.95 + Math.sin(a) * h * 0.87;
+      c.beginPath();
+      c.moveTo(x, y);
+      for (let k = 0; k < 4; k++) {
+        x += Math.cos(a) * w * 0.03 + (k % 2 ? 1 : -1) * w * 0.02;
+        y += Math.sin(a) * h * 0.07 + (i % 2 ? 1 : -1) * h * 0.02;
+        c.lineTo(x, y);
+      }
+      c.stroke();
+    });
+    return;
+  }
+  arc(1.02, 0.985);
   c.fillStyle = "#000";
   c.fill();
-  arc(1, 1);
+  arc(1, 0.995);
   c.fillStyle = "#fffdf5";
   c.fill();
-  c.lineWidth = 6;
-  c.strokeStyle = "#7fdfff";
+  c.lineWidth = 4;
+  c.strokeStyle = "#bfe9ff";
   c.stroke();
+}
+
+// A little four-pointed glint, for light catching a blade's tip
+export function drawGlint(c, w, h) {
+  c.clearRect(0, 0, w, h);
+  const cx = w / 2;
+  const cy = h / 2;
+  c.fillStyle = "#ffffff";
+  c.beginPath();
+  c.moveTo(cx, 0);
+  c.quadraticCurveTo(cx, cy, w, cy);
+  c.quadraticCurveTo(cx, cy, cx, h);
+  c.quadraticCurveTo(cx, cy, 0, cy);
+  c.quadraticCurveTo(cx, cy, cx, 0);
+  c.fill();
+  const g = c.createRadialGradient(cx, cy, 0, cx, cy, w * 0.3);
+  g.addColorStop(0, "rgba(200,240,255,.9)");
+  g.addColorStop(1, "rgba(200,240,255,0)");
+  c.fillStyle = g;
+  c.fillRect(0, 0, w, h);
+}
+
+// Enma's aura: a soft purple haze, darker at its heart
+export function drawHakiAura(c, w, h) {
+  c.clearRect(0, 0, w, h);
+  // an ellipse of haze feathered all the way out, so its edges never show
+  c.save();
+  c.scale(1, h / w);
+  const g = c.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+  g.addColorStop(0, "rgba(46,14,80,.7)");
+  g.addColorStop(0.35, "rgba(110,40,190,.45)");
+  g.addColorStop(0.7, "rgba(168,85,247,.16)");
+  g.addColorStop(1, "rgba(168,85,247,0)");
+  c.fillStyle = g;
+  c.fillRect(0, 0, w, w);
+  c.restore();
 }
 
 // A manga shout, as in a fight panel: a white burst with uneven spikes over a ring of speed
@@ -2822,7 +2993,7 @@ export function drawShout(c, w, h, text) {
 }
 
 // Enma's blade, printed in the blade's own coordinates (x along it, y across, in world units):
-// a dark steel back, a pale blue band and purple flames licking up from a pale pink edge.
+// a black back, a cyan band and purple flames licking up from a lilac edge.
 // `bow(x)` is the blade's curve; `length` its straight length; `width` the canvas's span in x.
 export function drawEnmaBlade(c, w, h, { bow, length, width, yMin, yMax }) {
   c.clearRect(0, 0, w, h);
@@ -2835,7 +3006,7 @@ export function drawEnmaBlade(c, w, h, { bow, length, width, yMin, yMax }) {
     const at = (f) => toRow(edge + (spine - edge) * f);
     const flame = 0.36 + 0.09 * Math.sin(x * 38) + 0.05 * Math.sin(x * 91 + 2);
     const band = 0.66 + 0.06 * Math.sin(x * 29 + 1);
-    [[0, 0.12, "#f5d0fe"], [0.12, flame, "#a855f7"], [flame, band, "#7dd3fc"], [band, 1.05, "#4b5563"]].forEach(([from, to, color]) => {
+    [[0, 0.12, "#e9d5ff"], [0.12, flame, "#9333ea"], [flame, band, "#22d3ee"], [band, 1.05, "#1a1714"]].forEach(([from, to, color]) => {
       c.fillStyle = color;
       c.fillRect(px, at(to), 1.5, at(from) - at(to) + 1);
     });
@@ -2861,4 +3032,1202 @@ export function drawEnmaFlower(c, w, h) {
   c.fillStyle = "#ff7a1a";
   c.fill();
   c.stroke();
+}
+
+// Wado Ichimonji: a black back over a clean white edge, split by a soft straight hamon
+export function drawWadoBlade(c, w, h, { bow, length, width, yMin, yMax }) {
+  c.clearRect(0, 0, w, h);
+  const toRow = (y) => (1 - (y - yMin) / (yMax - yMin)) * h;
+  for (let px = 0; px < w; px++) {
+    const x = (px / w) * width;
+    const t = Math.min(1, x / length);
+    const edge = bow(Math.min(x, length)) - 0.055 * (1 - 0.3 * t);
+    const spine = bow(Math.min(x, length)) + 0.05;
+    const at = (f) => toRow(edge + (spine - edge) * f);
+    const wave = 0.32 + 0.04 * Math.sin(x * 42) + 0.02 * Math.sin(x * 110);
+    [[0, 0.15, "#ffffff"], [0.15, wave + 0.12, "#eef2f7"], [wave + 0.12, wave + 0.2, "#94a3b8"], [wave + 0.2, 1.05, "#1a1714"]].forEach(([from, to, color]) => {
+      c.fillStyle = color;
+      c.fillRect(px, at(to), 1.5, at(from) - at(to) + 1);
+    });
+  }
+}
+
+// Sandai Kitetsu: a black back, a white body and a jagged violet hamon along the edge
+export function drawKitetsuBlade(c, w, h, { bow, length, width, yMin, yMax }) {
+  c.clearRect(0, 0, w, h);
+  const toRow = (y) => (1 - (y - yMin) / (yMax - yMin)) * h;
+  for (let px = 0; px < w; px++) {
+    const x = (px / w) * width;
+    const t = Math.min(1, x / length);
+    const edge = bow(Math.min(x, length)) - 0.055 * (1 - 0.3 * t);
+    const spine = bow(Math.min(x, length)) + 0.05;
+    const at = (f) => toRow(edge + (spine - edge) * f);
+    const flame = 0.26 + 0.08 * Math.sin(x * 48) + 0.05 * Math.sin(x * 124 + 1);
+    const back = 0.62 + 0.03 * Math.sin(x * 32);
+    [[0, 0.08, "#c4b5fd"], [0.08, flame, "#6d28d9"], [flame, back, "#f8fafc"], [back, 1.05, "#1a1714"]].forEach(([from, to, color]) => {
+      c.fillStyle = color;
+      c.fillRect(px, at(to), 1.5, at(from) - at(to) + 1);
+    });
+  }
+}
+
+// A katana's handle wrap (tsuka-ito), for a cylinder laid along the handle: v runs along it,
+// u around it. The cord crosses over itself and leaves a row of diamonds of the ray skin
+// underneath showing on the front (u = 0) and the back (u = 0.5).
+export function drawTsukaWrap(c, w, h, { cord, skin, diamonds = 7 }) {
+  c.fillStyle = cord;
+  c.fillRect(0, 0, w, h);
+  const step = h / diamonds;
+  c.lineWidth = Math.max(2, w * 0.012);
+  c.strokeStyle = "rgba(0,0,0,0.35)";
+  [0, w / 2, w].forEach((cx) => {
+    for (let i = 0; i < diamonds; i++) {
+      const cy = (i + 0.5) * step;
+      c.beginPath();
+      c.moveTo(cx, cy - step * 0.42);
+      c.lineTo(cx + w * 0.11, cy);
+      c.lineTo(cx, cy + step * 0.42);
+      c.lineTo(cx - w * 0.11, cy);
+      c.closePath();
+      c.fillStyle = skin;
+      c.fill();
+      c.stroke();
+      // the cord's crossing line between diamonds
+      c.beginPath();
+      c.moveTo(cx - w * 0.16, cy + step * 0.5);
+      c.lineTo(cx + w * 0.16, cy + step * 0.5);
+      c.stroke();
+    }
+  });
+}
+
+// ---------- family portrait ----------
+// The family on the desk frame, drawn as an anime-style illustration: dad with his arm round
+// mum (in a hijab), who holds their waving two-year-old daughter, and their seven-year-old son
+// in front in a little straw hat, throwing a peace sign. Heads lean in toward each other; flat
+// colours, thick ink lines and big shiny eyes, like the rest of the room.
+export function drawFamilyPortrait(c, w, h) {
+  const u = w / 360;
+  const INK = "#1a1714";
+  const SKIN = "#f6d2b4";
+  const SKIN_SHADE = "#e9b894";
+  c.save();
+  c.scale(u, u);
+  const H = h / u;
+  const line = (width = 4) => {
+    c.lineWidth = width;
+    c.strokeStyle = INK;
+    c.lineJoin = "round";
+    c.lineCap = "round";
+  };
+  const shape = (fill, draw, width = 4) => {
+    c.beginPath();
+    draw();
+    c.fillStyle = fill;
+    c.fill();
+    if (width) {
+      line(width);
+      c.stroke();
+    }
+  };
+  const ellipse = (x, y, rx, ry, fill, width = 4) => shape(fill, () => c.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2), width);
+  const stroke = (width, draw) => {
+    line(width);
+    c.beginPath();
+    draw();
+    c.stroke();
+  };
+  // Draws `fn` turned by `angle` about (x, y): for heads leaning in
+  const tilted = (x, y, angle, fn) => {
+    c.save();
+    c.translate(x, y);
+    c.rotate(angle);
+    c.translate(-x, -y);
+    fn();
+    c.restore();
+  };
+  const sparkle = (x, y, r, color = "#fff") => {
+    c.fillStyle = color;
+    c.beginPath();
+    c.moveTo(x, y - r);
+    c.quadraticCurveTo(x, y, x + r, y);
+    c.quadraticCurveTo(x, y, x, y + r);
+    c.quadraticCurveTo(x, y, x - r, y);
+    c.quadraticCurveTo(x, y, x, y - r);
+    c.fill();
+  };
+  const heart = (x, y, r, color) => {
+    c.fillStyle = color;
+    c.beginPath();
+    c.moveTo(x, y + r * 0.9);
+    c.bezierCurveTo(x - r * 1.4, y - r * 0.1, x - r * 0.6, y - r * 1.1, x, y - r * 0.35);
+    c.bezierCurveTo(x + r * 0.6, y - r * 1.1, x + r * 1.4, y - r * 0.1, x, y + r * 0.9);
+    c.fill();
+    line(2);
+    c.stroke();
+  };
+
+  // ---- Backdrop: a warm sky, sun rays, soft bokeh, petals and a flowery lawn ----
+  const sky = c.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, "#ffe7c2");
+  sky.addColorStop(0.6, "#ffd1dc");
+  sky.addColorStop(1, "#cfe8d5");
+  c.fillStyle = sky;
+  c.fillRect(0, 0, 360, H);
+  c.save();
+  c.globalAlpha = 0.35;
+  c.fillStyle = "#fff7e6";
+  for (let i = 0; i < 9; i++) {
+    const a = -Math.PI / 2 + (i - 4) * 0.22;
+    c.beginPath();
+    c.moveTo(180, 120);
+    c.lineTo(180 + Math.cos(a - 0.06) * 700, 120 + Math.sin(a - 0.06) * 700);
+    c.lineTo(180 + Math.cos(a + 0.06) * 700, 120 + Math.sin(a + 0.06) * 700);
+    c.closePath();
+    c.fill();
+  }
+  [[50, 150, 26], [320, 200, 20], [300, 60, 14], [40, 380, 18], [330, 420, 24], [90, 40, 12]].forEach(([x, y, r]) => {
+    c.globalAlpha = 0.28;
+    c.beginPath();
+    c.arc(x, y, r, 0, Math.PI * 2);
+    c.fillStyle = "#ffffff";
+    c.fill();
+  });
+  c.restore();
+  ellipse(180, 120, 70, 70, "#fff3d6", 0);
+  [[40, 70, 0.4], [310, 110, -0.6], [70, 300, 1.1], [300, 330, 0.2], [30, 470, -0.3], [330, 520, 0.8], [250, 50, 1.4], [120, 90, 2.1]].forEach(([x, y, r]) => {
+    c.save();
+    c.translate(x, y);
+    c.rotate(r);
+    c.beginPath();
+    c.ellipse(0, 0, 9, 5.5, 0, 0, Math.PI * 2);
+    c.fillStyle = "#ff9ec2";
+    c.fill();
+    line(2.5);
+    c.stroke();
+    c.restore();
+  });
+  [[64, 120, 7], [292, 160, 9], [320, 470, 6], [44, 250, 6]].forEach(([x, y, r]) => sparkle(x, y, r));
+  shape("#a7d7a5", () => {
+    c.moveTo(0, 560);
+    c.quadraticCurveTo(180, 530, 360, 560);
+    c.lineTo(360, H);
+    c.lineTo(0, H);
+    c.closePath();
+  });
+  // little flowers and grass tufts on the lawn
+  [[30, 572, "#fffdf5"], [70, 585, "#ffdd00"], [300, 575, "#ff90b3"], [334, 590, "#fffdf5"], [110, 592, "#ff90b3"]].forEach(([x, y, color]) => {
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2;
+      ellipse(x + Math.cos(a) * 4, y + Math.sin(a) * 4, 3.4, 3.4, color, 1.5);
+    }
+    ellipse(x, y, 2.6, 2.6, "#ffb000", 1.2);
+  });
+  [[150, 580], [240, 586], [20, 600], [350, 610]].forEach(([x, y]) => stroke(2.5, () => {
+    c.moveTo(x - 6, y + 4);
+    c.lineTo(x - 3, y - 4);
+    c.moveTo(x, y + 4);
+    c.lineTo(x + 1, y - 7);
+    c.moveTo(x + 6, y + 4);
+    c.lineTo(x + 5, y - 3);
+  }));
+
+  // An anime face: brows, big glossy eyes (or happy closed ones), rosy cheeks and a smile that
+  // can open into a grin
+  const face = (x, y, r, { eye = "#5a3825", lashes = false, closed = false, grin = false, brow = INK } = {}) => {
+    ellipse(x, y, r, r * 1.04, SKIN);
+    // a soft shade under the hairline
+    c.save();
+    c.globalAlpha = 0.25;
+    c.beginPath();
+    c.ellipse(x, y - r * 0.55, r * 0.85, r * 0.3, 0, 0, Math.PI * 2);
+    c.fillStyle = SKIN_SHADE;
+    c.fill();
+    c.restore();
+    [-1, 1].forEach((side) => {
+      const ex = x + side * r * 0.38;
+      const ey = y + r * 0.12;
+      c.fillStyle = "#ff9fb1";
+      c.globalAlpha = 0.7;
+      c.beginPath();
+      c.ellipse(ex + side * r * 0.12, ey + r * 0.32, r * 0.17, r * 0.09, 0, 0, Math.PI * 2);
+      c.fill();
+      c.globalAlpha = 1;
+      // blush hatching
+      stroke(1.5, () => {
+        [-0.08, 0, 0.08].forEach((dx) => {
+          c.moveTo(ex + side * r * (0.08 + dx), ey + r * 0.36);
+          c.lineTo(ex + side * r * (0.13 + dx), ey + r * 0.28);
+        });
+      });
+      // brows, raised and soft
+      c.strokeStyle = brow;
+      line(r * 0.07);
+      c.strokeStyle = brow;
+      c.beginPath();
+      c.moveTo(ex - side * r * 0.14, ey - r * 0.36);
+      c.quadraticCurveTo(ex + side * r * 0.02, ey - r * 0.46, ex + side * r * 0.18, ey - r * 0.38);
+      c.stroke();
+      if (closed) {
+        stroke(3, () => c.arc(ex, ey + r * 0.04, r * 0.14, Math.PI * 1.1, Math.PI * 1.9));
+        return;
+      }
+      c.beginPath();
+      c.ellipse(ex, ey, r * 0.15, r * 0.22, 0, 0, Math.PI * 2);
+      c.fillStyle = INK;
+      c.fill();
+      c.beginPath();
+      c.ellipse(ex, ey + r * 0.05, r * 0.11, r * 0.14, 0, 0, Math.PI * 2);
+      c.fillStyle = eye;
+      c.fill();
+      c.fillStyle = "#fff";
+      c.beginPath();
+      c.arc(ex - r * 0.05, ey - r * 0.08, r * 0.065, 0, Math.PI * 2);
+      c.fill();
+      c.beginPath();
+      c.arc(ex + r * 0.05, ey + r * 0.08, r * 0.03, 0, Math.PI * 2);
+      c.fill();
+      if (lashes) {
+        stroke(3, () => {
+          c.moveTo(ex + side * r * 0.12, ey - r * 0.16);
+          c.lineTo(ex + side * r * 0.24, ey - r * 0.26);
+        });
+      }
+    });
+    if (grin) {
+      shape("#7a2b2b", () => {
+        c.moveTo(x - r * 0.22, y + r * 0.42);
+        c.quadraticCurveTo(x, y + r * 0.44, x + r * 0.22, y + r * 0.42);
+        c.quadraticCurveTo(x + r * 0.2, y + r * 0.72, x, y + r * 0.72);
+        c.quadraticCurveTo(x - r * 0.2, y + r * 0.72, x - r * 0.22, y + r * 0.42);
+        c.closePath();
+      }, 2.5);
+      ellipse(x, y + r * 0.63, r * 0.1, r * 0.06, "#ff8a8a", 0);
+    } else stroke(3, () => c.arc(x, y + r * 0.42, r * 0.15, Math.PI * 0.12, Math.PI * 0.88));
+  };
+  const neck = (x, y, wd, hd) => shape(SKIN_SHADE, () => c.rect(x - wd / 2, y, wd, hd), 3);
+  const hand = (x, y, r = 9) => ellipse(x, y, r, r * 0.9, SKIN, 3);
+  // A sleeve as a thick rounded stroke from a to b, with a hand at the end
+  const arm = (color, x1, y1, cx, cy, x2, y2, width = 22, handR = 9) => {
+    c.lineCap = "round";
+    c.lineWidth = width + 8;
+    c.strokeStyle = INK;
+    c.beginPath();
+    c.moveTo(x1, y1);
+    c.quadraticCurveTo(cx, cy, x2, y2);
+    c.stroke();
+    c.lineWidth = width;
+    c.strokeStyle = color;
+    c.stroke();
+    hand(x2, y2, handR);
+  };
+
+  // ---- Dad (right): short black hair, navy overshirt over a white tee, khaki trousers ----
+  const DX = 248;
+  shape("#c8a97e", () => {
+    c.moveTo(DX - 48, 380);
+    c.lineTo(DX - 52, 560);
+    c.lineTo(DX - 6, 560);
+    c.lineTo(DX, 420);
+    c.lineTo(DX + 6, 560);
+    c.lineTo(DX + 52, 560);
+    c.lineTo(DX + 48, 380);
+    c.closePath();
+  });
+  stroke(2, () => {
+    c.moveTo(DX - 28, 430);
+    c.lineTo(DX - 30, 550);
+    c.moveTo(DX + 28, 430);
+    c.lineTo(DX + 30, 550);
+  });
+  [-1, 1].forEach((s) => {
+    shape("#5a3a2a", () => c.roundRect(DX + s * 28 - 26, 552, 52, 16, 7), 3);
+    stroke(2, () => {
+      c.moveTo(DX + s * 28 - 10, 556);
+      c.lineTo(DX + s * 28 + 10, 556);
+    });
+  });
+  neck(DX, 222, 26, 24);
+  shape("#2f4a7a", () => {
+    c.moveTo(DX - 62, 262);
+    c.quadraticCurveTo(DX, 236, DX + 62, 262);
+    c.lineTo(DX + 54, 392);
+    c.lineTo(DX - 54, 392);
+    c.closePath();
+  });
+  // open front showing the tee, collar points, buttons and a chest pocket
+  shape("#fffdf5", () => {
+    c.moveTo(DX - 18, 244);
+    c.lineTo(DX + 18, 244);
+    c.lineTo(DX + 12, 392);
+    c.lineTo(DX - 12, 392);
+    c.closePath();
+  }, 3);
+  shape("#3d5f99", () => {
+    c.moveTo(DX - 18, 244);
+    c.lineTo(DX - 4, 262);
+    c.lineTo(DX - 26, 270);
+    c.closePath();
+  }, 2.5);
+  shape("#3d5f99", () => {
+    c.moveTo(DX + 18, 244);
+    c.lineTo(DX + 4, 262);
+    c.lineTo(DX + 26, 270);
+    c.closePath();
+  }, 2.5);
+  shape("#3d5f99", () => c.rect(DX + 24, 290, 20, 18), 2.5);
+  [300, 330, 360].forEach((y) => ellipse(DX - 22, y, 2.5, 2.5, "#fffdf5", 1.5));
+  shape("#7a5a2a", () => c.rect(DX - 54, 384, 108, 10), 2.5);
+  ellipse(DX, 389, 6, 5, "#d4a72c", 2);
+  // right arm down, thumbs up
+  arm("#2f4a7a", DX + 52, 272, DX + 74, 330, DX + 62, 384, 22, 10);
+  shape(SKIN, () => c.roundRect(DX + 58, 366, 8, 14, 4), 2.5);
+  shape("#fffdf5", () => c.rect(DX + 50, 372, 22, 5), 2);
+  // head, leaning toward mum
+  tilted(DX, 222, -0.1, () => {
+    face(DX, 188, 40, { grin: true });
+    shape(INK, () => {
+      c.moveTo(DX - 42, 186);
+      c.quadraticCurveTo(DX - 46, 136, DX - 6, 140);
+      c.lineTo(DX + 2, 130);
+      c.lineTo(DX + 10, 142);
+      c.quadraticCurveTo(DX + 46, 140, DX + 42, 186);
+      c.quadraticCurveTo(DX + 34, 168, DX + 20, 166);
+      c.lineTo(DX + 10, 174);
+      c.lineTo(DX + 4, 162);
+      c.quadraticCurveTo(DX - 20, 170, DX - 30, 160);
+      c.quadraticCurveTo(DX - 36, 176, DX - 42, 186);
+      c.closePath();
+    }, 3);
+    // a shine on the hair, and ears
+    c.strokeStyle = "#4b5e86";
+    c.lineWidth = 3;
+    c.beginPath();
+    c.arc(DX - 6, 158, 20, Math.PI * 1.15, Math.PI * 1.55);
+    c.stroke();
+    [-1, 1].forEach((s) => ellipse(DX + s * 41, 194, 6, 9, SKIN, 3));
+  });
+
+  // ---- Mum (left): a dusty-rose hijab with a brooch, and a long sage dress with a belt ----
+  const MX = 118;
+  shape("#8fb8a0", () => {
+    c.moveTo(MX - 44, 290);
+    c.quadraticCurveTo(MX - 60, 440, MX - 70, 562);
+    c.lineTo(MX + 70, 562);
+    c.quadraticCurveTo(MX + 60, 440, MX + 44, 290);
+    c.closePath();
+  });
+  // a little floral print and the dress's folds
+  [[MX - 30, 430], [MX + 20, 470], [MX - 12, 510], [MX + 36, 530], [MX - 44, 520], [MX + 6, 420]].forEach(([x, y]) => {
+    for (let i = 0; i < 4; i++) ellipse(x + Math.cos((i * Math.PI) / 2) * 3, y + Math.sin((i * Math.PI) / 2) * 3, 2.4, 2.4, "#fffdf5", 0);
+    ellipse(x, y, 1.6, 1.6, "#ffb000", 0);
+  });
+  stroke(2, () => {
+    c.moveTo(MX - 20, 420);
+    c.quadraticCurveTo(MX - 26, 500, MX - 30, 556);
+    c.moveTo(MX + 24, 430);
+    c.quadraticCurveTo(MX + 30, 500, MX + 34, 556);
+  });
+  shape("#6f9a82", () => c.rect(MX - 50, 384, 100, 10), 2.5);
+  [-1, 1].forEach((s) => shape("#6b4a3a", () => c.roundRect(MX + s * 26 - 20, 556, 40, 12, 6), 3));
+  // left arm hanging down
+  arm("#7aa38b", MX - 52, 304, MX - 70, 380, MX - 58, 450, 22, 9);
+  // The hijab: a rounded hood framing the face and a drape over the shoulders, head leaning in
+  tilted(MX, 240, 0.09, () => {
+    shape("#d98fa0", () => {
+      c.moveTo(MX - 50, 200);
+      c.quadraticCurveTo(MX - 54, 152, MX, 150);
+      c.quadraticCurveTo(MX + 54, 152, MX + 50, 200);
+      c.quadraticCurveTo(MX + 66, 280, MX + 52, 322);
+      c.quadraticCurveTo(MX, 340, MX - 52, 322);
+      c.quadraticCurveTo(MX - 66, 280, MX - 50, 200);
+      c.closePath();
+    });
+    // a soft shine on the fabric
+    c.strokeStyle = "#f2b9c6";
+    c.lineWidth = 4;
+    c.beginPath();
+    c.arc(MX - 4, 196, 44, Math.PI * 1.2, Math.PI * 1.45);
+    c.stroke();
+    face(MX, 212, 34, { lashes: true, closed: true, grin: false });
+    // the inner band hugging the face
+    c.beginPath();
+    c.ellipse(MX, 210, 36, 40, 0, Math.PI * 1.08, Math.PI * 1.92);
+    line(7);
+    c.strokeStyle = "#f2c6cf";
+    c.stroke();
+    stroke(3, () => c.ellipse(MX, 210, 40, 44, 0, Math.PI * 1.05, Math.PI * 1.95));
+    // the drape's folds and a pearl brooch under the chin
+    [[MX - 30, 268, MX - 38, 314], [MX + 30, 268, MX + 38, 314], [MX - 12, 290, MX - 16, 330]].forEach(([x1, y1, x2, y2]) => stroke(2.5, () => {
+      c.moveTo(x1, y1);
+      c.quadraticCurveTo((x1 + x2) / 2 + (x1 < MX ? -6 : 6), (y1 + y2) / 2, x2, y2);
+    }));
+    ellipse(MX + 22, 262, 7, 7, "#fffdf5", 2.5);
+    ellipse(MX + 22, 262, 3, 3, "#ffd34d", 0);
+  });
+
+  // Dad's arm round mum's shoulders, his hand on her far shoulder
+  arm("#2f4a7a", DX - 50, 270, MX + 80, 248, MX + 44, 284, 20, 9);
+
+  // ---- The little girl (2), on Mum's hip: pigtails with bows, a yellow dress, waving ----
+  c.save();
+  c.translate(4, -22);
+  const GX = 168;
+  // Mum's arm, under her: up from Mum's side and round beneath her
+  arm("#7aa38b", MX + 40, 304, MX + 30, 378, GX - 20, 352, 18, 0.1);
+  shape("#ffd34d", () => {
+    c.moveTo(GX - 22, 316);
+    c.quadraticCurveTo(GX, 306, GX + 22, 316);
+    c.lineTo(GX + 30, 372);
+    c.lineTo(GX - 30, 372);
+    c.closePath();
+  });
+  // a white collar and a little flower on the dress
+  shape("#fffdf5", () => {
+    c.moveTo(GX - 14, 312);
+    c.quadraticCurveTo(GX - 8, 324, GX, 316);
+    c.quadraticCurveTo(GX + 8, 324, GX + 14, 312);
+    c.closePath();
+  }, 2);
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    ellipse(GX + 12 + Math.cos(a) * 3.5, 350 + Math.sin(a) * 3.5, 2.6, 2.6, "#ff90b3", 0);
+  }
+  ellipse(GX + 12, 350, 1.8, 1.8, "#fff", 0);
+  [-1, 1].forEach((s) => shape(SKIN, () => c.roundRect(GX + s * 12 - 6, 368, 12, 24, 6), 3));
+  [-1, 1].forEach((s) => ellipse(GX + s * 12, 394, 9, 6, "#ff90b3", 3));
+  // her waving arm, up by her head
+  arm("#ffd34d", GX + 20, 322, GX + 42, 312, GX + 40, 280, 10, 7);
+  stroke(2, () => {
+    c.arc(GX + 40, 280, 14, Math.PI * 1.2, Math.PI * 1.5);
+    c.moveTo(GX + 56, 272);
+    c.arc(GX + 40, 280, 18, Math.PI * 1.75, Math.PI * 1.95);
+  });
+  tilted(GX, 300, -0.12, () => {
+    [-1, 1].forEach((s) => ellipse(GX + s * 34, 268, 10, 13, "#4a2c1d", 3));
+    face(GX, 282, 26, { eye: "#3d2a1e", grin: true });
+    shape("#4a2c1d", () => {
+      c.moveTo(GX - 27, 280);
+      c.quadraticCurveTo(GX - 28, 250, GX, 252);
+      c.quadraticCurveTo(GX + 28, 250, GX + 27, 280);
+      c.quadraticCurveTo(GX + 14, 266, GX + 2, 270);
+      c.quadraticCurveTo(GX - 12, 264, GX - 27, 280);
+      c.closePath();
+    }, 3);
+    // bows on the pigtails
+    [-1, 1].forEach((s) => {
+      [-1, 1].forEach((k) => shape("#ff6b8b", () => {
+        c.moveTo(GX + s * 30, 258);
+        c.lineTo(GX + s * 30 + k * 9, 252);
+        c.lineTo(GX + s * 30 + k * 9, 264);
+        c.closePath();
+      }, 2));
+      ellipse(GX + s * 30, 258, 3, 3, "#ff6b8b", 2);
+    });
+  });
+  // Mum's hand on her side (the arm runs under her, drawn before her)
+  hand(GX - 20, 352, 8);
+  c.restore();
+
+  // ---- The boy (7), in front: a straw hat, a red shirt, blue shorts and a peace sign ----
+  const BX = 182;
+  [-1, 1].forEach((s) => shape(SKIN, () => c.roundRect(BX + s * 14 - 8, 510, 16, 44, 7), 3));
+  [-1, 1].forEach((s) => {
+    shape("#fffdf5", () => c.roundRect(BX + s * 16 - 15, 550, 30, 14, 6), 3);
+    shape("#e5484d", () => c.rect(BX + s * 16 - 15, 559, 30, 4), 0);
+    stroke(1.5, () => {
+      c.moveTo(BX + s * 16 - 4, 552);
+      c.lineTo(BX + s * 16 + 4, 556);
+      c.moveTo(BX + s * 16 + 4, 552);
+      c.lineTo(BX + s * 16 - 4, 556);
+    });
+  });
+  shape("#3b6fd6", () => c.roundRect(BX - 32, 478, 64, 42, 8));
+  stroke(2, () => {
+    c.moveTo(BX, 486);
+    c.lineTo(BX, 518);
+  });
+  shape("#e5484d", () => {
+    c.moveTo(BX - 40, 420);
+    c.quadraticCurveTo(BX, 404, BX + 40, 420);
+    c.lineTo(BX + 36, 486);
+    c.lineTo(BX - 36, 486);
+    c.closePath();
+  });
+  stroke(3, () => {
+    c.moveTo(BX - 8, 412);
+    c.lineTo(BX - 4, 482);
+    c.moveTo(BX + 8, 412);
+    c.lineTo(BX + 4, 482);
+  });
+  [440, 460].forEach((y) => ellipse(BX - 13, y, 2.6, 2.6, "#ffdd00", 1.5));
+  // left arm down, right arm up making a peace sign
+  arm("#e5484d", BX - 38, 428, BX - 50, 460, BX - 46, 486, 18, 8);
+  arm("#e5484d", BX + 38, 428, BX + 66, 420, BX + 62, 382, 18, 9);
+  [-1, 1].forEach((s) => shape(SKIN, () => {
+    c.save();
+    c.translate(BX + 62 + s * 4, 372);
+    c.rotate(s * 0.25);
+    c.roundRect(-3.5, -16, 7, 18, 3.5);
+    c.restore();
+  }, 2.5));
+  hand(BX + 62, 382, 9);
+  tilted(BX, 410, 0.07, () => {
+    face(BX, 380, 31, { grin: true });
+    shape("#2a1a12", () => {
+      c.moveTo(BX - 32, 378);
+      c.quadraticCurveTo(BX - 34, 350, BX, 350);
+      c.quadraticCurveTo(BX + 34, 350, BX + 32, 378);
+      c.lineTo(BX + 22, 366);
+      c.lineTo(BX + 12, 374);
+      c.lineTo(BX + 2, 362);
+      c.lineTo(BX - 10, 374);
+      c.lineTo(BX - 20, 364);
+      c.closePath();
+    }, 3);
+    // a sticking plaster on his cheek, for a boy who plays hard
+    c.save();
+    c.translate(BX - 18, 396);
+    c.rotate(-0.4);
+    shape("#ffd9a8", () => c.roundRect(-7, -3, 14, 6, 3), 1.5);
+    c.restore();
+    // the straw hat: a wide brim, a round crown, a red band and woven lines
+    shape("#f2c14e", () => c.ellipse(BX, 356, 54, 12, 0, 0, Math.PI * 2));
+    shape("#f2c14e", () => {
+      c.moveTo(BX - 30, 356);
+      c.quadraticCurveTo(BX - 32, 318, BX, 318);
+      c.quadraticCurveTo(BX + 32, 318, BX + 30, 356);
+      c.closePath();
+    });
+    shape("#d62828", () => c.rect(BX - 31, 340, 62, 12), 3);
+    c.strokeStyle = "#c99a32";
+    c.lineWidth = 1.5;
+    [-36, -22, 22, 36].forEach((dx) => {
+      c.beginPath();
+      c.moveTo(BX + dx, 352);
+      c.lineTo(BX + dx * 1.25, 362);
+      c.stroke();
+    });
+  });
+
+  // a few hearts floating up between them
+  heart(206, 150, 7, "#ff6b8b");
+  heart(222, 128, 5, "#ff90b3");
+  heart(70, 210, 6, "#ff90b3");
+
+  // Caption
+  c.fillStyle = INK;
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.font = "800 30px 'Space Grotesk', sans-serif";
+  c.fillText("Our Little Family", 180, 616);
+  heart(180, 648, 9, "#e5484d");
+  c.restore();
+}
+
+// ---------- sword info card ----------
+// Shown beside the rack while a sword is hovered in its close-up: the sword's name in a band of
+// its colour, its grade as a chip, and a few lines about it. Neo-brutal like the 2D site.
+export function drawSwordCard(c, w, h, { name, jp, grade, text, color, ink = "#1a1714" }) {
+  c.clearRect(0, 0, w, h);
+  // Laid out in fixed steps (u: a 760-wide card's pixel) so the card ends just below its
+  // text: whatever's left of the canvas below it stays transparent
+  const u = w / 760;
+  const pad = 38 * u;
+  const cardW = w - 26 * u;
+  const bandH = 100 * u;
+  const chipH = 46 * u;
+  const chipY = 9 + bandH + 6 + 26 * u;
+  const lineH = 40 * u;
+  // wrap the description first, to know how tall the card must be
+  c.font = `500 ${Math.round(28 * u)}px 'Space Grotesk', sans-serif`;
+  const maxW = cardW - pad * 2;
+  const lines = [];
+  text.split(" ").forEach((word) => {
+    const last = lines[lines.length - 1];
+    if (last !== undefined && c.measureText(`${last} ${word}`).width <= maxW) lines[lines.length - 1] = `${last} ${word}`;
+    else lines.push(word);
+  });
+  const textTop = chipY + chipH + 36 * u;
+  const cardH = Math.min(h - 26 * u, textTop + lines.length * lineH + 18 * u);
+  brutalBox(c, 6, 6, cardW - 6, cardH, "#fffdf5", { shadow: 14 * u, line: 7 * u });
+  // header band: the kanji at the right, the name shrinking to fit beside it
+  c.fillStyle = color;
+  c.fillRect(9, 9, cardW - 12, bandH);
+  c.fillStyle = "#1a1714";
+  c.fillRect(9, 9 + bandH, cardW - 12, 6);
+  c.fillStyle = ink;
+  c.textBaseline = "middle";
+  c.font = `800 ${Math.round(38 * u)}px sans-serif`;
+  const jpW = c.measureText(jp).width;
+  c.textAlign = "right";
+  c.fillText(jp, cardW - pad, 9 + bandH / 2 + 2);
+  c.textAlign = "left";
+  const room = cardW - pad * 3 - jpW;
+  let size = Math.round(48 * u);
+  c.font = `900 ${size}px 'Lexend Mega', sans-serif`;
+  while (c.measureText(name.toUpperCase()).width > room && size > 18) {
+    size -= 2;
+    c.font = `900 ${size}px 'Lexend Mega', sans-serif`;
+  }
+  c.fillText(name.toUpperCase(), pad, 9 + bandH / 2 + 2);
+  // grade chip
+  c.font = `800 ${Math.round(25 * u)}px 'Space Grotesk', sans-serif`;
+  const label = `GRADE: ${grade}`;
+  const chipW = c.measureText(label).width + pad;
+  c.fillStyle = "#1a1714";
+  c.fillRect(pad + 4, chipY + 4, chipW, chipH);
+  c.fillStyle = "#ffdd00";
+  c.fillRect(pad, chipY, chipW, chipH);
+  c.lineWidth = 4;
+  c.strokeStyle = "#1a1714";
+  c.strokeRect(pad, chipY, chipW, chipH);
+  c.fillStyle = "#1a1714";
+  c.fillText(label, pad + pad / 2, chipY + chipH / 2 + 1);
+  // the description
+  c.font = `500 ${Math.round(28 * u)}px 'Space Grotesk', sans-serif`;
+  lines.forEach((line, i) => c.fillText(line, pad, textTop + lineH / 2 + i * lineH));
+}
+
+// ---------- sakura ----------
+// One cherry-blossom petal, pointing up: a rounded teardrop with the little notch at its tip,
+// pink deepening to its base, a pale crease down the middle and a thin ink edge
+function sakuraPetalPath(c, cx, cy, len, wid) {
+  c.beginPath();
+  c.moveTo(cx, cy);
+  c.bezierCurveTo(cx - wid * 0.9, cy - len * 0.25, cx - wid, cy - len * 0.8, cx - wid * 0.3, cy - len);
+  c.lineTo(cx, cy - len * 0.86);
+  c.lineTo(cx + wid * 0.3, cy - len);
+  c.bezierCurveTo(cx + wid, cy - len * 0.8, cx + wid * 0.9, cy - len * 0.25, cx, cy);
+  c.closePath();
+}
+function paintPetal(c, cx, cy, len, wid, line) {
+  sakuraPetalPath(c, cx, cy, len, wid);
+  const g = c.createLinearGradient(cx, cy, cx, cy - len);
+  g.addColorStop(0, "#ff7fae");
+  g.addColorStop(0.55, "#ffb7d5");
+  g.addColorStop(1, "#ffe4ef");
+  c.fillStyle = g;
+  c.fill();
+  c.lineWidth = line;
+  c.strokeStyle = "#1a1714";
+  c.stroke();
+  c.strokeStyle = "rgba(255,255,255,.75)";
+  c.lineWidth = line * 0.6;
+  c.beginPath();
+  c.moveTo(cx, cy - len * 0.15);
+  c.quadraticCurveTo(cx + wid * 0.12, cy - len * 0.5, cx, cy - len * 0.78);
+  c.stroke();
+}
+export function drawSakuraPetal(c, w, h) {
+  c.clearRect(0, 0, w, h);
+  paintPetal(c, w / 2, h * 0.92, h * 0.84, w * 0.36, w * 0.05);
+}
+// A whole blossom: five petals round a yellow-tipped heart of stamens
+export function drawSakuraBlossom(c, w, h) {
+  c.clearRect(0, 0, w, h);
+  const cx = w / 2;
+  const cy = h / 2;
+  for (let i = 0; i < 5; i++) {
+    c.save();
+    c.translate(cx, cy);
+    c.rotate((i / 5) * Math.PI * 2);
+    paintPetal(c, 0, 0, h * 0.46, w * 0.2, w * 0.03);
+    c.restore();
+  }
+  c.strokeStyle = "#d94f86";
+  c.lineWidth = w * 0.015;
+  c.fillStyle = "#ffd34d";
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2 + 0.2;
+    const x = cx + Math.cos(a) * w * 0.1;
+    const y = cy + Math.sin(a) * h * 0.1;
+    c.beginPath();
+    c.moveTo(cx, cy);
+    c.lineTo(x, y);
+    c.stroke();
+    c.beginPath();
+    c.arc(x, y, w * 0.022, 0, Math.PI * 2);
+    c.fill();
+  }
+  c.beginPath();
+  c.arc(cx, cy, w * 0.045, 0, Math.PI * 2);
+  c.fillStyle = "#ff5c93";
+  c.fill();
+}
+
+// ---------- weather card (beside the window) ----------
+// WMO weather codes, as Open-Meteo reports them, to a label and an icon kind
+export function weatherKind(code) {
+  if (code === 0) return ["Clear", "clear"];
+  if (code <= 2) return ["Partly cloudy", "partly"];
+  if (code === 3) return ["Overcast", "cloudy"];
+  if (code === 45 || code === 48) return ["Fog", "fog"];
+  if (code >= 51 && code <= 57) return ["Drizzle", "rain"];
+  if (code >= 61 && code <= 67) return ["Rain", "rain"];
+  if (code >= 71 && code <= 77) return ["Snow", "snow"];
+  if (code >= 80 && code <= 82) return ["Showers", "rain"];
+  if (code >= 85 && code <= 86) return ["Snow showers", "snow"];
+  if (code >= 95) return ["Thunderstorm", "storm"];
+  return ["—", "cloudy"];
+}
+
+// A little flat icon for a kind of weather, `s` across, centred on (x, y)
+function weatherIcon(c, x, y, s, kind, night = false) {
+  const ink = "#1a1714";
+  c.lineJoin = "round";
+  c.lineCap = "round";
+  c.lineWidth = s * 0.05;
+  c.strokeStyle = ink;
+  const sun = (cx, cy, r) => {
+    if (night) {
+      c.beginPath();
+      c.arc(cx, cy, r, Math.PI * 0.35, Math.PI * 1.65);
+      c.arc(cx + r * 0.45, cy - r * 0.1, r * 0.8, Math.PI * 1.55, Math.PI * 0.45, true);
+      c.closePath();
+      c.fillStyle = "#fff3b0";
+      c.fill();
+      c.stroke();
+      return;
+    }
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      c.beginPath();
+      c.moveTo(cx + Math.cos(a) * r * 1.3, cy + Math.sin(a) * r * 1.3);
+      c.lineTo(cx + Math.cos(a) * r * 1.65, cy + Math.sin(a) * r * 1.65);
+      c.stroke();
+    }
+    c.beginPath();
+    c.arc(cx, cy, r, 0, Math.PI * 2);
+    c.fillStyle = "#ffcf3a";
+    c.fill();
+    c.stroke();
+  };
+  const cloud = (cx, cy, r, fill = "#fffdf5") => {
+    c.beginPath();
+    c.arc(cx - r * 0.75, cy + r * 0.15, r * 0.55, Math.PI * 0.5, Math.PI * 1.5);
+    c.arc(cx - r * 0.15, cy - r * 0.25, r * 0.7, Math.PI * 1.05, Math.PI * 1.9);
+    c.arc(cx + r * 0.65, cy + r * 0.1, r * 0.6, Math.PI * 1.35, Math.PI * 0.5);
+    c.closePath();
+    c.fillStyle = fill;
+    c.fill();
+    c.stroke();
+  };
+  if (kind === "clear") return sun(x, y, s * 0.26);
+  if (kind === "partly") {
+    sun(x - s * 0.14, y - s * 0.12, s * 0.19);
+    return cloud(x + s * 0.08, y + s * 0.1, s * 0.3);
+  }
+  if (kind === "cloudy") {
+    cloud(x + s * 0.12, y - s * 0.08, s * 0.24, "#c9d1dc");
+    return cloud(x - s * 0.04, y + s * 0.08, s * 0.32);
+  }
+  if (kind === "fog") {
+    cloud(x, y - s * 0.12, s * 0.28, "#dfe4ea");
+    [0.16, 0.3].forEach((dy, i) => {
+      c.beginPath();
+      c.moveTo(x - s * (0.32 - i * 0.06), y + s * dy);
+      c.lineTo(x + s * (0.32 - i * 0.1), y + s * dy);
+      c.stroke();
+    });
+    return;
+  }
+  cloud(x, y - s * 0.1, s * 0.3, kind === "storm" ? "#9aa5b5" : "#dfe6f0");
+  if (kind === "storm") {
+    c.beginPath();
+    c.moveTo(x + s * 0.02, y + s * 0.06);
+    c.lineTo(x - s * 0.1, y + s * 0.26);
+    c.lineTo(x + s * 0.02, y + s * 0.26);
+    c.lineTo(x - s * 0.06, y + s * 0.44);
+    c.lineTo(x + s * 0.16, y + s * 0.18);
+    c.lineTo(x + s * 0.04, y + s * 0.18);
+    c.closePath();
+    c.fillStyle = "#ffdd00";
+    c.fill();
+    c.stroke();
+    return;
+  }
+  [-0.16, 0, 0.16].forEach((dx, i) => {
+    const px = x + s * dx;
+    const py = y + s * (0.22 + (i % 2) * 0.08);
+    c.beginPath();
+    if (kind === "snow") c.arc(px, py, s * 0.035, 0, Math.PI * 2);
+    else {
+      c.moveTo(px, py - s * 0.06);
+      c.quadraticCurveTo(px + s * 0.045, py + s * 0.02, px, py + s * 0.05);
+      c.quadraticCurveTo(px - s * 0.045, py + s * 0.02, px, py - s * 0.06);
+    }
+    c.fillStyle = kind === "snow" ? "#fffdf5" : "#5fb3ff";
+    c.fill();
+    c.stroke();
+  });
+}
+
+// The card: where and when, the weather right now (icon, temperature, what it's doing,
+// humidity and wind), then the next few days. `weather` is null while it loads, or has
+// `error` when it couldn't be fetched.
+export function drawWeatherCard(c, w, h, { place, weather }) {
+  c.clearRect(0, 0, w, h);
+  const pad = w * 0.06;
+  const ink = "#1a1714";
+  brutalBox(c, 6, 6, w - 30, h - 30, "#fffdf5", { shadow: 16, line: 7 });
+  // header
+  const bandH = h * 0.11;
+  c.fillStyle = "#7fdfff";
+  c.fillRect(9, 9, w - 36, bandH);
+  c.fillStyle = ink;
+  c.fillRect(9, 9 + bandH, w - 36, 6);
+  c.textBaseline = "middle";
+  c.font = `900 ${Math.round(h * 0.045)}px 'Lexend Mega', sans-serif`;
+  c.fillText(`WEATHER · ${place.toUpperCase()}`, pad, 9 + bandH / 2 + 2);
+  const right = w - 30 - pad;
+  if (!weather || weather.error) {
+    c.font = `600 ${Math.round(h * 0.04)}px 'Space Grotesk', sans-serif`;
+    c.textAlign = "center";
+    c.fillText(weather?.error ? "Couldn't reach the forecast right now." : "Checking the sky…", (w - 30) / 2, h * 0.45);
+    c.textAlign = "left";
+    return;
+  }
+  const { current, days, updated } = weather;
+  const [label, kind] = weatherKind(current.code);
+  const top = 9 + bandH + 6;
+  // now
+  weatherIcon(c, pad + w * 0.16, top + h * 0.17, w * 0.34, kind, !current.isDay);
+  c.font = `900 ${Math.round(h * 0.13)}px 'Lexend Mega', sans-serif`;
+  c.fillStyle = ink;
+  c.fillText(`${Math.round(current.temp)}°`, pad + w * 0.38, top + h * 0.13);
+  c.font = `700 ${Math.round(h * 0.042)}px 'Space Grotesk', sans-serif`;
+  c.fillText(label, pad + w * 0.39, top + h * 0.235);
+  c.font = `500 ${Math.round(h * 0.032)}px 'Space Grotesk', sans-serif`;
+  c.fillStyle = "#4b4f57";
+  c.fillText(`Now · updated ${updated}`, pad + w * 0.39, top + h * 0.285);
+  // humidity and wind chips
+  const chipY = top + h * 0.34;
+  [[`💧 ${current.humidity}%`, "#c4e6ff"], [`🌬 ${Math.round(current.wind)} km/h`, "#d9f7d6"]].forEach(([text, fill], i) => {
+    c.font = `700 ${Math.round(h * 0.034)}px 'Space Grotesk', sans-serif`;
+    const cw = c.measureText(text).width + pad * 1.1;
+    const cx = pad + i * (w * 0.4);
+    c.fillStyle = ink;
+    c.fillRect(cx + 4, chipY + 4, cw, h * 0.06);
+    c.fillStyle = fill;
+    c.fillRect(cx, chipY, cw, h * 0.06);
+    c.lineWidth = 4;
+    c.strokeStyle = ink;
+    c.strokeRect(cx, chipY, cw, h * 0.06);
+    c.fillStyle = ink;
+    c.fillText(text, cx + pad * 0.55, chipY + h * 0.032);
+  });
+  // the next days
+  const rowY = top + h * 0.45;
+  c.fillStyle = ink;
+  c.fillRect(pad, rowY, right - pad, 4);
+  const colW = (right - pad) / days.length;
+  days.forEach((d, i) => {
+    const cx = pad + colW * (i + 0.5);
+    c.textAlign = "center";
+    c.fillStyle = ink;
+    c.font = `800 ${Math.round(h * 0.034)}px 'Space Grotesk', sans-serif`;
+    c.fillText(d.label, cx, rowY + h * 0.05);
+    weatherIcon(c, cx, rowY + h * 0.13, colW * 0.6, weatherKind(d.code)[1]);
+    c.fillStyle = ink;
+    c.font = `800 ${Math.round(h * 0.036)}px 'Space Grotesk', sans-serif`;
+    c.fillText(`${Math.round(d.max)}°`, cx, rowY + h * 0.225);
+    c.fillStyle = "#6b7280";
+    c.font = `600 ${Math.round(h * 0.03)}px 'Space Grotesk', sans-serif`;
+    c.fillText(`${Math.round(d.min)}°`, cx, rowY + h * 0.265);
+    c.fillStyle = "#2f7cf6";
+    c.fillText(`💧${d.rain ?? 0}%`, cx, rowY + h * 0.305);
+  });
+  c.textAlign = "left";
+  // attribution, as the forecast's licence asks
+  c.fillStyle = "#6b7280";
+  c.font = `500 ${Math.round(h * 0.024)}px 'Space Grotesk', sans-serif`;
+  c.textAlign = "right";
+  c.fillText("Weather data by Open-Meteo.com", right, h - 30 - pad * 0.6);
+  c.textAlign = "left";
+}
+
+// ---------- book spines on the shelf ----------
+const BOOK_TITLES = [
+  ["CLEAN CODE", "R. MARTIN"], ["FLUTTER", "IN ACTION"], ["ALGORITHMS", "4TH ED."], ["VUE.JS", "UP & RUNNING"],
+  ["NODE.JS", "DESIGN"], ["UX BASICS", "A PRIMER"], ["TYPESCRIPT", "DEEP DIVE"], ["ONE PIECE", "VOL. 105"],
+  ["SKETCHBOOK", "2026"], ["COFFEE", "BREWING"], ["GIT POCKET", "GUIDE"], ["PIXEL ART", "STUDIO"],
+];
+const darken = (hex, k) => {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = (s) => Math.round(((n >> s) & 255) * (1 - k));
+  return `rgb(${ch(16)},${ch(8)},${ch(0)})`;
+};
+// A hardback's spine (drawn upright, long side vertical): the cover cloth with a faint weave,
+// dark bands top and bottom ruled in gilt, the title running up the spine with its subtitle,
+// and a little publisher's mark at the foot. `i` picks the title and the band style.
+export function drawBookSpine(c, w, h, { color, i = 0 }) {
+  const [title, sub] = BOOK_TITLES[i % BOOK_TITLES.length];
+  const ink = "#1a1714";
+  const light = parseInt(color.slice(1, 3), 16) + parseInt(color.slice(3, 5), 16) + parseInt(color.slice(5, 7), 16) > 560;
+  const gilt = "#f2c94c";
+  c.fillStyle = color;
+  c.fillRect(0, 0, w, h);
+  // weave and a soft roundness across the spine
+  c.globalAlpha = 0.08;
+  c.fillStyle = "#000";
+  for (let y = 0; y < h; y += 4) c.fillRect(0, y, w, 1);
+  c.globalAlpha = 1;
+  const round = c.createLinearGradient(0, 0, w, 0);
+  round.addColorStop(0, "rgba(0,0,0,.22)");
+  round.addColorStop(0.35, "rgba(255,255,255,.12)");
+  round.addColorStop(1, "rgba(0,0,0,.25)");
+  c.fillStyle = round;
+  c.fillRect(0, 0, w, h);
+  // bands
+  const band = h * (0.07 + (i % 3) * 0.015);
+  c.fillStyle = darken(color, 0.55);
+  c.fillRect(0, h * 0.05, w, band);
+  c.fillRect(0, h * 0.95 - band, w, band);
+  c.fillStyle = gilt;
+  [h * 0.05 - w * 0.06, h * 0.05 + band + w * 0.03, h * 0.95 - band - w * 0.09, h * 0.95 + w * 0.03].forEach((y) => c.fillRect(w * 0.08, y, w * 0.84, Math.max(2, w * 0.05)));
+  if (i % 2) {
+    // a little gilt diamond in the top band
+    c.beginPath();
+    c.moveTo(w / 2, h * 0.05 + band * 0.2);
+    c.lineTo(w * 0.62, h * 0.05 + band / 2);
+    c.lineTo(w / 2, h * 0.05 + band * 0.8);
+    c.lineTo(w * 0.38, h * 0.05 + band / 2);
+    c.closePath();
+    c.fill();
+  }
+  // title up the spine, the subtitle beside it
+  c.save();
+  c.translate(w / 2, h / 2);
+  c.rotate(-Math.PI / 2);
+  const room = h * 0.95 - band * 2 - h * 0.14;
+  let size = Math.round(w * 0.36);
+  c.font = `900 ${size}px 'Lexend Mega', sans-serif`;
+  while (c.measureText(title).width > room * 0.82 && size > 8) {
+    size -= 1;
+    c.font = `900 ${size}px 'Lexend Mega', sans-serif`;
+  }
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.fillStyle = light ? ink : "#fffdf5";
+  c.fillText(title, 0, -w * 0.1);
+  c.font = `700 ${Math.round(size * 0.55)}px 'Space Grotesk', sans-serif`;
+  c.globalAlpha = 0.8;
+  c.fillText(sub, 0, w * 0.24);
+  c.globalAlpha = 1;
+  c.restore();
+  // publisher's mark: a small roundel above the bottom band
+  c.beginPath();
+  c.arc(w / 2, h * 0.95 - band - w * 0.38, w * 0.16, 0, Math.PI * 2);
+  c.fillStyle = gilt;
+  c.fill();
+  c.lineWidth = Math.max(1.5, w * 0.03);
+  c.strokeStyle = darken(color, 0.55);
+  c.stroke();
+  // a thin ink edge where it meets the covers
+  c.strokeStyle = "rgba(0,0,0,.6)";
+  c.lineWidth = Math.max(2, w * 0.04);
+  c.strokeRect(0, 0, w, h);
+}
+
+// The page block's edge: fine lines of paper
+export function drawPageEdges(c, w, h) {
+  c.fillStyle = "#f4ead2";
+  c.fillRect(0, 0, w, h);
+  c.strokeStyle = "rgba(150,120,80,.35)";
+  c.lineWidth = 1;
+  for (let y = 1; y < h; y += 3) {
+    c.beginPath();
+    c.moveTo(0, y + 0.5);
+    c.lineTo(w, y + 0.5);
+    c.stroke();
+  }
+}
+
+// ---------- manga volumes ----------
+// A manga volume's spine, drawn upright: white, with the series' coloured block at the top
+// holding the volume number, the title running down in heavy type, a little character
+// cameo in a roundel, and the publisher's tag at the foot. Each volume gets its own colour.
+export function drawMangaSpine(c, w, h, { vol, color, title = "ONE PIECE" }) {
+  const ink = "#1a1714";
+  c.fillStyle = "#fffdf5";
+  c.fillRect(0, 0, w, h);
+  // top block with the volume number
+  const block = w * 1.15;
+  c.fillStyle = color;
+  c.fillRect(0, 0, w, block);
+  c.fillStyle = ink;
+  c.fillRect(0, block, w, Math.max(2, w * 0.05));
+  c.beginPath();
+  c.arc(w / 2, block / 2, w * 0.36, 0, Math.PI * 2);
+  c.fillStyle = "#fffdf5";
+  c.fill();
+  c.lineWidth = Math.max(2, w * 0.05);
+  c.strokeStyle = ink;
+  c.stroke();
+  c.fillStyle = ink;
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.font = `900 ${Math.round(w * 0.36)}px 'Lexend Mega', sans-serif`;
+  c.fillText(String(vol), w / 2, block / 2 + 1);
+  // title down the spine
+  c.save();
+  c.translate(w / 2, block + (h - block) * 0.42);
+  c.rotate(Math.PI / 2);
+  let size = Math.round(w * 0.42);
+  c.font = `900 ${size}px 'Lexend Mega', sans-serif`;
+  while (c.measureText(title).width > (h - block) * 0.55 && size > 8) {
+    size -= 1;
+    c.font = `900 ${size}px 'Lexend Mega', sans-serif`;
+  }
+  c.fillStyle = ink;
+  c.fillText(title, 0, 0);
+  c.restore();
+  // a straw-hat cameo in a roundel
+  const cy = h * 0.82;
+  c.beginPath();
+  c.arc(w / 2, cy, w * 0.3, 0, Math.PI * 2);
+  c.fillStyle = color;
+  c.fill();
+  c.stroke();
+  c.beginPath();
+  c.ellipse(w / 2, cy - w * 0.02, w * 0.24, w * 0.07, 0, 0, Math.PI * 2);
+  c.fillStyle = "#f2c14e";
+  c.fill();
+  c.beginPath();
+  c.arc(w / 2, cy - w * 0.04, w * 0.12, Math.PI, 0);
+  c.fill();
+  c.fillStyle = "#d62828";
+  c.fillRect(w / 2 - w * 0.12, cy - w * 0.08, w * 0.24, w * 0.05);
+  // publisher tag
+  c.fillStyle = ink;
+  c.fillRect(w * 0.15, h * 0.93, w * 0.7, h * 0.035);
+  c.fillStyle = "#fffdf5";
+  c.font = `800 ${Math.round(w * 0.16)}px 'Space Grotesk', sans-serif`;
+  c.fillText("JUMP", w / 2, h * 0.948);
+  c.textAlign = "left";
+  c.strokeStyle = "rgba(0,0,0,.6)";
+  c.lineWidth = Math.max(2, w * 0.04);
+  c.strokeRect(0, 0, w, h);
+}
+
+// ---------- the handheld's screen: a little space-invaders loop ----------
+// In the old four-greens palette, on a 64 × 52 grid of chunky pixels: a formation of invaders
+// marching side to side and stepping down, the player's ship gliding under them firing, one
+// invader popping per shot, and a STAGE CLEAR before it all starts again. Pure function of
+// time, so it can be redrawn at any moment.
+const GB = ["#9bbc0f", "#8bac0f", "#306230", "#0f380f"];
+const INVADER = [
+  ["..XXXX..", ".XXXXXX.", "XX.XX.XX", "XXXXXXXX", ".X.XX.X.", "X......X"],
+  ["..XXXX..", ".XXXXXX.", "XX.XX.XX", "XXXXXXXX", "..X..X..", ".X.XX.X."],
+];
+const SHIP = ["...X...", "..XXX..", "XXXXXXX", "XXXXXXX"];
+const BURST = ["X.X.X", ".X.X.", "XX.XX", ".X.X.", "X.X.X"];
+const INVADER_ORDER = [5, 0, 10, 3, 7, 1, 11, 6, 2, 9, 4, 8];
+export function drawInvaders(c, w, h, t = 0) {
+  const p = w / 64;
+  const sprite = (rows, x, y, color) => {
+    c.fillStyle = color;
+    rows.forEach((row, ry) => [...row].forEach((ch, rx) => ch === "X" && c.fillRect((x + rx) * p, (y + ry) * p, p + 0.5, p + 0.5)));
+  };
+  c.fillStyle = GB[0];
+  c.fillRect(0, 0, w, h);
+  const LOOP = 15;
+  const T = ((t % LOOP) + LOOP) % LOOP;
+  const SHOT_EVERY = 1.1;
+  const FLIGHT = 0.5;
+  // formation: steps every 0.45s, bouncing over 10 pixels, dropping 2 at each turn
+  const steps = Math.floor(T / 0.45);
+  const RANGE = 10;
+  const leg = Math.floor(steps / RANGE);
+  const offset = leg % 2 ? RANGE - (steps % RANGE) : steps % RANGE;
+  const drop = Math.min(leg * 2, 10);
+  const pos = (i) => ({ x: 6 + (i % 4) * 11 + offset, y: 9 + Math.floor(i / 4) * 8 + drop });
+  const shots = Math.min(INVADER_ORDER.length, Math.floor(T / SHOT_EVERY));
+  const hitAt = new Map();
+  INVADER_ORDER.slice(0, shots + 1).forEach((target, j) => hitAt.set(target, j * SHOT_EVERY + FLIGHT));
+  const frame = steps % 2;
+  for (let i = 0; i < 12; i++) {
+    const at = hitAt.get(i);
+    const { x, y } = pos(i);
+    if (at === undefined || T < at) sprite(INVADER[frame], x, y, GB[3 - (Math.floor(i / 4) % 2)]);
+    else if (T < at + 0.3) sprite(BURST, x + 1, y, GB[2]);
+  }
+  // the ship slides under its next target and fires
+  const next = Math.min(INVADER_ORDER.length - 1, Math.floor(T / SHOT_EVERY));
+  const aim = pos(INVADER_ORDER[next]).x + 0.5;
+  const prev = next ? pos(INVADER_ORDER[next - 1]).x + 0.5 : 28;
+  const k = Math.min(1, (T - next * SHOT_EVERY + SHOT_EVERY) / SHOT_EVERY);
+  const shipX = T < INVADER_ORDER.length * SHOT_EVERY ? prev + (aim - prev) * Math.min(1, k * 1.6) : 28;
+  sprite(SHIP, shipX, 45, GB[3]);
+  // the bullet in flight
+  const j = Math.floor(T / SHOT_EVERY);
+  const since = T - j * SHOT_EVERY;
+  if (j < INVADER_ORDER.length && since < FLIGHT) {
+    const target = pos(INVADER_ORDER[j]);
+    const by = 44 - (since / FLIGHT) * (44 - target.y - 5);
+    c.fillStyle = GB[3];
+    c.fillRect((target.x + 3.5) * p, by * p, p, p * 2.5);
+  }
+  // ground line, score and stage clear
+  c.fillStyle = GB[2];
+  c.fillRect(0, 50 * p, w, p);
+  const kills = [...hitAt.values()].filter((at) => T >= at).length;
+  c.fillStyle = GB[3];
+  c.font = `bold ${Math.round(p * 5)}px monospace`;
+  c.textBaseline = "top";
+  c.fillText(`SCORE ${String(kills * 10).padStart(4, "0")}`, p * 2, p * 1);
+  if (kills >= INVADER_ORDER.length) {
+    c.textAlign = "center";
+    c.fillText("STAGE CLEAR!", w / 2, p * 22);
+    c.textAlign = "left";
+  }
+}
+
+// ---------- technique effects ----------
+// A whirlwind for the TATSU MAKI techniques: stacked bands winding up a cone, in the sword's
+// colour with ink edges, drawn upright on a transparent canvas
+const CUT_COLORS = { wado: ["#fffdf5", "#bfe9ff"], kitetsu: ["#e11d48", "#7c3aed"], enma: ["#6b21a8", "#c084fc"] };
+export function drawTornado(c, w, h, { style = "wado" } = {}) {
+  c.clearRect(0, 0, w, h);
+  const [main, edge] = CUT_COLORS[style] || CUT_COLORS.wado;
+  const bands = 9;
+  for (let i = 0; i < bands; i++) {
+    const f = i / (bands - 1);
+    const y = h * (0.08 + f * 0.82);
+    const rx = w * (0.46 - f * 0.36);
+    const ry = h * 0.035;
+    const tilt = (i % 2 ? 1 : -1) * 0.12;
+    c.save();
+    c.translate(w / 2 + Math.sin(i * 1.3) * w * 0.04, y);
+    c.rotate(tilt);
+    c.beginPath();
+    c.ellipse(0, 0, rx, ry, 0, Math.PI * 0.05, Math.PI * 1.15);
+    c.lineWidth = h * 0.03;
+    c.strokeStyle = "#1a1714";
+    c.stroke();
+    c.lineWidth = h * 0.018;
+    c.strokeStyle = i % 2 ? edge : main;
+    c.stroke();
+    c.restore();
+  }
+}
+// Speed lines: a burst of straight streaks for the "already cut" techniques
+export function drawSpeedLines(c, w, h) {
+  c.clearRect(0, 0, w, h);
+  for (let i = 0; i < 14; i++) {
+    const y = h * (0.1 + ((i * 0.618) % 1) * 0.8);
+    const len = w * (0.45 + ((i * 0.37) % 1) * 0.55);
+    const x = (w - len) * ((i * 0.29) % 1);
+    c.lineCap = "round";
+    c.lineWidth = h * 0.05;
+    c.strokeStyle = "#1a1714";
+    c.beginPath();
+    c.moveTo(x, y);
+    c.lineTo(x + len, y);
+    c.stroke();
+    c.lineWidth = h * 0.028;
+    c.strokeStyle = "#fffdf5";
+    c.stroke();
+  }
 }

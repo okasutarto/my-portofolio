@@ -820,6 +820,358 @@ function drawSnake(c, w, h, game, hotspots) {
   });
 }
 
+// ---------- the console: Straw Hat Dash ----------
+// Switched on from the PlayStation on the shelf, the monitor turns into a TV: a boot screen,
+// then a side-scrolling runner on a pirate ship's deck. Jump the barrels and crates, slide
+// under the seagulls, grab the meat. Faster the further you get.
+const DASH_GROUND = 300;
+const DASH_X = 110;
+const DASH_BOOT = 2.2;
+const JUMP_KEYS = new Set([" ", "ArrowUp", "w", "W", "Enter"]);
+const SLIDE_KEYS = new Set(["ArrowDown", "s", "S"]);
+const readDashBest = () => {
+  try {
+    return Number(localStorage.getItem("dash-best")) || 0;
+  } catch {
+    return 0;
+  }
+};
+function createDash(sound) {
+  const game = { state: "ready", y: 0, vy: 0, slideUntil: 0, things: [], dist: 0, nextAt: 0, meat: 0, best: readDashBest(), last: 0, t: 0 };
+  const score = () => Math.floor(game.dist / 12) + game.meat * 10;
+  game.score = score;
+  game.reset = () => {
+    Object.assign(game, { state: "play", y: 0, vy: 0, slideUntil: 0, things: [], dist: 0, nextAt: 380, meat: 0, last: 0 });
+  };
+  game.jump = () => {
+    if (game.state !== "play") return game.reset();
+    if (game.y > 0) return;
+    game.vy = 560;
+    game.slideUntil = 0;
+    sound("blip");
+  };
+  game.slide = () => {
+    if (game.state !== "play") return;
+    // A slide mid-air drops you straight down
+    if (game.y > 0) game.vy = Math.min(game.vy, -500);
+    game.slideUntil = game.t + 0.5;
+    sound("whoosh");
+  };
+  game.speed = () => 250 + Math.min(260, game.dist / 30);
+  const spawn = () => {
+    const roll = Math.random();
+    const x = SCREEN_W + 30;
+    if (roll < 0.38) game.things.push({ kind: "barrel", x, w: 24, h: 28, y: 0 });
+    else if (roll < 0.6) game.things.push({ kind: "crates", x, w: 28, h: 44, y: 0 });
+    else if (roll < 0.82) game.things.push({ kind: "gull", x, w: 30, h: 16, y: 30 });
+    else game.things.push({ kind: "meat", x, w: 20, h: 16, y: Math.random() < 0.5 ? 14 : 70 });
+    game.nextAt = game.dist + 230 + Math.random() * 260 + game.speed() * 0.25;
+  };
+  game.step = (t) => {
+    game.t = t;
+    if (game.state !== "play") return;
+    const dt = Math.min(0.05, game.last ? t - game.last : 0);
+    game.last = t;
+    const v = game.speed();
+    game.dist += v * dt;
+    if (game.dist >= game.nextAt) spawn();
+    // jump arc
+    game.vy -= 1600 * dt;
+    game.y = Math.max(0, game.y + game.vy * dt);
+    if (game.y === 0) game.vy = 0;
+    const sliding = t < game.slideUntil && game.y === 0;
+    const me = { x: DASH_X - 9, w: 18, y: game.y, h: sliding ? 16 : 32 };
+    game.things.forEach((o) => (o.x -= v * dt));
+    game.things = game.things.filter((o) => o.x + o.w > -20 && !o.taken);
+    for (const o of game.things) {
+      const overlap = me.x < o.x + o.w - 4 && me.x + me.w > o.x + 4 && me.y < o.y + o.h - 3 && me.y + me.h > o.y + 3;
+      if (!overlap) continue;
+      if (o.kind === "meat") {
+        o.taken = true;
+        game.meat++;
+        sound("pop");
+        continue;
+      }
+      game.state = "over";
+      if (score() > game.best) {
+        game.best = score();
+        try {
+          localStorage.setItem("dash-best", String(game.best));
+        } catch {
+          // The best score just isn't kept between visits
+        }
+      }
+      sound("buzz");
+      return;
+    }
+  };
+  return game;
+}
+
+// The runner: a little pirate in a straw hat, red vest and blue shorts, feet at (x, y)
+function drawRunner(c, x, y, t, { sliding, airborne, over }) {
+  c.save();
+  c.translate(x, y);
+  if (sliding) c.rotate(-1.2);
+  c.lineWidth = 2;
+  c.strokeStyle = "#1a1714";
+  const step = airborne || over ? 0 : Math.sin(t * 22);
+  // legs
+  [[-1, step], [1, -step]].forEach(([side, swing]) => {
+    c.fillStyle = "#f6d2b4";
+    c.save();
+    c.translate(side * 4, -12);
+    c.rotate(swing * 0.6);
+    c.fillRect(-2.5, 0, 5, 11);
+    c.strokeRect(-2.5, 0, 5, 11);
+    c.fillStyle = "#1a1714";
+    c.fillRect(-3, 10, 7, 3);
+    c.restore();
+  });
+  // shorts and vest
+  c.fillStyle = "#3b6fd6";
+  c.beginPath();
+  c.roundRect(-8, -16, 16, 7, 2);
+  c.fill();
+  c.stroke();
+  c.fillStyle = "#e5484d";
+  c.beginPath();
+  c.roundRect(-8, -29, 16, 14, 3);
+  c.fill();
+  c.stroke();
+  // arms swinging
+  c.fillStyle = "#f6d2b4";
+  c.save();
+  c.translate(0, -26);
+  c.rotate(-step * 0.8 - (airborne ? 1.6 : 0));
+  c.fillRect(-2, 0, 4, 11);
+  c.strokeRect(-2, 0, 4, 11);
+  c.restore();
+  // head
+  c.beginPath();
+  c.arc(0, -36, 8, 0, Math.PI * 2);
+  c.fill();
+  c.stroke();
+  c.fillStyle = "#1a1714";
+  if (over) {
+    c.font = "800 7px sans-serif";
+    c.textAlign = "center";
+    c.fillText("x x", 2, -35);
+  } else {
+    c.fillRect(2, -38, 2, 3);
+    c.fillRect(-3, -38, 2, 3);
+    c.beginPath();
+    c.arc(1, -33, 2.5, 0.1, Math.PI - 0.1);
+    c.stroke();
+  }
+  // straw hat
+  c.fillStyle = "#f2c14e";
+  c.beginPath();
+  c.ellipse(0, -42, 13, 3.2, 0, 0, Math.PI * 2);
+  c.fill();
+  c.stroke();
+  c.beginPath();
+  c.moveTo(-7, -42);
+  c.quadraticCurveTo(-7, -51, 0, -51);
+  c.quadraticCurveTo(7, -51, 7, -42);
+  c.closePath();
+  c.fill();
+  c.stroke();
+  c.fillStyle = "#d62828";
+  c.fillRect(-7, -45.5, 14, 3);
+  c.restore();
+}
+
+function drawThing(c, o, t) {
+  const x = o.x;
+  const y = DASH_GROUND - o.y;
+  c.lineWidth = 2;
+  c.strokeStyle = "#1a1714";
+  if (o.kind === "barrel") {
+    c.fillStyle = "#a0622d";
+    c.beginPath();
+    c.roundRect(x, y - o.h, o.w, o.h, 6);
+    c.fill();
+    c.stroke();
+    c.fillStyle = "#6b3f1d";
+    [0.25, 0.75].forEach((f) => c.fillRect(x, y - o.h * f - 1.5, o.w, 3));
+  } else if (o.kind === "crates") {
+    [[0, 0, 28, 22], [4, 22, 20, 22]].forEach(([dx, dy, w, h]) => {
+      c.fillStyle = "#d9a35b";
+      c.fillRect(x + dx, y - dy - h, w, h);
+      c.strokeRect(x + dx, y - dy - h, w, h);
+      c.beginPath();
+      c.moveTo(x + dx, y - dy - h);
+      c.lineTo(x + dx + w, y - dy);
+      c.stroke();
+    });
+  } else if (o.kind === "gull") {
+    const flap = Math.sin(t * 14) * 6;
+    const cy = y - o.h / 2;
+    c.fillStyle = "#fffdf5";
+    c.beginPath();
+    c.ellipse(x + 15, cy, 10, 6, 0, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+    c.beginPath();
+    c.moveTo(x + 4, cy - 4 - flap);
+    c.quadraticCurveTo(x + 10, cy, x + 15, cy - 2);
+    c.quadraticCurveTo(x + 20, cy, x + 26, cy - 4 - flap);
+    c.stroke();
+    c.fillStyle = "#ffb000";
+    c.beginPath();
+    c.moveTo(x + 5, cy - 1);
+    c.lineTo(x - 1, cy + 1);
+    c.lineTo(x + 5, cy + 2);
+    c.fill();
+    c.fillStyle = "#1a1714";
+    c.fillRect(x + 8, cy - 3, 2, 2);
+  } else if (o.kind === "meat") {
+    const bob = Math.sin(t * 6) * 2;
+    c.fillStyle = "#fffdf5";
+    c.beginPath();
+    c.roundRect(x - 2, y - 9 + bob, 24, 4, 2);
+    c.fill();
+    c.stroke();
+    c.fillStyle = "#c2502b";
+    c.beginPath();
+    c.ellipse(x + 10, y - 7 + bob, 9, 7, 0, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+  }
+}
+
+// The TV picture: boot, then the game (with its own buttons for touch screens)
+function drawConsole(c, w, h, game, t, t0, hotspots) {
+  const since = t - t0;
+  c.fillStyle = "#05060a";
+  c.fillRect(0, 0, w, h);
+  if (since < DASH_BOOT) {
+    // A wash of light rises, then the logo fades in with a soft glow
+    const k = clamp01(since / 0.9);
+    const glow = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w * 0.6);
+    glow.addColorStop(0, `rgba(70,110,255,${0.55 * k})`);
+    glow.addColorStop(1, "rgba(0,0,0,0)");
+    c.fillStyle = glow;
+    c.fillRect(0, 0, w, h);
+    const a = clamp01((since - 0.5) / 0.6) * (1 - clamp01((since - DASH_BOOT + 0.3) / 0.3));
+    c.globalAlpha = a;
+    c.fillStyle = "#fff";
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.font = `800 30px ${DISPLAY}`;
+    c.fillText("▶ PLAY", w / 2, h / 2);
+    c.globalAlpha = 1;
+    c.textAlign = "left";
+    return;
+  }
+  // sky, sun and sea
+  const sky = c.createLinearGradient(0, 0, 0, DASH_GROUND);
+  sky.addColorStop(0, "#7cc8ff");
+  sky.addColorStop(1, "#ffe0b0");
+  c.fillStyle = sky;
+  c.fillRect(0, 0, w, DASH_GROUND);
+  c.fillStyle = "#fff3c4";
+  c.beginPath();
+  c.arc(w * 0.78, 90, 34, 0, Math.PI * 2);
+  c.fill();
+  const scroll = game.dist;
+  // clouds drifting slowly
+  c.fillStyle = "#ffffff";
+  [[80, 60], [300, 40], [520, 80]].forEach(([cx, cy]) => {
+    const x = ((cx - scroll * 0.08) % (w + 120) + w + 120) % (w + 120) - 60;
+    c.beginPath();
+    c.ellipse(x, cy, 28, 10, 0, 0, Math.PI * 2);
+    c.ellipse(x + 18, cy - 6, 18, 9, 0, 0, Math.PI * 2);
+    c.fill();
+  });
+  c.fillStyle = "#2f7fd6";
+  c.fillRect(0, 230, w, DASH_GROUND - 230);
+  c.strokeStyle = "rgba(255,255,255,.55)";
+  c.lineWidth = 2;
+  for (let i = 0; i < 9; i++) {
+    const x = ((i * 90 - scroll * 0.3) % (w + 90) + w + 90) % (w + 90) - 45;
+    c.beginPath();
+    c.moveTo(x, 250 + (i % 3) * 14);
+    c.quadraticCurveTo(x + 10, 245 + (i % 3) * 14, x + 20, 250 + (i % 3) * 14);
+    c.stroke();
+  }
+  // the deck: planks scrolling by, and the rail
+  c.fillStyle = "#b9773a";
+  c.fillRect(0, DASH_GROUND, w, h - DASH_GROUND);
+  c.fillStyle = "#8a5426";
+  c.fillRect(0, DASH_GROUND, w, 4);
+  c.strokeStyle = "#7a4a22";
+  c.lineWidth = 1.5;
+  for (let i = 0; i < 12; i++) {
+    const x = ((i * 64 - scroll) % (w + 64) + w + 64) % (w + 64) - 32;
+    c.beginPath();
+    c.moveTo(x, DASH_GROUND + 4);
+    c.lineTo(x - 30, h);
+    c.stroke();
+  }
+  game.things.forEach((o) => drawThing(c, o, t));
+  const sliding = t < game.slideUntil && game.y === 0;
+  drawRunner(c, DASH_X, DASH_GROUND - game.y + (sliding ? -2 : 0), t, { sliding, airborne: game.y > 0, over: game.state === "over" });
+
+  // score
+  c.fillStyle = "#1a1714";
+  c.textBaseline = "middle";
+  c.font = `800 11px ${DISPLAY}`;
+  c.fillText(`SCORE ${game.score()}`, 14, 18);
+  c.font = `700 9px ${BODY}`;
+  c.fillText(`🍖 ${game.meat}   BEST ${Math.max(game.best, game.score())}`, 14, 34);
+
+  // exit button
+  c.fillStyle = "#1a1714";
+  roundRect(c, w - 66, 9, 56, 20, 5);
+  c.fill();
+  c.fillStyle = "#fff";
+  c.textAlign = "center";
+  c.font = `800 9px ${BODY}`;
+  c.fillText("✕ EXIT", w - 38, 19.5);
+  c.textAlign = "left";
+
+  if (game.state !== "play") {
+    c.fillStyle = "rgba(10,12,20,.55)";
+    c.fillRect(0, 0, w, h);
+    c.textAlign = "center";
+    c.fillStyle = "#ffdd00";
+    c.font = `800 24px ${DISPLAY}`;
+    c.fillText(game.state === "over" ? "GAME OVER" : "STRAW HAT DASH", w / 2, h / 2 - 40);
+    c.fillStyle = "#fff";
+    c.font = `600 11px ${BODY}`;
+    if (game.state === "over") c.fillText(`score ${game.score()}   ·   best ${game.best}`, w / 2, h / 2 - 14);
+    const blink = Math.floor(t * 2) % 2 === 0;
+    if (blink) c.fillText("press SPACE / ↑ or tap to " + (game.state === "over" ? "play again" : "start"), w / 2, h / 2 + 8);
+    c.font = `500 9px ${BODY}`;
+    c.fillText("↑ jump the barrels · ↓ slide under the gulls · grab the meat", w / 2, h / 2 + 28);
+    c.textAlign = "left";
+  }
+  // touch buttons
+  [["dashSlide", "▼ SLIDE", w - 150], ["dashJump", "▲ JUMP", w - 78]].forEach(([id, label, x]) => {
+    const y = h - 34;
+    c.fillStyle = "#1a1714";
+    roundRect(c, x + 2, y + 2, 64, 24, 6);
+    c.fill();
+    c.fillStyle = "#ffdd00";
+    roundRect(c, x, y, 64, 24, 6);
+    c.fill();
+    c.lineWidth = 2;
+    c.strokeStyle = "#1a1714";
+    c.stroke();
+    c.fillStyle = "#1a1714";
+    c.textAlign = "center";
+    c.font = `800 9px ${BODY}`;
+    c.fillText(label, x + 32, y + 12.5);
+    c.textAlign = "left";
+    hotspots.push({ id, x, y, w: 64, h: 24 });
+  });
+  hotspots.push({ id: "consoleExit", x: w - 66, y: 9, w: 56, h: 20 });
+  // Anywhere else on the picture jumps (and starts)
+  hotspots.push({ id: "dashJump", x: 0, y: 0, w, h });
+}
+
 export function createDesktop({ terminal, player, actions }) {
   // Positions are the windows' homes; maximized they fill the space between bar and dock
   const windows = {
@@ -830,6 +1182,9 @@ export function createDesktop({ terminal, player, actions }) {
   };
   const typist = createTypist();
   const snake = createSnake((name) => actions.sound?.(name));
+  const dash = createDash((name) => actions.sound?.(name));
+  // The console takes over the whole screen while it's on
+  const tv = { on: false, t0: 0 };
   // Launchpad: a grid of every app over the dimmed desktop
   const pad = { open: false, t0: -9 };
   Object.values(windows).forEach((win) => Object.assign(win, { min: false, max: false, anim: null, surface: null }));
@@ -1025,6 +1380,11 @@ export function createDesktop({ terminal, player, actions }) {
     // The editor types on while it's showing; the snake only moves while it's the front window
     if (windows.code.open && !windows.code.min) typist.step(t);
     if (front()?.id === "snake") snake.step(t);
+    if (tv.on) {
+      if (t - tv.t0 > DASH_BOOT) dash.step(t);
+      drawConsole(c, SCREEN_W, SCREEN_H, dash, t, tv.t0, hotspots);
+      return hotspots.reverse();
+    }
 
     // windows, back to front; finished animations settle their state
     order.forEach((id) => {
@@ -1207,6 +1567,9 @@ export function createDesktop({ terminal, player, actions }) {
   }
 
   function click(hs) {
+    if (hs.id === "consoleExit") return Object.assign(tv, { on: false });
+    if (hs.id === "dashJump") return now() - tv.t0 > DASH_BOOT && dash.jump();
+    if (hs.id === "dashSlide") return dash.slide();
     if (hs.id === "padClose") return Object.assign(pad, { open: false, t0: now() });
     if (hs.id === "pad") {
       Object.assign(pad, { open: false, t0: now() });
@@ -1235,10 +1598,21 @@ export function createDesktop({ terminal, player, actions }) {
     draw,
     click,
     launch,
+    // The console on the shelf switched on: boot, then Straw Hat Dash full screen
+    playConsole() {
+      Object.assign(tv, { on: true, t0: now() });
+      dash.state = "ready";
+    },
+    exitConsole() {
+      if (!tv.on) return false;
+      tv.on = false;
+      return true;
+    },
     // Something is moving on the screen: keep redrawing every frame
     busy: () => {
       const t = now();
       return !!(
+        tv.on ||
         bounce ||
         notice ||
         t - pad.t0 < 0.3 ||
@@ -1249,6 +1623,14 @@ export function createDesktop({ terminal, player, actions }) {
     },
     // A key while zoomed in on the screen; true when the desktop used it (Snake's arrows/WASD)
     key(e) {
+      if (tv.on) {
+        if (now() - tv.t0 < DASH_BOOT) return true;
+        if (JUMP_KEYS.has(e.key)) dash.jump();
+        else if (SLIDE_KEYS.has(e.key)) dash.slide();
+        else if (e.key === "Backspace" || e.key === "q" || e.key === "Q") tv.on = false;
+        // Everything else is swallowed: no typing into the terminal behind the game
+        return true;
+      }
       if (front()?.id !== "snake") return false;
       const dir = KEY_DIRS[e.key];
       if (dir) {
@@ -1263,7 +1645,7 @@ export function createDesktop({ terminal, player, actions }) {
     },
     // The pointer over the screen (layout units), or null: the dock magnifies under it
     hover(x, y) {
-      const next = x === null || y < DOCK_Y - 24 ? null : x;
+      const next = tv.on || x === null || y < DOCK_Y - 24 ? null : x;
       if (next === hoverX) return false;
       hoverX = next;
       return true;
@@ -1274,7 +1656,7 @@ export function createDesktop({ terminal, player, actions }) {
     notify(app, title, body) {
       notice = { app, title, body, t0: now() };
     },
-    active: () => front()?.id || null,
+    active: () => (tv.on ? "console" : front()?.id || null),
     isOpen: (id) => windows[id].open && !windows[id].min,
   };
 }

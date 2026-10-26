@@ -48,11 +48,27 @@ import {
   drawGameSpine,
   drawGameCover,
   drawRepBadge,
-  drawGymCalendar,
   drawSlash,
+  drawGlint,
+  drawHakiAura,
+  drawTornado,
+  drawSpeedLines,
   drawShout,
   drawEnmaBlade,
   drawEnmaFlower,
+  drawWadoBlade,
+  drawKitetsuBlade,
+  drawTsukaWrap,
+  drawSakuraPetal,
+  drawSakuraBlossom,
+  drawBookSpine,
+  drawMangaSpine,
+  drawInvaders,
+  drawPageEdges,
+  drawWeatherCard,
+  weatherKind,
+  drawFamilyPortrait,
+  drawSwordCard,
   drawWoodTop,
   drawDeskMat,
   drawClockFace,
@@ -430,7 +446,31 @@ export function createDeskScene({ container, projects, experiences, dark = false
   wallShadows.receiveShadow = true;
   wallShadows.raycast = noRaycast;
   room.add(wallShadows);
-  roomBox(0.24, 100, 200, sideWallMat, SIDE_X, FLOOR_Y + 50, 1.2);
+  // The side wall, with a real opening cut for the window (see the window below). Built as
+  // its outline extruded through the wall's thickness, the opening as a hole in it.
+  const WINDOW_AT = { y: 4.7, z: -1.1, w: 4.4, h: 4.5 };
+  const wallShape = new THREE.Shape();
+  // Shape x runs along -z once stood up; y is height
+  wallShape.moveTo(-101.2, FLOOR_Y);
+  wallShape.lineTo(98.8, FLOOR_Y);
+  wallShape.lineTo(98.8, FLOOR_Y + 100);
+  wallShape.lineTo(-101.2, FLOOR_Y + 100);
+  wallShape.closePath();
+  const opening = new THREE.Path();
+  const ox = -WINDOW_AT.z;
+  const halfW = WINDOW_AT.w / 2 + 0.01;
+  const halfH = WINDOW_AT.h / 2 + 0.01;
+  opening.moveTo(ox - halfW, WINDOW_AT.y - halfH);
+  opening.lineTo(ox - halfW, WINDOW_AT.y + halfH);
+  opening.lineTo(ox + halfW, WINDOW_AT.y + halfH);
+  opening.lineTo(ox + halfW, WINDOW_AT.y - halfH);
+  opening.closePath();
+  wallShape.holes.push(opening);
+  const sideWallGeo = new THREE.ExtrudeGeometry(wallShape, { depth: 0.24, bevelEnabled: false });
+  sideWallGeo.rotateY(Math.PI / 2);
+  const sideWall = mesh(sideWallGeo, sideWallMat, { outline: 0.055, cast: false });
+  sideWall.position.x = SIDE_X - 0.12;
+  room.add(sideWall);
   const sideShadows = new THREE.Mesh(track(new THREE.PlaneGeometry(30, 24)), wallShadowMat);
   sideShadows.rotation.y = Math.PI / 2;
   sideShadows.position.set(SIDE_X + 0.135, FLOOR_Y + 10, 1.2);
@@ -470,7 +510,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
 
   // A framed illustration on the left wall: four panes, a sun/moon and angular trees.
   const windowGroup = new THREE.Group();
-  windowGroup.position.set(SIDE_X + 0.18, 4.7, -1.1);
+  // Set back in the wall's opening: the group's origin is the frame's plane, WINDOW_DEPTH
+  // behind the wall's face
+  const WINDOW_DEPTH = 0.42;
+  windowGroup.position.set(SIDE_X + 0.12 - WINDOW_DEPTH, WINDOW_AT.y, WINDOW_AT.z);
   windowGroup.rotation.y = Math.PI / 2;
   room.add(windowGroup);
   // A wooden frame and sill (the desk's grain, a shade warmer), a darker moulding round the glass,
@@ -480,7 +523,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   drawWoodTop(windowWood.ctx, 512, 512);
   const frameWood = toon("#f0c7a0");
   frameWood.map = windowWood.texture;
-  const windowFrame = mesh(new THREE.BoxGeometry(4.4, 4.5, 0.18), frameWood, { cast: false, outline: 0.07 });
+  const windowFrame = mesh(new THREE.BoxGeometry(4.4, 4.5, 0.18), frameWood, { cast: false, outline: 0.03 });
   // The view outside is animated (see drawWindowView): redrawn from the render loop, often
   // while it's zoomed in on, a few times a second otherwise
   // The sky matches the room: night while the room is dark, and while it's light the visitor's
@@ -492,11 +535,43 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const windowView = printed(4.0, 4.1, 220, (c, w, h) => drawWindowView(c, w, h, { ...outside, time: dayPart() }));
   windowView.position.z = 0.105;
   windowGroup.add(windowFrame, windowView);
-  const sill = mesh(new THREE.BoxGeometry(4.65, 0.18, 0.6), frameWood, { cast: false, outline: 0.045 });
-  sill.position.set(0, -2.3, 0.14);
-  const apron = mesh(rbox(4.1, 0.3, 0.1, 0.03), frameWood, { cast: false, outline: 0.03 });
-  apron.position.set(0, -2.55, 0.06);
-  windowGroup.add(sill, apron);
+  // The reveal: wooden linings round the opening (the frame's wood), from the frame out to the wall's face
+  // (they fill the cut wall's edges and run on behind it), with a soft shadow cast in from
+  // above and the side so the frame reads as set into the wall
+  const JAMB = 0.12;
+  const REVEAL = WINDOW_DEPTH + 0.1;
+  // (no lining along the bottom: the sill is the opening's floor)
+  [[0, 2.25 + JAMB / 2, 4.4 + JAMB * 2, JAMB], [2.2 + JAMB / 2, 0, JAMB, 4.5], [-2.2 - JAMB / 2, 0, JAMB, 4.5]].forEach(([x, y, w, h]) => {
+    const jamb = mesh(new THREE.BoxGeometry(w, h, REVEAL), frameWood, { cast: false, outline: 0.015 });
+    // Ends a hair behind the wall's face, so its front never fights the wall's for the same plane
+    jamb.position.set(x, y, WINDOW_DEPTH - 0.006 - REVEAL / 2);
+    windowGroup.add(jamb);
+  });
+  const revealShade = printed(4.4, 4.5, 64, (c, w, h) => {
+    c.clearRect(0, 0, w, h);
+    const top = c.createLinearGradient(0, 0, 0, h * 0.22);
+    top.addColorStop(0, "rgba(40,30,60,0.45)");
+    top.addColorStop(1, "rgba(40,30,60,0)");
+    c.fillStyle = top;
+    c.fillRect(0, 0, w, h * 0.22);
+    const side = c.createLinearGradient(w, 0, w * 0.86, 0);
+    side.addColorStop(0, "rgba(40,30,60,0.35)");
+    side.addColorStop(1, "rgba(40,30,60,0)");
+    c.fillStyle = side;
+    c.fillRect(w * 0.86, 0, w * 0.14, h);
+  });
+  revealShade.material.transparent = true;
+  revealShade.material.depthWrite = false;
+  revealShade.position.z = 0.125;
+  revealShade.raycast = noRaycast;
+  // The sill runs out from the frame past the wall's face, with an apron board under it. Its
+  // top sits clearly above the opening's floor and the frame's foot (both end inside it), so
+  // no two faces share a plane and flicker as the camera moves.
+  const sill = mesh(new THREE.BoxGeometry(4.4 + 0.5, 0.2, WINDOW_DEPTH + 0.45), frameWood, { cast: false, outline: 0.03 });
+  sill.position.set(0, -2.25 - 0.03, (WINDOW_DEPTH + 0.45) / 2);
+  const apron = mesh(rbox(4.1, 0.26, 0.08, 0.03), frameWood, { cast: false, outline: 0.02 });
+  apron.position.set(0, -2.25 - 0.29, WINDOW_DEPTH + 0.04);
+  windowGroup.add(sill, apron, revealShade);
   const moulding = toon("#7a4a26");
   [[0, 2.05, 4.12, 0.1], [0, -2.05, 4.12, 0.1], [2.0, 0, 0.1, 4.2], [-2.0, 0, 0.1, 4.2]].forEach(([x, y, w, h]) => {
     const strip = mesh(rbox(w, h, 0.08, 0.02), moulding, { cast: false, outline: 0.015 });
@@ -564,12 +639,84 @@ export function createDeskScene({ container, projects, experiences, dark = false
       [0.3, 0.75, 1.3].forEach((delay) => sfx.chirp({ delay, volume: 0.3 }));
     }
   };
-  register(windowGroup, { focus: "window", onArrive: lookOut, onClick: lookOut });
+  // ---------- a live forecast beside the window, in its close-up ----------
+  // Today's real weather where Oka lives (Pontianak), from Open-Meteo (free, no key, and no
+  // asking visitors for their location): now, and the next few days. Fetched when the window
+  // is first looked at and at most every 15 minutes after. If it's really raining there, so is
+  // the view.
+  const WEATHER_PLACE = { name: "Pontianak", lat: -0.0263, lon: 109.3425, tz: "Asia/Pontianak" };
+  const WEATHER_URL = `https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_PLACE.lat}&longitude=${WEATHER_PLACE.lon}`
+    + "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,is_day"
+    + "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max"
+    + `&timezone=${encodeURIComponent(WEATHER_PLACE.tz)}&forecast_days=4`;
+  let weatherNow = null;
+  let weatherFetchedAt = 0;
+  let weatherLoading = false;
+  const WEATHER_CARD = { w: 2.8, h: 2.8 * (840 / 720) };
+  const weatherTex = canvasTexture(720, 840);
+  track(weatherTex.texture);
+  const weatherCard = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: weatherTex.texture, depthTest: false, transparent: true })));
+  weatherCard.renderOrder = 12;
+  weatherCard.raycast = noRaycast;
+  weatherCard.scale.set(0.001, 0.001, 1);
+  // On the wall to the window's left as you face it, close by it and a little high, clear of
+  // the guitar below
+  weatherCard.position.set(SIDE_X + 0.6, WINDOW_AT.y + 0.4, WINDOW_AT.z + WINDOW_AT.w / 2 + 0.2 + WEATHER_CARD.w / 2);
+  scene.add(weatherCard);
+  const redrawWeather = () => {
+    drawWeatherCard(weatherTex.ctx, 720, 840, { place: WEATHER_PLACE.name, weather: weatherNow });
+    weatherTex.texture.needsUpdate = true;
+  };
+  async function loadWeather() {
+    if (weatherLoading || (weatherNow && !weatherNow.error && performance.now() - weatherFetchedAt < 15 * 60000)) return;
+    weatherLoading = true;
+    try {
+      const res = await fetch(WEATHER_URL);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const { current, daily } = await res.json();
+      if (destroyed) return;
+      weatherNow = {
+        current: { temp: current.temperature_2m, humidity: current.relative_humidity_2m, code: current.weather_code, wind: current.wind_speed_10m, isDay: current.is_day === 1 },
+        days: daily.time.map((date, i) => ({
+          label: i === 0 ? "Today" : new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }),
+          code: daily.weather_code[i],
+          max: daily.temperature_2m_max[i],
+          min: daily.temperature_2m_min[i],
+          rain: daily.precipitation_probability_max[i],
+        })),
+        updated: current.time.slice(11, 16),
+      };
+      weatherFetchedAt = performance.now();
+      // Raining for real: let it rain outside the window too
+      const kind = weatherKind(current.weather_code)[1];
+      if ((kind === "rain" || kind === "storm") && !outside.rainTarget) outside.rainTarget = kind === "storm" ? 1 : 0.7;
+    } catch {
+      weatherNow = { error: true };
+    } finally {
+      weatherLoading = false;
+    }
+    if (!destroyed) redrawWeather();
+  }
+  function showWeather() {
+    redrawWeather();
+    gsap.fromTo(weatherCard.scale, { x: WEATHER_CARD.w * 0.85, y: WEATHER_CARD.h * 0.85 }, { x: WEATHER_CARD.w, y: WEATHER_CARD.h, duration: 0.35, ease: "back.out(2)", overwrite: true });
+    loadWeather();
+  }
+  const hideWeather = () => gsap.to(weatherCard.scale, { x: 0.001, y: 0.001, duration: 0.15, ease: "power2.in", overwrite: true });
+  register(windowGroup, {
+    focus: "window",
+    onArrive: () => {
+      showWeather();
+      lookOut();
+    },
+    onLeave: hideWeather,
+    onClick: lookOut,
+  });
 
   // A guitar hanging on the left wall from a hook under its headstock. Click it for a strum;
   // it swings on the hook. Built standing up in its own plane, then turned to face the room.
   const guitar = new THREE.Group();
-  guitar.position.set(SIDE_X + 0.38, 2.4, 5.3);
+  guitar.position.set(SIDE_X + 0.38, 2.9, 5.3);
   guitar.rotation.y = Math.PI / 2;
   room.add(guitar);
   const HOOK_Y = 3.98;
@@ -736,10 +883,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
           clockBusy = false;
           gsap.fromTo(clock.rotation, { z: 0.14 }, { z: 0, duration: 1.4, ease: "elastic.out(1, 0.2)" });
           gsap.fromTo(clock.scale, { x: 1.1, y: 1.1 }, { x: 1, y: 1, duration: 0.5, ease: "back.out(3)" });
-          sfx.chime();
+          // It strikes the hour, as a wall clock does (a few strokes at most)
+          sfx.clockStrike({ count: Math.min(3, new Date().getHours() % 12 || 12) });
         },
       });
-      for (let i = 0; i < 8; i++) sfx.tick({ pitch: 1.4, delay: i * 0.17 });
+      // the movement ratcheting as the hands whirl
+      for (let i = 0; i < 12; i++) sfx.tick({ pitch: 1.1 + (i % 2) * 0.25, delay: i * 0.11 });
     },
   });
   const rugTex = canvasTexture(1600, 1150);
@@ -760,8 +909,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // turns over and shows the next picture (a sunset, a city at night, a great wave).
   const PAINTING_DROP = 1.75; // nail to the painting's centre
   const paintingHang = new THREE.Group();
-  // Hung low enough that the frame and its nail stay in frame on wide, short screens
-  paintingHang.position.set(-4.9, 3.4 + WALL_LIFT + 0.4 + PAINTING_DROP, WALL_Z + 0.24);
+  // Hung clear of the lamp, but low enough that the frame and its nail stay in frame on wide,
+  // short screens
+  paintingHang.position.set(-4.9, 3.4 + WALL_LIFT + 0.9 + PAINTING_DROP, WALL_Z + 0.24);
   room.add(paintingHang);
   const paintingTurn = new THREE.Group();
   paintingTurn.position.y = -PAINTING_DROP;
@@ -865,12 +1015,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
     slot.position.set(x, 4.35 - BACK_H / 2, 0.311);
     chairBack.add(slot);
   });
-  // Diamond quilting stitched over the back (the side the room sees), orange racing stripes
-  // down it, an embroidered emblem up top, and orange piping just inside its edge
-  const chairAccent = toon("#f47b20");
+  // Diamond quilting stitched over the back (the side the room sees), teal racing stripes
+  // down it, an embroidered emblem up top, and teal piping just inside its edge (teal like the
+  // room's neon, and clear of the straw hat's yellow and red)
+  const CHAIR_ACCENT = "#00c2ad";
+  const chairAccent = toon(CHAIR_ACCENT);
   const quilt = canvasTexture(512, 680);
   track(quilt.texture);
-  drawChairQuilt(quilt.ctx, 512, 680);
+  drawChairQuilt(quilt.ctx, 512, 680, { accent: CHAIR_ACCENT });
   const quiltPanel = new THREE.Mesh(track(new THREE.PlaneGeometry(2.7, 3.6)), track(new THREE.MeshBasicMaterial({ map: quilt.texture, transparent: true, depthWrite: false })));
   quiltPanel.position.set(0, -0.45, 0.309);
   chairBack.add(quiltPanel);
@@ -881,7 +1033,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   });
   const emblemTex = canvasTexture(256, 256);
   track(emblemTex.texture);
-  drawChairEmblem(emblemTex.ctx, 256, 256);
+  drawChairEmblem(emblemTex.ctx, 256, 256, { accent: CHAIR_ACCENT });
   const emblem = new THREE.Mesh(track(new THREE.PlaneGeometry(0.7, 0.7)), track(new THREE.MeshBasicMaterial({ map: emblemTex.texture, transparent: true })));
   emblem.position.set(0, 1.45, 0.313);
   chairBack.add(emblem);
@@ -890,16 +1042,72 @@ export function createDeskScene({ container, projects, experiences, dark = false
     true,
   );
   chairBack.add(mesh(new THREE.TubeGeometry(piping, 160, 0.035, 6, true), chairAccent, { outline: 0, cast: false }));
+  // The front (the side you sit against) gets the same treatment: quilted centre, stripes and
+  // piping, plus a headrest pillow and a lumbar pillow, each with the emblem
+  const frontQuilt = quiltPanel.clone();
+  frontQuilt.rotation.y = Math.PI;
+  frontQuilt.position.z = -0.309;
+  chairBack.add(frontQuilt);
+  [-0.55, 0.55].forEach((x) => {
+    const stripe = new THREE.Mesh(track(new THREE.PlaneGeometry(0.32, 3.4)), chairAccent);
+    stripe.rotation.y = Math.PI;
+    stripe.position.set(x, -0.55, -0.311);
+    chairBack.add(stripe);
+  });
+  const frontPiping = new THREE.CatmullRomCurve3(piping.points.map((p) => new THREE.Vector3(p.x, p.y, -0.315)), true);
+  chairBack.add(mesh(new THREE.TubeGeometry(frontPiping, 160, 0.035, 6, true), chairAccent, { outline: 0, cast: false }));
+  const pillow = (w, h, d, y) => {
+    const p = mesh(rbox(w, h, d, Math.min(h, d) * 0.48), chairFrameMat, { outline: 0.03 });
+    p.position.set(0, y, -0.3 - d / 2 + 0.05);
+    // a teal band round its middle and the emblem on its face
+    p.add(at(mesh(rbox(w + 0.01, h * 0.16, d + 0.01, 0.02), chairAccent, { outline: 0 }), 0, -h * 0.28, 0));
+    const badge = new THREE.Mesh(track(new THREE.PlaneGeometry(h * 0.62, h * 0.62)), emblem.material);
+    badge.rotation.y = Math.PI;
+    badge.position.set(0, h * 0.08, -d / 2 - 0.005);
+    p.add(badge);
+    chairBack.add(p);
+    return p;
+  };
+  pillow(1.45, 0.62, 0.34, 1.95);
+  pillow(2.1, 0.75, 0.4, -1.75);
+
+  // The seat: a quilted panel on the cushion and teal piping round it
+  const seatQuilt = new THREE.Mesh(track(new THREE.PlaneGeometry(3.4, 3.2)), quiltPanel.material);
+  seatQuilt.rotation.x = -Math.PI / 2;
+  seatQuilt.position.set(0, -2.05 + 0.16 + 0.125, 0);
+  const seatEdge = new THREE.Shape();
+  {
+    const hw = 1.95;
+    const hd = 1.75;
+    const r = 0.7;
+    seatEdge.moveTo(-hw + r, -hd);
+    seatEdge.lineTo(hw - r, -hd);
+    seatEdge.quadraticCurveTo(hw, -hd, hw, -hd + r);
+    seatEdge.lineTo(hw, hd - r);
+    seatEdge.quadraticCurveTo(hw, hd, hw - r, hd);
+    seatEdge.lineTo(-hw + r, hd);
+    seatEdge.quadraticCurveTo(-hw, hd, -hw, hd - r);
+    seatEdge.lineTo(-hw, -hd + r);
+    seatEdge.quadraticCurveTo(-hw, -hd, -hw + r, -hd);
+  }
+  const seatPiping = new THREE.CatmullRomCurve3(seatEdge.getPoints(12).map((p) => new THREE.Vector3(p.x, -2.05 + 0.16 + 0.13, p.y)), true);
+  const seatTrim = mesh(new THREE.TubeGeometry(seatPiping, 120, 0.035, 6, true), chairAccent, { outline: 0, cast: false });
   const chairPost = mesh(new THREE.CylinderGeometry(0.2, 0.28, 2.6, 16), chairFrameMat, { outline: 0.03 });
   chairPost.position.y = -3.6;
   // the chrome gas lift showing above its shroud
   const gasLift = mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.7, 16), toon("#c9ccd2"), { outline: 0.015 });
   gasLift.position.y = -2.4;
   chairPost.add(at(mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.08, 16), toon("#c9ccd2"), { outline: 0.01 }), 0, 1.25, 0));
-  const backPost = rod(new THREE.Vector3(0, -2.1, 1.6), new THREE.Vector3(0, -1.2, 2.1), 0.16, chairFrameMat, 0.03);
+  // The back's bracket: an L under the seat that rises up inside the seat's rear edge, under the
+  // back, so none of it pokes through the cushion or shows on the back's rear face
+  const backPost = new THREE.Group();
+  backPost.add(
+    rod(new THREE.Vector3(0, -2.38, 1.1), new THREE.Vector3(0, -2.38, 2.12), 0.14, chairFrameMat, 0.03),
+    rod(new THREE.Vector3(0, -2.38, 2.12), new THREE.Vector3(0, -1.88, 2.12), 0.14, chairFrameMat, 0.03),
+  );
   // Everything above the gas lift turns on it: seat, back and armrests
   const chairTop = new THREE.Group();
-  chairTop.add(chairSeat, ...bolsters, chairBack, backPost);
+  chairTop.add(chairSeat, seatQuilt, seatTrim, ...bolsters, chairBack, backPost);
   chair.add(chairTop, chairPost, gasLift);
   for (let i = 0; i < 5; i++) {
     const angle = (i / 5) * Math.PI * 2;
@@ -907,7 +1115,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     chair.add(rod(new THREE.Vector3(0, FLOOR_Y + 0.55, 0), tip, 0.13, chairFrameMat, 0.025));
     const wheel = mesh(new THREE.SphereGeometry(0.24, 14, 10), chairFrameMat, { outline: 0.02 });
     wheel.position.set(tip.x, FLOOR_Y + 0.24, tip.z);
-    // a hood over each caster, with an orange cap
+    // a hood over each caster, with a teal cap
     const hood = mesh(new THREE.SphereGeometry(0.27, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), toon("#2b2c31"), { outline: 0.015 });
     hood.position.set(tip.x, FLOOR_Y + 0.3, tip.z);
     const capDot = mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.03, 12), chairAccent, { outline: 0, cast: false });
@@ -965,12 +1173,70 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const lampHead = new THREE.Group();
   lampHead.position.copy(WRIST);
   lampHead.lookAt(AIM);
-  const shade = mesh(new THREE.ConeGeometry(0.6, 0.85, 28), lampMat, { outline: 0.04 });
+  const shade = mesh(new THREE.ConeGeometry(0.6, 0.85, 28, 1, true), lampMat, { outline: 0.04 });
   shade.rotation.x = -Math.PI / 2;
   shade.position.z = 0.35;
+  // The shade's white lining, which glows warm once the bulb is on, and a rolled rim
+  const liningMat = track(new THREE.MeshBasicMaterial({ color: "#d8cfa0", side: THREE.BackSide }));
+  const lining = new THREE.Mesh(track(new THREE.ConeGeometry(0.58, 0.82, 28, 1, true)), liningMat);
+  lining.rotation.x = -Math.PI / 2;
+  lining.position.z = 0.36;
+  lining.raycast = noRaycast;
+  const rim = mesh(new THREE.TorusGeometry(0.6, 0.035, 8, 32), toon("#e0b800"), { outline: 0.012 });
+  rim.position.z = 0.775;
+  // a cap and a little knob at the back of the shade
+  const cap = at(mesh(new THREE.CylinderGeometry(0.13, 0.16, 0.14, 18), jointMat, { outline: 0.016 }), 0, 0, -0.1);
+  cap.rotation.x = Math.PI / 2;
+  const knob = at(mesh(new THREE.SphereGeometry(0.07, 12, 8), jointMat, { outline: 0.01 }), 0, 0, -0.2);
   const bulbMat = track(new THREE.MeshBasicMaterial({ color: "#d9d4c7" }));
   const bulb = new THREE.Mesh(track(new THREE.SphereGeometry(0.22, 16, 12)), bulbMat);
-  bulb.position.z = 0.72;
+  bulb.position.z = 0.62;
+  // The glow: a halo round the bulb, a soft beam down to the desk and a warm pool where it
+  // lands. Their strength follows the light's, so they flicker with it as it comes on.
+  const radial = (stops) => {
+    const tex = canvasTexture(128, 128);
+    track(tex.texture);
+    const g = tex.ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    stops.forEach(([at, color]) => g.addColorStop(at, color));
+    tex.ctx.fillStyle = g;
+    tex.ctx.fillRect(0, 0, 128, 128);
+    return tex.texture;
+  };
+  const halo = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: radial([[0, "rgba(255,246,200,1)"], [0.35, "rgba(255,214,120,0.55)"], [1, "rgba(255,200,90,0)"]]), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 })));
+  halo.scale.set(1.3, 1.3, 1);
+  halo.position.z = 0.7;
+  halo.raycast = noRaycast;
+  const BEAM_L = 4.2;
+  const beamTex = canvasTexture(8, 128);
+  track(beamTex.texture);
+  const beamGrad = beamTex.ctx.createLinearGradient(0, 0, 0, 128);
+  beamGrad.addColorStop(0, "rgba(255,226,150,0.9)");
+  beamGrad.addColorStop(1, "rgba(255,226,150,0)");
+  beamTex.ctx.fillStyle = beamGrad;
+  beamTex.ctx.fillRect(0, 0, 8, 128);
+  const beam = new THREE.Mesh(
+    track(new THREE.ConeGeometry(1.75, BEAM_L, 32, 1, true)),
+    track(new THREE.MeshBasicMaterial({ map: beamTex.texture, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, opacity: 0 })),
+  );
+  beam.rotation.x = -Math.PI / 2;
+  beam.position.z = 0.75 + BEAM_L / 2;
+  beam.raycast = noRaycast;
+  const pool = new THREE.Mesh(
+    track(new THREE.PlaneGeometry(4.2, 3.4)),
+    track(new THREE.MeshBasicMaterial({ map: radial([[0, "rgba(255,214,130,0.75)"], [0.55, "rgba(255,200,110,0.25)"], [1, "rgba(255,190,100,0)"]]), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 })),
+  );
+  pool.rotation.x = -Math.PI / 2;
+  pool.position.set(AIM.x + 0.2, 0.015, AIM.z - 0.6);
+  pool.raycast = noRaycast;
+  scene.add(pool);
+  function updateLampGlow() {
+    const k = Math.min(1, lampLight.intensity / 55);
+    // Kept soft, so the head reads as a lamp rather than a white blowout
+    halo.material.opacity = 0.4 * k;
+    beam.material.opacity = 0.12 * k;
+    pool.material.opacity = 0.5 * k;
+    liningMat.color.setRGB(0.85 + 0.1 * k, 0.81 + 0.06 * k, 0.63 - 0.05 * k);
+  }
   // The actual bulb lights the work surface and casts shadows away from the lamp.
   // Place it beyond the shade opening so its own housing cannot block the beam.
   const lampLight = new THREE.SpotLight(0xffd394, 0, 22, 0.7, 0.4, 2);
@@ -981,10 +1247,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
   lampLight.shadow.camera.far = 22;
   lampLight.shadow.bias = -0.0002;
   lampLight.shadow.normalBias = 0.02;
-  lampHead.add(shade, bulb, lampLight, lampLight.target);
+  lampHead.add(shade, lining, rim, cap, knob, bulb, halo, beam, lampLight, lampLight.target);
+  // a round rocker switch on the base
+  const lampButton = at(mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.06, 16), toon("#ff6b6b"), { outline: 0.01 }), LAMP_BASE.x + 0.28, 0.22, LAMP_BASE.z + 0.18);
+  lamp.add(lampButton);
   lamp.add(lampHead);
   const setLamp = (on) => {
-    bulbMat.color.set(on ? "#fff6c2" : "#d9d4c7");
+    bulbMat.color.set(on ? "#ffe39a" : "#d9d4c7");
     lampLight.intensity = on ? 55 : 0;
     lampLight.castShadow = on;
   };
@@ -1028,28 +1297,96 @@ export function createDeskScene({ container, projects, experiences, dark = false
     },
   });
 
-  // Family keepsake: the supplied family artwork in a bold yellow-and-black desk frame.
+  // Family keepsake: the anime-style family portrait in a chunky coral frame with a gold lip,
+  // a cream mat round the photo, a heart charm hanging from the top, star stickers on two
+  // corners, a strip of washi tape and a little gold plate, on an easel leg.
   const familyFrame = new THREE.Group();
   familyFrame.position.set(-4.55, 0, -3.05);
   familyFrame.scale.setScalar(0.8);
   familyFrame.rotation.set(-0.08, 0.08, 0);
-  const familyInk = toon("#171717");
-  const frameBack = mesh(rbox(1.24, 1.95, 0.13, 0.025), familyInk, { outline: 0.018 });
-  frameBack.position.y = 1.06;
-  const frameMount = mesh(rbox(1.07, 1.78, 0.025, 0.01), toon("#ffdd00"), { outline: 0 });
-  frameMount.position.set(0, 1.06, 0.08);
-  const photoBorder = mesh(new THREE.PlaneGeometry(0.95, 1.72), familyInk, { outline: 0 });
-  photoBorder.position.set(0, 1.06, 0.098);
-  const familyTexture = track(new THREE.TextureLoader().load(`${process.env.BASE_URL}images/family-anime.png`));
-  familyTexture.colorSpace = THREE.SRGBColorSpace;
-  const familyPhoto = new THREE.Mesh(track(new THREE.PlaneGeometry(0.88, 1.65)), track(new THREE.MeshBasicMaterial({ map: familyTexture })));
-  familyPhoto.position.set(0, 1.06, 0.102);
-  const frameFoot = mesh(rbox(1.12, 0.07, 0.65, 0.02), familyInk, { outline: 0.016 });
+  const FY = 1.08;
+  const coral = toon("#ff8fab");
+  const frameGold = toon("#e8b640");
+  const frameBack = mesh(rbox(1.36, 2.08, 0.1, 0.04), coral, { outline: 0.018 });
+  frameBack.position.y = FY;
+  familyFrame.add(frameBack);
+  // the moulding: four rounded bars standing proud, with a thin gold lip inside them
+  [[0, 0.96, 1.36, 0.16], [0, -0.96, 1.36, 0.16], [0.6, 0, 0.16, 1.76], [-0.6, 0, 0.16, 1.76]].forEach(([x, y, w, h]) => {
+    familyFrame.add(at(mesh(rbox(w, h, 0.16, 0.06), coral, { outline: 0.014 }), x, FY + y, 0.05));
+  });
+  [[0, 0.875, 1.06, 0.025], [0, -0.875, 1.06, 0.025], [0.515, 0, 0.025, 1.74], [-0.515, 0, 0.025, 1.74]].forEach(([x, y, w, h]) => {
+    familyFrame.add(at(mesh(rbox(w, h, 0.04, 0.008), frameGold, { outline: 0.006 }), x, FY + y, 0.075));
+  });
+  // cream mat, a thin ink edge and the photo
+  const frameMat = new THREE.Mesh(track(new THREE.PlaneGeometry(1.03, 1.75)), track(new THREE.MeshBasicMaterial({ color: "#fff6e5" })));
+  frameMat.position.set(0, FY, 0.056);
+  const photoBorder = new THREE.Mesh(track(new THREE.PlaneGeometry(0.92, 1.69)), track(new THREE.MeshBasicMaterial({ color: "#171717" })));
+  photoBorder.position.set(0, FY, 0.06);
+  const familyPhoto = printed(0.88, 1.65, 409, drawFamilyPortrait);
+  familyPhoto.position.set(0, FY, 0.064);
+  familyFrame.add(frameMat, photoBorder, familyPhoto);
+  // a heart charm on a gold ring, hanging from the top bar
+  const heartShape = new THREE.Shape();
+  heartShape.moveTo(0, -0.09);
+  heartShape.bezierCurveTo(-0.13, 0, -0.07, 0.11, 0, 0.05);
+  heartShape.bezierCurveTo(0.07, 0.11, 0.13, 0, 0, -0.09);
+  const heartGeo = new THREE.ExtrudeGeometry(heartShape, { depth: 0.04, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 2 });
+  const charm = at(mesh(heartGeo, toon("#e5484d"), { outline: 0.008 }), 0, FY + 0.96, 0.14);
+  const charmRing = at(mesh(new THREE.TorusGeometry(0.035, 0.01, 6, 16), frameGold, { outline: 0 }), 0, FY + 1.03, 0.14);
+  familyFrame.add(charm, charmRing);
+  // star stickers on the top-left and bottom-right corners
+  const starShape = new THREE.Shape();
+  for (let i = 0; i < 10; i++) {
+    const r = i % 2 ? 0.045 : 0.1;
+    const a = (i / 10) * Math.PI * 2 + Math.PI / 2;
+    if (i) starShape.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    else starShape.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  const starGeo = new THREE.ExtrudeGeometry(starShape, { depth: 0.02, bevelEnabled: false });
+  [[-0.6, 0.96, "#ffdd00", 0.2], [0.6, -0.96, "#00e0c6", -0.3]].forEach(([x, y, color, turn]) => {
+    familyFrame.add(at(mesh(starGeo, toon(color), { outline: 0.008 }), x, FY + y, 0.135, turn));
+  });
+  // washi tape across the top-right corner
+  const tape = printed(0.5, 0.12, 300, (c, w, h) => {
+    c.fillStyle = "#c4b5fd";
+    c.fillRect(0, 0, w, h);
+    c.fillStyle = "rgba(255,255,255,.55)";
+    for (let x = -h; x < w; x += h * 0.7) {
+      c.beginPath();
+      c.moveTo(x, h);
+      c.lineTo(x + h * 0.35, 0);
+      c.lineTo(x + h * 0.6, 0);
+      c.lineTo(x + h * 0.25, h);
+      c.fill();
+    }
+  });
+  tape.material.transparent = true;
+  tape.material.opacity = 0.9;
+  tape.rotation.z = -Math.PI / 4;
+  tape.position.set(0.56, FY + 0.92, 0.136);
+  familyFrame.add(tape);
+  // a small gold plate on the bottom bar
+  const plate = printed(0.34, 0.08, 700, (c, w, h) => {
+    c.fillStyle = "#f2c94c";
+    c.fillRect(0, 0, w, h);
+    c.strokeStyle = "#8a6416";
+    c.lineWidth = h * 0.1;
+    c.strokeRect(0, 0, w, h);
+    c.fillStyle = "#5a3e0a";
+    c.font = `800 ${Math.round(h * 0.55)}px 'Space Grotesk', sans-serif`;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText("HOME ♥", w / 2, h * 0.55);
+  });
+  plate.position.set(0, FY - 0.96, 0.132);
+  familyFrame.add(plate);
+  // the easel stand behind it
+  const frameFoot = mesh(rbox(1.12, 0.07, 0.65, 0.02), coral, { outline: 0.016 });
   frameFoot.position.set(0, 0.035, -0.12);
-  const frameLeg = mesh(rbox(0.14, 1.15, 0.12, 0.02), familyInk, { outline: 0.012 });
+  const frameLeg = mesh(rbox(0.14, 1.15, 0.12, 0.02), coral, { outline: 0.012 });
   frameLeg.position.set(0, 0.6, -0.31);
   frameLeg.rotation.x = -0.42;
-  familyFrame.add(frameBack, frameMount, photoBorder, familyPhoto, frameFoot, frameLeg);
+  familyFrame.add(frameFoot, frameLeg);
   scene.add(familyFrame);
   register(familyFrame, { focus: "family", onHover: hoverScale(familyFrame, 0.82, 0.8) });
 
@@ -1237,11 +1574,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
     panel.position.set(side * (SHELF_W / 2 - BOARD / 2), SHELF_H / 2, 0);
     shelf.add(panel);
   });
-  const shelfBack = mesh(rbox(SHELF_W, SHELF_H, 0.12, 0.03), toon("#9c6230"), { outline: 0.04 });
+  // The back panel and the shelves' front lips share the oak grain, toned a little deeper
+  const shelfBackMat = toon("#d9a878");
+  shelfBackMat.map = shelfWood.texture;
+  const shelfBack = mesh(rbox(SHELF_W, SHELF_H, 0.12, 0.03), shelfBackMat, { outline: 0.04 });
   shelfBack.position.set(0, SHELF_H / 2, -SHELF_D / 2 + 0.06);
   shelf.add(shelfBack);
   const LEVELS = [0.15, 2.25, 4.35, 6.4, SHELF_H - BOARD / 2];
-  const lipMat = toon("#8a5426");
+  const lipMat = toon("#e2b384");
+  lipMat.map = shelfWood.texture;
   // Recessed diffusers sit flush under the rear of each shelf; all bays share one colour.
   const glowTex = canvasTexture(256, 128);
   track(glowTex.texture);
@@ -1377,7 +1718,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     return g;
   };
   // ---------- secrets: every hidden interaction found, kept on the trophy's plate ----------
-  const SECRETS = ["snap", "katana", "rat", "catKeys", "rain", "star", "lamp", "painting", "chair", "guitar", "luffy", "clock", "butterfly", "lofi", "badge", "gymPR", "konami", "console"];
+  const SECRETS = ["snap", "katana", "rat", "catKeys", "rain", "star", "lamp", "painting", "chair", "guitar", "luffy", "clock", "butterfly", "lofi", "badge", "gymPR", "konami", "console", "robot"];
   // What the trophy hints at, one at a time, for the secrets still to find
   const SECRET_HINTS = {
     snap: "a golden glove wants to snap",
@@ -1398,6 +1739,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     gymPR: "ten reps, no rest",
     konami: "an old cheat code, it starts up, up...",
     console: "press start",
+    robot: "the little robot likes attention: five pokes",
   };
   const secretsFound = new Set((() => {
     try {
@@ -1420,40 +1762,142 @@ export function createDeskScene({ container, projects, experiences, dark = false
   }
   // All of them: the trophy lights up gold and throws confetti
   function celebrateSecrets() {
+    // First bring the camera to the trophy (the last secret is often found elsewhere, or with
+    // the arrow keys that scroll the shelf), then the bubble once it's still
+    trophy.getWorldPosition(shelfBubbleAt);
+    const lookY = shelfBubbleAt.y + 0.6;
+    const there = focus.name === "shelf";
+    if (there) browseShelf(shelfLookAt(lookY));
+    else setFocus("shelf", { point: new THREE.Vector3(shelfBubbleAt.x, lookY, shelfBubbleAt.z) });
+    // (the bubble picks its side from where the camera is, so wait until it has stopped)
+    const whenStill = () => {
+      if (destroyed) return;
+      if (gsap.isTweening(cam)) timers.push(setTimeout(whenStill, 100));
+      else cheerTrophy();
+    };
+    timers.push(setTimeout(whenStill, there ? 500 : 300));
+  }
+  function cheerTrophy() {
     trophy.getWorldPosition(shelfBubbleAt);
     burst(shelfBubbleAt.x, shelfBubbleAt.y + 1.2, shelfBubbleAt.z);
     sfx.sparkle();
     gsap.fromTo(cup.material.emissive, { r: 1, g: 0.8, b: 0.2 }, { r: 0.25, g: 0.18, b: 0, duration: 2.5, ease: "power2.out" });
     gsap.fromTo(trophy.scale, { x: 1.3, y: 1.3, z: 1.3 }, { x: 1, y: 1, z: 1, duration: 0.8, ease: "elastic.out(1.2, 0.4)" });
-    shelfSay(trophy, "ALL SECRETS FOUND! 🏆", "the trophy", 3200, 0.5);
+    shelfSay(trophy, "ALL SECRETS FOUND! 🏆", "the trophy", 3200, 0.5, 0.55);
   }
 
   const PALETTE = ["#ff6b6b", "#ffdd00", "#00e0c6", "#ff90e8", "#8fd694", "#3b82f6", "#ffb35c", "#c4b5fd", "#fffdf5"];
   const black = toon("#1a1714");
   const white = toon("#fffdf5");
 
-  // Level 0: thin PS5 shells with a real gap between the two upper panels.
-  const ps5Shell = (side, width = 2.16, offset = 0) => {
-    const geometry = rbox(width, 0.055, 1.12, 0.022);
-    geometry.translate(offset, 0, 0);
-    const positions = geometry.attributes.position;
-    for (let i = 0; i < positions.count; i++) {
-      const x = positions.getX(i);
-      positions.setY(i, positions.getY(i) + side * 0.025 * (x / 1.08) ** 2);
+  // Level 0: a PS5 Slim lying flat, after the reference photo. A gloss-black core; on top, a
+  // wide white panel on the left and a narrower one on the right, split by a groove that runs
+  // back at a slant, both bowed gently and overhanging the front; underneath, the disc drive
+  // module on the left (slot and eject) and a lower plate on the right that flares out. A
+  // thin blue light runs the full front, just under the top panels' lip.
+  const PS_D = 1.1;
+  // A flat panel whose footprint is a quad (front-left, front-right, back-right, back-left x
+  // positions), rounded at the corners, `t` thick; `bow` lifts its middle (or drops it, < 0)
+  const psPanel = (fl, fr, br, bl, depth, t, bow = 0, r = 0.06) => {
+    const z0 = depth / 2;
+    const pts = [[fl, z0], [fr, z0], [br, -z0], [bl, -z0]];
+    const shape = new THREE.Shape();
+    pts.forEach(([x, z], i) => {
+      const [px, pz] = pts[(i + 3) % 4];
+      const [nx, nz] = pts[(i + 1) % 4];
+      const toward = (ax, az, k) => [x + (ax - x) * k, z + (az - z) * k];
+      const [sx, sz] = toward(px, pz, r / Math.hypot(px - x, pz - z));
+      const [ex, ez] = toward(nx, nz, r / Math.hypot(nx - x, nz - z));
+      if (i === 0) shape.moveTo(sx, sz);
+      else shape.lineTo(sx, sz);
+      shape.quadraticCurveTo(x, z, ex, ez);
+    });
+    shape.closePath();
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: t, bevelEnabled: true, bevelThickness: 0.01, bevelSize: 0.01, bevelSegments: 2, curveSegments: 6 });
+    geo.rotateX(Math.PI / 2);
+    geo.translate(0, t, 0);
+    if (bow) {
+      const pos = geo.attributes.position;
+      const minX = Math.min(fl, bl);
+      const maxX = Math.max(fr, br);
+      for (let i = 0; i < pos.count; i++) {
+        const nz = pos.getZ(i) / z0;
+        const nx = ((pos.getX(i) - minX) / (maxX - minX)) * 2 - 1;
+        pos.setY(i, pos.getY(i) + bow * (1 - nz * nz) * (1 - 0.35 * nx * nx));
+      }
     }
-    geometry.computeVertexNormals();
-    return at(mesh(geometry, white, { outline: 0.014 }), 0, side * 0.125, 0);
+    geo.computeVertexNormals();
+    return geo;
   };
-  const led = new THREE.Mesh(track(new THREE.BoxGeometry(1.7, 0.01, 0.014)), track(new THREE.MeshBasicMaterial({ color: "#4f9dff" })));
+  const psWhite = toon("#fbfbfd");
+  // Top: the groove slants from x 0.12 at the front to 0.3 at the back
+  const SEAM_F = 0.12;
+  const SEAM_B = 0.3;
+  const GAP = 0.045;
+  const topLeftPlate = at(mesh(psPanel(-1.02, SEAM_F - GAP / 2, SEAM_B - GAP / 2, -1.0, PS_D, 0.04, 0.03), psWhite, { outline: 0.014 }), 0, 0.094, 0);
+  const topRightPlate = at(mesh(psPanel(SEAM_F + GAP / 2, 1.02, 1.0, SEAM_B + GAP / 2, PS_D, 0.04, 0.03), psWhite, { outline: 0.014 }), 0, 0.094, 0);
+  // Under: the disc module on the left, a lower plate flaring wider on the right
+  const discBelly = at(mesh(psPanel(-1.0, 0.1, 0.1, -0.98, 1.04, 0.13, -0.01, 0.07), psWhite, { outline: 0.014 }), 0, -0.235, 0.01);
+  const botRightPlate = at(mesh(psPanel(0.14, 1.06, 1.03, 0.14, 1.08, 0.04, -0.015), psWhite, { outline: 0.014 }), 0, -0.14, 0);
+
+  // Disc slot and eject button on the front of the disc module
+  const discBezel = at(mesh(rbox(0.86, 0.05, 0.02, 0.012), toon("#e3e6ec"), { outline: 0.006 }), -0.45, -0.17, 0.525);
+  const discSlot = at(mesh(rbox(0.7, 0.012, 0.014, 0.003), black, { outline: 0 }), -0.42, -0.17, 0.534);
+  const ejectBtn = at(mesh(rbox(0.04, 0.014, 0.01, 0.003), toon("#b8bec7"), { outline: 0 }), -0.85, -0.17, 0.534);
+
+  // The gloss-black core, a hair narrower than the panels so their lips overhang it
+  const core = mesh(rbox(1.94, 0.2, 0.98, 0.04), black, { outline: 0.016 });
+  const coreFascia = at(mesh(rbox(1.88, 0.15, 0.02, 0.01), toon("#121316"), { outline: 0 }), 0, -0.005, 0.49);
+  // The groove: the black core showing through between the two top panels
+  const seamTop = at(mesh(rbox(GAP, 0.05, PS_D, 0.01), black, { outline: 0 }), (SEAM_F + SEAM_B) / 2, 0.11, 0);
+  seamTop.rotation.y = Math.atan2(SEAM_B - SEAM_F, PS_D);
+  const seamBot = at(mesh(rbox(0.04, 0.05, 1.04, 0.01), black, { outline: 0 }), 0.12, -0.12, 0);
+
+  // Power button and two USB-C ports on the front, left of centre
+  const powerBtn = at(mesh(rbox(0.05, 0.02, 0.01, 0.006), toon("#3c414a"), { outline: 0 }), -0.78, 0.01, 0.502);
+  const usbPorts = [-0.5, -0.4].map((px) => at(mesh(rbox(0.05, 0.018, 0.01, 0.006), toon("#8e939a"), { outline: 0 }), px, 0.01, 0.502));
+  const usbPins = [-0.5, -0.4].map((px) => at(mesh(rbox(0.03, 0.006, 0.004, 0.002), black, { outline: 0 }), px, 0.01, 0.506));
+
+  // A clear plastic foot clipped under the seam, holding the right side level
+  const clearStandMat = track(new THREE.MeshToonMaterial({ color: "#dbeafe", transparent: true, opacity: 0.65 }));
+  const standLeg1 = at(mesh(rbox(0.03, 0.09, 0.06, 0.01), clearStandMat, { outline: 0.008 }), 0.6, -0.195, 0.32);
+  const standLeg2 = at(mesh(rbox(0.03, 0.09, 0.06, 0.01), clearStandMat, { outline: 0.008 }), 0.6, -0.195, -0.32);
+  const standClip = at(mesh(rbox(0.04, 0.03, 0.72, 0.01), clearStandMat, { outline: 0.008 }), 0.6, -0.15, 0);
+
+  // PlayStation logo on top right plate corner
+  const psLogo = printed(0.08, 0.08, 1200, (c, w, h) => {
+    c.clearRect(0, 0, w, h);
+    c.strokeStyle = "#383d45";
+    c.lineWidth = w * 0.09;
+    c.lineCap = "round";
+    c.lineJoin = "round";
+    const px = w * 0.38;
+    c.beginPath();
+    c.moveTo(px, h * 0.7);
+    c.lineTo(px, h * 0.18);
+    c.bezierCurveTo(w * 0.75, h * 0.16, w * 0.75, h * 0.44, px, h * 0.45);
+    c.stroke();
+    c.beginPath();
+    c.moveTo(px, h * 0.64);
+    c.bezierCurveTo(w * 0.68, h * 0.60, w * 0.76, h * 0.72, w * 0.58, h * 0.80);
+    c.bezierCurveTo(w * 0.36, h * 0.88, w * 0.46, h * 0.94, w * 0.70, h * 0.90);
+    c.stroke();
+  });
+  psLogo.material.transparent = true;
+  psLogo.material.alphaTest = 0.05;
+  psLogo.rotation.x = -Math.PI / 2;
+  psLogo.position.set(0.86, 0.168, -0.36);
+
+  // The blue light along the front, one straight line just under the top panels' lip
+  const led = new THREE.Mesh(track(new THREE.BoxGeometry(1.84, 0.012, 0.012)), track(new THREE.MeshBasicMaterial({ color: "#4f9dff" })));
+  at(led, 0, 0.078, 0.558);
+
   const consoleBody = group(
-    mesh(rbox(1.98, 0.18, 1.0, 0.04), black, { outline: 0.016 }),
-    ps5Shell(-1), ps5Shell(1, 1.32, -0.42), ps5Shell(1, 0.81, 0.675),
-    at(mesh(rbox(1.18, 0.12, 0.17, 0.035), white, { outline: 0.012 }), -0.3, -0.14, 0.49),
-    at(mesh(rbox(0.95, 0.014, 0.012, 0.004), black, { outline: 0 }), -0.3, -0.135, 0.582),
-    at(led, 0, 0.094, 0.503),
+    core, coreFascia, seamTop, seamBot,
+    topLeftPlate, topRightPlate, botRightPlate, discBelly,
+    discBezel, discSlot, ejectBtn, powerBtn, ...usbPorts, ...usbPins,
+    standClip, standLeg1, standLeg2, psLogo, led,
   );
-  [-0.05, 0.08].forEach((px) => consoleBody.add(at(mesh(rbox(0.05, 0.018, 0.012, 0.004), toon("#8e939a"), { outline: 0 }), px, -0.015, 0.506)));
-  [-0.7, 0.7].forEach((fx) => consoleBody.add(at(mesh(rbox(0.16, 0.065, 0.6, 0.02), black, { outline: 0.008 }), fx, -0.205, 0)));
   addItem(at(consoleBody, -0.76, standOn(0) + 0.2375, 0.04), "console");
   const controller = (color) => {
     // One continuous silhouette, with tapered grips instead of overlapping blocks.
@@ -1472,41 +1916,61 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const bodyGeo = new THREE.ExtrudeGeometry(outline, { depth: 0.12, bevelEnabled: true, bevelSize: 0.025, bevelThickness: 0.025, bevelSegments: 3, curveSegments: 16, steps: 1 });
     bodyGeo.translate(0, 0, -0.06);
     bodyGeo.rotateX(-Math.PI / 2);
-    const pad = group(mesh(bodyGeo, toon(color), { outline: 0.016 }));
-    // Dark central bridge, touchpad and shoulder buttons.
-    const bridge = new THREE.Shape();
-    bridge.moveTo(-0.22, 0.12);
-    bridge.quadraticCurveTo(-0.3, -0.08, -0.2, -0.19);
-    bridge.quadraticCurveTo(0, -0.12, 0.2, -0.19);
-    bridge.quadraticCurveTo(0.3, -0.08, 0.22, 0.12);
-    bridge.closePath();
-    const bridgeGeo = new THREE.ShapeGeometry(bridge, 16);
-    bridgeGeo.rotateX(-Math.PI / 2);
-    pad.add(at(mesh(bridgeGeo, black, { outline: 0, cast: false }), 0, 0.087, 0));
-    pad.add(at(mesh(rbox(0.35, 0.025, 0.13, 0.025), toon(color === "#fffdf5" ? "#e2e6eb" : "#34383f"), { outline: 0.006 }), 0, 0.105, -0.13));
-    [-0.14, 0.14].forEach((x) => {
-      pad.add(at(mesh(new THREE.CylinderGeometry(0.082, 0.082, 0.012, 24), toon("#101216"), { outline: 0 }), x, 0.105, 0.12));
-      pad.add(at(mesh(new THREE.CylinderGeometry(0.058, 0.063, 0.035, 24), toon("#373c43"), { outline: 0.006 }), x, 0.128, 0.12));
-    });
-    pad.add(at(mesh(rbox(0.18, 0.035, 0.055, 0.012), black, { outline: 0.004 }), -0.35, 0.106, -0.015));
-    pad.add(at(mesh(rbox(0.055, 0.035, 0.18, 0.012), black, { outline: 0.004 }), -0.35, 0.106, -0.015));
-    [[0.35, -0.095, "△"], [0.43, -0.015, "○"], [0.35, 0.065, "×"], [0.27, -0.015, "□"]].forEach(([x, z, symbol]) => {
-      const button = printed(0.072, 0.072, 1400, (c, w, h) => {
-        c.fillStyle = "#444a54";
-        c.beginPath(); c.arc(w / 2, h / 2, w * 0.48, 0, Math.PI * 2); c.fill();
-        c.fillStyle = "#f1f2f5";
-        c.font = `600 ${w * 0.7}px sans-serif`;
-        c.textAlign = "center"; c.textBaseline = "middle";
-        c.fillText(symbol, w / 2, h * 0.54);
+    const light = color !== "#1a1714";
+    const body = toon(color);
+    const pad = group(mesh(bodyGeo, body, { outline: 0.016 }));
+    // Modern-gamepad layout (as in the reference): offset sticks, the left one up top beside a
+    // d-pad below; colour-coded face buttons; a round home button and three small ones between
+    const TOP = 0.087;
+    // Sticks and d-pad in a contrasting grey on each pad, so they read at shelf distance
+    const knob = toon(light ? "#43474e" : "#4a4f57");
+    const well = toon(light ? "#9aa1ab" : "#0b0c0e");
+    const stick = (x, z) => {
+      pad.add(at(mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.01, 28), well, { outline: 0 }), x, TOP + 0.004, z));
+      pad.add(at(mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.05, 16), knob, { outline: 0.006 }), x, TOP + 0.03, z));
+      pad.add(at(mesh(new THREE.CylinderGeometry(0.068, 0.066, 0.026, 28), knob, { outline: 0.012 }), x, TOP + 0.062, z));
+      const rim = mesh(new THREE.TorusGeometry(0.056, 0.012, 8, 28), toon(light ? "#2a2d32" : "#6b717a"), { outline: 0 });
+      rim.rotation.x = Math.PI / 2;
+      pad.add(at(rim, x, TOP + 0.076, z));
+    };
+    stick(-0.3, -0.04);
+    stick(0.14, 0.11);
+    // d-pad in its dish
+    pad.add(at(mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.01, 28), well, { outline: 0 }), -0.14, TOP + 0.004, 0.11));
+    pad.add(at(mesh(rbox(0.14, 0.03, 0.046, 0.01), knob, { outline: 0.01 }), -0.14, TOP + 0.02, 0.11));
+    pad.add(at(mesh(rbox(0.046, 0.03, 0.14, 0.01), knob, { outline: 0.01 }), -0.14, TOP + 0.02, 0.11));
+    // face buttons: caps in their colours with the letter in dark ink, big enough to read
+    [[0, -0.075, "Y", "#ffd400"], [0.075, 0, "B", "#ef3b3b"], [0, 0.075, "A", "#3fbf4f"], [-0.075, 0, "X", "#2f7cf6"]].forEach(([dx, dz, letter, cap]) => {
+      pad.add(at(mesh(new THREE.CylinderGeometry(0.036, 0.038, 0.03, 20), toon(cap), { outline: 0.01 }), 0.3 + dx, TOP + 0.015, -0.04 + dz));
+      const label = printed(0.06, 0.06, 1200, (c, w, h) => {
+        c.clearRect(0, 0, w, h);
+        c.fillStyle = "#1a1714";
+        c.font = `800 ${w * 0.62}px 'Space Grotesk', sans-serif`;
+        c.textAlign = "center";
+        c.textBaseline = "middle";
+        c.fillText(letter, w / 2, h * 0.55);
       });
-      button.material.transparent = true;
-      button.material.alphaTest = 0.1;
-      button.rotation.x = -Math.PI / 2;
-      button.position.set(x, 0.112, z);
-      pad.add(button);
+      label.material.transparent = true;
+      label.material.alphaTest = 0.1;
+      label.rotation.x = -Math.PI / 2;
+      label.position.set(0.3 + dx, TOP + 0.031, -0.04 + dz);
+      pad.add(label);
     });
-    [-0.34, 0.34].forEach((x) => pad.add(at(mesh(rbox(0.25, 0.085, 0.09, 0.025), black, { outline: 0.008 }), x, 0.015, -0.23)));
-    pad.add(at(mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.014, 16), toon("#9299a3"), { outline: 0 }), 0, 0.102, 0.04));
+    // home button: a round cap with a plain glowing ring (no brand mark)
+    pad.add(at(mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.02, 24), toon(light ? "#2b2e33" : "#3a3e45"), { outline: 0.01 }), 0, TOP + 0.01, -0.15));
+    const glow = mesh(new THREE.TorusGeometry(0.028, 0.008, 6, 24), track(new THREE.MeshBasicMaterial({ color: "#f4f6f8" })), { outline: 0 });
+    glow.rotation.x = Math.PI / 2;
+    pad.add(at(glow, 0, TOP + 0.022, -0.15));
+    // view, menu and share
+    const small = toon(light ? "#2b2e33" : "#5a5f68");
+    [-0.075, 0.075].forEach((x) => pad.add(at(mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.016, 16), small, { outline: 0.008 }), x, TOP + 0.008, -0.05)));
+    pad.add(at(mesh(rbox(0.054, 0.016, 0.028, 0.008), small, { outline: 0.008 }), 0, TOP + 0.008, 0.0));
+    // bumpers along the top edge, the body's colour
+    [-0.34, 0.34].forEach((x) => {
+      const bumper = at(mesh(rbox(0.26, 0.07, 0.08, 0.03), toon(light ? "#e7e9ec" : "#202226"), { outline: 0.008 }), x, 0.02, -0.235);
+      bumper.rotation.y = -Math.sign(x) * 0.18;
+      pad.add(bumper);
+    });
     return pad;
   };
   // Two-tier wooden holder: a broad foot, leaning spine and a cradle per gamepad.
@@ -1523,25 +1987,33 @@ export function createDeskScene({ container, projects, experiences, dark = false
   });
   holder.position.set(1.03, standOn(0), 0);
   shelf.add(holder);
-  const pad1 = addItem(at(controller("#1a1714"), 1.03, standOn(0) + 0.64, 0.22), "controller");
+  // Held up so the cradle's lip catches the grips, leaving the sticks and buttons in view
+  const pad1 = addItem(at(controller("#1a1714"), 1.03, standOn(0) + 0.76, 0.22), "controller");
   pad1.rotation.set(Math.PI / 2 - 0.18, 0, 0);
-  const pad2 = addItem(at(controller("#fffdf5"), 1.03, standOn(0) + 1.41, 0.08), "controller");
+  const pad2 = addItem(at(controller("#fffdf5"), 1.03, standOn(0) + 1.53, 0.08), "controller");
   pad2.rotation.set(Math.PI / 2 - 0.18, 0, 0);
 
   // A hardback, spine to the room: covers either side, cream pages showing between them at the
   // top, a dark title band and two gilt rules on the spine
-  const pagesMat = toon("#f4ead2");
-  const gilt = toon("#ffd34d");
-  function bookMesh(w, h, color, i = 0, depth = 1.0) {
+  // Pages show their fine paper lines; the spine is printed (title, bands, gilt rules)
+  const pageTex = canvasTexture(64, 64);
+  track(pageTex.texture);
+  drawPageEdges(pageTex.ctx, 64, 64);
+  pageTex.texture.wrapS = pageTex.texture.wrapT = THREE.RepeatWrapping;
+  pageTex.texture.repeat.set(3, 3);
+  const pagesMat = toon("#ffffff");
+  pagesMat.map = pageTex.texture;
+  function bookMesh(w, h, color, i = 0, depth = 1.0, drawSpine = (c, cw, ch) => drawBookSpine(c, cw, ch, { color, i })) {
     const cover = toon(color);
     const book = group(
       at(mesh(rbox(w - 0.05, h - 0.05, depth - 0.06, 0.02), pagesMat, { outline: 0.02 }), 0, 0, -0.02),
       at(mesh(rbox(w, h, 0.06, 0.02), cover, { outline: 0.025 }), 0, 0, depth / 2 - 0.03),
       at(mesh(rbox(0.035, h, depth, 0.012), cover, { outline: 0.02 }), -w / 2 + 0.0175, 0, 0),
       at(mesh(rbox(0.035, h, depth, 0.012), cover, { outline: 0.02 }), w / 2 - 0.0175, 0, 0),
-      at(mesh(rbox(w + 0.004, 0.1 + (i % 3) * 0.03, 0.065, 0.01), black, { outline: 0 }), 0, h * (0.18 + (i % 2) * 0.1), depth / 2 - 0.025),
     );
-    [0.38, -0.38].forEach((k) => book.add(at(mesh(rbox(w * 0.9, 0.025, 0.066, 0.005), gilt, { outline: 0 }), 0, h * k, depth / 2 - 0.025)));
+    const spine = printed(w - 0.01, h - 0.01, 420, drawSpine);
+    spine.position.z = depth / 2 + 0.002;
+    book.add(spine);
     return book;
   }
   // Level 1: a row of books, one leaning, and a mushroom figure
@@ -1584,35 +2056,208 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const caseStand = at(mesh(rbox(0.56, 0.12, 0.34, 0.03), black, { outline: 0.02 }), 0, -0.635, -0.04);
   const faceOut = group(mesh(rbox(0.82, 1.15, 0.14, 0.03), toon("#e11d48"), { outline: 0.025 }), cover, caseStand);
   addItem(at(faceOut, 0.36, standOn(2) + 0.695, 0.15), "case").rotation.set(-0.06, 0.12, 0);
-  const robot = group(
-    at(mesh(rbox(0.52, 0.55, 0.42, 0.08), toon("#00e0c6"), { outline: 0.03 }), 0, 0.28, 0),
-    at(mesh(rbox(0.44, 0.38, 0.38, 0.08), white, { outline: 0.03 }), 0, 0.76, 0),
-    at(mesh(rbox(0.08, 0.1, 0.02, 0.01), black, { outline: 0 }), -0.1, 0.78, 0.19),
-    at(mesh(rbox(0.08, 0.1, 0.02, 0.01), black, { outline: 0 }), 0.1, 0.78, 0.19),
-    rod(new THREE.Vector3(0, 0.95, 0), new THREE.Vector3(0, 1.2, 0), 0.025, black, 0),
-    at(mesh(new THREE.SphereGeometry(0.07, 10, 8), track(new THREE.MeshBasicMaterial({ color: "#ff6b6b" })), { outline: 0.015 }), 0, 1.24, 0),
-    // a chest panel with buttons, a mouth grille and arms
+  // Bit, the little robot: built from moving parts (a body that can bob and sway, a head on a
+  // neck that turns, blinking eyes, an antenna light, and arms on shoulder pivots). It glances
+  // toward the pointer and blinks now and then, dances while Spotifree plays, says hi when
+  // clicked, and five quick pokes glitch it into giving up a secret.
+  const teal = toon("#00e0c6");
+  const robot = new THREE.Group();
+  const bot = new THREE.Group();
+  robot.add(bot);
+  bot.add(
+    at(mesh(rbox(0.52, 0.55, 0.42, 0.08), teal, { outline: 0.03 }), 0, 0.28, 0),
+    // a chest panel with buttons and a little speaker slot
     at(mesh(rbox(0.3, 0.24, 0.03, 0.03), white, { outline: 0.01 }), 0, 0.3, 0.215),
     at(mesh(new THREE.SphereGeometry(0.04, 10, 8), toon("#ff6b6b"), { outline: 0 }), -0.07, 0.33, 0.235),
     at(mesh(new THREE.SphereGeometry(0.04, 10, 8), toon("#ffdd00"), { outline: 0 }), 0.07, 0.33, 0.235),
     at(mesh(rbox(0.16, 0.03, 0.02, 0.005), black, { outline: 0 }), 0, 0.24, 0.235),
-    at(mesh(rbox(0.18, 0.04, 0.02, 0.01), black, { outline: 0 }), 0, 0.66, 0.195),
-    at(mesh(rbox(0.12, 0.42, 0.14, 0.05), toon("#00e0c6"), { outline: 0.02 }), -0.34, 0.3, 0, 0.12),
-    at(mesh(rbox(0.12, 0.42, 0.14, 0.05), toon("#00e0c6"), { outline: 0.02 }), 0.34, 0.3, 0, -0.12),
   );
-  addItem(at(robot, 1.15, standOn(2), 0.1), "figure");
+  const botHead = new THREE.Group();
+  botHead.position.y = 0.57;
+  bot.add(botHead);
+  const eyeMat = toon("#1a1714");
+  const botEyes = [-0.1, 0.1].map((x) => at(mesh(rbox(0.08, 0.1, 0.02, 0.01), eyeMat, { outline: 0 }), x, 0.21, 0.19));
+  const antennaMat = track(new THREE.MeshBasicMaterial({ color: "#ff6b6b" }));
+  botHead.add(
+    at(mesh(rbox(0.44, 0.38, 0.38, 0.08), white, { outline: 0.03 }), 0, 0.19, 0),
+    ...botEyes,
+    at(mesh(rbox(0.18, 0.04, 0.02, 0.01), black, { outline: 0 }), 0, 0.09, 0.195),
+    rod(new THREE.Vector3(0, 0.38, 0), new THREE.Vector3(0, 0.63, 0), 0.025, black, 0),
+    at(mesh(new THREE.SphereGeometry(0.07, 10, 8), antennaMat, { outline: 0.015 }), 0, 0.67, 0),
+  );
+  // arms hang from shoulder pivots, so they can wave and pump
+  const botArms = [-1, 1].map((side) => {
+    const shoulder = new THREE.Group();
+    shoulder.position.set(side * 0.33, 0.5, 0);
+    shoulder.rotation.z = side * -0.12;
+    shoulder.add(at(mesh(rbox(0.12, 0.42, 0.14, 0.05), teal, { outline: 0.02 }), 0, -0.2, 0));
+    bot.add(shoulder);
+    return shoulder;
+  });
+  addItem(at(robot, 1.15, standOn(2), 0.1), "robot");
 
-  // Level 3: a stack of books lying down, a trophy, and a handheld console
-  const stackTop = [[1.3, 0.24, "#ffb35c"], [1.15, 0.2, "#3b82f6"], [1.25, 0.26, "#ff90e8"]].reduce((y, [w, h, color], i) => {
-    const lying = bookMesh(h, w, color, i, 0.95);
+  // Blinks every few seconds
+  const botBlink = () => gsap.fromTo(botEyes.map((eye) => eye.scale), { y: 1 }, { y: 0.1, duration: 0.07, yoyo: true, repeat: 1, ease: "power1.in" });
+  let botBlinkAt = performance.now() + 3000;
+  let botBusy = false;
+  // Each frame: its head turns toward where the pointer is on screen (gently, and not while busy)
+  function updateRobot(now) {
+    if (now > botBlinkAt) {
+      botBlinkAt = now + 2500 + Math.random() * 3000;
+      if (!botBusy) botBlink();
+    }
+    if (botBusy) return;
+    botHead.rotation.y += (parallax.x * 0.55 - botHead.rotation.y) * 0.08;
+    botHead.rotation.x += (parallax.y * 0.25 - botHead.rotation.x) * 0.08;
+  }
+  // Dancing on the music's beat: a bob on every kick, the arms pump on the snare
+  let botStep = 0;
+  function robotBeat(kind) {
+    if (botBusy) return;
+    if (kind === "kick") {
+      botStep++;
+      gsap.fromTo(bot.position, { y: 0.06 }, { y: 0, duration: 0.3, ease: "bounce.out", overwrite: true });
+      gsap.to(bot.rotation, { z: botStep % 2 ? 0.1 : -0.1, duration: 0.25, ease: "sine.inOut", overwrite: true });
+    } else {
+      botArms.forEach((arm, i) => gsap.fromTo(arm.rotation, { x: -1.1 * ((botStep + i) % 2 ? 1 : 0.4) }, { x: 0, duration: 0.35, ease: "power2.out", overwrite: true }));
+      gsap.fromTo(antennaMat.color, { r: 0.5, g: 1, b: 0.9 }, { r: 1, g: 0.42, b: 0.42, duration: 0.3 });
+    }
+  }
+  const BOT_LINES = ["beep boop! I'm Bit 🤖", "01101000 01101001 (that's \"hi\")", "battery 100%. ready to code!", "have you tried turning it off and on?", "I compile, therefore I am."];
+  let botLine = 0;
+  let botPokes = 0;
+  let botPokeTimer = null;
+  // A click: say hi (antenna flashes, eyes blink, the right arm waves, a couple of beeps).
+  // Five in a row: a glitch, and a secret.
+  function pokeRobot() {
+    clearTimeout(botPokeTimer);
+    botPokeTimer = setTimeout(() => (botPokes = 0), 3500);
+    if (++botPokes >= 5) {
+      botPokes = 0;
+      return glitchRobot();
+    }
+    if (botBusy) return;
+    botBusy = true;
+    gsap.to(botHead.rotation, { x: 0, y: 0, duration: 0.2 });
+    gsap.fromTo(antennaMat.color, { r: 1, g: 1, b: 0.3 }, { r: 1, g: 0.42, b: 0.42, duration: 0.25, repeat: 3, yoyo: true });
+    botBlink();
+    gsap.timeline({ onComplete: () => (botBusy = false) })
+      .to(botArms[1].rotation, { z: 2.4, duration: 0.25, ease: "back.out(2)" })
+      .to(botArms[1].rotation, { z: 2.0, duration: 0.14, yoyo: true, repeat: 5, ease: "sine.inOut" })
+      .to(botArms[1].rotation, { z: -0.12, duration: 0.3, ease: "power2.in" });
+    sfx.blip();
+    sfx.blip({ delay: 0.14 });
+    shelfSay(robot, BOT_LINES[botLine++ % BOT_LINES.length], "Bit", 2600, 0.7, 0.35);
+  }
+  function glitchRobot() {
+    botBusy = true;
+    discover("robot");
+    eyeMat.color.set("#ff2d55");
+    sfx.buzz();
+    sfx.powerDown({ delay: 0.5 });
+    const x = bot.position.x;
+    gsap.timeline({
+      onComplete: () => {
+        eyeMat.color.set("#1a1714");
+        botBusy = false;
+      },
+    })
+      .to(bot.position, { x: x + 0.05, duration: 0.04, yoyo: true, repeat: 11, ease: "steps(1)" })
+      .to(antennaMat.color, { r: 0.2, g: 1, b: 0.4, duration: 0.05, yoyo: true, repeat: 9 }, 0)
+      .to(botHead.rotation, { y: Math.PI * 2, duration: 0.6, ease: "power2.inOut" }, 0.2)
+      .set(botHead.rotation, { y: 0 })
+      .to(bot.scale, { x: 1.15, y: 0.85, z: 1.15, duration: 0.08, yoyo: true, repeat: 3 }, 0.5)
+      .to({}, { duration: 1.2 });
+    timers.push(setTimeout(() => shelfSay(robot, "SYSTEM OVERRIDE… secret unlocked 👾", "Bit", 3200, 0.7, 0.35), 700));
+  }
+
+  // Level 3: a pile of manga volumes lying down, a trophy, and a handheld console. Manga are
+  // smaller than the hardbacks, with white covers and the series' colour on each spine, the
+  // pile a little untidy.
+  const MANGA = [[104, "#e5484d"], [105, "#3b82f6"], [106, "#ffb000"], [107, "#16a34a"], [108, "#c4b5fd"]];
+  const stackTop = MANGA.reduce((y, [vol, color], i) => {
+    const thick = 0.15;
+    const lying = bookMesh(thick, 1.02, "#fffdf5", i, 0.72, (c, cw, ch) => drawMangaSpine(c, cw, ch, { vol, color }));
     lying.rotation.z = Math.PI / 2;
-    addItem(at(group(lying), -1.05, y + h / 2, 0.1), "book");
-    return y + h;
+    const item = addItem(at(group(lying), -1.05 + (i % 2 ? 0.05 : -0.04), y + thick / 2, 0.25), "book");
+    item.rotation.y = (i % 3 - 1) * 0.07;
+    return y + thick;
   }, standOn(3));
-  // a twenty-sided die on top of the pile
-  const d20 = mesh(new THREE.IcosahedronGeometry(0.2, 0), toon("#c4b5fd"), { outline: 0.02 });
-  d20.rotation.set(0.4, 0.6, 0.2);
-  addItem(at(group(d20), -1.2, stackTop + 0.19, 0.2), "figure");
+  // A 3×3 puzzle cube on top of the pile: 27 little cubies, each with its stickers on the
+  // outside faces, so a layer can really turn. It sits a few twists away from solved; click
+  // it and it gets played with: a quick run of layer turns as it spins round.
+  const CUBE = 0.36;
+  const CUBIE = CUBE / 3;
+  const stickerMats = { px: "#e5484d", nx: "#ff8a1f", py: "#fffdf5", ny: "#ffd400", pz: "#22a35a", nz: "#2f7cf6" };
+  Object.keys(stickerMats).forEach((k) => (stickerMats[k] = toon(stickerMats[k])));
+  const cubieGeo = rbox(CUBIE - 0.004, CUBIE - 0.004, CUBIE - 0.004, 0.012);
+  const stickerGeo = rbox(CUBIE - 0.026, CUBIE - 0.026, 0.01, 0.01);
+  const rubik = new THREE.Group();
+  const cubies = [];
+  for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++) {
+    const cubie = mesh(cubieGeo, black, { outline: 0.008 });
+    cubie.position.set(x * CUBIE, y * CUBIE, z * CUBIE);
+    const face = (axis, sign) => {
+      const sticker = mesh(stickerGeo, stickerMats[`${sign > 0 ? "p" : "n"}${axis}`], { outline: 0 });
+      sticker.position[axis] = sign * (CUBIE / 2);
+      if (axis === "x") sticker.rotation.y = Math.PI / 2;
+      if (axis === "y") sticker.rotation.x = Math.PI / 2;
+      cubie.add(sticker);
+    };
+    if (x) face("x", x);
+    if (y) face("y", y);
+    if (z) face("z", z);
+    rubik.add(cubie);
+    cubies.push(cubie);
+  }
+  // Turn one layer (axis "x" | "y" | "z", layer -1..1) a quarter turn either way: its cubies
+  // move to a pivot, it turns, and they come back snapped to the grid
+  const AXES = ["x", "y", "z"];
+  const snap = (v, step) => Math.round(v / step) * step;
+  function turnLayer(axis, layer, dir, duration = 0, onDone) {
+    const pivot = new THREE.Object3D();
+    rubik.add(pivot);
+    const members = cubies.filter((c) => Math.round(c.position[axis] / CUBIE) === layer);
+    members.forEach((c) => pivot.attach(c));
+    const settle = () => {
+      members.forEach((c) => {
+        rubik.attach(c);
+        c.position.set(snap(c.position.x, CUBIE), snap(c.position.y, CUBIE), snap(c.position.z, CUBIE));
+        c.rotation.set(snap(c.rotation.x, Math.PI / 2), snap(c.rotation.y, Math.PI / 2), snap(c.rotation.z, Math.PI / 2));
+      });
+      rubik.remove(pivot);
+      onDone?.();
+    };
+    if (!duration) {
+      pivot.rotation[axis] = (dir * Math.PI) / 2;
+      pivot.updateMatrixWorld(true);
+      return settle();
+    }
+    gsap.to(pivot.rotation, { [axis]: (dir * Math.PI) / 2, duration, ease: "power2.inOut", onComplete: settle });
+  }
+  // a few turns from solved, as if put down mid-solve
+  [["y", 1, 1], ["x", -1, -1], ["z", 1, 1], ["y", -1, -1]].forEach(([axis, layer, dir]) => turnLayer(axis, layer, dir));
+  rubik.rotation.set(0, 0.6, 0);
+  const rubikItem = addItem(at(group(rubik), -1.15, stackTop + CUBE / 2, 0.3), "rubik");
+  let rubikBusy = false;
+  function playRubik() {
+    if (rubikBusy) return;
+    rubikBusy = true;
+    const TURNS = 6;
+    const turn = (n) => {
+      if (n === TURNS) {
+        rubikBusy = false;
+        return;
+      }
+      const axis = AXES[Math.floor(Math.random() * 3)];
+      sfx.tick({ pitch: 1.6 + Math.random() * 0.6 });
+      turnLayer(axis, Math.floor(Math.random() * 3) - 1, Math.random() < 0.5 ? 1 : -1, 0.16, () => turn(n + 1));
+    };
+    turn(0);
+    // turned over in the hands as it's played
+    gsap.to(rubik.rotation, { y: rubik.rotation.y + Math.PI * 2, duration: 6 * 0.17, ease: "power1.inOut" });
+    gsap.fromTo(rubik.rotation, { x: 0 }, { x: 0.35, duration: 6 * 0.085, yoyo: true, repeat: 1, ease: "sine.inOut" });
+  }
   const trophyGold = toon("#e8b640");
   const trophyProfile = [[0, 0.52], [0.12, 0.53], [0.24, 0.65], [0.34, 0.87], [0.37, 1.12], [0.32, 1.12], [0.3, 0.9], [0.2, 0.71], [0.08, 0.65], [0, 0.65]].map(([r, y]) => new THREE.Vector2(r, y));
   // A hollow bowl, rounded rim and continuous loop handles sit on a separate stem.
@@ -1662,19 +2307,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     at(mesh(new THREE.SphereGeometry(0.045, 10, 8), toon("#e11d48"), { outline: 0 }), 0.1, -0.19, 0.08),
   );
   // a little pixel scene on its screen, and speaker holes
-  const handheldScreen = printed(0.4, 0.32, 260, (c, w, h) => {
-    c.fillStyle = "#9bbc0f";
-    c.fillRect(0, 0, w, h);
-    const px = w / 20;
-    c.fillStyle = "#306230";
-    for (let i = 0; i < 20; i++) c.fillRect(i * px, h - px * (2 + (i % 3 === 0 ? 1 : 0)), px, px * 3);
-    c.fillStyle = "#0f380f";
-    [[4, 8], [5, 8], [4, 9], [5, 9], [4, 10], [5, 10], [3, 9], [6, 9]].forEach(([x, y]) => c.fillRect(x * px, y * px * 0.8, px, px));
-    c.fillStyle = "#8bac0f";
-    c.fillRect(13 * px, 3 * px, px * 3, px);
-    c.fillRect(12 * px, 4 * px, px * 5, px);
-  });
+  // its screen plays a little space-invaders loop (redrawn from the render loop)
+  const handheldScreen = printed(0.4, 0.32, 520, (c, w, h, t) => drawInvaders(c, w, h, t));
   handheldScreen.position.set(0, 0.2, 0.084);
+  let handheldDrawnAt = 0;
   handheld.add(handheldScreen);
   for (let i = 0; i < 4; i++) handheld.add(at(mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.01, 6), black, { outline: 0 }), 0.12 + i * 0.045, -0.36, 0.075, 0.6));
   const handheldItem = addItem(at(handheld, 1.35, standOn(3) + 0.47, -0.2), "console");
@@ -1748,27 +2384,64 @@ export function createDeskScene({ container, projects, experiences, dark = false
     },
   });
 
-  // ---------- katana on its stand, beside the gauntlet ----------
-  // Sheathed, handle to the right as in a display. Click it: the blade is drawn out of the
-  // scabbard with a ring of steel, swung in a slash that leaves a white crescent and a shower of
-  // sakura petals while the technique's name is shouted in a balloon, then slid back home with a
-  // click. Built with the blade along +x from the guard, then the stand turned half round.
-  // Scaled up to a full katana's length against the room (about 80 cm); the handle reaches a
-  // little past the shelf's right edge, as a sword does past its stand
+  // ---------- Zoro's three swords on a wall rack, above the gauntlet ----------
+  // Two black wall brackets, each a plate with three curved hooks (the wavy arms of a sword
+  // stand, turned to hang on the wall), and in them, top to bottom:
+  // Wado Ichimonji: white saya and white wrap with black diamonds, a round gold tsuba
+  // Sandai Kitetsu: red saya ringed in black, red wrap with black diamonds, a gold tsuba
+  // Enma: purple saya with yellow flowers, a red cord and tassels, a lobed gold tsuba
   const KATANA_SCALE = 1.3;
-  const katanaStand = new THREE.Group();
-  katanaStand.position.set(1.62, standOn(4), 0.05);
-  katanaStand.rotation.y = Math.PI;
-  katanaStand.scale.setScalar(KATANA_SCALE);
-  shelf.add(katanaStand);
-  const lacquer = toon("#141210");
-  const gold = toon("#d4a72c");
-  katanaStand.add(at(mesh(rbox(1.6, 0.1, 0.55, 0.04), lacquer, { outline: 0.025 }), 0.5, 0.05, 0));
-  [-0.15, 1.15].forEach((x) => katanaStand.add(at(mesh(rbox(0.12, 0.82, 0.12, 0.03), lacquer, { outline: 0.02 }), x, 0.46, 0)));
-  // A gentle curve (sori) shared by the blade and the scabbard: y rises with the square of x
+  const RACK_TIERS = [0.6, 0, -0.6];
+  const RACK_ARM_X = 1.0;
+  // How far above the shelf's top the rack hangs: clear above the gauntlet, even mid-snap
+  const RACK_Y = 3.6;
+  // The shelf's close-up scrolls up to the gauntlet and the handheld, not the swords: they
+  // have a close-up of their own
+  const SHELF_TOP_EXTRA = 2.9;
+  const katanaRack = new THREE.Group();
+  katanaRack.position.set(0.35, SHELF_H + RACK_Y, -SHELF_D / 2 + 0.05);
+  katanaRack.scale.setScalar(KATANA_SCALE);
+  shelf.add(katanaRack);
+
+  const rackMat = toon("#181513");
+  // A bracket in profile (x out from the wall, y up), extruded to its thickness
+  const bracketShape = new THREE.Shape();
+  const RACK_TOP = RACK_TIERS[0] + 0.36;
+  const RACK_BOTTOM = RACK_TIERS[RACK_TIERS.length - 1] - 0.36;
+  bracketShape.moveTo(0, RACK_BOTTOM);
+  bracketShape.lineTo(0, RACK_TOP);
+  bracketShape.quadraticCurveTo(0.1, RACK_TOP + 0.04, 0.1, RACK_TOP - 0.08);
+  RACK_TIERS.forEach((y) => {
+    bracketShape.lineTo(0.1, y + 0.06);
+    // the cradle the sword rests in, then up to a rounded tip and back under the hook
+    bracketShape.quadraticCurveTo(0.2, y - 0.13, 0.3, y - 0.04);
+    bracketShape.quadraticCurveTo(0.33, y + 0.02, 0.35, y + 0.09);
+    bracketShape.quadraticCurveTo(0.4, y + 0.1, 0.39, y + 0.02);
+    bracketShape.quadraticCurveTo(0.37, y - 0.17, 0.22, y - 0.2);
+    bracketShape.quadraticCurveTo(0.12, y - 0.2, 0.1, y - 0.27);
+  });
+  bracketShape.lineTo(0.1, RACK_BOTTOM + 0.08);
+  bracketShape.quadraticCurveTo(0.1, RACK_BOTTOM - 0.04, 0, RACK_BOTTOM);
+  const bracketGeo = new THREE.ExtrudeGeometry(bracketShape, { depth: 0.13, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 2, curveSegments: 10 });
+  bracketGeo.translate(0, 0, -0.065);
+  bracketGeo.rotateY(-Math.PI / 2);
+  [-RACK_ARM_X, RACK_ARM_X].forEach((x) => {
+    katanaRack.add(at(mesh(bracketGeo, rackMat, { outline: 0.018 }), x, 0, 0));
+    // two screws in the wall plate
+    [RACK_TOP - 0.16, RACK_BOTTOM + 0.16].forEach((y) => {
+      const screw = mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.02, 10), toon("#c9a24a"), { outline: 0.006 });
+      screw.rotation.z = Math.PI / 2;
+      katanaRack.add(at(screw, x, y, 0.06));
+    });
+  });
+
   const SORI = 0.1;
-  const BLADE_L = 1.9;
+  const BLADE_L = 2.2;
   const bow = (x) => SORI * (x / BLADE_L) ** 2;
+  // That curve is (to well under a hair) an arc of this radius about a point straight above the
+  // saya's mouth, so a blade slides in and out of its saya by turning about that point
+  const SORI_R = BLADE_L ** 2 / (2 * SORI);
+  const drawTurn = (distance) => -distance / SORI_R;
   const bladeShape = (inset) => {
     const shape = new THREE.Shape();
     const steps = 16;
@@ -1787,10 +2460,27 @@ export function createDeskScene({ container, projects, experiences, dark = false
     geo.translate(0, 0, -0.011);
     return geo;
   };
-  const RACK_Y = 0.9;
-  // Styled on Enma: a purple scabbard and handle with gold fittings and little yellow flower
-  // crests, a red cord with a tassel at the scabbard's mouth, a four-lobed gold guard, and a
-  // blade with blue and purple flames along it
+  const BLADE_SPAN = BLADE_L + 0.14;
+  const Y_MIN = -0.06;
+  const Y_MAX = 0.16;
+
+  // Blade textures for each of the 3 swords
+  const createBladeMat = (drawFn) => {
+    const tex = canvasTexture(1024, 128);
+    track(tex.texture);
+    drawFn(tex.ctx, 1024, 128, { bow, length: BLADE_L, width: BLADE_SPAN, yMin: Y_MIN, yMax: Y_MAX });
+    tex.texture.repeat.set(1 / BLADE_SPAN, 1 / (Y_MAX - Y_MIN));
+    tex.texture.offset.set(0, -Y_MIN / (Y_MAX - Y_MIN));
+    const mat = toon("#ffffff");
+    mat.map = tex.texture;
+    return mat;
+  };
+
+  const wadoBladeMat = createBladeMat(drawWadoBlade);
+  const kitetsuBladeMat = createBladeMat(drawKitetsuBlade);
+  const enmaBladeMat = createBladeMat(drawEnmaBlade);
+
+  // Enma crest decals
   const enmaPurple = toon("#6b2fa8");
   const cord = toon("#e11d48");
   const flowerTex = canvasTexture(64, 64);
@@ -1798,7 +2488,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
   drawEnmaFlower(flowerTex.ctx, 64, 64);
   const flowerMat = track(new THREE.MeshBasicMaterial({ map: flowerTex.texture, transparent: true, depthWrite: false }));
   const flowerGeo = track(new THREE.PlaneGeometry(0.11, 0.11));
-  // A crest on both faces at x along the piece, `radius` out from its centre line
   const crest = (parent, x, y, radius) => [-1, 1].forEach((side) => {
     const decal = new THREE.Mesh(flowerGeo, flowerMat);
     decal.position.set(x, y, side * (radius + 0.004));
@@ -1806,72 +2495,107 @@ export function createDeskScene({ container, projects, experiences, dark = false
     decal.raycast = noRaycast;
     parent.add(decal);
   });
-  // The blade's print, laid over its faces in the blade's own coordinates
-  const BLADE_SPAN = BLADE_L + 0.14;
-  const Y_MIN = -0.06;
-  const Y_MAX = 0.16;
-  const bladeTex = canvasTexture(1024, 128);
-  track(bladeTex.texture);
-  drawEnmaBlade(bladeTex.ctx, 1024, 128, { bow, length: BLADE_L, width: BLADE_SPAN, yMin: Y_MIN, yMax: Y_MAX });
-  bladeTex.texture.repeat.set(1 / BLADE_SPAN, 1 / (Y_MAX - Y_MIN));
-  bladeTex.texture.offset.set(0, -Y_MIN / (Y_MAX - Y_MIN));
-  const bladeMat = toon("#ffffff");
-  bladeMat.map = bladeTex.texture;
-  const katana = new THREE.Group();
-  katana.position.set(0, RACK_Y, 0);
-  // The steel, hidden while it's in the scabbard
-  const steel = new THREE.Group();
-  steel.add(mesh(bladeShape(0), bladeMat, { outline: 0.018 }));
-  steel.visible = false;
-  const habaki = at(mesh(rbox(0.09, 0.14, 0.05, 0.015), gold, { outline: 0.012 }), 0.045, 0, 0);
-  // Guard: four round gold lobes in a cross round the blade
-  const tsuba = new THREE.Group();
-  [[0, 0.085], [0, -0.085], [0.085, 0], [-0.085, 0]].forEach(([y, z]) => {
-    const lobe = mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.045, 20), gold, { outline: 0.012 });
-    lobe.rotation.z = Math.PI / 2;
-    lobe.position.set(0, y, z);
-    tsuba.add(lobe);
-  });
-  const tsuka = at(mesh(rbox(0.86, 0.12, 0.1, 0.04), enmaPurple, { outline: 0.02 }), -0.47, 0, 0);
-  katana.add(steel, habaki, tsuba, tsuka);
-  // Gold collars by the guard and part way up, a gold cap on the end, a crest between
-  [[-0.08, 0.05], [-0.62, 0.035], [-0.68, 0.035], [-0.92, 0.07]].forEach(([x, width]) => katana.add(at(mesh(rbox(width, 0.135, 0.115, 0.02), gold, { outline: 0.012 }), x, 0, 0)));
-  crest(katana, -0.36, 0, 0.05);
-  katanaStand.add(katana);
-  // The scabbard, from its mouth at the guard to a gold tip, on the stand's rest
-  const sayaCurve = new THREE.CatmullRomCurve3(Array.from({ length: 9 }, (_, i) => {
-    const x = 0.04 + (i / 8) * (BLADE_L + 0.16);
-    return new THREE.Vector3(x, bow(x), 0);
-  }));
-  const sayaGroup = new THREE.Group();
-  sayaGroup.position.y = RACK_Y;
-  katanaStand.add(sayaGroup);
-  sayaGroup.add(mesh(new THREE.TubeGeometry(sayaCurve, 32, 0.075, 12), enmaPurple, { outline: 0.02 }));
-  const sayaBand = (x, width, radius = 0.085) => {
-    const band = mesh(new THREE.CylinderGeometry(radius, radius, width, 16), gold, { outline: 0.012 });
-    // Square to the scabbard: turned on its side, then tilted by the curve's slope at x
-    band.rotation.z = Math.PI / 2 + Math.atan(2 * SORI * x / BLADE_L ** 2);
-    band.position.set(x, bow(x), 0);
-    sayaGroup.add(band);
-  };
-  sayaBand(0.06, 0.07);
-  sayaBand(1.2, 0.035);
-  sayaBand(1.27, 0.035);
-  sayaBand(BLADE_L + 0.15, 0.12, 0.088);
-  [0.62, 1.5, 1.82].forEach((x) => crest(sayaGroup, x, bow(x), 0.075));
-  // Red cord wound near the mouth, its tassel hanging down in front of the stand
-  const wrap = mesh(new THREE.CylinderGeometry(0.088, 0.088, 0.16, 16), cord, { outline: 0.012 });
-  wrap.rotation.z = Math.PI / 2;
-  wrap.position.set(0.32, bow(0.32), 0);
-  const tasselCord = rod(new THREE.Vector3(0.36, bow(0.36) - 0.06, -0.08), new THREE.Vector3(0.42, -0.42, -0.12), 0.012, cord, 0.008);
-  const tassel = mesh(new THREE.CylinderGeometry(0.02, 0.06, 0.2, 10), cord, { outline: 0.012 });
-  tassel.position.set(0.42, -0.52, -0.12);
-  sayaGroup.add(wrap, tasselCord, tassel);
 
   const slashTex = canvasTexture(512, 256);
   track(slashTex.texture);
   drawSlash(slashTex.ctx, 512, 256);
   const slash = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: slashTex.texture, depthTest: false, transparent: true })));
+  // More cuts for the techniques that throw several at once (sharing the trail's art)
+  const cuts = [slash, ...[0, 1, 2].map(() => {
+    const extra = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: slashTex.texture, depthTest: false, transparent: true })));
+    extra.renderOrder = 11;
+    extra.raycast = noRaycast;
+    extra.visible = false;
+    scene.add(extra);
+    return extra;
+  })];
+  const tornadoTex = canvasTexture(256, 384);
+  track(tornadoTex.texture);
+  const tornado = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: tornadoTex.texture, depthTest: false, transparent: true })));
+  tornado.renderOrder = 11;
+  tornado.raycast = noRaycast;
+  tornado.visible = false;
+  scene.add(tornado);
+  const speedTex = canvasTexture(512, 128);
+  track(speedTex.texture);
+  drawSpeedLines(speedTex.ctx, 512, 128);
+  const speedLines = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: speedTex.texture, depthTest: false, transparent: true })));
+  speedLines.renderOrder = 11;
+  speedLines.raycast = noRaycast;
+  speedLines.visible = false;
+  scene.add(speedLines);
+  const cutAt = new THREE.Vector3();
+  // One crescent: grows out from where the blade cut, then fades (or, flying, sails off left)
+  function showCut(sprite, { dx = 0, dy = 0, rot = 0.35, delay = 0, size = 1, fly = 0, opacity = 1 } = {}) {
+    gsap.killTweensOf([sprite.scale, sprite.material, sprite.position]);
+    sprite.visible = false;
+    gsap.delayedCall(delay, () => {
+      sprite.position.set(cutAt.x + dx, cutAt.y + dy, cutAt.z);
+      sprite.material.rotation = rot;
+      sprite.material.opacity = opacity;
+      sprite.visible = true;
+      gsap.fromTo(sprite.scale, { x: size, y: size * 0.5 }, { x: 4.6 * size, y: 2.3 * size, duration: 0.25, ease: "power3.out" });
+      if (fly) gsap.to(sprite.position, { x: sprite.position.x - fly, y: sprite.position.y + 0.3, duration: 0.9, ease: "power1.in" });
+      gsap.to(sprite.material, { opacity: 0, delay: fly ? 0.6 : 0.25, duration: fly ? 0.3 : 0.45, onComplete: () => (sprite.visible = false) });
+    });
+  }
+  // Each technique's own shape, after the anime: Oni Giri's crossing cuts, the Tatsu Maki
+  // whirlwinds, the flying "cannon" cuts, the already-cut flash of Shishi Sonson and the
+  // Sanzen Sekai, and Asura's afterimages; anything else is a single crescent
+  function playTechnique(name, style) {
+    if (name.includes("ONI GIRI")) {
+      showCut(cuts[0], { rot: -0.55 });
+      showCut(cuts[1], { rot: 0.55, delay: 0.05 });
+      showCut(cuts[2], { rot: 1.57, delay: 0.1, size: 0.85 });
+    } else if (name.includes("TATSU")) {
+      showCut(cuts[0]);
+      drawTornado(tornadoTex.ctx, 256, 384, { style });
+      tornadoTex.texture.needsUpdate = true;
+      gsap.killTweensOf([tornado.scale, tornado.position, tornado.material]);
+      tornado.position.set(cutAt.x, cutAt.y + 0.4, cutAt.z);
+      tornado.material.opacity = 1;
+      tornado.visible = true;
+      gsap.fromTo(tornado.scale, { x: 0.4, y: 0.6 }, { x: 2.4, y: 3.6, duration: 0.45, ease: "back.out(1.6)" });
+      gsap.to(tornado.position, { y: cutAt.y + 1.1, duration: 1.3, ease: "power1.in" });
+      gsap.fromTo(tornado.material, { rotation: -0.08 }, { rotation: 0.08, duration: 0.12, yoyo: true, repeat: 9, ease: "sine.inOut" });
+      gsap.to(tornado.material, { opacity: 0, delay: 1, duration: 0.35, onComplete: () => (tornado.visible = false) });
+    } else if (FLYING.has(name)) {
+      showCut(cuts[0], { size: 0.8, fly: 7 });
+    } else if (name.includes("SONSON") || name.includes("SANZEN")) {
+      // a flash of speed lines first, then the cut "arrives" a beat late
+      gsap.killTweensOf([speedLines.scale, speedLines.material]);
+      speedLines.position.set(cutAt.x - 0.4, cutAt.y + 0.1, cutAt.z);
+      speedLines.material.rotation = -0.12;
+      speedLines.material.opacity = 1;
+      speedLines.visible = true;
+      gsap.fromTo(speedLines.scale, { x: 1, y: 0.5 }, { x: 7.5, y: 1.4, duration: 0.12, ease: "power4.out" });
+      gsap.to(speedLines.material, { opacity: 0, delay: 0.18, duration: 0.25, onComplete: () => (speedLines.visible = false) });
+      showCut(cuts[0], { delay: 0.35, size: 1.2, rot: -0.1 });
+    } else if (name.includes("ASURA")) {
+      [0, 1, 2].forEach((k) => showCut(cuts[k], { dx: -k * 0.75, dy: k * 0.12, delay: k * 0.06, opacity: 1 - k * 0.32 }));
+    } else {
+      showCut(cuts[0]);
+    }
+  }
+  // Wado's glint on its tip as it cuts
+  const glintTex = canvasTexture(128, 128);
+  track(glintTex.texture);
+  drawGlint(glintTex.ctx, 128, 128);
+  const glint = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: glintTex.texture, depthTest: false, transparent: true, blending: THREE.AdditiveBlending })));
+  glint.renderOrder = 12;
+  glint.raycast = noRaycast;
+  glint.visible = false;
+  scene.add(glint);
+  // Enma's Haki aura, wrapped along the blade while it's out (one, moved to whichever is drawn)
+  const auraTex = canvasTexture(256, 128);
+  track(auraTex.texture);
+  drawHakiAura(auraTex.ctx, 256, 128);
+  const haki = new THREE.Mesh(track(new THREE.PlaneGeometry(1, 1)), track(new THREE.MeshBasicMaterial({ map: auraTex.texture, transparent: true, depthWrite: false, side: THREE.DoubleSide, opacity: 0 })));
+  haki.raycast = noRaycast;
+  haki.visible = false;
+  // Techniques that fly: the cut leaves the blade and travels, so its sound goes with it
+  const FLYING = new Set(["36 POUND CANNON!", "HYAKUHACHI POUND HO!", "YAKKODORI!"]);
+  const tipAt = new THREE.Vector3();
   slash.renderOrder = 11;
   slash.raycast = noRaycast;
   slash.visible = false;
@@ -1883,82 +2607,140 @@ export function createDeskScene({ container, projects, experiences, dark = false
   shout.raycast = noRaycast;
   shout.scale.set(0.001, 0.001, 1);
   scene.add(shout);
-  // Sakura petals: little pink ovals with a dark outline
-  const petalTex = canvasTexture(48, 48);
+
+  // Loose sakura petals, with a whole blossom every fourth one
+  const petalTex = canvasTexture(128, 128);
   track(petalTex.texture);
-  petalTex.ctx.beginPath();
-  petalTex.ctx.ellipse(24, 24, 18, 11, 0.5, 0, Math.PI * 2);
-  petalTex.ctx.fillStyle = "#ffb7d5";
-  petalTex.ctx.fill();
-  petalTex.ctx.lineWidth = 4;
-  petalTex.ctx.strokeStyle = "#1a1714";
-  petalTex.ctx.stroke();
-  const petals = Array.from({ length: 18 }, () => {
-    const petal = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: petalTex.texture, transparent: true, depthWrite: false })));
+  drawSakuraPetal(petalTex.ctx, 128, 128);
+  const blossomTex = canvasTexture(160, 160);
+  track(blossomTex.texture);
+  drawSakuraBlossom(blossomTex.ctx, 160, 160);
+  const petals = Array.from({ length: 20 }, (_, i) => {
+    const petal = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: i % 4 === 3 ? blossomTex.texture : petalTex.texture, transparent: true, depthWrite: false })));
+    petal.userData.blossom = i % 4 === 3;
     petal.visible = false;
     petal.raycast = noRaycast;
     scene.add(petal);
     return petal;
   });
-  // Zoro's techniques, called out in the shout balloon, round the list from a random start
+
   const TECHNIQUES = [
     "SHISHI SONSON!", "36 POUND CANNON!", "DAI SHINKAN!", "ONI GIRI!", "TATSU MAKI!", "SANZEN SEKAI!",
     "YAKKODORI!", "HIRYU KAEN!", "RENGOKU ONI GIRI!", "ASURA: ICHIBUGIN!", "KOKUJO: O TATSUMAKI!",
     "ICHIDAI SANZEN DAISEN SEKAI!", "HYAKUHACHI POUND HO!", "ENMA: KING OF HELL!",
   ];
   let techniqueIndex = Math.floor(Math.random() * TECHNIQUES.length);
+  const SHOUT_W = 3.8;
+  const SHOUT_H = 1.9;
   const katanaWorld = new THREE.Vector3();
   let slashing = false;
   let shoutTimer = null;
-  function slashKatana() {
+
+  // Nudges a sprite of the given world size back inside the screen, below the page's top bar
+  // (the 3D site's title and "Back to desk" buttons), wherever the camera and window size put it
+  const TOP_BAR_PX = 80;
+  const screenAxis = new THREE.Vector3();
+  function keepOnScreen(sprite, w, h) {
+    const centre = sprite.position.clone().project(camera);
+    const upW = screenAxis.set(0, 1, 0).applyQuaternion(camera.quaternion).clone();
+    const rightW = screenAxis.set(1, 0, 0).applyQuaternion(camera.quaternion).clone();
+    const halfY = sprite.position.clone().addScaledVector(upW, h / 2).project(camera).y - centre.y;
+    const halfX = sprite.position.clone().addScaledVector(rightW, w / 2).project(camera).x - centre.x;
+    const top = 1 - (2 * TOP_BAR_PX) / (container.clientHeight || 1);
+    let dy = 0;
+    if (centre.y + halfY > top) dy = top - (centre.y + halfY);
+    else if (centre.y - halfY < -0.95) dy = -0.95 - (centre.y - halfY);
+    let dx = 0;
+    if (centre.x + halfX > 0.96) dx = 0.96 - (centre.x + halfX);
+    else if (centre.x - halfX < -0.96) dx = -0.96 - (centre.x - halfX);
+    // back from screen units to world units along the camera's axes
+    sprite.position.addScaledVector(upW, (dy * (h / 2)) / halfY).addScaledVector(rightW, (dx * (w / 2)) / halfX);
+  }
+
+  function slashSword(sword) {
     if (slashing) return;
     slashing = true;
     discover("katana");
     const technique = TECHNIQUES[techniqueIndex++ % TECHNIQUES.length];
-    const home = KATANA_HOME;
-    // Fully drawn: the guard pulled the blade's length away from the scabbard's mouth
-    const drawn = home - (BLADE_L + 0.25);
+    const out = drawTurn(BLADE_L + 0.25);
+    const home = -SORI_R;
+    // high enough to clear the top sword whichever tier this one hangs on
+    const aboveRack = RACK_TIERS[0] + 1.0 - sword.yRack;
+    gsap.killTweensOf([sword.drawPivot.rotation, sword.bladeGroup.position, sword.bladeGroup.rotation]);
+    drawSlash(slashTex.ctx, 512, 256, { style: sword.style });
+    slashTex.texture.needsUpdate = true;
+    if (sword.style === "enma") {
+      // the aura rises off the blade as it's drawn, flickering, and fades as it's sheathed
+      sword.bladeGroup.add(haki);
+      haki.position.set(BLADE_L / 2 + 0.05, bow(BLADE_L / 2) + 0.02, 0);
+      haki.scale.set(BLADE_L * 1.35, 0.75, 1);
+      haki.visible = true;
+      // it swells in, then breathes slowly while the sword is out
+      gsap.killTweensOf([haki.material, haki.scale]);
+      gsap.fromTo(haki.material, { opacity: 0 }, { opacity: 0.95, duration: 0.7, delay: 0.2, ease: "sine.out" });
+      gsap.fromTo(haki.scale, { y: 0.55 }, { y: 0.95, duration: 0.7, delay: 0.2, ease: "sine.out" });
+      gsap.to(haki.scale, { y: 0.8, x: BLADE_L * 1.28, duration: 0.65, yoyo: true, repeat: 3, ease: "sine.inOut", delay: 0.9 });
+    }
+    // Drawn along the saya's curve, swung free of it, then slid back in along the same curve
     gsap.timeline({ onComplete: () => (slashing = false) })
       .call(() => {
-        steel.visible = true;
+        sword.steel.visible = true;
         sfx.shing();
       })
-      // Drawn out of the scabbard
-      .to(katana.position, { x: drawn, duration: 0.45, ease: "power2.in" })
-      // Up off the stand, back over the shelf, tip rising
-      .to(katana.position, { x: home - 0.9, y: RACK_Y + 1.1, duration: 0.35, ease: "power2.out" })
-      .to(katana.rotation, { z: 0.35, duration: 0.35, ease: "power2.out" }, "<")
-      // Wind-up overhead
-      .to(katana.rotation, { z: 1.25, duration: 0.25, ease: "power2.inOut" })
-      .to(katana.position, { x: home - 1.2, duration: 0.25, ease: "power2.inOut" }, "<")
-      // The cut
-      .to(katana.rotation, { z: -0.9, duration: 0.16, ease: "power4.in" })
-      .to(katana.position, { x: home - 0.5, duration: 0.16, ease: "power4.in" }, "<")
+      .to(sword.drawPivot.rotation, { z: out, duration: 0.45, ease: "power2.in" })
+      // Straight up past the handle end, out in front, then over above the whole rack: it
+      // never passes across a saya
+      .to(sword.bladeGroup.position, { y: home + aboveRack, z: -0.7, duration: 0.25, ease: "power2.out" })
+      .to(sword.bladeGroup.position, { x: 1.9, duration: 0.2, ease: "power2.inOut" })
+      .to(sword.bladeGroup.rotation, { z: 0.35, duration: 0.2, ease: "power2.out" }, "<")
+      .to(sword.bladeGroup.rotation, { z: 1.1, duration: 0.25, ease: "power2.inOut" })
+      .to(sword.bladeGroup.position, { x: 1.6, duration: 0.25, ease: "power2.inOut" }, "<")
+      .to(sword.bladeGroup.rotation, { z: -0.3, duration: 0.16, ease: "power4.in" })
+      .to(sword.bladeGroup.position, { x: 2.3, duration: 0.16, ease: "power4.in" }, "<")
       .call(() => {
-        katana.getWorldPosition(katanaWorld);
-        // The stand is turned round, so the blade reaches toward -x in the room
-        slash.visible = true;
-        slash.position.set(katanaWorld.x - 0.9, katanaWorld.y + 0.4, katanaWorld.z + 0.8);
-        slash.material.opacity = 1;
-        slash.material.rotation = 0.35;
-        gsap.fromTo(slash.scale, { x: 1, y: 0.5 }, { x: 4.6, y: 2.3, duration: 0.25, ease: "power3.out" });
-        gsap.to(slash.material, { opacity: 0, delay: 0.25, duration: 0.45, onComplete: () => (slash.visible = false) });
+        sword.bladeGroup.getWorldPosition(katanaWorld);
+        // Effects stay in the sword's own plane: the close-up clips anything well in front of
+        // the rack, which hid them
+        cutAt.set(katanaWorld.x - 0.9, katanaWorld.y + 0.2, katanaWorld.z + 0.2);
+        playTechnique(technique, sword.style);
         sfx.whoosh({ duration: 0.25, up: false });
+        if (FLYING.has(technique)) sfx.whooshAway({ delay: 0.1 });
+        if (sword.style === "wado") {
+          // light catching the tip as it cuts
+          sword.bladeGroup.localToWorld(tipAt.set(BLADE_L + 0.08, bow(BLADE_L) + 0.02, 0));
+          glint.position.copy(tipAt);
+          glint.visible = true;
+          gsap.fromTo(glint.scale, { x: 0.1, y: 0.1 }, { x: 0.9, y: 0.9, duration: 0.14, yoyo: true, repeat: 1, ease: "power2.out", onComplete: () => (glint.visible = false) });
+          gsap.fromTo(glint.material, { rotation: 0 }, { rotation: 0.8, duration: 0.28 });
+        }
+        if (sword.style === "enma") {
+          // the Haki shakes the camera a moment
+          const tx = cam.tx;
+          const ty = cam.ty;
+          gsap.timeline()
+            .to(cam, { tx: tx + 0.07, ty: ty - 0.04, duration: 0.035, yoyo: true, repeat: 9, ease: "none" })
+            .set(cam, { tx, ty });
+        }
         drawShout(shoutTex.ctx, 640, 320, technique);
         shoutTex.texture.needsUpdate = true;
-        // Up and to the left of the blade: the shelf's right side is off screen on many displays
-        shout.position.set(katanaWorld.x - 1.3, katanaWorld.y + 1.9, katanaWorld.z + 1.2);
-        gsap.fromTo(shout.scale, { x: 1, y: 0.5 }, { x: 5.4, y: 2.7, duration: 0.3, ease: "back.out(3)", overwrite: true });
+        // Well clear of the blade: up and out to its left, beyond its tip
+        shout.position.set(katanaWorld.x - 5.3, katanaWorld.y + 1.35, katanaWorld.z + 0.25);
+        keepOnScreen(shout, SHOUT_W, SHOUT_H);
+        gsap.fromTo(shout.scale, { x: 1, y: 0.5 }, { x: SHOUT_W, y: SHOUT_H, duration: 0.3, ease: "back.out(3)", overwrite: true });
         gsap.fromTo(shout.material, { rotation: 0.15 }, { rotation: 0, duration: 0.5, ease: "elastic.out(1.2, 0.4)" });
         clearTimeout(shoutTimer);
         shoutTimer = setTimeout(() => gsap.to(shout.scale, { x: 0.001, y: 0.001, duration: 0.2, ease: "power2.in", overwrite: true }), 2200);
         petals.forEach((petal, i) => {
           gsap.killTweensOf([petal.position, petal.material]);
           petal.visible = true;
-          petal.scale.setScalar(0.22 + Math.random() * 0.12);
+          // petals tumble: their width flips back and forth as they turn over in the air
+          const size = (petal.userData.blossom ? 0.34 : 0.26) + Math.random() * 0.1;
+          petal.scale.set(size, size, 1);
+          gsap.killTweensOf(petal.scale);
+          if (!petal.userData.blossom) gsap.to(petal.scale, { x: size * 0.25, duration: 0.35 + Math.random() * 0.3, yoyo: true, repeat: 9, ease: "sine.inOut", delay: i * 0.03 });
           petal.material.opacity = 1;
           const x = katanaWorld.x - 2.5 + Math.random() * 4;
-          const z = katanaWorld.z + 0.4 + Math.random() * 1.2;
+          const z = katanaWorld.z + 0.1 + Math.random() * 0.4;
           petal.position.set(x, katanaWorld.y + 1.2 + Math.random() * 1.6, z);
           const fall = 2.2 + Math.random() * 1.2;
           gsap.to(petal.position, { y: katanaWorld.y - 2.6 - Math.random(), x: x + 0.6 + Math.random() * 0.8, duration: fall, delay: i * 0.03, ease: "sine.in" });
@@ -1966,44 +2748,425 @@ export function createDeskScene({ container, projects, experiences, dark = false
           gsap.to(petal.material, { opacity: 0, delay: fall - 0.4 + i * 0.03, duration: 0.4, onComplete: () => (petal.visible = false) });
         });
       })
-      // Hold the finish, then line up with the scabbard and slide home
-      .to(katana.rotation, { z: 0, duration: 0.45, ease: "power2.inOut" }, "+=0.6")
-      .to(katana.position, { x: drawn, y: RACK_Y, duration: 0.45, ease: "power2.inOut" }, "<")
-      .call(() => sfx.sheathe())
-      .to(katana.position, { x: home, duration: 0.3, ease: "power2.in" })
-      .call(() => (steel.visible = false))
-      .fromTo(katanaStand.scale, { y: KATANA_SCALE * 0.92 }, { y: KATANA_SCALE, duration: 0.3, ease: "back.out(3)" });
+      // Back the same way: level out and over to the handle end, down, then in to the rack
+      .to(sword.bladeGroup.rotation, { z: 0, duration: 0.35, ease: "power2.inOut" }, "+=0.6")
+      .to(sword.bladeGroup.position, { x: 0, duration: 0.35, ease: "power2.inOut" }, "<")
+      .to(sword.bladeGroup.position, { y: home, duration: 0.3, ease: "power2.inOut" })
+      .to(sword.bladeGroup.position, { z: 0, duration: 0.15, ease: "power2.in" })
+      .call(() => {
+        sfx.sheathe();
+        if (sword.style === "enma") gsap.to(haki.material, { opacity: 0, duration: 0.5, ease: "sine.in", onComplete: () => (haki.visible = false) });
+      })
+      .to(sword.drawPivot.rotation, { z: 0, duration: 0.3, ease: "power2.in" })
+      .call(() => (sword.steel.visible = false))
+      .fromTo(katanaRack.scale, { y: KATANA_SCALE * 0.94 }, { y: KATANA_SCALE, duration: 0.3, ease: "back.out(3)" });
   }
-  // On hover the gold fittings catch the light and the blade eases a hand's breadth out of the
-  // scabbard (a glint of steel at its mouth), sliding home again when the pointer leaves
-  const KATANA_HOME = katana.position.x;
-  register(katanaStand, {
-    onHover: (on) => {
-      if (slashing) return;
-      if (on) {
-        gsap.fromTo(gold.emissive, { r: 0.6, g: 0.5, b: 0.15 }, { r: 0, g: 0, b: 0, duration: 0.7, ease: "power2.out" });
-        steel.visible = true;
-        sfx.tick({ pitch: 1.8 });
-      }
-      gsap.to(katana.position, {
-        x: on ? KATANA_HOME - 0.32 : KATANA_HOME,
-        duration: on ? 0.35 : 0.25,
-        ease: on ? "power2.out" : "power2.in",
-        overwrite: true,
-        onComplete: () => !on && !slashing && (steel.visible = false),
-      });
+
+  // Common scabbard curve
+  const sayaCurve = new THREE.CatmullRomCurve3(Array.from({ length: 9 }, (_, i) => {
+    const x = 0.04 + (i / 8) * (BLADE_L + 0.16);
+    return new THREE.Vector3(x, bow(x), 0);
+  }));
+
+  const hitAreaMat = track(new THREE.MeshBasicMaterial({ visible: false }));
+  // The sword under the pointer, and a timer for its card once the camera has come in
+  let swordZoomTimer = null;
+  // The sword's card: a sprite beside the rack, level with the sword, always facing the camera
+  const SWORD_CARD = { w: 3.2, h: 3.2 * (480 / 760) };
+  const swordCardTex = canvasTexture(760, 480);
+  track(swordCardTex.texture);
+  const swordCard = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: swordCardTex.texture, depthTest: false, transparent: true })));
+  swordCard.renderOrder = 12;
+  swordCard.raycast = noRaycast;
+  swordCard.scale.set(0.001, 0.001, 1);
+  scene.add(swordCard);
+  const swordCardAt = new THREE.Vector3();
+  function showSwordCard(sword) {
+    drawSwordCard(swordCardTex.ctx, 760, 480, sword.info);
+    swordCardTex.texture.needsUpdate = true;
+    // Left of the rack, level with the sword
+    katanaRack.getWorldPosition(swordCardAt);
+    sword.tierGroup.getWorldPosition(swordCard.position);
+    // (the card's art starts at the top of its canvas, so the sprite sits a little low to put
+    // the card itself level with the sword)
+    swordCard.position.set(swordCardAt.x - (SWORD_SPAN / 2) * KATANA_SCALE - SWORD_CARD.w / 2 - 0.25, swordCard.position.y - 0.25, swordCardAt.z + 0.8);
+    gsap.fromTo(swordCard.scale, { x: SWORD_CARD.w * 0.85, y: SWORD_CARD.h * 0.85 }, { x: SWORD_CARD.w, y: SWORD_CARD.h, duration: 0.3, ease: "back.out(2)", overwrite: true });
+  }
+  function hideSwordCard() {
+    gsap.to(swordCard.scale, { x: 0.001, y: 0.001, duration: 0.15, ease: "power2.in", overwrite: true });
+  }
+  // The rack's own close-up: clicking a bracket (or a sword, from further out) comes in to it
+  register(katanaRack, {
+    focus: "swords",
+    onLeave: () => {
+      clearTimeout(swordZoomTimer);
+      hideSwordCard();
     },
-    onClick: slashKatana,
   });
 
-  // ---------- the Infinity Gauntlet, at the left end of the shelf's top ----------
-  // A gold glove on a black plinth with the six stones set in it. Click for the snap: the camera
-  // closes in, the stones light up one by one, the fingers snap in a flash, then the camera pulls
-  // back to watch half the desk's small things crumble to dust... and come back a moment later.
-  // Clear of the katana's scabbard tip, which reaches to about x -1.05 on this shelf
-  const GAUNTLET_X = -1.74;
+  // Handle wraps: cord over ray skin, the diamonds showing front and back
+  const tsukaMat = (cord, skin) => {
+    const tex = canvasTexture(256, 512);
+    track(tex.texture);
+    drawTsukaWrap(tex.ctx, 256, 512, { cord, skin });
+    const mat = toon("#ffffff");
+    mat.map = tex.texture;
+    return mat;
+  };
+  // Swords sit in the hooks centred on the rack: handle on the right, saya to the left. Each
+  // is built handle-left and turned round, so its front details are on its local -z.
+  const TSUKA_L = 0.95;
+  // Centred on the rack: half the way from the kashira to the kojiri
+  const SWORD_X = (BLADE_L + 0.2 - (TSUKA_L + 0.04)) / 2;
+  const SWORD_SPAN = BLADE_L + TSUKA_L + 0.3;
+  const FRONT = -1;
+  // A ring round the saya at x along it, following its curve
+  const sayaRing = (saya, x, w, material, r = 0.085) => {
+    const ring = mesh(new THREE.CylinderGeometry(r, r, w, 18), material, { outline: 0.01 });
+    ring.rotation.z = Math.PI / 2 + Math.atan(2 * SORI * x / BLADE_L ** 2);
+    ring.position.set(x, bow(x), 0);
+    saya.add(ring);
+    return ring;
+  };
+  // A ring round the handle (fuchi, menuki band, kashira)
+  const tsukaRing = (blade, x, w, material, r = 0.072) => {
+    const ring = mesh(new THREE.CylinderGeometry(r, r, w, 18), material, { outline: 0.01 });
+    ring.rotation.z = Math.PI / 2;
+    ring.scale.z = 0.82;
+    ring.position.x = x;
+    blade.add(ring);
+    return ring;
+  };
+
+  // A complete katana: saya, and the blade with its habaki, tsuba and tsuka (drawn together)
+  const buildKatana = (yRack, { info, style, bladeMat, sayaMat, tsukaMat: handleMat, tsubaMaker, addDetails, goldColor = "#d4a72c", mouthRing = true }) => {
+    // Each sword has its own gold, so only the hovered one glints
+    const gold = toon(goldColor);
+    const tierGroup = new THREE.Group();
+    tierGroup.position.set(SWORD_X, yRack + 0.02, 0.2);
+    tierGroup.rotation.y = Math.PI;
+    katanaRack.add(tierGroup);
+
+    const sayaGroup = new THREE.Group();
+    sayaGroup.add(mesh(new THREE.TubeGeometry(sayaCurve, 40, 0.075, 14), sayaMat, { outline: 0.02 }));
+    // koiguchi (the mouth) and kojiri (the capped tip)
+    if (mouthRing) sayaRing(sayaGroup, 0.07, 0.07, gold, 0.086);
+    const kojiri = mesh(new THREE.SphereGeometry(0.084, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), gold, { outline: 0.012 });
+    kojiri.rotation.z = -Math.PI / 2 + Math.atan(2 * SORI / BLADE_L);
+    kojiri.scale.y = 0.6;
+    kojiri.position.set(BLADE_L + 0.2, bow(BLADE_L + 0.2), 0);
+    sayaGroup.add(kojiri);
+    sayaRing(sayaGroup, BLADE_L + 0.15, 0.1, gold, 0.088);
+    tierGroup.add(sayaGroup);
+
+    // The blade and handle hang from a pivot at the centre of the saya's curve (see SORI_R)
+    const drawPivot = new THREE.Group();
+    drawPivot.position.y = SORI_R;
+    tierGroup.add(drawPivot);
+    const bladeGroup = new THREE.Group();
+    bladeGroup.position.y = -SORI_R;
+    const steel = new THREE.Group();
+    steel.add(mesh(bladeShape(0), bladeMat, { outline: 0.018 }));
+    steel.visible = false;
+    const habaki = at(mesh(rbox(0.09, 0.14, 0.05, 0.015), gold, { outline: 0.012 }), 0.045, 0, 0);
+    const tsuba = tsubaMaker(gold);
+    const tsuka = mesh(new THREE.CylinderGeometry(0.066, 0.062, TSUKA_L, 20), handleMat, { outline: 0.02 });
+    tsuka.rotation.z = Math.PI / 2;
+    tsuka.scale.z = 0.82;
+    tsuka.position.x = -0.04 - TSUKA_L / 2;
+    bladeGroup.add(steel, habaki, tsuba, tsuka);
+    tsukaRing(bladeGroup, -0.07, 0.05, gold);
+    const kashira = mesh(new THREE.SphereGeometry(0.07, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), gold, { outline: 0.012 });
+    kashira.rotation.z = Math.PI / 2;
+    kashira.scale.set(1, 0.5, 0.82);
+    kashira.position.x = -0.04 - TSUKA_L;
+    tsukaRing(bladeGroup, -0.04 - TSUKA_L + 0.02, 0.05, gold, 0.07);
+    bladeGroup.add(kashira);
+    drawPivot.add(bladeGroup);
+
+    addDetails(bladeGroup, sayaGroup, gold);
+
+    const swordObj = { tierGroup, drawPivot, bladeGroup, sayaGroup, steel, yRack, style };
+    const restY = tierGroup.position.y;
+    // Hover: the sword lifts up off its hooks and out past their tips, tips a touch and slides
+    // a good length of steel out of the saya, its gold catching the light; off, it settles
+    // back. Like every other prop, a click from further out brings the camera in to the rack;
+    // in its close-up, the hovered sword's card shows beside the rack and a click draws it.
+    // An invisible band round the sword that stays put on the rack: the sword itself lifts and
+    // slides on hover, which would slip out from under the pointer and flicker. The band
+    // reaches out past the lifted sword, so the pointer stays on it the whole time.
+    const hitArea = new THREE.Mesh(track(new THREE.BoxGeometry(SWORD_SPAN + 0.1, 0.52, 0.8)), hitAreaMat);
+    hitArea.position.set(0, yRack + 0.08, 0.32);
+    katanaRack.add(hitArea);
+    register(hitArea, {
+      focus: "swords",
+      item: true,
+      // Clicked from further out: its card once the camera's in
+      onEnter: () => {
+        clearTimeout(swordZoomTimer);
+        swordZoomTimer = setTimeout(() => showSwordCard(swordObj), 850);
+      },
+      onHover: (on) => {
+        if (slashing) return;
+        if (focus.name === "swords") on ? showSwordCard(swordObj) : hideSwordCard();
+        if (on) {
+          steel.visible = true;
+          gsap.fromTo(gold.emissive, { r: 0.55, g: 0.42, b: 0.1 }, { r: 0.12, g: 0.09, b: 0.02, duration: 0.6, ease: "power2.out", overwrite: true });
+          sfx.tick({ pitch: 1.8 });
+        } else gsap.to(gold.emissive, { r: 0, g: 0, b: 0, duration: 0.3, overwrite: true });
+        gsap.to(tierGroup.position, { y: on ? restY + 0.22 : restY, z: on ? 0.5 : 0.2, duration: on ? 0.3 : 0.35, ease: on ? "back.out(2)" : "power2.inOut", overwrite: true });
+        gsap.to(tierGroup.rotation, { z: on ? 0.035 : 0, duration: on ? 0.3 : 0.35, ease: "power2.out", overwrite: true });
+        gsap.to(drawPivot.rotation, {
+          z: on ? drawTurn(0.62) : 0,
+          duration: on ? 0.45 : 0.25,
+          delay: on ? 0.1 : 0,
+          ease: on ? "power2.out" : "power2.in",
+          overwrite: true,
+          onComplete: () => !on && !slashing && (steel.visible = false),
+        });
+      },
+      onClick: () => {
+        hideSwordCard();
+        gsap.to(tierGroup.position, { y: restY, z: 0.2, duration: 0.2, overwrite: true });
+        gsap.to(tierGroup.rotation, { z: 0, duration: 0.2, overwrite: true });
+        slashSword(swordObj);
+      },
+    });
+    swordObj.info = info;
+
+    return swordObj;
+  };
+
+  // Top: Wado Ichimonji
+  // Lit a little from within, so the toon shading keeps it white rather than grey
+  const wadoWhite = toon("#fbfaf6");
+  wadoWhite.emissive.set("#5a5a58");
+  buildKatana(RACK_TIERS[0], {
+    style: "wado",
+    info: {
+      name: "Wado Ichimonji", jp: "和道一文字", grade: "Ō Wazamono · 1 of the 21 Great Swords", color: "#fffdf5",
+      text: "Zoro's most treasured sword. It belonged to his childhood friend Kuina, and was forged by the legendary swordsmith Shimotsuki Kozaburo.",
+    },
+    bladeMat: wadoBladeMat,
+    sayaMat: wadoWhite,
+    tsukaMat: tsukaMat("#f8f7f2", "#1a1714"),
+    tsubaMaker: (gold) => {
+      const tsuba = new THREE.Group();
+      const disc = mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.03, 28), gold, { outline: 0.012 });
+      disc.rotation.z = Math.PI / 2;
+      const rim = mesh(new THREE.TorusGeometry(0.12, 0.012, 6, 28), toon("#a37b1c"), { outline: 0 });
+      rim.rotation.y = Math.PI / 2;
+      tsuba.add(disc, rim);
+      return tsuba;
+    },
+    // Olive-gold fittings and a plain white mouth, as on the reference
+    goldColor: "#b9a33c",
+    mouthRing: false,
+    addDetails: (blade, saya) => {
+      // The white sageo: two turns crossing round the saya a quarter of the way down, tied in a
+      // bow on the front, its two loops lying along the saya and two tails trailing back
+      // toward the mouth
+      const X = 0.58;
+      const y = bow(X);
+      const z = FRONT * 0.088;
+      [-1, 1].forEach((k) => {
+        const turn = sayaRing(saya, X + k * 0.03, 0.026, wadoWhite, 0.084);
+        turn.rotation.x = k * 0.38;
+      });
+      // each loop a puffed, flattened teardrop of ribbon, with a crease down its middle
+      const loop = (dx, dy, tilt) => {
+        const l = mesh(new THREE.SphereGeometry(0.08, 16, 10), wadoWhite, { outline: 0.008 });
+        l.scale.set(1, 0.5, 0.28);
+        l.add(at(mesh(rbox(0.11, 0.006, 0.02, 0.003), toon("#c9ccd2"), { outline: 0 }), 0, 0, FRONT * 0.09));
+        l.position.set(X + dx, y + dy, z);
+        l.rotation.z = tilt;
+        saya.add(l);
+      };
+      loop(0.085, 0.025, -0.25);
+      loop(-0.085, 0.025, 0.25);
+      saya.add(at(mesh(rbox(0.05, 0.05, 0.03, 0.012), wadoWhite, { outline: 0.008 }), X, y, z + FRONT * 0.01));
+      const tail = (dx, dy, len, tilt) => {
+        const t = mesh(rbox(0.036, len, 0.012, 0.006), wadoWhite, { outline: 0.007 });
+        t.position.set(X + dx, y + dy, z + FRONT * 0.012);
+        t.rotation.z = tilt;
+        saya.add(t);
+      };
+      tail(-0.06, -0.11, 0.22, -0.55);
+      tail(-0.13, -0.07, 0.26, -1.05);
+    },
+  });
+
+  // Middle: Sandai Kitetsu
+  const kitetsuRed = toon("#c81e1e");
+  buildKatana(RACK_TIERS[1], {
+    style: "kitetsu",
+    info: {
+      name: "Sandai Kitetsu", jp: "三代鬼徹", grade: "Wazamono · 1 of the 50 named swords", color: "#c81e1e", ink: "#fffdf5",
+      text: "A cursed blade (yōtō): every owner before is said to have met a tragic end. Zoro staked his life on his luck to test it in Loguetown, and the sword chose him.",
+    },
+    bladeMat: kitetsuBladeMat,
+    sayaMat: kitetsuRed,
+    tsukaMat: tsukaMat("#a3161c", "#1a1714"),
+    tsubaMaker: (gold) => {
+      const tsuba = new THREE.Group();
+      tsuba.add(mesh(rbox(0.035, 0.27, 0.22, 0.07), gold, { outline: 0.012 }));
+      // little lobes either side of the blade, like the reference's carved guard
+      [-1, 1].forEach((s) => tsuba.add(at(mesh(rbox(0.04, 0.07, 0.07, 0.025), gold, { outline: 0.008 }), 0, s * 0.15, 0)));
+      return tsuba;
+    },
+    addDetails: (blade, saya, gold) => {
+      tsukaRing(blade, -0.47, 0.06, gold);
+      // thin black lacquer rings down the saya, and a wrapped band in gold collars
+      const ring = toon("#1a1714");
+      [0.24, 0.42, 0.6, 1.4, 1.6, 1.8, 2.0, 2.18].forEach((x) => sayaRing(saya, x, 0.014, ring, 0.0765));
+      sayaRing(saya, 0.83, 0.05, gold, 0.088);
+      sayaRing(saya, 1.17, 0.05, gold, 0.088);
+      const wrap = mesh(new THREE.CylinderGeometry(0.081, 0.081, 0.29, 18), tsukaMat("#9b1218", "#1a1714"), { outline: 0.01 });
+      wrap.rotation.z = Math.PI / 2 + Math.atan(2 * SORI * 1.0 / BLADE_L ** 2);
+      wrap.position.set(1.0, bow(1.0), 0);
+      saya.add(wrap);
+    },
+  });
+
+  // Bottom: Enma
+  buildKatana(RACK_TIERS[2], {
+    style: "enma",
+    info: {
+      name: "Enma", jp: "閻魔", grade: "Ō Wazamono · 1 of the 21 Great Swords", color: "#6b2fa8", ink: "#fffdf5",
+      text: "Ranked with Wado Ichimonji. Once Kozuki Oden's, the only sword to scar Kaido; it pulls its wielder's Haki out of them, so only the strong can tame it.",
+    },
+    bladeMat: enmaBladeMat,
+    sayaMat: enmaPurple,
+    tsukaMat: enmaPurple,
+    tsubaMaker: (gold) => {
+      const tsuba = new THREE.Group();
+      [[0, 0.085], [0, -0.085], [0.085, 0], [-0.085, 0]].forEach(([y, z]) => {
+        const lobe = mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.04, 20), gold, { outline: 0.012 });
+        lobe.rotation.z = Math.PI / 2;
+        lobe.position.set(0, y, z);
+        tsuba.add(lobe);
+      });
+      return tsuba;
+    },
+    addDetails: (blade, saya, gold) => {
+      // gold bands up the handle, and its flower crest
+      [-0.3, -0.62].forEach((x) => tsukaRing(blade, x, 0.06, gold));
+      crest(blade, -0.46, 0, 0.056);
+      // flowers on the saya, a pair of gold bands near the tip
+      [0.62, 1.5, 1.82].forEach((x) => crest(saya, x, bow(x), 0.077));
+      sayaRing(saya, 1.2, 0.035, gold);
+      sayaRing(saya, 1.27, 0.035, gold);
+      // the red cord wound below the mouth, and two tassels hanging from it
+      sayaRing(saya, 0.32, 0.17, cord, 0.09);
+      [[0.3, -0.06], [0.4, 0.04]].forEach(([x, dz], i) => {
+        const top = new THREE.Vector3(x, bow(x) - 0.08, FRONT * (0.06 + dz));
+        const end = new THREE.Vector3(x + 0.05 + i * 0.03, -0.3 - i * 0.06, FRONT * (0.08 + dz));
+        const tasselCord = rod(top, end, 0.011, cord, 0.006);
+        const knot = mesh(new THREE.SphereGeometry(0.026, 10, 8), cord, { outline: 0.006 });
+        knot.position.copy(end);
+        const tassel = mesh(new THREE.CylinderGeometry(0.018, 0.045, 0.2, 10), cord, { outline: 0.01 });
+        tassel.position.set(end.x, end.y - 0.12, end.z);
+        saya.add(tasselCord, knot, tassel);
+      });
+    },
+  });
+
+  // ---------- a hybrid handheld console on a display stand, right of the gauntlet ----------
+  // (Switch-style, with an original logo and no product name on its screen)
+  // Handheld mode: the black tablet between a neon-blue and a neon-red Joy-Con, leaning back
+  // on a little black stand. Click it for a hop and a word from it.
+  const joyCon = (color, side) => {
+    const con = new THREE.Group();
+    con.add(mesh(rbox(0.25, 0.62, 0.1, 0.1), toon(color), { outline: 0.016 }));
+    const stickY = side < 0 ? 0.13 : -0.04;
+    const padY = side < 0 ? -0.04 : 0.13;
+    const stick = mesh(new THREE.CylinderGeometry(0.055, 0.06, 0.05, 16), black, { outline: 0.01 });
+    stick.rotation.x = Math.PI / 2;
+    con.add(at(stick, 0, stickY, 0.065));
+    // four face buttons (or arrow buttons) in a diamond
+    [[0, 0.055], [0, -0.055], [0.055, 0], [-0.055, 0]].forEach(([dx, dy]) => {
+      const b = mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.025, 10), black, { outline: 0.004 });
+      b.rotation.x = Math.PI / 2;
+      con.add(at(b, dx, padY + dy, 0.058));
+    });
+    // minus / plus
+    con.add(at(mesh(rbox(0.05, 0.014, 0.02, 0.006), black, { outline: 0 }), side * 0.02, 0.26, 0.055));
+    if (side > 0) con.add(at(mesh(rbox(0.014, 0.05, 0.02, 0.006), black, { outline: 0 }), side * 0.02, 0.26, 0.055));
+    return con;
+  };
+  const switchScreen = printed(0.98, 0.55, 300, (c, w, h) => {
+    const glow = c.createRadialGradient(w / 2, h * 0.45, 0, w / 2, h * 0.45, w * 0.6);
+    glow.addColorStop(0, "#2b3348");
+    glow.addColorStop(1, "#0d1018");
+    c.fillStyle = glow;
+    c.fillRect(0, 0, w, h);
+    // soft coloured swooshes behind the logo
+    [["#00b4e6", 0.1], ["#ff4554", 0.9]].forEach(([color, x]) => {
+      c.fillStyle = color;
+      c.globalAlpha = 0.18;
+      c.beginPath();
+      c.ellipse(w * x, h * 0.8, w * 0.35, h * 0.35, 0, 0, Math.PI * 2);
+      c.fill();
+    });
+    c.globalAlpha = 1;
+    // Our own boot logo: a rounded game pad badge with a star, and the room's name for it
+    const r = h * 0.17;
+    const cx = w / 2;
+    const cy = h * 0.4;
+    c.lineWidth = h * 0.028;
+    c.strokeStyle = "#ffffff";
+    c.fillStyle = "#ffffff";
+    c.beginPath();
+    c.roundRect(cx - r * 1.5, cy - r * 0.8, r * 3, r * 1.6, r * 0.8);
+    c.stroke();
+    // a d-pad on the left, two buttons on the right
+    c.fillRect(cx - r * 0.95, cy - r * 0.1, r * 0.6, r * 0.2);
+    c.fillRect(cx - r * 0.75, cy - r * 0.3, r * 0.2, r * 0.6);
+    [[0.75, -0.18], [0.45, 0.18]].forEach(([dx, dy]) => {
+      c.beginPath();
+      c.arc(cx + r * dx, cy + r * dy, r * 0.14, 0, Math.PI * 2);
+      c.fill();
+    });
+    c.fillStyle = "#ffdd00";
+    c.font = `900 ${Math.round(r * 0.7)}px sans-serif`;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText("★", cx, cy - r * 1.05);
+    c.fillStyle = "#ffffff";
+    c.font = `800 ${Math.round(h * 0.09)}px 'Lexend Mega', sans-serif`;
+    c.fillText("POCKET PLAY", w / 2, h * 0.74);
+  });
+  const switchConsole = group(
+    mesh(rbox(1.08, 0.62, 0.08, 0.04), toon("#24262b"), { outline: 0.016 }),
+    at(switchScreen, 0, 0, 0.041),
+    at(joyCon("#00b4e6", -1), -0.68, 0, 0),
+    at(joyCon("#ff4554", 1), 0.68, 0, 0),
+  );
+  // A small black stand: a slanted back plate and a lip the console sits on
+  const switchStand = group(
+    at(mesh(rbox(0.9, 0.06, 0.55, 0.02), black, { outline: 0.014 }), 0, 0.03, 0),
+    at(mesh(rbox(0.7, 0.5, 0.05, 0.02), black, { outline: 0.012 }), 0, 0.28, -0.18),
+    at(mesh(rbox(1.0, 0.08, 0.08, 0.02), black, { outline: 0.012 }), 0, 0.1, 0.12),
+  );
+  switchStand.children[1].rotation.x = -0.32;
+  switchConsole.position.set(0, 0.46, 0.04);
+  switchConsole.rotation.x = -0.28;
+  const nintendoSwitch = addItem(at(group(switchStand, switchConsole), 0.95, standOn(4), 0.05), "switch");
+  nintendoSwitch.rotation.y = -0.12;
+  // Its bubble's anchor: the top of the console; the bubble opens beside it (reach: half its
+  // width), its tail pointing back at the red Joy-Con's top corner
+  const switchBubbleAt = new THREE.Object3D();
+  switchBubbleAt.position.set(0, 0.85, 0.1);
+  nintendoSwitch.add(switchBubbleAt);
+  const SWITCH_LINES = ["one more run, I promise", "battery: 12%. still playing.", "kart race tonight?", "the kids want a turn", "save point reached ✓"];
+  let switchLine = 0;
+
+  // ---------- the Infinity Gauntlet, on the left of the shelf's top ----------
+  // Enlarged by 35%, under the sword rack, with the Switch on its stand to its right.
+  const GAUNTLET_X = -0.95;
   const gauntlet = new THREE.Group();
-  gauntlet.position.set(GAUNTLET_X, standOn(4), 0.1);
+  gauntlet.position.set(GAUNTLET_X, standOn(4), 0.05);
+  gauntlet.scale.setScalar(1.35);
   gauntlet.rotation.y = 0.15;
   shelf.add(gauntlet);
   // Antique gold in three tones (with the outlines, it stays flat and graphic)
@@ -2273,7 +3436,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
         // Perfectly balanced: a random half of everything in the room (bar the gauntlet and the
         // shelf it stands on), each with the colours its dust takes
         const everything = [
-          [[mug, coaster], ["#fffdf5", "#6f4e37", "#c8925a"]],
+          [[mug, coaster], ["#fffdf5", "#6f4e37", "#a8743f"]],
           [[mail], ["#e2cb9c", "#fffdf5", "#3b82f6"]],
           [[phoneStand], ["#f47b20", "#1a1714", "#ffdd00"]],
           [[plant], ["#16a34a", "#8fd694", "#ff7a1a"]],
@@ -2289,10 +3452,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
           [[clock], ["#7fb2ff", "#fffdf5", "#1a1714"]],
           [[tickets], ["#fffdf5", "#00e0c6", "#ffdd00"]],
           [[folders], ["#ff90e8", "#ffdd00", "#8fd694", "#7fb2ff"]],
-          [[gym], ["#ffdd00", "#ff90e8", "#9ca3af"]],
-          [[gymCalendar], ["#ff7a1a", "#fffdf5", "#8fd694"]],
+          [[gym], ["#8b9099", "#6b7079", "#9ca3af"]],
           [[hatPeg], ["#f2c14e", "#d62828"]],
-          [[katanaStand], ["#6b2fa8", "#d4a72c", "#1a1714"]],
+          [[katanaRack], ["#6b2fa8", "#b91c1c", "#fffdf5", "#d4a72c", "#181513"]],
           [[windowGroup], ["#ffffff", "#7fdfff", "#8fd694"]],
           [[catModel], ["#ff9f45", "#d9741f", "#fffdf5"]],
         ];
@@ -2333,12 +3495,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
     case: () => sfx.tick({ pitch: 0.9 }),
     figure: () => sfx.pop({ pitch: 1.3 }),
     trophy: () => sfx.ping(),
+    robot: () => {},
+    rubik: () => sfx.click(),
+    switch: () => sfx.blip(),
   };
   const itemFor = (obj) => shelfItems.find(({ obj: item }) => {
     for (let o = obj; o; o = o.parent) if (o === item) return true;
     return false;
   });
-  // Zoomed in on the shelf: the console switches on and starts Snake on the monitor, a
+  // Zoomed in on the shelf: the console switches on and boots its game on the monitor, a
   // controller buzzes and hints at a cheat code, the trophy reads out the secrets found
   // One bubble, out on the wall to the right of what was clicked, its tail pointing straight
   // across at it (the tip sits at the bubble's left edge, 0.47 of its width from the middle)
@@ -2346,25 +3511,30 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const shelfBubbleAt = new THREE.Vector3();
   const shelfBubblePrint = { size: 40, tail: "side-left", style: "manga" };
   const shelfBubble = speechBubble(SHELF_BUBBLE_W, 1.42, shelfBubblePrint);
-  function shelfSay(obj, text, by = "the shelf", hold = 3200, lift = 0.3) {
+  // `reach`: half the width of what's speaking, so the bubble starts beyond its side
+  function shelfSay(obj, text, by = "the shelf", hold = 3200, lift = 0.3, reach = 0) {
     obj.getWorldPosition(shelfBubbleAt);
-    const left = container.clientWidth < 900 && shelfBubbleAt.clone().project(camera).x > 0;
+    // To the right if it fits on screen, else to the left; if neither, whichever has more room
+    const spot = (side) => shelfBubbleAt.clone().add(new THREE.Vector3((SHELF_BUBBLE_W * 0.47 + 0.15 + reach) * side, lift, 0.3));
+    const fits = (side) => Math.abs(spot(side).add(new THREE.Vector3((side * SHELF_BUBBLE_W) / 2, 0, 0)).project(camera).x) <= 0.97;
+    const left = fits(1) ? false : fits(-1) || shelfBubbleAt.clone().project(camera).x > 0;
     shelfBubblePrint.tail = left ? "side-right" : "side-left";
-    shelfBubble.sprite.position.copy(shelfBubbleAt).add(new THREE.Vector3((SHELF_BUBBLE_W * 0.47 + 0.15) * (left ? -1 : 1), lift, 0.3));
+    shelfBubble.sprite.position.copy(spot(left ? -1 : 1));
     shelfBubble.say({ text, by }, hold);
   }
   function powerConsole() {
     discover("console");
     sfx.power({ duration: 0.8 });
     led.material.color.set("#8fdcff");
-    gsap.fromTo(led.scale, { x: 3, y: 3, z: 3 }, { x: 1.4, y: 1.4, z: 1.4, duration: 0.6, ease: "back.out(3)" });
+    // Lights up along its length, never past the console's ends: it only thickens and glows
+    gsap.fromTo(led.scale, { x: 1, y: 3, z: 3 }, { x: 1, y: 1.4, z: 1.4, duration: 0.6, ease: "back.out(3)" });
     [pad1, pad2].forEach((pad, i) => gsap.fromTo(pad.rotation, { z: 0.08 }, { z: 0, duration: 0.5, delay: i * 0.08, ease: "elastic.out(1.5, 0.15)" }));
     shelfBubble.hide();
-    // Off to the monitor, where Snake is waiting
+    // Off to the monitor, which turns into its TV: the console boots into Straw Hat Dash
     timers.push(setTimeout(() => {
       setFocus("monitor");
       timers.push(setTimeout(() => {
-        desktop.launch("snake");
+        desktop.playConsole();
         redrawScreen();
       }, 900));
     }, 900));
@@ -2373,7 +3543,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const x = pad.position.x;
     gsap.fromTo(pad.position, { x: x - 0.04 }, { x, duration: 0.05, repeat: 7, yoyo: true, ease: "none", onComplete: () => (pad.position.x = x) });
     sfx.patter({ duration: 0.35 });
-    shelfSay(pad, "↑ ↑ ↓ ↓ ← → ← → B A", "try it on the keyboard", 3200, 0);
+    shelfSay(pad, "↑ ↑ ↓ ↓ ← → ← → B A", "try it on the keyboard", 3200, 0, 0.62);
   }
   register(shelf, {
     focus: "shelf",
@@ -2388,11 +3558,18 @@ export function createDeskScene({ container, projects, experiences, dark = false
       if (!item) return sfx.knock({ strength: 0.6 });
       if (item.obj === consoleBody) powerConsole();
       else if (item.obj === pad1 || item.obj === pad2) buzzController(item.obj);
+      else if (item.obj === rubikItem) playRubik();
+      else if (item.obj === robot) pokeRobot();
+      else if (item.obj === nintendoSwitch) {
+        // the screen flashes up bright, and it has something to say
+        gsap.fromTo(switchScreen.material.color, { r: 1.6, g: 1.6, b: 1.6 }, { r: 1, g: 1, b: 1, duration: 0.6 });
+        shelfSay(switchBubbleAt, SWITCH_LINES[switchLine++ % SWITCH_LINES.length], "the handheld", 3000, 0, 0.85);
+      }
       else if (item.obj === trophy) {
         // The score, and a hint toward one of the secrets still to find
         const left = SECRETS.filter((id) => !secretsFound.has(id));
         const text = left.length ? `${secretsFound.size}/${SECRETS.length} found. Hint: ${SECRET_HINTS[left[Math.floor(Math.random() * left.length)]]}` : "ALL SECRETS FOUND! 🏆";
-        shelfSay(trophy, text, "the trophy", 4500, 0.5);
+        shelfSay(trophy, text, "the trophy", 4500, 0.5, 0.55);
       }
       // Always from where it rests: a click mid-hop must not start the next hop higher up
       const y = item.obj.userData.restY;
@@ -2429,7 +3606,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     gym.add(db);
     return db;
   };
-  const dumbbells = [dumbbell("#ffdd00", -0.45, -0.3, 0.25), dumbbell("#ff90e8", 0.5, 0.35, -0.15)];
+  // Cast iron grey, one a shade darker than the other
+  const dumbbells = [dumbbell("#8b9099", -0.45, -0.3, 0.25), dumbbell("#6b7079", 0.5, 0.35, -0.15)];
   const repTex = canvasTexture(320, 160);
   track(repTex.texture);
   const repBadge = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: repTex.texture, depthTest: false, transparent: true })));
@@ -2438,7 +3616,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   repBadge.scale.set(0.001, 0.001, 1);
   repBadge.position.set(gym.position.x, FLOOR_Y + 2.7, gym.position.z);
   scene.add(repBadge);
-  // Confetti for a PR (and for stamping the calendar): a pool of little coloured squares
+  // Confetti for a PR: a pool of little coloured squares
   const confetti = Array.from({ length: 22 }, (_, i) => {
     const bit = new THREE.Sprite(track(new THREE.SpriteMaterial({ color: PALETTE[i % 7], transparent: true, depthWrite: false })));
     bit.visible = false;
@@ -2498,48 +3676,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
     sfx.whoosh({ duration: 0.3 });
   }
   register(gym, { onHover: hoverScale(gym, 1.03), onClick: lift });
-
-  // ---------- gym streak calendar on the wall above the game shelf ----------
-  // This month's training days stamped in; click to stamp today and grow the streak. Today's
-  // stamp is remembered on this device.
-  const gymNow = new Date();
-  const dayKey = `gym-${gymNow.getFullYear()}-${gymNow.getMonth() + 1}-${gymNow.getDate()}`;
-  const trained = new Set();
-  for (let d = 1; d < gymNow.getDate(); d++) {
-    // A rest day or two a week, but the last few days all done: a streak worth keeping
-    if (d >= gymNow.getDate() - 9 || (d % 7 !== 0 && d % 7 !== 3)) trained.add(d);
-  }
-  try {
-    if (localStorage.getItem(dayKey)) trained.add(gymNow.getDate());
-  } catch {
-    // Without storage today just isn't stamped yet
-  }
-  const gymCalendar = new THREE.Group();
-  gymCalendar.position.set(shelf.position.x, FLOOR_Y + SHELF_H + 2.6, WALL_Z + 0.2);
-  scene.add(gymCalendar);
-  const calendarBack = mesh(rbox(2.75, 2.35, 0.06, 0.03), toon("#1a1714"), { outline: 0.03 });
-  const calendarPage = printed(2.6, 2.2, 260, (c, w, h) => drawGymCalendar(c, w, h, { done: trained }));
-  calendarPage.position.z = 0.035;
-  const calendarClip = mesh(rbox(0.6, 0.22, 0.12, 0.04), toon("#1a1714"), { outline: 0.02 });
-  calendarClip.position.set(0, 1.15, 0.06);
-  gymCalendar.add(calendarBack, calendarPage, calendarClip);
-  register(gymCalendar, {
-    onHover: (on) => on && gsap.fromTo(gymCalendar.rotation, { z: 0.03 }, { z: 0, duration: 0.8, ease: "elastic.out(1, 0.3)" }),
-    onClick: () => {
-      gsap.fromTo(gymCalendar.rotation, { z: 0.07 }, { z: 0, duration: 1.1, ease: "elastic.out(1, 0.25)" });
-      if (trained.has(gymNow.getDate())) return sfx.tick({ pitch: 0.8 });
-      trained.add(gymNow.getDate());
-      try {
-        localStorage.setItem(dayKey, "1");
-      } catch {
-        // Stamped for this visit only
-      }
-      calendarPage.userData.tex.redraw();
-      gsap.fromTo(gymCalendar.scale, { x: 1.08, y: 1.08 }, { x: 1, y: 1, duration: 0.5, ease: "back.out(3)" });
-      burst(gymCalendar.position.x, gymCalendar.position.y, gymCalendar.position.z + 0.6);
-      sfx.stamp();
-    },
-  });
 
   // ---------- monitor + terminal ----------
   const monitor = new THREE.Group();
@@ -2725,6 +3861,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const lofi = createLofi({
     onHit: (kind) => {
       speakers.forEach((speaker) => pump(speaker, kind === "kick" ? 0.7 : 0.35));
+      robotBeat(kind);
       if (kind === "snare" && Math.random() < 0.5) floatNote(speakers[noteSide++ % speakers.length]);
     },
     onTrack: (i) => {
@@ -2919,12 +4056,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
   timers.push(setTimeout(welcome, 1500));
 
   const showTerminal = () => {
+    desktop.exitConsole();
     if (desktop.active() === "terminal") return;
     desktop.launch("terminal");
     redrawScreen();
   };
   register(monitor, {
     focus: "monitor",
+    // Leaving the screen switches the console off
+    onLeave: () => desktop.exitConsole() && redrawScreen(),
     onEnter: () => {
       termAlert = false;
       welcome();
@@ -2940,10 +4080,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
       const moved = hit ? desktop.hover(hit.uv.x * SCREEN_W, (1 - hit.uv.y) * SCREEN_H) : desktop.hover(null);
       if (moved) redrawScreen();
     },
-    // Snake or Spotifree up front take their keys; anything else typed goes to the terminal
+    // The console, Snake or Spotifree up front take their keys; anything else goes to the terminal
     onKey: (e) => {
       if (focus.name !== "monitor") return false;
-      // Snake up front takes the arrows and WASD
+      // The console takes every key; Snake up front takes the arrows and WASD
       if (desktop.key(e)) {
         redrawScreen();
         return true;
@@ -4639,9 +5779,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // On a cork coaster, a little closer to the envelope
   const MUG_Y = 0.06;
   mug.position.set(5.5, MUG_Y, 0.95);
-  const coaster = mesh(new THREE.CylinderGeometry(0.74, 0.74, 0.06, 32), toon("#c8925a"), { outline: 0.03, cast: false });
+  const coaster = mesh(new THREE.CylinderGeometry(0.74, 0.74, 0.06, 32), toon("#a8743f"), { outline: 0.03, cast: false });
   coaster.position.set(mug.position.x, 0.03, mug.position.z);
-  const coasterRing = new THREE.Mesh(track(new THREE.TorusGeometry(0.6, 0.02, 6, 40)), track(new THREE.MeshBasicMaterial({ color: "#8a5a2b" })));
+  const coasterRing = new THREE.Mesh(track(new THREE.TorusGeometry(0.6, 0.02, 6, 40)), track(new THREE.MeshBasicMaterial({ color: "#6e4520" })));
   coasterRing.rotation.x = Math.PI / 2;
   coasterRing.position.set(mug.position.x, 0.062, mug.position.z);
   coasterRing.raycast = noRaycast;
@@ -4675,22 +5815,74 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const handle = mesh(new THREE.TorusGeometry(0.28, 0.08, 10, 20, Math.PI), mugMat, { outline: 0.04 });
   handle.rotation.z = -Math.PI / 2;
   handle.position.set(0.46, 0.58, 0);
-  // Steam: little puffs drifting up and shrinking away, forever
-  const puffGeo = track(new THREE.SphereGeometry(0.09, 12, 8));
-  const puffMat = toon("#ffffff");
-  const puffs = [];
-  for (let i = 0; i < 3; i++) {
-    const puff = mesh(puffGeo, puffMat, { outline: 0.02, cast: false });
-    puff.raycast = noRaycast;
-    puffs.push(puff);
-    mug.add(puff);
-    gsap.fromTo(
-      puff.position,
-      { x: (i - 1) * 0.12, y: 1.05, z: 0 },
-      { x: (i - 1) * 0.12 + 0.15, y: 2.0, duration: 2.2, delay: i * 0.73, repeat: -1, ease: "sine.inOut" },
-    );
-    gsap.fromTo(puff.scale, { x: 0.4, y: 0.4, z: 0.4 }, { keyframes: [{ x: 1.2, y: 1.2, z: 1.2, duration: 1.1 }, { x: 0.01, y: 0.01, z: 0.01, duration: 1.1 }], delay: i * 0.73, repeat: -1 });
+  // Steam: three cartoon squiggles rising off the coffee, redrawn as they go. Each one is a
+  // wavy white stroke with a soft grey edge that curls up out of the cup, sways as it climbs
+  // and thins away at the top, staggered so the next is always on its way.
+  const STEAM_W = 128;
+  const STEAM_H = 256;
+  const steamTex = canvasTexture(STEAM_W, STEAM_H);
+  track(steamTex.texture);
+  const steam = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: steamTex.texture, transparent: true, depthWrite: false })));
+  steam.raycast = noRaycast;
+  steam.center.set(0.5, 0);
+  steam.scale.set(0.8, 1.6, 1);
+  steam.position.set(0, 1.08, 0);
+  mug.add(steam);
+  const puffs = [steam];
+  const WISPS = [{ x: 0.3, phase: 0 }, { x: 0.52, phase: 0.36 }, { x: 0.72, phase: 0.7 }];
+  const STEAM_PERIOD = 2.6;
+  let steamDrawnAt = 0;
+  // Each wisp is drawn solid here, then laid onto the texture at its own opacity
+  const wispLayer = document.createElement("canvas");
+  wispLayer.width = STEAM_W;
+  wispLayer.height = STEAM_H;
+  const wc = wispLayer.getContext("2d");
+  wc.lineCap = "round";
+  wc.lineJoin = "round";
+  function updateSteam(now) {
+    if (!steam.visible || now - steamDrawnAt < 33) return;
+    steamDrawnAt = now;
+    const c = steamTex.ctx;
+    c.clearRect(0, 0, STEAM_W, STEAM_H);
+    c.lineCap = "round";
+    c.lineJoin = "round";
+    const t = now / 1000;
+    WISPS.forEach(({ x, phase }) => {
+      const p = (t / STEAM_PERIOD + phase) % 1;
+      // The stroke spans a window that climbs the canvas: born at the cup, gone at the top
+      const head = p * 1.3;
+      const tail = Math.max(0, head - 0.55);
+      if (tail >= 1) return;
+      const points = [];
+      for (let f = tail; f <= Math.min(1, head); f += 0.02) {
+        const sway = Math.sin(f * 9 - t * 3 + phase * 7) * (0.06 + f * 0.1);
+        points.push([(x + sway) * STEAM_W, (1 - f) * STEAM_H]);
+      }
+      if (points.length < 2) return;
+      // fades in near the cup and out toward the top
+      const alpha = Math.min(1, p / 0.15) * Math.min(1, (1 - tail) / 0.45);
+      // Segment by segment, so the stroke swells in the middle and tapers at both ends
+      const trace = (color, extra) => {
+        wc.strokeStyle = color;
+        for (let i = 1; i < points.length; i++) {
+          const k = i / (points.length - 1);
+          wc.lineWidth = 4 + Math.sin(k * Math.PI) * 11 + extra;
+          wc.beginPath();
+          wc.moveTo(points[i - 1][0], points[i - 1][1]);
+          wc.lineTo(points[i][0], points[i][1]);
+          wc.stroke();
+        }
+      };
+      wc.clearRect(0, 0, STEAM_W, STEAM_H);
+      trace("#b4bcc6", 5);
+      trace("#ffffff", 0);
+      c.globalAlpha = alpha * 0.92;
+      c.drawImage(wispLayer, 0, 0);
+    });
+    c.globalAlpha = 1;
+    steamTex.texture.needsUpdate = true;
   }
+
   mug.add(mugBody, rimLine, coffee, crema, handle);
 
   // Sipping: each click drinks a bit and a quote pops up over the mug. Finish the cup and the
@@ -4705,7 +5897,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     gsap.to(coffee.scale, { x: r / 0.405, z: r / 0.405, duration });
     gsap.to(crema.position, { y: y + 0.015, duration });
     gsap.to(crema.scale, { x: r / 0.405, y: r / 0.405, duration });
-    puffs.forEach((puff) => (puff.visible = level > 0));
+    // Steam only rises off a full cup
+    puffs.forEach((puff) => (puff.visible = level >= 1));
   }
   // Move back as well as up: the high camera angle compresses vertical separation.
   // Just above and left of the mug as the (mostly top-down) mug shot sees it, tail to the rim
@@ -4718,6 +5911,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   function sip() {
     if (sipping || sipsLeft === 0) return;
     sipping = true;
+    // No steam while it's at your lips (nor after: it's no longer full)
+    puffs.forEach((puff) => (puff.visible = false));
     // Lift and tip the rim toward you, then put it back down
     gsap
       .timeline({ onComplete: () => (sipping = false) })
@@ -4753,9 +5948,20 @@ export function createDeskScene({ container, projects, experiences, dark = false
   }
   register(mug, {
     focus: "mug",
+    onHover: (on) => {
+      if (sipping) return;
+      gsap.to(mug.position, { y: on ? MUG_Y + 0.08 : MUG_Y, duration: 0.22, ease: on ? "back.out(2.5)" : "power2.out" });
+      gsap.to(mug.scale, { x: on ? 1.06 : 1, y: on ? 1.06 : 1, z: on ? 1.06 : 1, duration: 0.22, ease: on ? "back.out(2.5)" : "power2.out" });
+    },
     onArrive: sip,
     onClick: sip,
-    onLeave: hideBubble,
+    onLeave: () => {
+      hideBubble();
+      if (!sipping) {
+        gsap.to(mug.position, { y: MUG_Y, duration: 0.2 });
+        gsap.to(mug.scale, { x: 1, y: 1, z: 1, duration: 0.2 });
+      }
+    },
   });
 
   // Lightweight contact-shadow approximations supplement the directional shadows.
@@ -4904,10 +6110,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     renderer.domElement.style.cursor = entry?.sticky || (entry?.note && focus.name === "about") ? "grab" : entry ? "pointer" : "default";
   };
   let shelfDrag = null;
-  function browseShelf(y) {
+  function browseShelf(y, instant = false) {
     shelfLook = THREE.MathUtils.clamp(y, 1.7, 9);
     shelfBubble.hide();
-    applyShot(false, 0.22);
+    applyShot(instant, instant ? 0 : 0.22);
   }
   function finishShelfDrag(pointerId = null) {
     if (!shelfDrag || (pointerId !== null && shelfDrag.pointerId !== pointerId)) return null;
@@ -4946,7 +6152,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       if (!shelfDrag.moved && Math.hypot(e.clientX - shelfDrag.startX, dy) < 6) return;
       shelfDrag.moved = true;
       renderer.domElement.style.cursor = "grabbing";
-      browseShelf(shelfDrag.startLook + dy * shelfDrag.unitsPerPixel);
+      browseShelf(shelfDrag.startLook + dy * shelfDrag.unitsPerPixel, true);
       e.preventDefault();
       return;
     }
@@ -5178,7 +6384,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
       const fit = [container.clientWidth < 900 ? 5.4 : 6.8, 4.6];
       const visibleH = Math.max(fit[1], fit[0] * container.clientHeight / container.clientWidth);
       const bottom = visibleH / 2 - (container.clientWidth < 600 ? 1.2 : 0.5);
-      const top = Math.max(bottom, gymCalendar.position.y - FLOOR_Y + 1.5 - visibleH / 2);
+      const shelfTop = (FLOOR_Y + SHELF_H + SHELF_TOP_EXTRA);
+      const top = Math.max(bottom, shelfTop - FLOOR_Y + 1.5 - visibleH / 2);
       const y = bottom + (shelfLook - 1.7) / 7.3 * (top - bottom);
       return { target: [shelf.position.x + 0.35, FLOOR_Y + y, shelf.position.z], dir: [0.24, 0.1, 1], fit, depth: 1.6 };
     },
@@ -5213,9 +6420,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
     },
     family: () => {
       familyFrame.updateWorldMatrix(true, false);
-      familyFrame.localToWorld(screenPos.set(0, 1.06, 0.1));
+      familyFrame.localToWorld(screenPos.set(0, 1.1, 0.1));
       familyFrame.getWorldDirection(screenNormal);
-      return { target: screenPos.toArray(), dir: screenNormal.toArray(), fit: [1.55, 2.3], depth: 0.9 };
+      return { target: screenPos.toArray(), dir: screenNormal.toArray(), fit: [1.6, 2.15], depth: 0.9 };
     },
     // Face-on to the phone's screen, whatever angle the stand holds it at
     chat: () => {
@@ -5230,14 +6437,20 @@ export function createDeskScene({ container, projects, experiences, dark = false
       mail.localToWorld(screenPos.set(POSTCARD_OUT.x, POSTCARD_OUT.y, (POSTCARD_OUT.z + ENVELOPE_SETTLE.z) / 2));
       return { target: screenPos.toArray(), dir: [0.02, 1, 0.25], fit: cardReady ? [2.2, 1.95] : [2.45, 3.5] };
     },
+    // The sword rack, with room on its left for a sword's card and above it for a slash
+    swords: () => {
+      katanaRack.getWorldPosition(screenPos);
+      return { target: [screenPos.x - 1.6, screenPos.y + 0.7, screenPos.z], dir: [0.12, 0.08, 1], fit: [10.2, 6.0], depth: 3.5 };
+    },
     // Close on the gauntlet for the snap, from a little to its right and above
     gauntlet: () => {
       // Framed for the glove hovering above its plinth
       gauntlet.localToWorld(screenPos.set(0, 1.25, 0));
-      return { target: screenPos.toArray(), dir: [0.3, 0.3, 1], fit: [2.6, 3.2], depth: 3 };
+      return { target: screenPos.toArray(), dir: [0.3, 0.3, 1], fit: [3.5, 4.3], depth: 3.8 };
     },
     // Square on the window in the left wall. A shallow clip: the desk's left end sits close to it.
-    window: () => ({ target: [windowGroup.position.x + 0.1, windowGroup.position.y, windowGroup.position.z], dir: [1, 0.08, 0.04], fit: [5.2, 5.4], depth: 1.2 }),
+    // The window, with its weather card on the wall to its left
+    window: () => ({ target: [windowGroup.position.x + 0.1, windowGroup.position.y + 0.15, windowGroup.position.z + 1.55], dir: [1, 0.08, 0.04], fit: [8.6, 6.2], depth: 1.4 }),
     monitor: () => ({ target: [-0.2, 2.63, -2.66], dir: [0.1, 0.32, 1], fit: [5.2, 3.4] }),
     keyboard: () => ({ target: [0.2, 0.3, 0.75], dir: [0.1, 1, 0.75], fit: [5.4, 2.6] }),
     // A higher angle pushes the plant above the frame and leaves room for the sip quote.
@@ -5258,19 +6471,42 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const zoom = shot.fit ? Math.min(viewW / shot.fit[0], viewH / shot.fit[1]) : 1;
     const near = shot.fit ? CAM_DISTANCE - (shot.depth ?? CLOSE_UP_DEPTH) : 0.1;
     const to = { tx: shot.target[0], ty: shot.target[1], tz: shot.target[2], dx: d.x, dy: d.y, dz: d.z, zoom, near };
-    gsap.killTweensOf(cam);
-    if (instant) Object.assign(cam, to);
-    else gsap.to(cam, { ...to, duration, ease: "power3.inOut" });
+    if (instant) {
+      gsap.killTweensOf(cam);
+      Object.assign(cam, to);
+    } else if (focus.name === "shelf" && duration <= 0.25) {
+      Object.assign(cam, { tx: to.tx, tz: to.tz, dx: to.dx, dy: to.dy, dz: to.dz, zoom: to.zoom, near: to.near });
+    } else {
+      gsap.killTweensOf(cam);
+      gsap.to(cam, { ...to, duration, ease: "power3.inOut" });
+    }
+  }
+
+  // Where the shelf's close-up looks (its scroll, 1.7–9) to centre a height in the world
+  function shelfLookAt(worldY) {
+    const fit = [container.clientWidth < 900 ? 5.4 : 6.8, 4.6];
+    const visibleH = Math.max(fit[1], fit[0] * container.clientHeight / container.clientWidth);
+    const bottom = visibleH / 2 - (container.clientWidth < 600 ? 1.2 : 0.5);
+    const shelfTop = (FLOOR_Y + SHELF_H + SHELF_TOP_EXTRA);
+    const top = Math.max(bottom, shelfTop - FLOOR_Y + 1.5 - visibleH / 2);
+    const norm = top > bottom ? (worldY - FLOOR_Y - bottom) / (top - bottom) : 0;
+    return THREE.MathUtils.clamp(1.7 + norm * 7.3, 1.7, 9);
   }
 
   let arriveTimer = null;
-  function setFocus(name) {
+  function setFocus(name, hit = null) {
     if (focus.name === name) return;
     stopTyping();
     byFocus.get(focus.name)?.onLeave?.();
     clearTimeout(arriveTimer);
     focus.name = name;
-    if (name === "shelf") shelfLook = 1.7;
+    if (name === "shelf") {
+      if (hit?.point) {
+        shelfLook = shelfLookAt(hit.point.y);
+      } else {
+        shelfLook = 1.7;
+      }
+    }
     catSettle();
     applyShot();
     sfx.whoosh({ duration: 0.45, up: name !== "overview" });
@@ -5309,7 +6545,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       return hs ? runHotspot(hs, entry) : entry.onClick?.(hit);
     }
     entry.onEnter?.(hit);
-    setFocus(entry.focus);
+    setFocus(entry.focus, hit);
   }
 
   // ---------- sizing & loop ----------
@@ -5350,6 +6586,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
     poseFolders();
     parallax.x += (parallax.tx - parallax.x) * 0.06;
     parallax.y += (parallax.ty - parallax.y) * 0.06;
+    if (focus.name === "shelf" && !shelfDrag && !gsap.isTweening(cam)) {
+      const shot = SHOTS.shelf();
+      const blend = 1 - Math.exp(-14 * dt);
+      cam.ty += (shot.target[1] - cam.ty) * blend;
+    }
     // Parallax shrinks as we zoom in so close-ups stay readable
     const sway = focus.name === "about" ? 0 : 1 / Math.sqrt(cam.zoom);
     dir.set(cam.dx + parallax.x * 0.08 * sway, cam.dy - parallax.y * 0.05 * sway, cam.dz).normalize();
@@ -5377,6 +6618,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
       windowView.userData.tex.redraw();
     }
     plant.rotation.z = Math.sin(now / 1400) * 0.015;
+    updateSteam(now);
+    updateLampGlow();
+    updateRobot(now);
+    if (now - handheldDrawnAt > 90) {
+      handheldDrawnAt = now;
+      handheldScreen.userData.tex.redraw(now / 1000);
+    }
     updateButterfly(dt, now);
     if (!mouseRunning) {
       mouse.position.x += (mouseAim.x - mouse.position.x) * 0.18;

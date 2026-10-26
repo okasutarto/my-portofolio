@@ -1,7 +1,9 @@
 // Spotifree's music: lo-fi hip hop synthesized live with WebAudio, so there are no audio
 // files to host or license. Each track is a four-chord loop played by a wobbly electric piano,
-// a round bass, a lazy swung beat and a sparse bell melody, all through a dull
-// low-pass so it sounds like an old tape.
+// a round bass, a swung beat and a sparse lead, all through a dull low-pass so it sounds like
+// an old tape. Every track has its own `style`, so they don't all sound alike: its beat
+// (kick and snare steps, hats), how the piano plays the chords (held, stabbed or broken into
+// an arpeggio), the bass line, the lead's instrument, the swing and the tape's tone.
 import { audioBus } from "@/composables/useSfx";
 
 // Chords are [bass root, ...voicing] as MIDI notes; the melody picks from `scale`
@@ -14,6 +16,8 @@ export const TRACKS = [
     scale: [72, 74, 76, 79, 81, 84],
     colors: ["#7fb2ff", "#1a1714", "#ffdd00"],
     seed: 3,
+    // the classic: held chords, a lazy boom-bap and a bell
+    style: { kicks: [0, 7, 10], snares: [4, 12], hats: 2, keys: "held", bass: "root", lead: "bell", density: 0.22, swing: 0.2, tape: 3400 },
   },
   {
     title: "Coffee Over Code",
@@ -23,15 +27,19 @@ export const TRACKS = [
     scale: [74, 76, 79, 81, 84, 86],
     colors: ["#ffb35c", "#1a1714", "#ff90e8"],
     seed: 11,
+    // brighter and bouncier: off-beat piano stabs, busy hats, a walking bass and a plucked lead
+    style: { kicks: [0, 3, 8, 11], snares: [4, 12], hats: 1, keys: "stabs", bass: "walk", lead: "pluck", density: 0.3, swing: 0.12, tape: 4600 },
   },
   {
     title: "Rainy Deploy",
     artist: "staging & chill",
-    bpm: 70,
+    bpm: 66,
     chords: [[45, 55, 60, 64, 67], [41, 57, 60, 64, 65], [36, 55, 59, 64, 67], [43, 55, 59, 62, 64]],
     scale: [69, 72, 74, 76, 79, 81],
     colors: ["#00e0c6", "#1a1714", "#fffdf5"],
     seed: 23,
+    // slow and hazy: broken-chord piano, a sparse beat with a rim click, a soft flute and rain
+    style: { kicks: [0, 10], snares: [12], rim: true, hats: 4, keys: "arp", bass: "long", lead: "flute", density: 0.16, swing: 0.25, tape: 2400, rain: true },
   },
   {
     title: "Merge Conflict",
@@ -41,6 +49,8 @@ export const TRACKS = [
     scale: [70, 72, 75, 77, 79, 82],
     colors: ["#ff90e8", "#1a1714", "#8fd694"],
     seed: 41,
+    // heavier half-time: a double kick, one big snare, chopped piano, pulsing bass, a chip lead
+    style: { kicks: [0, 2, 7, 8, 11], snares: [12], ghost: [4], hats: 1, openHat: 14, keys: "chops", bass: "pulse", lead: "chip", density: 0.26, swing: 0.08, tape: 3000 },
   },
 ];
 const BARS = 40;
@@ -84,7 +94,7 @@ export function createLofi({ onHit = () => {}, onTrack = () => {} } = {}) {
     wobbleDepth.gain.value = 9; // cents
     wobble.connect(wobbleDepth);
     wobble.start();
-    graph = { ctx, input, analyser, wobbleDepth, noiseBuffer, bins: new Uint8Array(analyser.frequencyBinCount) };
+    graph = { ctx, input, tape, analyser, wobbleDepth, noiseBuffer, bins: new Uint8Array(analyser.frequencyBinCount) };
     return graph;
   }
 
@@ -150,6 +160,48 @@ export function createLofi({ onHit = () => {}, onTrack = () => {} } = {}) {
       voice(osc, gain, t + 1.2);
     });
   }
+  // A plucked string: a filtered sawtooth that dies away fast
+  function pluck(g, t, midi) {
+    const gain = env(g, t, 0.05, 0.004, 0.35);
+    const tone = g.ctx.createBiquadFilter();
+    tone.type = "lowpass";
+    tone.frequency.setValueAtTime(2600, t);
+    tone.frequency.exponentialRampToValueAtTime(500, t + 0.3);
+    const osc = g.ctx.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.value = hz(midi);
+    osc.connect(tone).connect(gain).connect(g.input);
+    voice(osc, gain, t + 0.45);
+  }
+  // A breathy flute: a sine that swells in, with a little vibrato and a breath of noise
+  function flute(g, t, midi) {
+    const gain = env(g, t, 0.04, 0.12, 0.9);
+    gain.connect(g.input);
+    const osc = g.ctx.createOscillator();
+    osc.frequency.value = hz(midi - 12);
+    const vib = g.ctx.createOscillator();
+    vib.frequency.value = 5;
+    const vibDepth = g.ctx.createGain();
+    vibDepth.gain.value = 14;
+    vib.connect(vibDepth).connect(osc.detune);
+    osc.connect(gain);
+    voice(osc, gain, t + 1.1);
+    voice(vib, gain, t + 1.1);
+    hiss(g, t, { type: "bandpass", freq: hz(midi - 12) * 2, q: 4, peak: 0.012, decay: 0.5 });
+  }
+  // An 8-bit lead: a soft square
+  function chip(g, t, midi) {
+    const gain = env(g, t, 0.022, 0.004, 0.22);
+    const tone = g.ctx.createBiquadFilter();
+    tone.type = "lowpass";
+    tone.frequency.value = 2400;
+    const osc = g.ctx.createOscillator();
+    osc.type = "square";
+    osc.frequency.value = hz(midi);
+    osc.connect(tone).connect(gain).connect(g.input);
+    voice(osc, gain, t + 0.3);
+  }
+  const LEADS = { bell, pluck, flute, chip };
   function kick(g, t) {
     const gain = env(g, t, 0.85, 0.004, 0.32);
     const osc = g.ctx.createOscillator();
@@ -192,31 +244,55 @@ export function createLofi({ onHit = () => {}, onTrack = () => {} } = {}) {
     s = (s * 16807) % 2147483647;
     return s / 2147483647;
   }
-  const KICKS = [0, 7, 10];
   function scheduleStep(g, track, n, t) {
     const len = stepLength(track);
+    const style = track.style;
     const bar = Math.floor(n / 16);
     const s = n % 16;
     const chord = track.chords[bar % track.chords.length];
     // An intro bar of just keys before the beat drops
     const drums = bar > 0 && bar < BARS - 1;
-    if (s === 0) chord.slice(1).forEach((m, i) => keys(g, t + i * 0.012, m, len * 15));
-    if (s === 10 && bar % 2 === 1) chord.slice(2).forEach((m) => keys(g, t, m, len * 5, 0.03));
-    if (s === 0 || s === 6 || (s === 10 && bar % 2 === 0)) bass(g, t, chord[0], len * (s === 0 ? 5 : 3));
+    // Piano
+    if (style.keys === "held") {
+      if (s === 0) chord.slice(1).forEach((m, i) => keys(g, t + i * 0.012, m, len * 15));
+      if (s === 10 && bar % 2 === 1) chord.slice(2).forEach((m) => keys(g, t, m, len * 5, 0.03));
+    } else if (style.keys === "stabs") {
+      if (s === 0) chord.slice(1).forEach((m, i) => keys(g, t + i * 0.01, m, len * 6, 0.035));
+      if (s === 6 || s === 10 || s === 14) chord.slice(2).forEach((m) => keys(g, t, m, len * 1.5, 0.032));
+    } else if (style.keys === "arp") {
+      if (s % 2 === 0) keys(g, t, chord[1 + ((s / 2) % (chord.length - 1))], len * 6, 0.04);
+    } else if (style.keys === "chops") {
+      if (s === 0 || s === 3 || s === 6 || s === 11) chord.slice(1).forEach((m) => keys(g, t, m, len * 2, s ? 0.03 : 0.04));
+    }
+    // Bass
+    if (style.bass === "root" && (s === 0 || s === 6 || (s === 10 && bar % 2 === 0))) bass(g, t, chord[0], len * (s === 0 ? 5 : 3));
+    if (style.bass === "walk" && s % 4 === 0) bass(g, t, [chord[0], chord[0] + 7, chord[0] + 12, chord[0] + 10][s / 4], len * 3);
+    if (style.bass === "long" && (s === 0 || s === 12)) bass(g, t, chord[0], len * (s === 0 ? 11 : 3));
+    if (style.bass === "pulse" && s % 2 === 0) bass(g, t, chord[0], len * 1.4);
+    // Drums
     if (drums) {
-      if (KICKS.includes(s)) {
+      if (style.kicks.includes(s)) {
         kick(g, t);
         hitAt(g, "kick", t);
       }
-      if (s === 4 || s === 12) {
+      if (style.snares.includes(s)) {
         snare(g, t);
         hitAt(g, "snare", t);
       }
-      if (s % 2 === 0) hiss(g, t, { type: "highpass", freq: 7200, peak: s % 4 === 0 ? 0.09 : 0.05, decay: 0.045 });
+      if (style.ghost?.includes(s)) hiss(g, t, { type: "bandpass", freq: 1900, q: 0.8, peak: 0.08, decay: 0.08 });
+      if (style.rim && s === 4) hiss(g, t, { type: "bandpass", freq: 3200, q: 6, peak: 0.2, decay: 0.04 });
+      if (s % style.hats === 0) hiss(g, t, { type: "highpass", freq: 7200, peak: s % 4 === 0 ? 0.09 : 0.05, decay: 0.045 });
+      if (style.openHat === s) hiss(g, t, { type: "highpass", freq: 6400, peak: 0.07, decay: 0.22 });
     }
-    if (bar >= 2 && s % 2 === 0 && melodyRand(track, bar, s) < 0.22) {
+    // Rain on the window: a steady wash with a few drops in it
+    if (style.rain) {
+      if (s === 0) hiss(g, t, { type: "highpass", freq: 2500, peak: 0.02, decay: len * 16 });
+      if (melodyRand(track, bar, s + 300) < 0.3) hiss(g, t, { type: "bandpass", freq: 4000 + melodyRand(track, bar, s + 400) * 3000, q: 5, peak: 0.03, decay: 0.02 });
+    }
+    // Lead
+    if (bar >= 2 && s % 2 === 0 && melodyRand(track, bar, s) < style.density) {
       const pick = Math.floor(melodyRand(track, bar, s + 99) * track.scale.length);
-      bell(g, t, track.scale[pick]);
+      LEADS[style.lead](g, t, track.scale[pick]);
     }
   }
   function hitAt(g, kind, t) {
@@ -238,6 +314,7 @@ export function createLofi({ onHit = () => {}, onTrack = () => {} } = {}) {
       step += missed;
       nextTime += missed * len;
     }
+    g.tape.frequency.value = track.style.tape;
     while (nextTime < g.ctx.currentTime + 0.15) {
       if (step >= STEPS) {
         index = (index + 1) % TRACKS.length;
@@ -246,7 +323,7 @@ export function createLofi({ onHit = () => {}, onTrack = () => {} } = {}) {
         return pump();
       }
       // A lazy swing: every other sixteenth lands late
-      const swing = step % 2 === 1 ? len * 0.2 : 0;
+      const swing = step % 2 === 1 ? len * track.style.swing : 0;
       scheduleStep(g, track, step, nextTime + swing);
       step++;
       nextTime += len;

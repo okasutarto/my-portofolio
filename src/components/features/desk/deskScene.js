@@ -1084,8 +1084,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const handheldItem = addItem(at(handheld, 1.35, standOn(3) + 0.47, -0.2), "console");
   handheldItem.rotation.x = -0.18;
 
-  // Top: Luffy's straw hat at the left end (where it shows from the desk), and a katana on its
-  // stand beside it. The hat: a wide straw brim, a round crown and the red band
+  // Top: the Infinity Gauntlet at the left end (where it shows from the desk) and a katana on its
+  // stand beside it. Luffy's straw hat hangs on the left wall by the guitar: a wide straw brim, a
+  // round crown and the red band
   const straw = toon("#f2c14e");
   const strawHat = group(
     at(mesh(new THREE.CylinderGeometry(0.74, 0.76, 0.05, 40), straw, { outline: 0.03 }), 0, 0.025, 0),
@@ -1096,13 +1097,28 @@ export function createDeskScene({ container, projects, experiences, dark = false
   );
   strawHat.children[1].rotation.x = Math.PI / 2;
   strawHat.children[4].scale.y = 0.8;
-  addItem(at(strawHat, -1.5, standOn(4), 0.05, 0.06), "hat").rotation.y = 0.4;
-  // Click it for one of Luffy's lines, over the shelf without zooming in. The tail points down
-  // to the hat from the bubble's lower right.
-  // Read from the overview (no zoom), so it's big and set in larger type than the mug's
-  const hatBubble = speechBubble(6.6, 3.45, { size: 40 });
-  hatBubble.sprite.position.set(shelf.position.x - 3.7, standOn(4) + FLOOR_Y + 2.3, shelf.position.z + 0.6);
+  // Hung by its brim from a wooden peg, crown out from the wall; it swings on the peg
+  const hatPeg = new THREE.Group();
+  hatPeg.position.set(-8.7, 4.35, 2.0);
+  room.add(hatPeg);
+  const peg = mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.24, 10), toon("#8b5a2b"), { outline: 0.012 });
+  peg.rotation.z = Math.PI / 2;
+  peg.position.x = 0.1;
+  hatPeg.add(peg, at(strawHat, 0.05, -0.68, 0, -Math.PI / 2));
+  // Click it for one of Luffy's lines, without zooming in. The bubble sits up and to the right of
+  // the hat (toward the room), its tail down to the hat from the lower left. Read from the
+  // overview, so it's big and set in larger type than the mug's.
+  const hatBubble = speechBubble(6.6, 3.45, { size: 40, tail: "left" });
+  hatBubble.sprite.position.set(-5.3, 5.75, 0.45);
   let luffyIndex = Math.floor(Math.random() * LUFFY_QUOTES.length);
+  register(hatPeg, {
+    onHover: (on) => on && gsap.fromTo(hatPeg.rotation, { x: 0.08 }, { x: 0, duration: 1, ease: "elastic.out(1, 0.3)" }),
+    onClick: () => {
+      gsap.fromTo(hatPeg.rotation, { x: 0.3 }, { x: 0, duration: 1.6, ease: "elastic.out(1, 0.2)" });
+      sfx.shishishi();
+      hatBubble.say(LUFFY_QUOTES[luffyIndex++ % LUFFY_QUOTES.length]);
+    },
+  });
 
   // ---------- katana on its stand, beside the hat ----------
   // Sheathed, handle to the right as in a display. Click it: the blade is drawn out of the
@@ -1113,7 +1129,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // little past the shelf's right edge, as a sword does past its stand
   const KATANA_SCALE = 1.3;
   const katanaStand = new THREE.Group();
-  katanaStand.position.set(1.4, standOn(4), 0.05);
+  katanaStand.position.set(1.62, standOn(4), 0.05);
   katanaStand.rotation.y = Math.PI;
   katanaStand.scale.setScalar(KATANA_SCALE);
   shelf.add(katanaStand);
@@ -1335,6 +1351,315 @@ export function createDeskScene({ container, projects, experiences, dark = false
     onClick: slashKatana,
   });
 
+  // ---------- the Infinity Gauntlet, at the left end of the shelf's top ----------
+  // A gold glove on a black plinth with the six stones set in it. Click for the snap: the camera
+  // closes in, the stones light up one by one, the fingers snap in a flash, then the camera pulls
+  // back to watch half the desk's small things crumble to dust... and come back a moment later.
+  // Clear of the katana's scabbard tip, which reaches to about x -1.05 on this shelf
+  const GAUNTLET_X = -1.74;
+  const gauntlet = new THREE.Group();
+  gauntlet.position.set(GAUNTLET_X, standOn(4), 0.1);
+  gauntlet.rotation.y = 0.15;
+  shelf.add(gauntlet);
+  // Antique gold in three tones (with the outlines, it stays flat and graphic)
+  const glove = toon("#d4a234");
+  const gloveDark = toon("#8a6416");
+  const gloveLight = toon("#f1c95b");
+  // Plinth with a little gold plaque
+  gauntlet.add(
+    at(mesh(rbox(0.85, 0.2, 0.65, 0.05), toon("#1a1714"), { outline: 0.02 }), 0, 0.1, 0),
+    at(mesh(rbox(0.42, 0.07, 0.02, 0.01), gloveLight, { outline: 0.008 }), 0, 0.1, 0.33),
+  );
+  // Everything above the plinth: it floats up off the stand for the snap
+  const glovePart = new THREE.Group();
+  gauntlet.add(glovePart);
+  // Forearm: a tapered oval shell with raised bands and a ridged plate down the middle
+  const forearm = mesh(new THREE.CylinderGeometry(0.23, 0.3, 0.62, 24), glove, { outline: 0.02 });
+  forearm.position.y = 0.51;
+  forearm.scale.z = 0.8;
+  glovePart.add(forearm);
+  [[0.3, 0.29], [0.52, 0.265], [0.74, 0.24]].forEach(([y, r]) => {
+    const band = mesh(new THREE.CylinderGeometry(r + 0.012, r + 0.012, 0.04, 24), gloveDark, { outline: 0.01 });
+    band.position.y = y;
+    band.scale.z = 0.8;
+    glovePart.add(band);
+  });
+  const ridge = at(mesh(rbox(0.14, 0.52, 0.05, 0.02), gloveDark, { outline: 0.012 }), 0, 0.5, 0.215);
+  ridge.rotation.x = -0.1;
+  glovePart.add(ridge);
+  [0.34, 0.46, 0.58, 0.7].forEach((y) => [-1, 1].forEach((side) => {
+    const chevron = at(mesh(rbox(0.075, 0.018, 0.02, 0.005), gloveLight, { outline: 0, cast: false }), side * 0.03, y, 0.243 - (y - 0.5) * 0.1, side * 0.55);
+    glovePart.add(chevron);
+  }));
+  // Wrist, the back of the hand, and the knuckle bar
+  const wrist = mesh(new THREE.CylinderGeometry(0.245, 0.245, 0.07, 24), gloveDark, { outline: 0.012 });
+  wrist.position.y = 0.84;
+  wrist.scale.z = 0.8;
+  glovePart.add(wrist, at(mesh(rbox(0.5, 0.46, 0.22, 0.07), glove, { outline: 0.02 }), 0, 1.1, 0));
+  glovePart.add(at(mesh(rbox(0.53, 0.09, 0.25, 0.03), gloveDark, { outline: 0.012 }), 0, 1.34, 0));
+  // Filigree lines fanning out from the centre stone's setting
+  [-0.55, -0.2, 0.2, 0.55].forEach((angle) => {
+    const line = at(mesh(rbox(0.02, 0.2, 0.01, 0.005), gloveDark, { outline: 0, cast: false }), Math.sin(angle) * 0.13, 1.1 + Math.cos(angle) * 0.13, 0.112, -angle);
+    glovePart.add(line);
+  });
+  // Fingers on hinges at the knuckles: three segments each, the middle one longest
+  const fingers = [[-0.18, 0.3], [-0.06, 0.36], [0.06, 0.38], [0.18, 0.32]].map(([x, length]) => {
+    const hinge = new THREE.Group();
+    hinge.position.set(x, 1.38, 0);
+    // Its three segments, knuckle first: a pose bends each of them
+    const pieces = [];
+    hinge.userData.pieces = pieces;
+    let joint = hinge;
+    [0.42, 0.33, 0.25].forEach((share, k) => {
+      const piece = new THREE.Group();
+      piece.position.y = k ? length * [0.42, 0.33][k - 1] : 0;
+      piece.rotation.x = k ? -0.08 : 0;
+      const segment = length * share;
+      piece.add(
+        at(mesh(rbox(0.1 - k * 0.006, segment, 0.12 - k * 0.006, 0.04), glove, { outline: 0.014 }), 0, segment / 2, 0),
+        at(mesh(rbox(0.104, 0.018, 0.124, 0.005), gloveDark, { outline: 0, cast: false }), 0, 0.009, 0),
+      );
+      joint.add(piece);
+      joint = piece;
+      pieces.push(piece);
+    });
+    glovePart.add(hinge);
+    return hinge;
+  });
+  const thumb = new THREE.Group();
+  thumb.position.set(0.27, 1.02, 0.02);
+  thumb.rotation.z = -0.7;
+  const thumbTip = new THREE.Group();
+  thumbTip.position.y = 0.17;
+  thumbTip.rotation.z = 0.25;
+  thumbTip.add(at(mesh(rbox(0.1, 0.15, 0.11, 0.04), glove, { outline: 0.014 }), 0, 0.075, 0));
+  thumb.add(at(mesh(rbox(0.12, 0.18, 0.13, 0.045), glove, { outline: 0.015 }), 0, 0.09, 0), thumbTip);
+  glovePart.add(thumb);
+  // A soft round glow, shared by the stones' halos and the snap's flash
+  const flashTex = canvasTexture(128, 128);
+  track(flashTex.texture);
+  const glow = flashTex.ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  glow.addColorStop(0, "rgba(255,255,255,1)");
+  glow.addColorStop(0.35, "rgba(255,255,255,0.55)");
+  glow.addColorStop(1, "rgba(255,255,255,0)");
+  flashTex.ctx.fillStyle = glow;
+  flashTex.ctx.fillRect(0, 0, 128, 128);
+  // Stones in raised gold settings, each with a coloured halo that brightens on hover and at
+  // the snap (the halo adds light, so it reads as a glow even on the flat toon shading)
+  const stoneGeo = new THREE.SphereGeometry(1, 16, 12);
+  const stone = (color, parent, x, y, z, r, tall = 1) => {
+    const setting = mesh(new THREE.CylinderGeometry(r * 1.35, r * 1.35, 0.03, 18), gloveDark, { outline: 0.008 });
+    setting.rotation.x = Math.PI / 2;
+    setting.scale.z = tall;
+    setting.position.set(x, y, z - 0.01);
+    const gem = new THREE.Mesh(stoneGeo, track(new THREE.MeshBasicMaterial({ color })));
+    gem.scale.set(r, r * tall, r * 0.6);
+    gem.position.set(x, y, z + 0.008);
+    gem.userData.size = gem.scale.clone();
+    const halo = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: flashTex.texture, color, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })));
+    halo.position.set(x, y, z + 0.03);
+    halo.scale.setScalar(r * 5);
+    halo.raycast = noRaycast;
+    gem.userData.halo = halo;
+    gem.userData.r = r;
+    parent.add(setting, gem, halo);
+    return gem;
+  };
+  // Soul, reality, space and power across the knuckles; mind at the centre; time on the thumb
+  const stones = [
+    stone("#ff7a1a", glovePart, -0.18, 1.34, 0.13, 0.042),
+    stone("#e11d48", glovePart, -0.06, 1.34, 0.13, 0.042),
+    stone("#3b82f6", glovePart, 0.06, 1.34, 0.13, 0.042),
+    stone("#a855f7", glovePart, 0.18, 1.34, 0.13, 0.042),
+    stone("#ffdd00", glovePart, 0, 1.1, 0.112, 0.07, 1.35),
+    stone("#22c55e", thumb, 0, 0.09, 0.07, 0.036),
+  ];
+  // Light a stone up: the gem swells and its halo flares, then both settle
+  const flare = (gem, delay = 0, strength = 1) => {
+    const { size, halo, r } = gem.userData;
+    gsap.fromTo(gem.scale, { x: size.x * (1 + 0.6 * strength), y: size.y * (1 + 0.6 * strength) }, { x: size.x, y: size.y, duration: 0.6, delay, ease: "power2.out" });
+    gsap.fromTo(halo.scale, { x: r * (5 + 9 * strength), y: r * (5 + 9 * strength) }, { x: r * 5, y: r * 5, duration: 0.9, delay, ease: "power2.out" });
+    gsap.fromTo(halo.material, { opacity: 1 }, { opacity: 0.35, duration: 0.9, delay, ease: "power2.out" });
+  };
+  // A white flash for the snap
+  const flash = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: flashTex.texture, color: "#fff4c2", transparent: true, depthTest: false, depthWrite: false })));
+  flash.renderOrder = 12;
+  flash.raycast = noRaycast;
+  flash.visible = false;
+  scene.add(flash);
+  // Dust: a pool of little squares, coloured after whatever is crumbling
+  const dust = Array.from({ length: 240 }, () => {
+    const grain = new THREE.Sprite(track(new THREE.SpriteMaterial({ transparent: true, depthWrite: false })));
+    grain.visible = false;
+    grain.raycast = noRaycast;
+    scene.add(grain);
+    return grain;
+  });
+  const dustBox = new THREE.Box3();
+  // Screen-right as seen from the desk view, the way the dust drifts off
+  const driftRight = new THREE.Vector3(0.9, 0, -0.43);
+  let snapping = false;
+  function crumble(object, colors, delay, grains) {
+    object.updateWorldMatrix(true, true);
+    dustBox.setFromObject(object);
+    const shadow = contactShadows.find((entry) => entry.object === object);
+    grains.forEach((grain, i) => {
+      gsap.killTweensOf([grain.position, grain.material, grain.scale]);
+      grain.position.set(
+        THREE.MathUtils.lerp(dustBox.min.x, dustBox.max.x, Math.random()),
+        THREE.MathUtils.lerp(dustBox.min.y, dustBox.max.y, Math.random()),
+        THREE.MathUtils.lerp(dustBox.min.z, dustBox.max.z, Math.random()),
+      );
+      grain.material.color.set(colors[i % colors.length]);
+      grain.material.opacity = 0;
+      grain.scale.setScalar(0.07 + Math.random() * 0.07);
+      grain.visible = true;
+      const start = delay + Math.random() * 1.0;
+      const far = 1.5 + Math.random() * 2.2;
+      gsap.to(grain.material, { opacity: 1, delay: start, duration: 0.1 });
+      gsap.to(grain.position, {
+        x: grain.position.x + driftRight.x * far, z: grain.position.z + driftRight.z * far, y: grain.position.y + 0.5 + Math.random() * 1.4,
+        delay: start, duration: 1.6 + Math.random() * 0.8, ease: "power1.out",
+      });
+      gsap.to(grain.material, { opacity: 0, delay: start + 0.9, duration: 0.9, onComplete: () => (grain.visible = false) });
+    });
+    // Its resting size and place, kept from the first time it crumbled (so a snap that catches
+    // it still crumbled can't make "gone" its normal state), and the middle of its shape in its
+    // parent's space: it shrinks into that point, where it stands, not toward its group's origin
+    if (!object.userData.rest) {
+      const centre = dustBox.getCenter(new THREE.Vector3());
+      object.userData.rest = {
+        scale: object.scale.clone(),
+        position: object.position.clone(),
+        centre: object.parent.worldToLocal(centre),
+      };
+    }
+    const { scale, position, centre } = object.userData.rest;
+    const shrink = { k: 1 };
+    const apply = () => {
+      object.scale.copy(scale).multiplyScalar(Math.max(shrink.k, 0.001));
+      object.position.copy(centre).addScaledVector(position.clone().sub(centre), shrink.k);
+    };
+    gsap.to(shrink, { k: 0, delay: delay + 0.3, duration: 1.1, ease: "power2.in", onUpdate: apply });
+    if (shadow) gsap.to(shadow.plane.scale, { x: 0.001, y: 0.001, z: 0.001, delay: delay + 0.6, duration: 0.8 });
+    // ...and back again, exactly where it was
+    timers.push(setTimeout(() => {
+      gsap.to(shrink, {
+        k: 1, duration: 0.6, ease: "back.out(2)", onUpdate: apply,
+        onComplete: () => {
+          object.scale.copy(scale);
+          object.position.copy(position);
+        },
+      });
+      if (shadow) gsap.to(shadow.plane.scale, { x: 1, y: 1, z: 1, duration: 0.6 });
+    }, (delay + 4.2) * 1000));
+  }
+  const snapPoint = new THREE.Vector3();
+  function snapFingers() {
+    if (snapping) return;
+    snapping = true;
+    setFocus("gauntlet");
+    const tl = gsap.timeline({ onComplete: () => (snapping = false) });
+    // Hand poses: each finger's knuckle, middle and tip joints (pinky to index), and the thumb
+    const pose = (at, duration, ease, angles, thumbTo) => {
+      fingers.forEach((finger, i) => finger.userData.pieces.forEach((piece, k) => {
+        tl.to(k ? piece.rotation : finger.rotation, { x: angles[i][k], duration, ease }, at);
+      }));
+      tl.to(thumb.rotation, { ...thumbTo, duration, ease }, at);
+    };
+    const REST = [[0, -0.08, -0.08], [0, -0.08, -0.08], [0, -0.08, -0.08], [0, -0.08, -0.08]];
+    // Ready to snap: pinky and ring folded into the palm, the middle finger pressed to the thumb,
+    // the index loosely bent
+    const READY = [[-1.3, -1.3, -1.0], [-1.3, -1.3, -1.0], [-0.75, -0.7, -0.5], [-0.25, -0.25, -0.2]];
+    // The snap: the middle finger slams into the palm as the thumb springs out
+    const SNAP = [[-1.3, -1.3, -1.0], [-1.3, -1.3, -1.0], [-1.55, -1.2, -0.9], [-0.3, -0.3, -0.2]];
+    // Once the camera has closed in (0.9 s): a slow, heavy rise off the plinth while the stones
+    // hum and light up one by one
+    tl.call(() => sfx.power({ duration: 1.8 }), null, 0.9)
+      .to(glovePart.position, { y: 0.8, duration: 1.6, ease: "power2.inOut" }, 0.95)
+      // Then hovering (an even number of swings, so it's back at 0.8 before it sinks at 4.15)
+      .to(glovePart.position, { y: 0.88, duration: 0.4, ease: "sine.inOut", yoyo: true, repeat: 3 }, 2.55);
+    stones.forEach((gem, i) => {
+      tl.call(() => {
+        flare(gem, 0, 1.4);
+        sfx.tick({ pitch: 1.6 + i * 0.15 });
+      }, null, 1.1 + i * 0.24);
+    });
+    // Turn the thumb side toward the camera and take up the snap
+    tl.to(glovePart.rotation, { y: -0.5, duration: 0.45, ease: "power2.inOut" }, 2.6);
+    pose(2.6, 0.45, "power2.inOut", READY, { z: -0.15, x: -0.6 });
+    tl.call(() => sfx.riser({ duration: 0.5 }), null, 2.92);
+    pose(3.35, 0.07, "power4.in", SNAP, { z: -0.95, x: -0.2 });
+    tl.call(() => {
+      sfx.snap();
+      glovePart.localToWorld(snapPoint.set(0.15, 1.35, 0));
+      stones.forEach((gem) => flare(gem, 0, 2));
+      flash.position.copy(snapPoint);
+      flash.visible = true;
+      gsap.fromTo(flash.scale, { x: 0.3, y: 0.3 }, { x: 4.5, y: 4.5, duration: 0.35, ease: "power3.out" });
+      gsap.fromTo(flash.material, { opacity: 1 }, { opacity: 0, duration: 0.6, delay: 0.1, onComplete: () => (flash.visible = false) });
+      // The recoil
+      gsap.fromTo(glovePart.rotation, { z: 0.12 }, { z: 0, duration: 0.5, ease: "elastic.out(1.4, 0.25)" });
+    }, null, 3.42);
+    // Open the hand again and face front
+    pose(3.8, 0.45, "power2.inOut", REST, { z: -0.7, x: 0 });
+    tl.to(glovePart.rotation, { y: 0, duration: 0.45, ease: "power2.inOut" }, 3.8)
+      // Back out to the desk to watch half of it go; the glove sinks back onto its plinth on the
+      // way out, as the room starts to crumble
+      .call(() => setFocus("overview"), null, 4.15)
+      .to(glovePart.position, { y: 0, duration: 1.2, ease: "power2.inOut" }, 4.15)
+      .call(() => sfx.knock({ strength: 0.6 }), null, 5.35)
+      .call(() => {
+        sfx.dust();
+        // Perfectly balanced: a random half of everything in the room (bar the gauntlet and the
+        // shelf it stands on), each with the colours its dust takes
+        const everything = [
+          [[mug, coaster], ["#fffdf5", "#6f4e37", "#c8925a"]],
+          [[mail], ["#e2cb9c", "#fffdf5", "#3b82f6"]],
+          [[phoneStand], ["#3b82f6", "#1a1714", "#ffdd00"]],
+          [[plant], ["#16a34a", "#8fd694", "#ff7a1a"]],
+          [[mouse], ["#ffffff", "#e11d48"]],
+          [[keyboard], ["#1f1f1f", "#e8e4dc", "#ff90e8", "#00e0c6"]],
+          [[monitor], ["#c2c6cc", "#1a1714", "#8fd694"]],
+          [[speakers[0].group], ["#1a1714", "#7fb2ff", "#ffdd00"]],
+          [[speakers[1].group], ["#1a1714", "#7fb2ff", "#ffdd00"]],
+          [[lamp], ["#ffdd00", "#1a1714"]],
+          [[chair], ["#45474d", "#1a1714"]],
+          [[guitar], ["#ff7a1a", "#8b5a2b", "#1a1714"]],
+          [[paintingHang], ["#ff90e8", "#ffdd00", "#00e0c6", "#1a1714"]],
+          [[clock], ["#7fb2ff", "#fffdf5", "#1a1714"]],
+          [[tickets], ["#fffdf5", "#00e0c6", "#ffdd00"]],
+          [[folders], ["#ff90e8", "#ffdd00", "#8fd694", "#7fb2ff"]],
+          [[gym], ["#ffdd00", "#ff90e8", "#9ca3af"]],
+          [[gymCalendar], ["#ff7a1a", "#fffdf5", "#8fd694"]],
+          [[hatPeg], ["#f2c14e", "#d62828"]],
+          [[katanaStand], ["#6b2fa8", "#d4a72c", "#1a1714"]],
+          [[windowGroup], ["#ffffff", "#7fdfff", "#8fd694"]],
+        ];
+        const doomed = everything
+          .map((entry) => [Math.random(), entry])
+          .sort((a, b) => a[0] - b[0])
+          .slice(0, Math.floor(everything.length / 2))
+          .map(([, entry]) => entry);
+        const share = Math.floor(dust.length / doomed.reduce((n, [objects]) => n + objects.length, 0));
+        let next = 0;
+        doomed.forEach(([objects, colors], i) => objects.forEach((object) => crumble(object, colors, i * 0.12, dust.slice(next, (next += share)))));
+      }, null, 4.25)
+      .call(() => sfx.sparkle(), null, 8.85)
+      // Not again until everything is back
+      .call(() => {}, null, 10.5);
+  }
+  register(gauntlet, {
+    // A ripple of light across the stones, with a little shimmer
+    onHover: (on) => {
+      if (!on || snapping) return;
+      stones.forEach((gem, i) => flare(gem, i * 0.06));
+      sfx.tick({ pitch: 2.2 });
+      sfx.tick({ pitch: 2.6, delay: 0.12 });
+    },
+    onClick: snapFingers,
+  });
+
   const SHELF_SOUNDS = {
     console: () => {
       sfx.blip();
@@ -1348,10 +1673,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
     case: () => sfx.tick({ pitch: 0.9 }),
     figure: () => sfx.pop({ pitch: 1.3 }),
     trophy: () => sfx.ping(),
-    hat: () => {
-      sfx.shishishi();
-      hatBubble.say(LUFFY_QUOTES[luffyIndex++ % LUFFY_QUOTES.length]);
-    },
   };
   const itemFor = (obj) => shelfItems.find(({ obj: item }) => {
     for (let o = obj; o; o = o.parent) if (o === item) return true;
@@ -3507,6 +3828,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
       // Between the card and the envelope under it, so both stay in frame
       mail.localToWorld(screenPos.set(POSTCARD_OUT.x, POSTCARD_OUT.y, (POSTCARD_OUT.z + ENVELOPE_SETTLE.z) / 2));
       return { target: screenPos.toArray(), dir: [0.02, 1, 0.25], fit: cardReady ? [2.2, 1.95] : [2.45, 3.5] };
+    },
+    // Close on the gauntlet for the snap, from a little to its right and above
+    gauntlet: () => {
+      // Framed for the glove hovering above its plinth
+      gauntlet.localToWorld(screenPos.set(0, 1.25, 0));
+      return { target: screenPos.toArray(), dir: [0.3, 0.3, 1], fit: [2.6, 3.2], depth: 3 };
     },
     // Square on the window in the left wall. A shallow clip: the desk's left end sits close to it.
     window: () => ({ target: [windowGroup.position.x + 0.1, windowGroup.position.y, windowGroup.position.z], dir: [1, 0.08, 0.04], fit: [5.2, 5.4], depth: 1.2 }),

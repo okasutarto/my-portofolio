@@ -456,6 +456,40 @@ const SOUNDS = {
     tone(t + 0.2, { type: "triangle", freq: 1900, peak: 0.16, decay: 0.05 });
     noise(t + 0.2, { filter: "highpass", freq: 3000, attack: 0.001, peak: 0.12, decay: 0.02 });
   },
+  // The Infinity Stones powering up: a low hum climbing in pitch with a shimmer over it
+  power(t, { duration = 1.4 } = {}) {
+    tone(t, { type: "sawtooth", freq: 70, to: 280, attack: duration * 0.8, peak: 0.12, decay: duration * 0.3 });
+    tone(t, { freq: 140, to: 560, attack: duration * 0.8, peak: 0.1, decay: duration * 0.3 });
+    for (let i = 0; i < 6; i++) tone(t + i * (duration / 6), { type: "triangle", freq: 880 * (1 + i * 0.18), peak: 0.05, decay: 0.25 });
+  },
+  // The breath before the snap: a hiss swelling up to the moment
+  riser(t, { duration = 0.5 } = {}) {
+    noise(t, { freq: 400, to: 3200, q: 0.9, attack: duration, peak: 0.22, decay: 0.04 });
+    tone(t, { type: "sawtooth", freq: 110, to: 220, attack: duration, peak: 0.05, decay: 0.04 });
+  },
+  // THE snap: a hard crack, a deep shock-wave boom under it, the crack echoing off into the
+  // distance, and a cosmic shimmer falling away
+  snap(t) {
+    const crack = (at, peak, freq) => {
+      noise(at, { filter: "highpass", freq, attack: 0.001, peak, decay: 0.035 });
+      noise(at, { freq: freq * 0.55, q: 1.4, attack: 0.001, peak: peak * 0.6, decay: 0.07 });
+    };
+    crack(t, 0.95, 2600);
+    tone(t, { freq: 360, to: 160, peak: 0.4, decay: 0.06 });
+    [[0.14, 0.38, 2000], [0.3, 0.2, 1600], [0.5, 0.1, 1300]].forEach(([d, peak, freq]) => crack(t + d, peak, freq));
+    tone(t + 0.01, { freq: 95, to: 26, attack: 0.006, peak: 0.95, decay: 1.5 });
+    noise(t + 0.01, { filter: "lowpass", freq: 260, to: 60, attack: 0.01, peak: 0.45, decay: 0.8 });
+    for (let i = 0; i < 9; i++) {
+      tone(t + 0.06 + i * 0.07, { type: "triangle", freq: 2600 * (1 - i * 0.07), peak: 0.06, decay: 0.7 });
+    }
+  },
+  // Things turning to dust: a long, soft, sandy hiss drifting down
+  dust(t, { duration = 1.6 } = {}) {
+    noise(t, { filter: "bandpass", freq: 3200, to: 900, q: 0.6, attack: 0.15, peak: 0.16, decay: duration });
+    for (let at = t; at < t + duration; at += 0.03 + Math.random() * 0.05) {
+      noise(at, { filter: "highpass", freq: vary(6000, 0.3), attack: 0.002, peak: 0.02 + Math.random() * 0.03, decay: 0.02 });
+    }
+  },
   // Plain UI click
   click(t) {
     tone(t, { freq: 900, to: 550, peak: 0.2, decay: 0.03 });
@@ -463,7 +497,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, patter: 0.4, chime: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, shing: 0.5, sheathe: 0.4 };
+const MIN_GAP = { slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, patter: 0.4, chime: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, shing: 0.5, sheathe: 0.4, power: 1.4, snap: 0.2, dust: 1, riser: 0.5 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || (ctx.state !== "running" && !resuming) || document.hidden) return;

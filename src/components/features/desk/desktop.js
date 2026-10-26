@@ -50,36 +50,130 @@ function roundRect(c, x, y, w, h, r) {
   c.roundRect(x, y, w, h, r);
 }
 
-// ---------- wallpaper: a flat sunset with hills, drawn once ----------
-let wallpaper = null;
-function drawWallpaper(c) {
-  if (!wallpaper) {
-    wallpaper = surface(SCREEN_W, SCREEN_H);
-    const w = wallpaper.c;
-    const sky = w.createLinearGradient(0, 0, 0, SCREEN_H);
-    sky.addColorStop(0, "#ffb35c");
-    sky.addColorStop(1, "#ff90e8");
+// ---------- theme: the desktop follows the room's day and night ----------
+const THEMES = {
+  light: {
+    sky: ["#fbf7ef", "#efe6d8"], dots: "rgba(26,23,20,.07)", line: "#1a1714",
+    shapes: ["#ff90e8", "#00e0c6", "#ffdd00", "#7fb2ff", "#ffb35c"],
+    bar: "rgba(255,253,245,.92)", ink: "#1a1714", edge: "#000",
+    dock: "rgba(255,253,245,.75)", tip: "#1a1714", tipInk: "#fffdf5", card: "#fffdf5",
+  },
+  dark: {
+    sky: ["#2a2540", "#17151f"], dots: "rgba(196,185,220,.08)", line: "#0b0a10",
+    shapes: ["#b05fa3", "#1f9c8e", "#c9a93a", "#5f7bc4", "#c97f45"],
+    bar: "rgba(23,21,31,.92)", ink: "#ece8f7", edge: "#4b4466",
+    dock: "rgba(42,37,64,.8)", tip: "#ece8f7", tipInk: "#17151f", card: "#2a2540",
+  },
+};
+
+// ---------- wallpaper: abstract cut-paper shapes over the site's dot grid, drawn once a theme ----------
+// Big shapes hug the edges and corners, so the middle stays calm behind the windows
+const wallpapers = {};
+function drawWallpaper(c, name) {
+  if (!wallpapers[name]) {
+    const paper = surface(SCREEN_W, SCREEN_H);
+    const w = paper.c;
+    const theme = THEMES[name];
+    const sky = w.createLinearGradient(0, 0, SCREEN_W * 0.4, SCREEN_H);
+    sky.addColorStop(0, theme.sky[0]);
+    sky.addColorStop(1, theme.sky[1]);
     w.fillStyle = sky;
     w.fillRect(0, 0, SCREEN_W, SCREEN_H);
+    w.fillStyle = theme.dots;
+    for (let y = 12; y < SCREEN_H; y += 16) for (let x = 12; x < SCREEN_W; x += 16) w.fillRect(x, y, 1.6, 1.6);
+    const [pink, teal, yellow, blue, orange] = theme.shapes;
     w.lineWidth = 3;
-    w.strokeStyle = "#000";
-    w.fillStyle = "#ffdd00";
-    w.beginPath();
-    w.arc(470, 170, 74, 0, Math.PI * 2);
-    w.fill();
-    w.stroke();
-    [["#00e0c6", 250, 0.9], ["#8fd694", 290, 1.4]].forEach(([color, base, k]) => {
-      w.fillStyle = color;
+    w.lineJoin = "round";
+    w.lineCap = "round";
+    w.strokeStyle = theme.line;
+    const shape = (fill, path) => {
       w.beginPath();
-      w.moveTo(0, SCREEN_H);
-      for (let x = 0; x <= SCREEN_W; x += 8) w.lineTo(x, base + Math.sin(x / 90 * k + k) * 26 + Math.sin(x / 37) * 6);
-      w.lineTo(SCREEN_W, SCREEN_H);
-      w.closePath();
+      path();
+      w.fillStyle = fill;
       w.fill();
       w.stroke();
+    };
+    // a blob spilling in from the top right
+    shape(pink, () => {
+      w.moveTo(430, -10);
+      w.bezierCurveTo(440, 60, 500, 120, 580, 110);
+      w.bezierCurveTo(630, 104, 650, 150, 660, 170);
+      w.lineTo(660, -10);
+      w.closePath();
     });
+    // a half sun rising from the bottom left
+    shape(yellow, () => w.arc(70, SCREEN_H + 10, 120, Math.PI, Math.PI * 2));
+    // stripes inside it
+    w.save();
+    w.beginPath();
+    w.arc(70, SCREEN_H + 10, 118, Math.PI, Math.PI * 2);
+    w.clip();
+    w.strokeStyle = orange;
+    w.lineWidth = 6;
+    for (let k = 0; k < 6; k++) {
+      w.beginPath();
+      w.moveTo(-60, SCREEN_H - 30 - k * 18);
+      w.lineTo(220, SCREEN_H - 30 - k * 18);
+      w.stroke();
+    }
+    w.restore();
+    w.strokeStyle = theme.line;
+    w.lineWidth = 3;
+    w.beginPath();
+    w.arc(70, SCREEN_H + 10, 120, Math.PI, Math.PI * 2);
+    w.stroke();
+    // a teal quarter disc in the bottom right with a ring floating over it
+    shape(teal, () => {
+      w.moveTo(SCREEN_W + 10, SCREEN_H + 10);
+      w.arc(SCREEN_W + 10, SCREEN_H + 10, 150, Math.PI, Math.PI * 1.5);
+      w.closePath();
+    });
+    w.lineWidth = 12;
+    w.strokeStyle = blue;
+    w.beginPath();
+    w.arc(530, 250, 34, 0, Math.PI * 2);
+    w.stroke();
+    w.lineWidth = 3;
+    w.strokeStyle = theme.line;
+    // outlined on both edges, like a cut-paper ring
+    [28, 40].forEach((r) => {
+      w.beginPath();
+      w.arc(530, 250, r, 0, Math.PI * 2);
+      w.stroke();
+    });
+    // a tilted blue tile on the left edge
+    w.save();
+    w.translate(-6, 150);
+    w.rotate(-0.22);
+    shape(blue, () => w.rect(0, 0, 70, 70));
+    w.restore();
+    // a squiggle drifting across the top left
+    w.strokeStyle = theme.line;
+    w.lineWidth = 3.5;
+    w.beginPath();
+    for (let x = 150; x <= 330; x += 4) w.lineTo(x, 48 + Math.sin((x - 150) / 14) * 9);
+    w.stroke();
+    // confetti: a few dots, a triangle and a sparkle
+    [[pink, 380, 330, 7], [teal, 250, 345, 5], [yellow, 600, 60, 6], [orange, 120, 105, 5]].forEach(([fill, x, y, r]) =>
+      shape(fill, () => w.arc(x, y, r, 0, Math.PI * 2)),
+    );
+    shape(orange, () => {
+      w.moveTo(410, 30);
+      w.lineTo(432, 62);
+      w.lineTo(394, 60);
+      w.closePath();
+    });
+    shape(yellow, () => {
+      const [x, y, a, b] = [600, 205, 13, 4];
+      w.moveTo(x, y - a);
+      w.quadraticCurveTo(x + b, y - b, x + a, y);
+      w.quadraticCurveTo(x + b, y + b, x, y + a);
+      w.quadraticCurveTo(x - b, y + b, x - a, y);
+      w.quadraticCurveTo(x - b, y - b, x, y - a);
+    });
+    wallpapers[name] = paper;
   }
-  c.drawImage(wallpaper.canvas, 0, 0, SCREEN_W, SCREEN_H);
+  c.drawImage(wallpapers[name].canvas, 0, 0, SCREEN_W, SCREEN_H);
 }
 
 // ---------- dock icons ----------
@@ -368,6 +462,7 @@ export function createDesktop({ terminal, player, actions }) {
   let hoverX = null;
   let bounce = null;
   let notice = null;
+  let themeName = "light";
   const now = () => performance.now() / 1000;
 
   const rectOf = (win) => (win.max ? { x: 10, y: MENU_H + 8, w: SCREEN_W - 20, h: DOCK_Y - MENU_H - 16 } : win.home);
@@ -538,7 +633,8 @@ export function createDesktop({ terminal, player, actions }) {
     terminal.alertOn = alertOn;
     const t = now();
     const hotspots = [];
-    drawWallpaper(c);
+    const theme = THEMES[themeName];
+    drawWallpaper(c, themeName);
 
     // windows, back to front; finished animations settle their state
     order.forEach((id) => {
@@ -556,10 +652,11 @@ export function createDesktop({ terminal, player, actions }) {
     });
 
     // menu bar
-    c.fillStyle = "rgba(255,253,245,.92)";
+    c.fillStyle = theme.bar;
     c.fillRect(0, 0, SCREEN_W, MENU_H);
-    c.fillStyle = "#000";
+    c.fillStyle = theme.edge;
     c.fillRect(0, MENU_H - 2, SCREEN_W, 2);
+    c.fillStyle = theme.ink;
     c.textBaseline = "middle";
     c.font = `800 11px ${DISPLAY}`;
     c.fillText("✦", 10, MENU_H / 2);
@@ -580,7 +677,7 @@ export function createDesktop({ terminal, player, actions }) {
     let rx = SCREEN_W - 10 - c.measureText(clock).width - 12;
     // battery and wi-fi
     c.lineWidth = 1.2;
-    c.strokeStyle = "#000";
+    c.strokeStyle = theme.ink;
     c.strokeRect(rx - 18, 6, 16, 8);
     c.fillRect(rx - 16, 8, 10, 4);
     c.fillRect(rx - 2, 8.5, 1.5, 3);
@@ -594,7 +691,6 @@ export function createDesktop({ terminal, player, actions }) {
     if (player.playing) {
       const label = `♫ ${TRACKS[player.index].title}`;
       c.font = `700 10px ${BODY}`;
-      c.fillStyle = "#000";
       c.fillText(label, rx, MENU_H / 2);
       hotspots.push({ id: "dock", app: "spotifree", x: rx - c.measureText(label).width, y: 0, w: c.measureText(label).width, h: MENU_H });
     }
@@ -602,10 +698,10 @@ export function createDesktop({ terminal, player, actions }) {
 
     // dock
     roundRect(c, DOCK_X, DOCK_Y, DOCK_W, DOCK_H, 12);
-    c.fillStyle = "rgba(255,253,245,.55)";
+    c.fillStyle = theme.dock;
     c.fill();
     c.lineWidth = 2;
-    c.strokeStyle = "#000";
+    c.strokeStyle = theme.edge;
     c.stroke();
     let tip = null;
     DOCK_APPS.forEach((app, i) => {
@@ -622,7 +718,7 @@ export function createDesktop({ terminal, player, actions }) {
       drawIcon(c, app.id, cx - s / 2, y, s);
       const win = windows[app.id];
       if (win?.open) {
-        c.fillStyle = "#000";
+        c.fillStyle = theme.ink;
         c.beginPath();
         c.arc(cx, DOCK_Y + DOCK_H - 3.5, 1.8, 0, Math.PI * 2);
         c.fill();
@@ -647,9 +743,9 @@ export function createDesktop({ terminal, player, actions }) {
       c.font = `700 9px ${BODY}`;
       const tw = c.measureText(tip.label).width + 12;
       roundRect(c, tip.x - tw / 2, tip.y - 16, tw, 14, 4);
-      c.fillStyle = "#000";
+      c.fillStyle = theme.tip;
       c.fill();
-      c.fillStyle = "#fff";
+      c.fillStyle = theme.tipInk;
       c.textAlign = "center";
       c.fillText(tip.label, tip.x, tip.y - 8.5);
       c.textAlign = "left";
@@ -668,12 +764,13 @@ export function createDesktop({ terminal, player, actions }) {
         roundRect(c, nx + 4, ny + 4, nw, 42, 8);
         c.fill();
         roundRect(c, nx, ny, nw, 42, 8);
-        c.fillStyle = "#fffdf5";
+        c.fillStyle = theme.card;
         c.fill();
         c.lineWidth = 2;
+        c.strokeStyle = "#000";
         c.stroke();
         drawIcon(c, notice.app, nx + 8, ny + 8, 26);
-        c.fillStyle = "#000";
+        c.fillStyle = theme.ink;
         c.textBaseline = "top";
         c.font = `700 9px ${BODY}`;
         c.fillText(notice.title, nx + 42, ny + 9);
@@ -713,6 +810,9 @@ export function createDesktop({ terminal, player, actions }) {
       if (next === hoverX) return false;
       hoverX = next;
       return true;
+    },
+    setTheme(dark) {
+      themeName = dark ? "dark" : "light";
     },
     notify(app, title, body) {
       notice = { app, title, body, t0: now() };

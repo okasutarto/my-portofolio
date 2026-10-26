@@ -325,6 +325,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
 
   // ---------- the desk ----------
   const FLOOR_Y = -5.2;
+  // The back wall stands right behind the desk, a cable's width from its back edge. What hangs
+  // on it is lifted by as much as the move brings it down on screen, so the overview keeps its
+  // composition.
+  const WALL_Z = -4.58; // the middle of the wall slab; its face is at WALL_Z + 0.12
+  const WALL_LIFT = 1.2;
+  // The left wall stands just as close to the desk's left end
+  const SIDE_X = -7.38; // the middle of the side wall slab; its face is at SIDE_X + 0.12
   // A wood-grain top; the material's colour tints it for the night shift
   const deskMat = toon(PALETTES.light.desk);
   const deskWood = canvasTexture(1400, 840);
@@ -402,29 +409,29 @@ export function createDeskScene({ container, projects, experiences, dark = false
     return part;
   };
   roomBox(200, 0.25, 200, floorMat, 0, FLOOR_Y - 0.17, 1.2);
-  roomBox(200, 100, 0.24, backWallMat, 0, FLOOR_Y + 50, -6.68);
+  roomBox(200, 100, 0.24, backWallMat, 0, FLOOR_Y + 50, WALL_Z);
   // The room's ambient fill washes shadows off the wall, so the wall gets its own catcher: a
   // plane just in front of it that only shows where something's shadow lands
   const wallShadowMat = track(new THREE.ShadowMaterial({ color: "#1a1714", opacity: 0.32 }));
   const wallShadows = new THREE.Mesh(track(new THREE.PlaneGeometry(40, 24)), wallShadowMat);
-  wallShadows.position.set(0, FLOOR_Y + 10, -6.555);
+  wallShadows.position.set(0, FLOOR_Y + 10, WALL_Z + 0.125);
   wallShadows.receiveShadow = true;
   wallShadows.raycast = noRaycast;
   room.add(wallShadows);
-  roomBox(0.24, 100, 200, sideWallMat, -8.88, FLOOR_Y + 50, 1.2);
+  roomBox(0.24, 100, 200, sideWallMat, SIDE_X, FLOOR_Y + 50, 1.2);
   const sideShadows = new THREE.Mesh(track(new THREE.PlaneGeometry(30, 24)), wallShadowMat);
   sideShadows.rotation.y = Math.PI / 2;
-  sideShadows.position.set(-8.745, FLOOR_Y + 10, 1.2);
+  sideShadows.position.set(SIDE_X + 0.135, FLOOR_Y + 10, 1.2);
   sideShadows.receiveShadow = true;
   sideShadows.raycast = noRaycast;
   room.add(sideShadows);
-  roomBox(200, 0.22, 0.16, trimMat, 0, FLOOR_Y + 0.17, -6.45, 0.025);
-  roomBox(0.16, 0.22, 200, trimMat, -8.65, FLOOR_Y + 0.17, 1.2, 0.025);
+  roomBox(200, 0.22, 0.16, trimMat, 0, FLOOR_Y + 0.17, WALL_Z + 0.23, 0.025);
+  roomBox(0.16, 0.22, 200, trimMat, SIDE_X + 0.23, FLOOR_Y + 0.17, 1.2, 0.025);
 
   // A framed illustration on the left wall: four panes, a sun/moon and angular trees.
   let roomDark = false;
   const windowGroup = new THREE.Group();
-  windowGroup.position.set(-8.7, 3.9, -2.65);
+  windowGroup.position.set(SIDE_X + 0.18, 4.7, -1.1);
   windowGroup.rotation.y = Math.PI / 2;
   room.add(windowGroup);
   // A clean white frame and sill. Unlit, like the printed view and its cross bars, so the side
@@ -457,7 +464,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // A guitar hanging on the left wall from a hook under its headstock. Click it for a strum;
   // it swings on the hook. Built standing up in its own plane, then turned to face the room.
   const guitar = new THREE.Group();
-  guitar.position.set(-8.5, 1.6, 4.5);
+  guitar.position.set(SIDE_X + 0.38, 2.4, 5.3);
   guitar.rotation.y = Math.PI / 2;
   room.add(guitar);
   const HOOK_Y = 3.98;
@@ -538,7 +545,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   for (const x of [80, 264]) for (const y of [80, 264]) paneLight.ctx.fillRect(x, y, 168, 168);
   paneLight.texture.needsUpdate = true;
   const windowLight = new THREE.SpotLight(0xffe5ad, 110, 55, 0.58, 0.04, 2);
-  windowLight.position.set(-8.4, 4.5, -2.65);
+  windowLight.position.set(SIDE_X + 0.48, 5.6, -1.1);
   windowLight.target.position.set(1, -1, 1);
   windowLight.map = paneLight.texture;
   windowLight.castShadow = true;
@@ -551,7 +558,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const clock = new THREE.Group();
   // Lined up over the monitor as seen from the desk view
   // Low enough that its top stays in frame on wide, short screens
-  clock.position.set(-1.5, 4.95, -6.43);
+  clock.position.set(-0.9, 4.95 + WALL_LIFT - 0.6, WALL_Z + 0.25); // midway between the painting and the board
   room.add(clock);
   const clockRim = mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.15, 12), toon("#7fb2ff"), { outline: 0.06 });
   clockRim.rotation.x = Math.PI / 2;
@@ -600,11 +607,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const rugTop = new THREE.Mesh(track(new THREE.PlaneGeometry(16, 11.5)), toon("#ffffff"));
   rugTop.material.map = rugTex.texture;
   rugTop.rotation.x = -Math.PI / 2;
-  rugTop.position.set(0.4, FLOOR_Y + 0.07, 2.4);
+  rugTop.position.set(0.9, FLOOR_Y + 0.07, 2.4);
   rugTop.receiveShadow = true;
   rugTop.raycast = noRaycast;
   const rugBase = mesh(rbox(16, 0.08, 11.5, 0.03), toon("#1a1714"), { outline: 0.03, cast: false });
-  rugBase.position.set(0.4, FLOOR_Y + 0.025, 2.4);
+  rugBase.position.set(0.9, FLOOR_Y + 0.025, 2.4);
   rugBase.raycast = noRaycast;
   room.add(rugBase, rugTop);
 
@@ -613,7 +620,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const PAINTING_DROP = 1.75; // nail to the painting's centre
   const paintingHang = new THREE.Group();
   // Hung low enough that the frame and its nail stay in frame on wide, short screens
-  paintingHang.position.set(-5.6, 3.4 + PAINTING_DROP, -6.44);
+  paintingHang.position.set(-4.9, 3.4 + WALL_LIFT - 0.6 + PAINTING_DROP, WALL_Z + 0.24);
   room.add(paintingHang);
   const paintingTurn = new THREE.Group();
   paintingTurn.position.y = -PAINTING_DROP;
@@ -983,7 +990,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // on it for a little hop.
   const shelf = new THREE.Group();
   // Clear of the About board on the wall (it spans x 1.2–8.0)
-  shelf.position.set(10.5, FLOOR_Y, -5.6);
+  shelf.position.set(10.5, FLOOR_Y, WALL_Z + 0.83);
   scene.add(shelf);
   const SHELF_W = 4.2;
   const SHELF_D = 1.5;
@@ -1137,7 +1144,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   strawHat.children[4].scale.y = 0.8;
   // Hung by its brim from a wooden peg, crown out from the wall; it swings on the peg
   const hatPeg = new THREE.Group();
-  hatPeg.position.set(-8.7, 4.35, 2.0);
+  hatPeg.position.set(SIDE_X + 0.18, 5.15, 3.2);
   room.add(hatPeg);
   const peg = mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.24, 10), toon("#8b5a2b"), { outline: 0.012 });
   peg.rotation.z = Math.PI / 2;
@@ -1147,7 +1154,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // the hat (toward the room), its tail down to the hat from the lower left. Read from the
   // overview, so it's big and set in larger type than the mug's.
   const hatBubble = speechBubble(6.6, 3.45, { size: 32, tail: "left", style: "manga" });
-  hatBubble.sprite.position.set(-5.3, 5.75, 0.45);
+  hatBubble.sprite.position.set(SIDE_X + 3.6, 6.55, 1.65);
   let luffyIndex = Math.floor(Math.random() * LUFFY_QUOTES.length);
   register(hatPeg, {
     onHover: (on) => on && gsap.fromTo(hatPeg.rotation, { x: 0.08 }, { x: 0, duration: 1, ease: "elastic.out(1, 0.3)" }),
@@ -1440,7 +1447,22 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const line = at(mesh(rbox(0.02, 0.2, 0.01, 0.005), gloveDark, { outline: 0, cast: false }), Math.sin(angle) * 0.13, 1.1 + Math.cos(angle) * 0.13, 0.112, -angle);
     glovePart.add(line);
   });
-  // Fingers on hinges at the knuckles: three segments each, the middle one longest
+  // An armoured finger segment: a gold capsule whose round ends overlap its neighbours', so a
+  // bent finger stays in one piece, with a dark plate ring around the joint at its base
+  const fingerSegment = (radius, length, ring = true) => {
+    const part = new THREE.Group();
+    const body = mesh(new THREE.CapsuleGeometry(radius, Math.max(0.01, length - radius), 6, 16), glove, { outline: 0.012 });
+    body.scale.z = 0.88;
+    body.position.y = length / 2;
+    part.add(body);
+    if (ring) {
+      const band = mesh(new THREE.CylinderGeometry(radius * 1.12, radius * 1.12, 0.026, 18), gloveDark, { outline: 0.008 });
+      band.scale.z = 0.9;
+      part.add(band);
+    }
+    return part;
+  };
+  // Fingers on hinges at the knuckles: three segments each, tapering to the tip
   const fingers = [[-0.18, 0.3], [-0.06, 0.36], [0.06, 0.38], [0.18, 0.32]].map(([x, length]) => {
     const hinge = new THREE.Group();
     hinge.position.set(x, 1.38, 0);
@@ -1452,11 +1474,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
       const piece = new THREE.Group();
       piece.position.y = k ? length * [0.42, 0.33][k - 1] : 0;
       piece.rotation.x = k ? -0.08 : 0;
-      const segment = length * share;
-      piece.add(
-        at(mesh(rbox(0.1 - k * 0.006, segment, 0.12 - k * 0.006, 0.04), glove, { outline: 0.014 }), 0, segment / 2, 0),
-        at(mesh(rbox(0.104, 0.018, 0.124, 0.005), gloveDark, { outline: 0, cast: false }), 0, 0.009, 0),
-      );
+      piece.add(fingerSegment(0.05 - k * 0.005, length * share));
+      // A raised cap over the big knuckle
+      if (!k) piece.add(at(mesh(new THREE.SphereGeometry(0.036, 14, 10), gloveLight, { outline: 0.008 }), 0, 0.035, 0.035));
       joint.add(piece);
       joint = piece;
       pieces.push(piece);
@@ -1470,8 +1490,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const thumbTip = new THREE.Group();
   thumbTip.position.y = 0.17;
   thumbTip.rotation.z = 0.25;
-  thumbTip.add(at(mesh(rbox(0.1, 0.15, 0.11, 0.04), glove, { outline: 0.014 }), 0, 0.075, 0));
-  thumb.add(at(mesh(rbox(0.12, 0.18, 0.13, 0.045), glove, { outline: 0.015 }), 0, 0.09, 0), thumbTip);
+  thumbTip.add(fingerSegment(0.05, 0.15));
+  thumb.add(fingerSegment(0.06, 0.18, false), thumbTip);
   glovePart.add(thumb);
   // A soft round glow, shared by the stones' halos and the snap's flash
   const flashTex = canvasTexture(128, 128);
@@ -1839,7 +1859,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     // Without storage today just isn't stamped yet
   }
   const gymCalendar = new THREE.Group();
-  gymCalendar.position.set(shelf.position.x, FLOOR_Y + SHELF_H + 2.0, -6.48);
+  gymCalendar.position.set(shelf.position.x, FLOOR_Y + SHELF_H + 2.0, WALL_Z + 0.2);
   scene.add(gymCalendar);
   const calendarBack = mesh(rbox(2.75, 2.35, 0.06, 0.03), toon("#1a1714"), { outline: 0.03 });
   const calendarPage = printed(2.6, 2.2, 260, (c, w, h) => drawGymCalendar(c, w, h, { done: trained }));
@@ -1874,9 +1894,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
     wire.raycast = noRaycast;
     scene.add(wire);
   };
-  cable([[-0.2, 0.06, -3.25], [-0.35, 0.05, -3.85], [-0.45, 0.04, DESK_BACK + 0.04], [-0.5, -0.5, DESK_BACK - 0.22], [-0.7, -2.8, DESK_BACK - 0.55], [-1.1, FLOOR_Y + 0.06, -5.7], [-2.6, FLOOR_Y + 0.06, -6.35]]);
-  cable([[-6.0, 0.06, -3.45], [-6.1, 0.05, -3.9], [-6.15, 0.04, DESK_BACK + 0.04], [-6.2, -0.6, DESK_BACK - 0.25], [-6.4, -3.0, DESK_BACK - 0.6], [-6.8, FLOOR_Y + 0.06, -5.9], [-8.2, FLOOR_Y + 0.06, -6.3]]);
-  cable([[3.85, 0.06, -2.4], [4.0, 0.05, -3.3], [4.1, 0.04, DESK_BACK + 0.04], [4.15, -0.5, DESK_BACK - 0.22], [4.4, -2.8, DESK_BACK - 0.55], [5.0, FLOOR_Y + 0.06, -5.7], [6.5, FLOOR_Y + 0.06, -6.3]]);
+  // Down the gap behind the desk, then along the foot of the wall
+  const GAP = DESK_BACK - 0.12;
+  cable([[-0.2, 0.06, -3.25], [-0.35, 0.05, -3.85], [-0.45, 0.04, DESK_BACK + 0.04], [-0.5, -0.5, GAP], [-0.7, -2.8, GAP], [-1.1, FLOOR_Y + 0.06, GAP], [-2.6, FLOOR_Y + 0.06, GAP]]);
+  cable([[-6.0, 0.06, -3.45], [-6.1, 0.05, -3.9], [-6.15, 0.04, DESK_BACK + 0.04], [-6.2, -0.6, GAP], [-6.4, -3.0, GAP], [-6.8, FLOOR_Y + 0.06, GAP], [SIDE_X + 0.25, FLOOR_Y + 0.06, GAP]]);
+  cable([[3.85, 0.06, -2.4], [4.0, 0.05, -3.3], [4.1, 0.04, DESK_BACK + 0.04], [4.15, -0.5, GAP], [4.4, -2.8, GAP], [5.0, FLOOR_Y + 0.06, GAP], [6.5, FLOOR_Y + 0.06, GAP]]);
 
   // ---------- monitor + terminal ----------
   const monitor = new THREE.Group();
@@ -2231,12 +2253,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // ---------- ID badge on a lanyard, hung from a push pin on the About board's corner (hero) ----------
   // The board is 6.8 × 4.2 centred at (4.6, 3.9) on the back wall: the pin sits inside its
   // top-left corner and the badge hangs just off its left edge
-  const BADGE_PIN = new THREE.Vector3(1.4, 5.65, -6.2);
-  const BADGE_CLIP = new THREE.Vector3(1.4, 3.8, -6.1); // straight below the pin: the rope's resting shape
+  const BADGE_PIN = new THREE.Vector3(1.4, 5.35 + WALL_LIFT, WALL_Z + 0.48);
+  // A shorter strap than the wall lift alone gives: the badge has to clear the monitor in front of it
+  const BADGE_CLIP = new THREE.Vector3(1.4, 4.6 + WALL_LIFT, WALL_Z + 0.58); // straight below the pin: the rope's resting shape
   const strapMat = toon("#ffdd00");
   // Where the pin is now: drag it to re-pin the badge anywhere on this stretch of wall
   const badgePin = BADGE_PIN.clone();
-  const PIN_BOUNDS = { minX: 0.3, maxX: 8.0, minY: 4.3, maxY: 8.4 };
+  const PIN_BOUNDS = { minX: 0.3, maxX: 8.0, minY: 4.3 + WALL_LIFT, maxY: 8.4 + WALL_LIFT };
   // A strap point (or the pin, index 0) held by the pointer: { index, x, y }
   let ropeHold = null;
   // The strap is a little verlet rope: a chain of points from the pin to the badge's clip,
@@ -2446,7 +2469,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // ---------- pinned About board, matching the 2D sticker board ----------
   const aboutBoard = new THREE.Group();
   // Level with the painting across the room
-  aboutBoard.position.set(4.6, 3.9, -6.38);
+  aboutBoard.position.set(4.6, 4.8, -4.28); // on the wall: WALL_Z + 0.3, lifted by WALL_LIFT - 0.3
   scene.add(aboutBoard);
   const boardFrame = mesh(rbox(6.8, 4.2, 0.16, 0.06), toon("#9c6230"), { outline: 0.06 });
   const boardFace = printed(6.55, 3.95, 170, drawAboutBoard);
@@ -3737,6 +3760,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
     shadowFill.color.set(p.shadow);
   }
   setTheme(dark);
+  // The monitor's desktop follows the room
+  const setRoomTheme = (isDark) => {
+    setTheme(isDark);
+    desktop.setTheme(isDark);
+    redrawScreen();
+  };
+  desktop.setTheme(dark);
 
   // ---------- pointer ----------
   const raycaster = new THREE.Raycaster();
@@ -3947,7 +3977,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const screenPos = new THREE.Vector3();
   const SHOTS = {
     // The camera sits inside the room, with no cutaway edges or outside backdrop.
-    overview: () => ({ target: [1.8, 2.7, 0.7], dir: [0.48, 0.72, 1] }),
+    overview: () => ({ target: [1.8, 3.0, 0.7], dir: [0.48, 0.72, 1] }),
     // Clip only what's well in front of the wall (the monitor), not the board behind the badge
     hero: () => ({ target: [badgePin.x, badgePin.y - (BADGE_PIN.y - BADGE_CLIP.y) - 0.74, BADGE_CLIP.z], dir: [0.06, 0.14, 1], fit: [1.5, 2.1], depth: 2.6 }),
     about: () => ({ target: aboutBoard.position.toArray(), dir: [0, 0.8, 1], fit: [7.3, 4.8] }),
@@ -4182,7 +4212,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   frame = requestAnimationFrame(tick);
 
   return {
-    setTheme,
+    setTheme: setRoomTheme,
     setMuted,
     back,
     focusOn: (name) => SHOTS[name] && setFocus(name),

@@ -204,7 +204,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // A quote bubble that pops up over a prop for a few seconds (the mug, the straw hat).
   // Sized in world units; it always faces the camera and draws over everything.
   const bubbleTimers = [];
-  function speechBubble(width, height) {
+  function speechBubble(width, height, print = {}) {
     const tex = canvasTexture(760, 400);
     track(tex.texture);
     const sprite = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: tex.texture, depthTest: false, transparent: true })));
@@ -218,7 +218,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       gsap.to(sprite.scale, { x: 0.001, y: 0.001, duration: 0.2, ease: "power2.in", overwrite: true });
     };
     const say = (quote) => {
-      drawQuoteBubble(tex.ctx, 760, 400, quote);
+      drawQuoteBubble(tex.ctx, 760, 400, quote, print);
       tex.texture.needsUpdate = true;
       gsap.fromTo(sprite.scale, { x: width * 0.16, y: height * 0.15 }, { x: width, y: height, duration: 0.4, ease: "back.out(2)", overwrite: true });
       clearTimeout(bubbleTimers[slot]);
@@ -886,8 +886,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   addItem(at(strawHat, -0.95, standOn(4), 0.05, 0.06), "hat").rotation.y = 0.4;
   // Click it for one of Luffy's lines, over the shelf without zooming in. The tail points down
   // to the hat from the bubble's lower right.
-  const hatBubble = speechBubble(3.6, 1.9);
-  hatBubble.sprite.position.set(shelf.position.x - 2.25, standOn(4) + FLOOR_Y + 1.55, shelf.position.z + 0.6);
+  // Read from the overview (no zoom), so it's big and set in larger type than the mug's
+  const hatBubble = speechBubble(8.4, 4.4, { size: 44 });
+  hatBubble.sprite.position.set(shelf.position.x - 3.75, standOn(4) + FLOOR_Y + 2.75, shelf.position.z + 0.6);
   let luffyIndex = Math.floor(Math.random() * LUFFY_QUOTES.length);
 
   const SHELF_SOUNDS = {

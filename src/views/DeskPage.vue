@@ -90,9 +90,8 @@ const hint = computed(() => {
   if (focus.value === "chat") return isDesktop.value ? "Type a question and hit Enter (scroll to read back)" : "Tap a question or the box below to ask";
   if (focus.value === "hero") return isDesktop.value ? "Click the badge to flip it (links on the back). Drag the pin to move it" : "Tap the badge to flip it. Drag the pin to move it";
   if (focus.value === "about") return isDesktop.value ? "Drag the papers to rearrange them. Release to pin them back" : "Drag a paper to move it. Release to pin it back";
-  if (zoomed.value) return "";
-  // No map of the desk: finding out what does what is the fun part
-  return isDesktop.value ? "Look around. Almost everything on this desk does something" : "Tap around. Almost everything on this desk does something";
+  // The overview needs no hint: the terminal's welcome already says to look around
+  return "";
 });
 
 function onEvent(name, payload = {}) {

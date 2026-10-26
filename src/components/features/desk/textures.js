@@ -1180,7 +1180,7 @@ export const LUFFY_QUOTES = [
   { text: "I don't care if I die trying. I'll never give up!", by: "Monkey D. Luffy" },
   { text: "When do you think people die? When they are forgotten.", by: "Dr. Hiriluk" },
   { text: "Meat!!! Shishishi!", by: "Monkey D. Luffy" },
-  { text: "I can't use a sword, I can't navigate, I can't cook... I know I need help to survive!", by: "Monkey D. Luffy" },
+  { text: "I know I need help from others to survive!", by: "Monkey D. Luffy" },
 ];
 
 export const SIP_QUOTES = [
@@ -1194,7 +1194,7 @@ export const SIP_QUOTES = [
   { text: "Coffee in, features out.", by: "oka" },
   { text: "One more sip, one less bug.", by: "oka" },
 ];
-export function drawQuoteBubble(c, w, h, quote) {
+export function drawQuoteBubble(c, w, h, quote, { size = 32 } = {}) {
   c.clearRect(0, 0, w, h);
   if (!quote) return;
   const tail = 46;
@@ -1221,20 +1221,22 @@ export function drawQuoteBubble(c, w, h, quote) {
   c.strokeStyle = "#000";
   c.stroke();
   // quote + attribution, centred as a block
-  c.font = `700 32px ${BODY}`;
+  // `size` is the quote's type size; the line spacing and attribution scale with it
+  const lead = size * 1.3;
+  c.font = `700 ${size}px ${BODY}`;
   const lines = wrap(c, quote.text, box.w - 100, 3);
-  const blockH = lines.length * 42 + 50;
+  const blockH = lines.length * lead + size * 1.55;
   const top = box.y + (box.h - blockH) / 2;
   c.fillStyle = "#000";
   c.textBaseline = "top";
-  lines.forEach((line, i) => c.fillText(line, box.x + 64, top + i * 42));
+  lines.forEach((line, i) => c.fillText(line, box.x + 64, top + i * lead));
   c.font = `800 60px ${DISPLAY}`;
   c.fillStyle = "#ff90e8";
   c.fillText("“", box.x + 18, top - 8);
   c.fillStyle = "rgba(0,0,0,.6)";
-  c.font = `600 32px 'Caveat', cursive`;
+  c.font = `600 ${size}px 'Caveat', cursive`;
   c.textAlign = "right";
-  c.fillText(`— ${quote.by}`, box.x + box.w - 28, top + lines.length * 42 + 8);
+  c.fillText(`— ${quote.by}`, box.x + box.w - 28, top + lines.length * lead + 8);
   c.textAlign = "left";
   c.textBaseline = "alphabetic";
 }

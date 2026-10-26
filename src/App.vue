@@ -20,7 +20,8 @@
 
 <script setup>
 import { computed, ref, provide } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
+import { hideBootLoader } from "./utils/bootLoader";
 import TheNavbar from "./components/layout/TheNavbar.vue";
 import TheFooter from "./components/layout/TheFooter.vue";
 import MainLayout from "./layouts/MainLayout.vue";
@@ -41,6 +42,8 @@ initTheme();
 const route = useRoute();
 // Full-screen pages (the 3D desk) bring their own HUD instead of the site chrome
 const immersive = computed(() => !!route.meta.immersive);
+// The desk hides the boot loader once its room is drawn; any other first page hides it now
+useRouter().isReady().then(() => !immersive.value && hideBootLoader());
 useSpotlight();
 
 // Initialize Vercel Analytics

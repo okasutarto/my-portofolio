@@ -346,6 +346,25 @@ const SOUNDS = {
     const chord = CHORDS[chordIndex++ % CHORDS.length];
     chord.forEach((freq, i) => pluck(t + i * 0.022 + Math.random() * 0.006, freq, 0.32 - i * 0.025));
   },
+  // Luffy's laugh, "shi-shi-shi": three hissed syllables climbing in pitch, each with a little
+  // voiced bounce under it
+  shishishi(t) {
+    for (let i = 0; i < 3; i++) {
+      const at = t + i * 0.13;
+      noise(at, { filter: "highpass", freq: vary(4200 + i * 500, 0.05), q: 1.2, attack: 0.008, peak: 0.22, decay: 0.07 });
+      tone(at + 0.01, { type: "triangle", freq: vary(330 + i * 40, 0.03), to: 290 + i * 40, attack: 0.01, peak: 0.12, decay: 0.07 });
+    }
+  },
+  // A small bird: two quick rising whistles
+  chirp(t) {
+    tone(t, { freq: vary(2600, 0.06), to: 3700, attack: 0.004, peak: 0.12, decay: 0.05 });
+    tone(t + 0.09, { freq: vary(2900, 0.06), to: 4000, attack: 0.004, peak: 0.1, decay: 0.06 });
+  },
+  // Sparkle for a shooting star: a bright falling glint over a soft shimmer
+  sparkle(t) {
+    tone(t, { freq: 2800, to: 1600, attack: 0.005, peak: 0.12, decay: 0.5 });
+    [0, 0.07, 0.15, 0.24].forEach((d, i) => tone(t + d, { type: "triangle", freq: 2093 * (1 + i * 0.25), peak: 0.07, decay: 0.18 }));
+  },
   // Plain UI click
   click(t) {
     tone(t, { freq: 900, to: 550, peak: 0.2, decay: 0.03 });
@@ -353,7 +372,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15 };
+const MIN_GAP = { slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || (ctx.state !== "running" && !resuming) || document.hidden) return;

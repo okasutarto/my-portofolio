@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="desk-page fixed inset-0 overflow-hidden select-none">
-      <div ref="stageRef" class="desk-stage absolute inset-0" :class="{ 'is-ready': ready }"></div>
+      <div ref="stageRef" class="absolute inset-0"></div>
 
       <!-- Top-left: title + way out -->
       <div class="absolute top-4 left-4 flex flex-col items-start gap-2 pointer-events-none">
@@ -62,13 +62,12 @@ import { projects } from "@/data/projects";
 import { experiences } from "@/data/experience";
 import { useTheme } from "@/composables/useTheme";
 import { useSfx } from "@/composables/useSfx";
+import { hideBootLoader } from "@/utils/bootLoader";
 
 const COMMAND_CHIPS = ["help", "whoami", "projects", "hobbies", "sudo hire oka"];
 const stageRef = ref(null);
 const scene = ref(null);
 const unsupported = ref(false);
-// The room fades in once its first frame is drawn; until then the backdrop matches its wall
-const ready = ref(false);
 const focus = ref("overview");
 const introPlaying = ref(true);
 const projectOpen = ref(false);
@@ -82,13 +81,14 @@ const hint = computed(() => {
   if (introPlaying.value) return "";
   if (focus.value === "monitor") return isDesktop.value ? "Type a command and hit Enter. Try: help" : "Tap a command, or tap the screen";
   if (focus.value === "keyboard") return "1–5 jump to a section · T terminal · C chat · Esc back";
+  if (focus.value === "window") return isDark.value ? "Click the sky and make a wish" : "Click the window to call the birds over";
   if (focus.value === "mug") return "Click the mug for a sip. Finish the cup for the night shift";
   if (focus.value === "experience") return isDesktop.value ? "Click a pass to hold it up, again to flip it (← → to browse)" : "Tap a pass to hold it, tap again to flip it";
   if (focus.value === "projects" && projectOpen.value) return isDesktop.value ? "Click the pages to turn them (or ← →)" : "Tap the pages to turn them";
   if (focus.value === "projects") return isDesktop.value ? "Click a tab (or ← →) to flip through, the front file to pull it out" : "Tap a tab to flip through, the front file to pull it out";
   if (focus.value === "contact") return isDesktop.value ? "Write on the card (Tab moves along), then hit SEND POSTCARD" : "Tap the card to write, then tap SEND POSTCARD";
   if (focus.value === "chat") return isDesktop.value ? "Type a question and hit Enter (scroll to read back)" : "Tap a question or the box below to ask";
-  if (focus.value === "hero") return "Click the badge to flip it. The links are on the back";
+  if (focus.value === "hero") return isDesktop.value ? "Click the badge to flip it (links on the back). Drag the pin to move it" : "Tap the badge to flip it. Drag the pin to move it";
   if (focus.value === "about") return isDesktop.value ? "Drag the papers to rearrange them. Release to pin them back" : "Drag a paper to move it. Release to pin it back";
   if (zoomed.value) return "";
   // No map of the desk: finding out what does what is the fun part
@@ -97,7 +97,8 @@ const hint = computed(() => {
 
 function onEvent(name, payload = {}) {
   // An empty coffee cup (or the lamp) flips the desk to the night shift, or back to day
-  if (name === "ready") ready.value = true;
+  // The room's first frame is drawn: the boot loader fades out over it
+  if (name === "ready") hideBootLoader();
   else if (name === "nightShift" && payload.dark !== isDark.value) toggleTheme();
   else if (name === "toggleSound") toggleMute();
   else if (name === "projectOpen") projectOpen.value = payload.open;
@@ -126,10 +127,12 @@ onMounted(async () => {
   } catch (err) {
     console.error(err);
     unsupported.value = true;
+    hideBootLoader();
   }
 });
 
 onUnmounted(() => {
+  hideBootLoader();
   scene.value?.destroy();
 });
 </script>
@@ -137,17 +140,8 @@ onUnmounted(() => {
 <style scoped>
 .desk-page {
   z-index: 20;
-  background: #e6e2dc;
-}
-:global(.dark) .desk-page {
-  background: #26233a;
-}
-.desk-stage {
-  opacity: 0;
-  transition: opacity 0.5s ease-out;
-}
-.desk-stage.is-ready {
-  opacity: 1;
+  /* The boot loader's colour: it fades straight from the loader to the room */
+  background: #1a1714;
 }
 .hud-btn {
   @apply inline-flex items-center gap-1 border-3 border-black px-3 py-1.5 text-xs md:text-sm font-bold uppercase shadow-neo-sm transition-transform;

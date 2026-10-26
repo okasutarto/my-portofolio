@@ -42,11 +42,13 @@ import {
   drawQuoteBubble,
   drawStickyNote,
   drawPainting,
+  drawWindowView,
   drawWoodTop,
   drawWoodFloor,
   drawRug,
   drawDrawerFront,
   SIP_QUOTES,
+  LUFFY_QUOTES,
 } from "./textures";
 
 const PALETTES = {
@@ -198,6 +200,31 @@ export function createDeskScene({ container, projects, experiences, dark = false
     plane.userData.tex = t;
     redrawers.push(() => t.redraw());
     return plane;
+  }
+  // A quote bubble that pops up over a prop for a few seconds (the mug, the straw hat).
+  // Sized in world units; it always faces the camera and draws over everything.
+  const bubbleTimers = [];
+  function speechBubble(width, height) {
+    const tex = canvasTexture(760, 400);
+    track(tex.texture);
+    const sprite = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: tex.texture, depthTest: false, transparent: true })));
+    sprite.scale.set(0.001, 0.001, 1);
+    sprite.renderOrder = 10;
+    sprite.raycast = noRaycast;
+    scene.add(sprite);
+    const slot = bubbleTimers.push(null) - 1;
+    const hide = () => {
+      clearTimeout(bubbleTimers[slot]);
+      gsap.to(sprite.scale, { x: 0.001, y: 0.001, duration: 0.2, ease: "power2.in", overwrite: true });
+    };
+    const say = (quote) => {
+      drawQuoteBubble(tex.ctx, 760, 400, quote);
+      tex.texture.needsUpdate = true;
+      gsap.fromTo(sprite.scale, { x: width * 0.16, y: height * 0.15 }, { x: width, y: height, duration: 0.4, ease: "back.out(2)", overwrite: true });
+      clearTimeout(bubbleTimers[slot]);
+      bubbleTimers[slot] = setTimeout(hide, 4200);
+    };
+    return { sprite, say, hide };
   }
   const hoverScale = (obj, amount = 1.05) => (on) =>
     gsap.to(obj.scale, { x: on ? amount : 1, y: on ? amount : 1, z: on ? amount : 1, duration: 0.18, ease: "back.out(3)" });
@@ -355,40 +382,28 @@ export function createDeskScene({ container, projects, experiences, dark = false
   room.add(windowGroup);
   const frameWood = toon("#b5773e");
   const windowFrame = mesh(new THREE.BoxGeometry(4.4, 4.5, 0.18), frameWood, { cast: false, outline: 0.07 });
-  const windowView = printed(4.0, 4.1, 160, (c, w, h) => {
-    c.fillStyle = roomDark ? "#243257" : "#7fdfff";
-    c.fillRect(0, 0, w, h);
-    c.fillStyle = "#ffdd00";
-    c.beginPath();
-    c.arc(w * 0.75, h * 0.22, w * 0.12, 0, Math.PI * 2);
-    c.fill();
-    if (roomDark) {
-      c.fillStyle = "#fffdf5";
-      [[0.15, 0.15], [0.4, 0.28], [0.57, 0.1]].forEach(([x, y]) => c.fillRect(w * x, h * y, 8, 8));
-    }
-    c.fillStyle = roomDark ? "#43885e" : "#8fd694";
-    c.fillRect(0, h * 0.8, w, h * 0.2);
-    [[0.2, 0.42, "#166534"], [0.5, 0.53, "#22a65c"], [0.82, 0.48, "#166534"]].forEach(([x, top, color]) => {
-      c.fillStyle = color;
-      c.beginPath();
-      c.moveTo(w * x, h * top);
-      c.lineTo(w * (x + 0.16), h * 0.94);
-      c.lineTo(w * (x - 0.16), h * 0.94);
-      c.closePath();
-      c.fill();
-      c.lineWidth = 5;
-      c.strokeStyle = "#000";
-      c.stroke();
-    });
-    c.fillStyle = "#000";
-    c.fillRect(w / 2 - 7, 0, 14, h);
-    c.fillRect(0, h / 2 - 7, w, 14);
-  });
+  // The view outside is animated (see drawWindowView): redrawn from the render loop, often
+  // while it's zoomed in on, a few times a second otherwise
+  const outside = { t: 0, flockAt: -99, starAt: -99, drawnAt: 0 };
+  const windowView = printed(4.0, 4.1, 220, (c, w, h) => drawWindowView(c, w, h, { ...outside, dark: roomDark }));
   windowView.position.z = 0.105;
   windowGroup.add(windowFrame, windowView);
   const sill = mesh(new THREE.BoxGeometry(4.65, 0.18, 0.6), frameWood, { cast: false, outline: 0.045 });
   sill.position.set(0, -2.3, 0.14);
   windowGroup.add(sill);
+  // Click the window to look out; click again for a flock of birds (or, at night, a shooting star)
+  const lookOut = () => {
+    if (roomDark) {
+      if (outside.t - outside.starAt < 1.6) return;
+      outside.starAt = outside.t;
+      sfx.sparkle({ delay: 0.15 });
+    } else {
+      if (outside.t - outside.flockAt < 2) return;
+      outside.flockAt = outside.t;
+      [0.3, 0.75, 1.3].forEach((delay) => sfx.chirp({ delay }));
+    }
+  };
+  register(windowGroup, { focus: "window", onArrive: lookOut, onClick: lookOut });
 
   // A guitar hanging on the left wall from a hook under its headstock. Click it for a strum;
   // it swings on the hook. Built standing up in its own plane, then turned to face the room.
@@ -751,6 +766,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const standOn = (level) => LEVELS[level] + BOARD / 2;
   const shelfItems = [];
   const addItem = (obj, sound) => {
+    obj.userData.restY = obj.position.y;
     shelf.add(obj);
     shelfItems.push({ obj, sound });
     return obj;
@@ -868,6 +884,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
   strawHat.children[1].rotation.x = Math.PI / 2;
   strawHat.children[4].scale.y = 0.8;
   addItem(at(strawHat, -0.95, standOn(4), 0.05, 0.06), "hat").rotation.y = 0.4;
+  // Click it for one of Luffy's lines, over the shelf without zooming in. The tail points down
+  // to the hat from the bubble's lower right.
+  const hatBubble = speechBubble(3.6, 1.9);
+  hatBubble.sprite.position.set(shelf.position.x - 2.25, standOn(4) + FLOOR_Y + 1.55, shelf.position.z + 0.6);
+  let luffyIndex = Math.floor(Math.random() * LUFFY_QUOTES.length);
 
   const SHELF_SOUNDS = {
     console: () => {
@@ -882,7 +903,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     case: () => sfx.tick({ pitch: 0.9 }),
     figure: () => sfx.pop({ pitch: 1.3 }),
     trophy: () => sfx.ping(),
-    hat: () => sfx.rustle({ duration: 0.3 }),
+    hat: () => {
+      sfx.shishishi();
+      hatBubble.say(LUFFY_QUOTES[luffyIndex++ % LUFFY_QUOTES.length]);
+    },
   };
   const itemFor = (obj) => shelfItems.find(({ obj: item }) => {
     for (let o = obj; o; o = o.parent) if (o === item) return true;
@@ -892,7 +916,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     onClick: (hit) => {
       const item = itemFor(hit.object);
       if (!item) return sfx.knock({ strength: 0.6 });
-      const y = item.obj.position.y;
+      // Always from where it rests: a click mid-hop must not start the next hop higher up
+      const y = item.obj.userData.restY;
       gsap.fromTo(item.obj.position, { y }, { keyframes: [{ y: y + 0.28, duration: 0.16, ease: "power2.out" }, { y, duration: 0.3, ease: "bounce.out" }], overwrite: true });
       SHELF_SOUNDS[item.sound]();
     },
@@ -1001,11 +1026,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
     hobbies: ["games. games. more games."],
     contact: ["→ /#contact", "or try: sudo hire oka"],
     "sudo hire oka": ["[sudo] access granted ✔", "→ see /#contact"],
+    welcome: ["hi, i'm oka. welcome to my desk!", "look around: almost everything", "on it does something.", "click this screen, then try: help"],
   };
   COMMANDS.ls = COMMANDS.projects;
   const AUTORUN = ["help", "whoami", "projects", "hobbies", "sudo hire oka"];
   const MAX_INPUT = 26;
-  let termLines = ["oka@desk ready.", "click the screen to zoom in"];
+  let termLines = ["oka@desk ready."];
   let greeted = false;
   let input = "";
   let termBusy = false;
@@ -1066,6 +1092,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
     redrawTerminal();
   }
 
+  // Once the room is in view, the terminal greets whoever just arrived
+  timers.push(setTimeout(() => !greeted && autotype("welcome"), 1500));
+
   register(monitor, {
     focus: "monitor",
     onEnter: () => {
@@ -1083,6 +1112,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const BADGE_PIN = new THREE.Vector3(1.4, 6.35, -6.2);
   const BADGE_CLIP = new THREE.Vector3(1.4, 4.5, -6.1); // straight below the pin: the rope's resting shape
   const strapMat = toon("#ffdd00");
+  // Where the pin is now: drag it to re-pin the badge anywhere on this stretch of wall
+  const badgePin = BADGE_PIN.clone();
+  const PIN_BOUNDS = { minX: 0.3, maxX: 8.0, minY: 4.3, maxY: 8.4 };
+  // A strap point (or the pin, index 0) held by the pointer: { index, x, y }
+  let ropeHold = null;
   // The strap is a little verlet rope: a chain of points from the pin to the badge's clip,
   // pulled by gravity and held at fixed lengths, with the badge as a heavy weight at the end.
   // A nudge (hover, click) kicks the lower points, so the strap bends and the badge lags
@@ -1095,14 +1129,24 @@ export function createDeskScene({ container, projects, experiences, dark = false
     return { x: p.x, y: p.y, px: p.x, py: p.y, z: p.z };
   });
   // Inverse mass: the pin never moves, the badge end is four times heavier than the strap
-  const ropeWeight = (i) => (i === 0 ? 0 : i === ROPE_SEGMENTS ? 0.25 : 1);
+  const ropeWeight = (i) => (i === 0 || i === ropeHold?.index ? 0 : i === ROPE_SEGMENTS ? 0.25 : 1);
   let ropeClock = 0;
   let ropeTime = 0;
   function stepRope(dt) {
     const gravity = -22;
     const breeze = Math.sin(ropeTime * 0.8) * 0.5 + Math.sin(ropeTime * 2.1) * 0.25;
+    rope[0].x = badgePin.x;
+    rope[0].y = badgePin.y;
     for (let i = 1; i < rope.length; i++) {
       const p = rope[i];
+      if (i === ropeHold?.index) {
+        // Held: ease toward the pointer, keeping the motion as velocity for the throw on release
+        p.px = p.x;
+        p.py = p.y;
+        p.x += (ropeHold.x - p.x) * 0.35;
+        p.y += (ropeHold.y - p.y) * 0.35;
+        continue;
+      }
       const vx = (p.x - p.px) * 0.985;
       const vy = (p.y - p.py) * 0.985;
       p.px = p.x;
@@ -1144,6 +1188,62 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const strapPin = mesh(new THREE.SphereGeometry(0.11, 14, 10), toon("#e11d48"), { outline: 0.025 });
   strapPin.position.copy(BADGE_PIN).add(new THREE.Vector3(0, 0, 0.06));
   scene.add(strapPin);
+  // Grabbing the lanyard: the pin, a point along the strap, or the badge (its clip end).
+  // Works on the overview and the badge close-up, on the wall-parallel plane the strap hangs in.
+  const lanyardPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -(BADGE_PIN.z + 0.05));
+  const lanyardPoint = new THREE.Vector3();
+  const strapSegment = new THREE.Line3();
+  const strapClosest = new THREE.Vector3();
+  function lanyardAt(point, badgeHit) {
+    if (Math.hypot(point.x - badgePin.x, point.y - badgePin.y) < 0.32) return { index: 0, strap: true, dx: 0, dy: 0 };
+    let best = null;
+    for (let i = 0; i < ROPE_SEGMENTS; i++) {
+      strapSegment.start.set(rope[i].x, rope[i].y, point.z);
+      strapSegment.end.set(rope[i + 1].x, rope[i + 1].y, point.z);
+      const t = strapSegment.closestPointToPointParameter(point, true);
+      const distance = strapSegment.at(t, strapClosest).distanceTo(point);
+      if (distance < 0.28 && (!best || distance < best.distance)) best = { distance, index: Math.max(1, Math.round(i + t)) };
+    }
+    if (best) return { index: best.index, strap: true, dx: 0, dy: 0 };
+    if (!badgeHit) return null;
+    const end = rope[ROPE_SEGMENTS];
+    return { index: ROPE_SEGMENTS, dx: point.x - end.x, dy: point.y - end.y };
+  }
+  function moveLanyard(hold, point) {
+    if (hold.index === 0) {
+      badgePin.x = THREE.MathUtils.clamp(point.x, PIN_BOUNDS.minX, PIN_BOUNDS.maxX);
+      badgePin.y = THREE.MathUtils.clamp(point.y, PIN_BOUNDS.minY, PIN_BOUNDS.maxY);
+      strapPin.position.x = badgePin.x;
+      strapPin.position.y = badgePin.y;
+      return;
+    }
+    // A strap point can't be pulled further from the pin than the strap reaches
+    let x = point.x - hold.dx;
+    let y = point.y - hold.dy;
+    const reach = ropeSegment * hold.index;
+    const away = Math.hypot(x - badgePin.x, y - badgePin.y);
+    if (away > reach) {
+      x = badgePin.x + ((x - badgePin.x) * reach) / away;
+      y = badgePin.y + ((y - badgePin.y) * reach) / away;
+    }
+    ropeHold = { index: hold.index, x, y };
+  }
+  function grabLanyard(hold) {
+    if (hold.index === 0) {
+      gsap.to(strapPin.position, { z: BADGE_PIN.z + 0.4, duration: 0.18, ease: "back.out(2.5)", overwrite: true });
+      sfx.pop({ pitch: 1.4 });
+    } else {
+      const p = rope[hold.index];
+      ropeHold = { index: hold.index, x: p.x, y: p.y };
+    }
+  }
+  function releaseLanyard(hold) {
+    ropeHold = null;
+    if (hold.index !== 0) return;
+    gsap.to(strapPin.position, { z: BADGE_PIN.z + 0.06, duration: 0.22, ease: "power4.in", overwrite: true });
+    gsap.fromTo(strapPin.scale, { x: 1.3, y: 0.7 }, { x: 1, y: 1, delay: 0.22, duration: 0.4, ease: "elastic.out(1.2, 0.4)" });
+    sfx.tick({ pitch: 0.55, delay: 0.2 });
+  }
   const badge = new THREE.Group();
   badge.position.copy(BADGE_CLIP);
   scene.add(badge);
@@ -2266,29 +2366,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
     gsap.to(crema.scale, { x: r / 0.405, y: r / 0.405, duration });
     puffs.forEach((puff) => (puff.visible = level > 0));
   }
-  const bubbleTex = canvasTexture(760, 400);
-  track(bubbleTex.texture);
-  const bubble = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: bubbleTex.texture, depthTest: false, transparent: true })));
   // Move back as well as up: the high camera angle compresses vertical separation.
   // Just above and left of the mug as the (mostly top-down) mug shot sees it, tail to the rim
-  bubble.position.set(mug.position.x - 0.5, MUG_Y + 1.85, mug.position.z - 1.1);
-  bubble.scale.set(0.001, 0.001, 1);
-  bubble.renderOrder = 10;
-  bubble.raycast = noRaycast;
-  scene.add(bubble);
+  const mugBubble = speechBubble(1.9, 1.0);
+  mugBubble.sprite.position.set(mug.position.x - 0.5, MUG_Y + 1.85, mug.position.z - 1.1);
+  const say = mugBubble.say;
+  const hideBubble = mugBubble.hide;
   let lastQuote = -1;
-  let bubbleTimer = null;
-  function say(quote) {
-    drawQuoteBubble(bubbleTex.ctx, 760, 400, quote);
-    bubbleTex.texture.needsUpdate = true;
-    gsap.fromTo(bubble.scale, { x: 0.3, y: 0.15 }, { x: 1.9, y: 1.0, duration: 0.4, ease: "back.out(2)" });
-    clearTimeout(bubbleTimer);
-    bubbleTimer = setTimeout(hideBubble, 4200);
-  }
-  function hideBubble() {
-    clearTimeout(bubbleTimer);
-    gsap.to(bubble.scale, { x: 0.001, y: 0.001, duration: 0.2, ease: "power2.in", overwrite: true });
-  }
+
   function sip() {
     if (sipping || sipsLeft === 0) return;
     sipping = true;
@@ -2463,6 +2548,19 @@ export function createDeskScene({ container, projects, experiences, dark = false
     renderer.domElement.style.cursor = entry?.note && focus.name === "about" ? "grab" : entry ? "pointer" : "default";
   };
   const onPointerMove = (e) => {
+    if (lanyardDrag) {
+      if (e.pointerId !== lanyardDrag.pointerId) return;
+      if (!lanyardDrag.moved && Math.hypot(e.clientX - lanyardDrag.startX, e.clientY - lanyardDrag.startY) < 4) return;
+      if (!lanyardDrag.moved) {
+        lanyardDrag.moved = true;
+        grabLanyard(lanyardDrag);
+        renderer.domElement.style.cursor = "grabbing";
+      }
+      const point = rayFromPointer(e).intersectPlane(lanyardPlane, lanyardPoint);
+      if (point) moveLanyard(lanyardDrag, point);
+      e.preventDefault();
+      return;
+    }
     if (noteDrag) {
       if (e.pointerId !== noteDrag.pointerId) return;
       if (Math.hypot(e.clientX - noteDrag.startX, e.clientY - noteDrag.startY) < 4 && !noteDrag.moved) return;
@@ -2487,13 +2585,37 @@ export function createDeskScene({ container, projects, experiences, dark = false
     parallax.ty = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
     if (e.pointerType === "mouse") {
       setHover(pickHover(e));
+      if (lanyardUnder(e)?.strap) renderer.domElement.style.cursor = "grab";
       mouseAim.x = MOUSE_ORIGIN.x + parallax.tx * 0.6;
       mouseAim.z = MOUSE_ORIGIN.z + parallax.ty * 0.45;
     }
   };
+  // The pin or strap under the pointer, or the badge itself, on the shots where it's in reach
+  function lanyardUnder(e) {
+    if (focus.name !== "overview" && focus.name !== "hero") return null;
+    const badgeHit = pick(e)?.entry?.object === badge;
+    const point = rayFromPointer(e).intersectPlane(lanyardPlane, lanyardPoint);
+    return point ? lanyardAt(point, badgeHit) : null;
+  }
+  let lanyardDrag = null;
+  function finishLanyardDrag() {
+    if (!lanyardDrag) return null;
+    const drag = lanyardDrag;
+    lanyardDrag = null;
+    if (drag.moved) releaseLanyard(drag);
+    if (renderer.domElement.hasPointerCapture(drag.pointerId)) renderer.domElement.releasePointerCapture(drag.pointerId);
+    renderer.domElement.style.cursor = "default";
+    return drag;
+  }
   const onPointerDown = (e) => {
-    if (noteDrag || e.button !== 0) return;
+    if (noteDrag || lanyardDrag || e.button !== 0) return;
     downAt = { x: e.clientX, y: e.clientY };
+    const hold = lanyardUnder(e);
+    if (hold) {
+      lanyardDrag = { ...hold, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moved: false };
+      renderer.domElement.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    }
     const entry = focus.name === "about" && pick(e)?.entry;
     const point = entry?.note && boardPointer(e);
     if (point) {
@@ -2529,9 +2651,31 @@ export function createDeskScene({ container, projects, experiences, dark = false
     renderer.domElement.style.cursor = "grab";
     return drag;
   }
-  const onPointerCancel = (e) => finishNoteDrag(e.pointerId);
-  const onWindowBlur = () => finishNoteDrag();
+  const onPointerCancel = (e) => {
+    finishNoteDrag(e.pointerId);
+    if (lanyardDrag?.pointerId === e.pointerId) finishLanyardDrag();
+  };
+  const onWindowBlur = () => {
+    finishNoteDrag();
+    finishLanyardDrag();
+  };
   const onPointerUp = (e) => {
+    if (lanyardDrag && e.pointerId === lanyardDrag.pointerId) {
+      const drag = finishLanyardDrag();
+      if (drag.moved) {
+        downAt = null;
+        // Re-pinned while close up: frame the badge where it hangs now
+        if (drag.index === 0 && focus.name === "hero") applyShot(false, 0.6);
+        return;
+      }
+      // A plain click on the strap or pin just sets it swinging; on the badge it's a click
+      if (drag.strap) {
+        downAt = null;
+        swing(0.25);
+        sfx.tick({ pitch: 0.8 });
+        return;
+      }
+    }
     if (noteDrag) {
       if (e.pointerId !== noteDrag.pointerId) return;
       noteDrag.moved = noteDrag.moved || Math.hypot(e.clientX - noteDrag.startX, e.clientY - noteDrag.startY) >= 4;
@@ -2571,7 +2715,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     // The camera sits inside the room, with no cutaway edges or outside backdrop.
     overview: () => ({ target: [1.4, 2.0, 0.7], dir: [0.48, 0.72, 1] }),
     // Clip only what's well in front of the wall (the monitor), not the board behind the badge
-    hero: () => ({ target: [BADGE_CLIP.x, BADGE_CLIP.y - 1.0, BADGE_CLIP.z], dir: [0.06, 0.14, 1], fit: [1.9, 2.7], depth: 2.6 }),
+    hero: () => ({ target: [badgePin.x, badgePin.y - (BADGE_PIN.y - BADGE_CLIP.y) - 1.0, BADGE_CLIP.z], dir: [0.06, 0.14, 1], fit: [1.9, 2.7], depth: 2.6 }),
     about: () => ({ target: aboutBoard.position.toArray(), dir: [0, 0.8, 1], fit: [7.3, 4.8] }),
     // The fan, or square on the pass being held up
     experience: () => {
@@ -2612,6 +2756,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
       mail.localToWorld(screenPos.set(POSTCARD_OUT.x, POSTCARD_OUT.y, (POSTCARD_OUT.z + ENVELOPE_SETTLE.z) / 2));
       return { target: screenPos.toArray(), dir: [0.02, 1, 0.25], fit: cardReady ? [2.2, 1.95] : [2.45, 3.5] };
     },
+    // Square on the window in the left wall. A shallow clip: the desk's left end sits close to it.
+    window: () => ({ target: [windowGroup.position.x + 0.1, windowGroup.position.y, windowGroup.position.z], dir: [1, 0.08, 0.04], fit: [5.2, 5.4], depth: 1.2 }),
     monitor: () => ({ target: [-0.2, 2.63, -2.66], dir: [0.1, 0.32, 1], fit: [5.2, 3.4] }),
     keyboard: () => ({ target: [0.2, 0.3, 0.75], dir: [0.1, 1, 0.75], fit: [5.4, 2.6] }),
     // A higher angle pushes the plant above the frame and leaves room for the sip quote.
@@ -2730,6 +2876,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
       camera.updateProjectionMatrix();
     }
     updateLanyard(dt);
+    outside.t += dt;
+    if (now - outside.drawnAt > (focus.name === "window" ? 33 : 150)) {
+      outside.drawnAt = now;
+      windowView.userData.tex.redraw();
+    }
     plant.rotation.z = Math.sin(now / 1400) * 0.015;
     mouse.position.x += (mouseAim.x - mouse.position.x) * 0.18;
     mouse.position.z += (mouseAim.z - mouse.position.z) * 0.18;
@@ -2785,7 +2936,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       cancelAnimationFrame(frame);
       timers.forEach(clearTimeout);
       clearTimeout(arriveTimer);
-      clearTimeout(bubbleTimer);
+      bubbleTimers.forEach(clearTimeout);
       clearInterval(clockTimer);
       clearInterval(buzzTimer);
       intro.kill();

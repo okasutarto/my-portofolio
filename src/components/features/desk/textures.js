@@ -1172,6 +1172,17 @@ export function drawKeyLabel(c, w, h, label, color = "#fff") {
 }
 
 // ---------- speech bubble over the mug: a quote per sip ----------
+// Said by the straw hat on the shelf
+export const LUFFY_QUOTES = [
+  { text: "I'm gonna be King of the Pirates!", by: "Monkey D. Luffy" },
+  { text: "If you don't take risks, you can't create a future!", by: "Monkey D. Luffy" },
+  { text: "Power isn't determined by your size, but the size of your heart and dreams!", by: "Monkey D. Luffy" },
+  { text: "I don't care if I die trying. I'll never give up!", by: "Monkey D. Luffy" },
+  { text: "When do you think people die? When they are forgotten.", by: "Dr. Hiriluk" },
+  { text: "Meat!!! Shishishi!", by: "Monkey D. Luffy" },
+  { text: "I can't use a sword, I can't navigate, I can't cook... I know I need help to survive!", by: "Monkey D. Luffy" },
+];
+
 export const SIP_QUOTES = [
   { text: "First, solve the problem. Then, write the code.", by: "John Johnson" },
   { text: "Simplicity is prerequisite for reliability.", by: "Edsger W. Dijkstra" },
@@ -1249,18 +1260,306 @@ export function drawTerminal(c, w, h, lines, cursor) {
   c.textBaseline = "middle";
   c.fillText("oka@desk: ~", 120, 23);
 
-  c.font = "700 30px ui-monospace, Menlo, monospace";
+  c.font = "700 22px ui-monospace, Menlo, monospace";
   c.textBaseline = "top";
-  const visible = lines.slice(-7);
+  const visible = lines.slice(-9);
   visible.forEach((line, i) => {
     c.fillStyle = line.startsWith(">") ? "#ff7a1a" : "#8fd694";
-    c.fillText(line, 24, 66 + i * 44);
+    c.fillText(line, 24, 64 + i * 33);
   });
   if (cursor) {
     const last = visible[visible.length - 1] || "";
     const x = 24 + c.measureText(last).width + 4;
     c.fillStyle = "#8fd694";
-    c.fillRect(x, 66 + (visible.length - 1) * 44, 17, 32);
+    c.fillRect(x, 64 + (visible.length - 1) * 33, 13, 24);
   }
   c.textBaseline = "alphabetic";
+}
+
+// ---------- the view out of the window: an animated neo-brutalist landscape ----------
+// Flat colours, thick black outlines and hard offset shadows. `t` is seconds; the scene loops
+// on its own (clouds, birds, ripples, swaying trees, a bobbing boat). Night swaps the sun for a
+// moon, adds twinkling stars and fireflies. `flockAt` / `starAt` (seconds, same clock) start a
+// flock of birds or a shooting star.
+const VIEW_STARS = Array.from({ length: 38 }, (_, i) => {
+  const r = (n) => (Math.sin(i * 127.1 + n * 311.7) * 43758.5453) % 1;
+  return { x: Math.abs(r(1)), y: Math.abs(r(2)) * 0.5, s: 0.6 + Math.abs(r(3)) * 0.8, p: Math.abs(r(4)) * 6 };
+});
+const VIEW_FLIES = Array.from({ length: 14 }, (_, i) => ({ x: (i * 0.137 + 0.05) % 1, y: 0.8 + ((i * 0.071) % 0.17), p: i * 1.7 }));
+
+export function drawWindowView(c, w, h, { t = 0, dark = false, flockAt = -99, starAt = -99 } = {}) {
+  const u = w / 100;
+  const line = Math.max(3, u * 0.7);
+  c.lineJoin = "round";
+  c.lineCap = "round";
+  const stroke = (width = line, color = "#000") => {
+    c.lineWidth = width;
+    c.strokeStyle = color;
+    c.stroke();
+  };
+  // A union of circles (and rects) with one clean outline and a hard shadow: drawn three times,
+  // shadow, then grown by the line width in black, then the fill on top
+  const blob = (parts, fill, shadow = line * 1.4) => {
+    [[shadow, shadow, 0, "#000"], [0, 0, line, "#000"], [0, 0, 0, fill]].forEach(([dx, dy, grow, color]) => {
+      if (color === "#000" && dx && !shadow) return;
+      c.fillStyle = color;
+      c.beginPath();
+      parts.forEach(([x, y, r, rw, rh]) => {
+        if (rw) c.rect(x + dx - grow, y + dy - grow, rw + grow * 2, rh + grow * 2);
+        else {
+          c.moveTo(x + dx + r + grow, y + dy);
+          c.arc(x + dx, y + dy, r + grow, 0, Math.PI * 2);
+        }
+      });
+      c.fill();
+    });
+  };
+  const wrapX = (x, margin) => ((x % (w + margin * 2)) + w + margin * 2) % (w + margin * 2) - margin;
+
+  // Sky in flat bands, lighter toward the horizon
+  const SKY = dark ? ["#1e2a5a", "#26356b", "#30437f"] : ["#7fdfff", "#a8ecff", "#cdf6ff"];
+  c.fillStyle = SKY[0];
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = SKY[1];
+  c.fillRect(0, h * 0.3, w, h * 0.1);
+  c.fillStyle = SKY[2];
+  c.fillRect(0, h * 0.4, w, h * 0.1);
+
+  if (dark) {
+    VIEW_STARS.forEach((star) => {
+      const k = 0.55 + 0.45 * Math.sin(t * 2.2 + star.p);
+      const s = u * star.s * k;
+      c.fillStyle = "#fffdf5";
+      c.save();
+      c.translate(star.x * w, star.y * h);
+      c.rotate(Math.PI / 4);
+      c.fillRect(-s / 2, -s / 2, s, s);
+      c.restore();
+    });
+    // Shooting star: a streak from the upper right down to the left, fading at its tail
+    const sp = (t - starAt) / 1.1;
+    if (sp >= 0 && sp <= 1) {
+      const x = w * (0.95 - sp * 0.7);
+      const y = h * (0.04 + sp * 0.26);
+      c.beginPath();
+      c.moveTo(x, y);
+      c.lineTo(x + w * 0.16, y - h * 0.06);
+      stroke(line * 2.2, "#000");
+      c.beginPath();
+      c.moveTo(x, y);
+      c.lineTo(x + w * 0.16, y - h * 0.06);
+      stroke(line * 1.1, "#ffdd00");
+      blob([[x, y, u * 1.4]], "#fffdf5", 0);
+    }
+  }
+
+  // Sun (turning rays) or moon (with craters)
+  const sx = w * 0.74;
+  const sy = h * 0.19;
+  const sr = w * 0.085;
+  if (!dark) {
+    c.save();
+    c.translate(sx, sy);
+    c.rotate(t * 0.25);
+    for (let i = 0; i < 10; i++) {
+      c.rotate((Math.PI * 2) / 10);
+      c.beginPath();
+      c.moveTo(sr * 1.3, 0);
+      c.lineTo(sr * 1.65, 0);
+      stroke(line * 3.2, "#000");
+      c.beginPath();
+      c.moveTo(sr * 1.3, 0);
+      c.lineTo(sr * 1.65, 0);
+      stroke(line * 1.4, "#ffdd00");
+    }
+    c.restore();
+    blob([[sx, sy, sr]], "#ffdd00");
+  } else {
+    blob([[sx, sy, sr]], "#fffdf5");
+    [[-0.3, -0.2, 0.22], [0.3, 0.25, 0.16], [0.15, -0.38, 0.1]].forEach(([dx, dy, r]) => {
+      c.beginPath();
+      c.arc(sx + dx * sr, sy + dy * sr, r * sr, 0, Math.PI * 2);
+      c.fillStyle = "#e7e0cc";
+      c.fill();
+      stroke(line * 0.6);
+    });
+  }
+
+  // Clouds drifting across
+  [[0.1, 0.12, 1, 6], [0.55, 0.3, 0.75, 9], [0.85, 0.08, 0.6, 4.5]].forEach(([bx, by, size, speed], i) => {
+    const x = wrapX(bx * w + t * speed * u, w * 0.2);
+    const y = by * h + Math.sin(t * 0.4 + i) * u * 0.4;
+    const s = size * u * 9;
+    blob([[x - s * 0.55, y + s * 0.1, s * 0.42], [x, y - s * 0.15, s * 0.58], [x + s * 0.55, y + s * 0.08, s * 0.45], [x - s * 0.55, y + s * 0.1, 0, s * 1.1, s * 0.42]], dark ? "#55638f" : "#ffffff");
+  });
+
+  // Mountains behind the lake
+  c.beginPath();
+  c.moveTo(-line, h * 0.6);
+  [[0, 0.46], [0.14, 0.34], [0.3, 0.5], [0.45, 0.38], [0.62, 0.52], [0.8, 0.36], [1, 0.48]].forEach(([x, y]) => c.lineTo(w * x, h * y));
+  c.lineTo(w + line, h * 0.6);
+  c.closePath();
+  c.fillStyle = dark ? "#3b3570" : "#c4b5fd";
+  c.fill();
+  stroke();
+  // Snow caps
+  [[0.14, 0.34], [0.45, 0.38], [0.8, 0.36]].forEach(([x, y]) => {
+    c.beginPath();
+    c.moveTo(w * x, h * y);
+    c.lineTo(w * (x + 0.045), h * (y + 0.05));
+    c.lineTo(w * (x + 0.015), h * (y + 0.04));
+    c.lineTo(w * (x - 0.02), h * (y + 0.055));
+    c.lineTo(w * (x - 0.05), h * (y + 0.05));
+    c.closePath();
+    c.fillStyle = dark ? "#c9c5dc" : "#fffdf5";
+    c.fill();
+    stroke(line * 0.8);
+  });
+
+  // The lake: ripples sliding, the sun/moon's reflection wobbling, a little sailboat
+  const lakeTop = h * 0.58;
+  const lakeBottom = h * 0.78;
+  c.fillStyle = dark ? "#172554" : "#3b82f6";
+  c.fillRect(0, lakeTop, w, lakeBottom - lakeTop);
+  c.beginPath();
+  c.moveTo(0, lakeTop);
+  c.lineTo(w, lakeTop);
+  stroke();
+  for (let i = 0; i < 4; i++) {
+    const bar = sr * (1.5 - i * 0.3) * (1 + 0.15 * Math.sin(t * 3 + i));
+    c.fillStyle = dark ? "#fffdf5" : "#ffdd00";
+    c.fillRect(sx - bar / 2 + Math.sin(t * 2 + i * 2) * u, lakeTop + u * 2 + i * u * 2.6, bar, u * 1.2);
+  }
+  for (let i = 0; i < 9; i++) {
+    const row = i % 4;
+    const dir = row % 2 ? 1 : -1;
+    const x = wrapX(((i * 0.29) % 1) * w + dir * t * u * (2 + row), u * 10);
+    const y = lakeTop + u * 3.5 + row * (lakeBottom - lakeTop - u * 6) / 3;
+    c.beginPath();
+    c.moveTo(x, y);
+    c.lineTo(x + u * (5 + (i % 3) * 2), y);
+    stroke(line * 0.8, dark ? "#7fb2ff" : "#cdf6ff");
+  }
+  const bx = w * 0.3 + Math.sin(t * 0.22) * w * 0.14;
+  const by = lakeTop + (lakeBottom - lakeTop) * 0.45 + Math.sin(t * 2) * u * 0.6;
+  c.save();
+  c.translate(bx, by);
+  c.rotate(Math.sin(t * 1.6) * 0.06);
+  c.beginPath();
+  c.moveTo(-u * 6, 0);
+  c.lineTo(u * 6, 0);
+  c.lineTo(u * 4, u * 2.6);
+  c.lineTo(-u * 4, u * 2.6);
+  c.closePath();
+  c.fillStyle = "#ff6b6b";
+  c.fill();
+  stroke();
+  c.beginPath();
+  c.moveTo(0, 0);
+  c.lineTo(0, -u * 9);
+  stroke();
+  c.beginPath();
+  c.moveTo(u * 0.6, -u * 8.5);
+  c.lineTo(u * 6, -u * 1.2);
+  c.lineTo(u * 0.6, -u * 1.2);
+  c.closePath();
+  c.fillStyle = "#fffdf5";
+  c.fill();
+  stroke();
+  if (dark) blob([[-u * 3.2, -u * 1.4, u * 1]], "#ffdd00", 0);
+  c.restore();
+
+  // Grass, flowers, and trees swaying on the near shore
+  c.fillStyle = dark ? "#2f6b45" : "#8fd694";
+  c.fillRect(0, lakeBottom, w, h - lakeBottom);
+  c.beginPath();
+  c.moveTo(0, lakeBottom);
+  c.lineTo(w, lakeBottom);
+  stroke();
+  [[0.38, 0.86, "#ff90e8"], [0.47, 0.92, "#ffdd00"], [0.62, 0.88, "#fffdf5"], [0.7, 0.95, "#ff90e8"], [0.31, 0.95, "#ffdd00"]].forEach(([x, y, color], i) => {
+    const fx = w * x + Math.sin(t * 1.5 + i) * u * 0.3;
+    c.beginPath();
+    c.moveTo(w * x, h * y + u * 2.4);
+    c.lineTo(fx, h * y);
+    stroke(line * 0.7, dark ? "#14532d" : "#166534");
+    blob([[fx, h * y, u * 1.1]], dark ? "#7c6b9e" : color, 0);
+  });
+  const tree = (x, scale, i, round) => {
+    const base = h * 0.97;
+    c.save();
+    c.translate(w * x, base);
+    c.rotate(Math.sin(t * 1.1 + i * 1.3) * 0.035);
+    c.beginPath();
+    c.rect(-u * 1.2 * scale, -u * 10 * scale, u * 2.4 * scale, u * 10 * scale);
+    c.fillStyle = "#8b5a2b";
+    c.fill();
+    stroke();
+    if (round) {
+      const r = u * 6 * scale;
+      blob([[-r * 0.6, -u * 13 * scale, r * 0.75], [r * 0.6, -u * 13 * scale, r * 0.7], [0, -u * 18 * scale, r]], dark ? "#1f5c3a" : "#22a65c");
+    } else {
+      [[-u * 8, -u * 18, u * 7], [-u * 14, -u * 30, u * 5.5]].forEach(([bottom, top, half]) => {
+        c.beginPath();
+        c.moveTo(0, top * scale);
+        c.lineTo(half * scale, bottom * scale);
+        c.lineTo(-half * scale, bottom * scale);
+        c.closePath();
+        c.fillStyle = "#000";
+        c.save();
+        c.translate(line * 1.4, line * 1.4);
+        c.fill();
+        c.restore();
+        c.fillStyle = dark ? "#14532d" : "#166534";
+        c.fill();
+        stroke();
+      });
+    }
+    c.restore();
+  };
+  tree(0.09, 1.2, 0, false);
+  tree(0.22, 0.9, 1, true);
+  tree(0.85, 1.05, 2, false);
+  tree(0.96, 0.8, 3, true);
+
+  // Birds by day (a few always about, a flock when called), fireflies by night
+  const bird = (x, y, s, flap) => {
+    c.beginPath();
+    c.moveTo(x - s, y - s * 0.55 * flap);
+    c.quadraticCurveTo(x - s * 0.45, y - s * 0.15, x, y);
+    c.quadraticCurveTo(x + s * 0.45, y - s * 0.15, x + s, y - s * 0.55 * flap);
+    stroke(line * 1.1);
+  };
+  if (!dark) {
+    for (let i = 0; i < 3; i++) {
+      const x = wrapX(w * (i * 0.37) + t * u * (5 + i * 1.5), u * 6);
+      const y = h * (0.12 + i * 0.07) + Math.sin(t * 1.3 + i * 2) * u * 1.5;
+      bird(x, y, u * (2.2 - i * 0.3), Math.sin(t * 9 + i * 1.7));
+    }
+    const fp = (t - flockAt) / 5;
+    if (fp >= 0 && fp <= 1) {
+      for (let i = 0; i < 7; i++) {
+        const row = Math.ceil(i / 2) * (i % 2 ? 1 : -1);
+        const x = -w * 0.15 + fp * w * 1.35 - Math.abs(row) * u * 4;
+        const y = h * 0.3 + row * u * 3.5 - fp * h * 0.12 + Math.sin(t * 2 + i) * u * 0.6;
+        bird(x, y, u * 2.4, Math.sin(t * 12 + i));
+      }
+    }
+  } else {
+    VIEW_FLIES.forEach((fly) => {
+      const on = Math.sin(t * 2.3 + fly.p);
+      if (on < 0.1) return;
+      const x = w * fly.x + Math.sin(t * 0.7 + fly.p) * u * 3;
+      const y = h * fly.y + Math.sin(t * 1.1 + fly.p * 2) * u * 1.5;
+      const s = u * 0.9 * (0.6 + on * 0.6);
+      c.fillStyle = "#000";
+      c.fillRect(x - s / 2 - line * 0.4, y - s / 2 - line * 0.4, s + line * 0.8, s + line * 0.8);
+      c.fillStyle = "#ffdd00";
+      c.fillRect(x - s / 2, y - s / 2, s, s);
+    });
+  }
+
+  // The window's own cross bars
+  c.fillStyle = "#000";
+  c.fillRect(w / 2 - u * 1.1, 0, u * 2.2, h);
+  c.fillRect(0, h / 2 - u * 1.1, w, u * 2.2);
 }

@@ -71,6 +71,7 @@ const upStart = source.indexOf('  const onPointerUp =');
 const opens = [];
 const resumeContext = {
   noteDrag: null,
+  lanyardDrag: null,
   finishNoteDrag() { const drag = resumeContext.noteDrag; resumeContext.noteDrag = null; return drag; },
   runHotspot: ({ href }) => opens.push(href),
 };

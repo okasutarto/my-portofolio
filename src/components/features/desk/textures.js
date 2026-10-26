@@ -1384,20 +1384,21 @@ export const SIP_QUOTES = [
   { text: "Coffee in, features out.", by: "oka" },
   { text: "One more sip, one less bug.", by: "oka" },
 ];
-export function drawQuoteBubble(c, w, h, quote, { size = 32 } = {}) {
+export function drawQuoteBubble(c, w, h, quote, { size = 32, tail: tailSide = "right" } = {}) {
   c.clearRect(0, 0, w, h);
   if (!quote) return;
   const tail = 46;
   const box = { x: 14, y: 14, w: w - 40, h: h - tail - 40 };
-  // hard shadow, then the bubble with its tail pointing down-right to the mug
+  // hard shadow, then the bubble with its tail pointing down to the speaker: from the lower
+  // right by default, or the lower left
+  // Along the bottom edge from right to left: base, tip, base (the tip leans outward)
+  const tailPoints = tailSide === "left" ? [[0.38, 0], [0.14, 1], [0.22, 0]] : [[0.78, 0], [0.86, 1], [0.62, 0]];
   const shape = (dx, dy) => {
     c.beginPath();
     c.moveTo(box.x + dx, box.y + dy);
     c.lineTo(box.x + box.w + dx, box.y + dy);
     c.lineTo(box.x + box.w + dx, box.y + box.h + dy);
-    c.lineTo(box.x + box.w * 0.78 + dx, box.y + box.h + dy);
-    c.lineTo(box.x + box.w * 0.86 + dx, box.y + box.h + tail + dy);
-    c.lineTo(box.x + box.w * 0.62 + dx, box.y + box.h + dy);
+    tailPoints.forEach(([k, isTip]) => c.lineTo(box.x + box.w * k + dx, box.y + box.h + isTip * tail + dy));
     c.lineTo(box.x + dx, box.y + box.h + dy);
     c.closePath();
   };

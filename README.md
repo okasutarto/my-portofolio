@@ -152,6 +152,17 @@ project or a job updates both.
 The straw hat, the Enma-style katana and the Infinity Gauntlet are fan tributes to *One Piece* and
 Marvel. Those characters, names and designs belong to their owners.
 
+## License
+
+The original source code is available under the [MIT License](LICENSE). You can
+reuse the room implementation, shaders, synthesized sounds and code structure.
+
+Personal content is excluded: my name, portrait, CV, biography and portfolio
+text, all contents of `src/data/`, and portfolio screenshots and preview images
+remain reserved. Replace those with your own content when reusing the code.
+Third-party assets and the fan tributes above remain subject to their owners'
+rights. See [content exclusions](CONTENT_LICENSE.md) for the full scope.
+
 ## Contact
 
 **Oka Sutarto Putra** · Full stack developer, Pontianak 🇮🇩

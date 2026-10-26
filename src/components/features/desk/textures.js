@@ -1775,10 +1775,14 @@ export function drawWindowView(c, w, h, { t = 0, dark = false, flockAt = -99, st
     });
   }
 
-  // The window's own cross bars
+  // The window's own cross bars: white, like the frame, with a black outline
+  const bar = u * 2.4;
   c.fillStyle = "#000";
-  c.fillRect(w / 2 - u * 1.1, 0, u * 2.2, h);
-  c.fillRect(0, h / 2 - u * 1.1, w, u * 2.2);
+  c.fillRect(w / 2 - bar / 2 - line, 0, bar + line * 2, h);
+  c.fillRect(0, h / 2 - bar / 2 - line, w, bar + line * 2);
+  c.fillStyle = "#ffffff";
+  c.fillRect(w / 2 - bar / 2, 0, bar, h);
+  c.fillRect(0, h / 2 - bar / 2, w, bar);
 }
 
 // ---------- game cases on the shelf ----------
@@ -1915,4 +1919,182 @@ export function drawGameCover(c, w, h, { platform = "#e11d48", title = "PIXEL KA
   c.strokeRect(0, 0, w, h);
   c.textAlign = "left";
   c.textBaseline = "alphabetic";
+}
+
+// ---------- gym corner ----------
+// The rep counter that pops up over the dumbbells
+export function drawRepBadge(c, w, h, text, fill = "#ffdd00") {
+  c.clearRect(0, 0, w, h);
+  brutalBox(c, 10, 10, w - 34, h - 34, fill, { shadow: 12, line: 8 });
+  c.fillStyle = "#000";
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  fitFont(c, text, 800, DISPLAY, Math.round(h * 0.42), w - 80);
+  c.fillText(text, (w - 24) / 2 + 2, (h - 24) / 2 + 4);
+  c.textAlign = "left";
+  c.textBaseline = "alphabetic";
+}
+
+// A month of training on the wall: done days stamped, today ringed, the streak in the header.
+// `done` holds the day numbers trained this month.
+export function drawGymCalendar(c, w, h, { now = new Date(), done = new Set() } = {}) {
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const today = now.getDate();
+  const days = new Date(year, month + 1, 0).getDate();
+  const lead = (new Date(year, month, 1).getDay() + 6) % 7; // weeks start on Monday
+  let streak = 0;
+  for (let d = done.has(today) ? today : today - 1; d >= 1 && done.has(d); d--) streak++;
+
+  c.fillStyle = "#fffdf5";
+  c.fillRect(0, 0, w, h);
+  // header: title and the streak
+  const head = h * 0.24;
+  c.fillStyle = "#ff7a1a";
+  c.fillRect(0, 0, w, head);
+  c.fillStyle = "#000";
+  c.fillRect(0, head - 4, w, 8);
+  c.textBaseline = "middle";
+  fitFont(c, "GYM STREAK", 800, DISPLAY, Math.round(head * 0.34), w * 0.56);
+  c.fillText("GYM STREAK", w * 0.05, head * 0.36);
+  c.font = `700 ${Math.round(head * 0.24)}px ${BODY}`;
+  c.fillText(now.toLocaleString("en-US", { month: "long" }).toUpperCase() + " " + year, w * 0.05, head * 0.74);
+  brutalBox(c, w * 0.66, head * 0.16, w * 0.29, head * 0.62, "#ffdd00", { shadow: 6, line: 5 });
+  c.fillStyle = "#000";
+  c.textAlign = "center";
+  c.font = `800 ${Math.round(head * 0.3)}px ${DISPLAY}`;
+  c.fillText(`${streak} 🔥`, w * 0.66 + w * 0.145 - 3, head * 0.47);
+  // weekday initials and the grid
+  const gx = w * 0.05;
+  const gw = w * 0.9;
+  const cell = gw / 7;
+  const top = head + h * 0.1;
+  const rows = Math.ceil((lead + days) / 7);
+  const ch = (h * 0.96 - top) / rows;
+  c.font = `800 ${Math.round(h * 0.045)}px ${BODY}`;
+  "MTWTFSS".split("").forEach((l, i) => c.fillText(l, gx + cell * (i + 0.5), head + h * 0.05));
+  for (let d = 1; d <= days; d++) {
+    const i = lead + d - 1;
+    const x = gx + (i % 7) * cell;
+    const y = top + Math.floor(i / 7) * ch;
+    const pad = 4;
+    if (done.has(d)) {
+      c.fillStyle = ["#8fd694", "#00e0c6", "#ff90e8", "#7fb2ff"][d % 4];
+      c.fillRect(x + pad, y + pad, cell - pad * 2, ch - pad * 2);
+    }
+    c.lineWidth = d === today ? 7 : 3;
+    c.strokeStyle = d === today ? "#e11d48" : "#000";
+    c.strokeRect(x + pad, y + pad, cell - pad * 2, ch - pad * 2);
+    c.fillStyle = "#000";
+    c.font = `700 ${Math.round(ch * 0.34)}px ${BODY}`;
+    c.fillText(done.has(d) ? "✓" : String(d), x + cell / 2, y + ch / 2 + 2);
+  }
+  c.lineWidth = 10;
+  c.strokeStyle = "#000";
+  c.strokeRect(0, 0, w, h);
+  c.textAlign = "left";
+  c.textBaseline = "alphabetic";
+}
+
+// ---------- katana ----------
+// The slash: a thick white crescent with a black outline, tapering at both ends
+export function drawSlash(c, w, h) {
+  c.clearRect(0, 0, w, h);
+  const arc = (r1, r2) => {
+    c.beginPath();
+    c.ellipse(w / 2, h * 0.95, w * 0.46 * r1, h * 0.85 * r1, 0, Math.PI * 1.08, Math.PI * 1.92);
+    c.ellipse(w / 2, h * 1.02, w * 0.44 * r2, h * 0.72 * r2, 0, Math.PI * 1.92, Math.PI * 1.08, true);
+    c.closePath();
+  };
+  arc(1.02, 0.98);
+  c.fillStyle = "#000";
+  c.fill();
+  arc(1, 1);
+  c.fillStyle = "#fffdf5";
+  c.fill();
+  c.lineWidth = 6;
+  c.strokeStyle = "#7fdfff";
+  c.stroke();
+}
+
+// A manga shout: a jagged starburst balloon with the technique's name in heavy type
+export function drawShout(c, w, h, text) {
+  c.clearRect(0, 0, w, h);
+  const spikes = 18;
+  const burst = (dx, dy) => {
+    c.beginPath();
+    for (let i = 0; i <= spikes * 2; i++) {
+      const a = (i / (spikes * 2)) * Math.PI * 2;
+      const r = i % 2 ? 0.8 : 1;
+      const x = w / 2 + dx + Math.cos(a) * (w * 0.47) * r;
+      const y = h / 2 + dy + Math.sin(a) * (h * 0.44) * r;
+      if (i) c.lineTo(x, y);
+      else c.moveTo(x, y);
+    }
+    c.closePath();
+  };
+  burst(12, 12);
+  c.fillStyle = "#000";
+  c.fill();
+  burst(0, 0);
+  c.fillStyle = "#ffdd00";
+  c.fill();
+  c.lineWidth = 8;
+  c.strokeStyle = "#000";
+  c.stroke();
+  c.save();
+  c.translate(w / 2, h / 2);
+  c.rotate(-0.06);
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  fitFont(c, text, 800, DISPLAY, Math.round(h * 0.2), w * 0.66);
+  c.lineWidth = 10;
+  c.lineJoin = "round";
+  c.strokeStyle = "#fffdf5";
+  c.strokeText(text, 0, 0);
+  c.fillStyle = "#e11d48";
+  c.fillText(text, 0, 0);
+  c.restore();
+}
+
+// Enma's blade, printed in the blade's own coordinates (x along it, y across, in world units):
+// a dark steel back, a pale blue band and purple flames licking up from a pale pink edge.
+// `bow(x)` is the blade's curve; `length` its straight length; `width` the canvas's span in x.
+export function drawEnmaBlade(c, w, h, { bow, length, width, yMin, yMax }) {
+  c.clearRect(0, 0, w, h);
+  const toRow = (y) => (1 - (y - yMin) / (yMax - yMin)) * h;
+  for (let px = 0; px < w; px++) {
+    const x = (px / w) * width;
+    const t = Math.min(1, x / length);
+    const edge = bow(Math.min(x, length)) - 0.055 * (1 - 0.3 * t);
+    const spine = bow(Math.min(x, length)) + 0.05;
+    const at = (f) => toRow(edge + (spine - edge) * f);
+    const flame = 0.36 + 0.09 * Math.sin(x * 38) + 0.05 * Math.sin(x * 91 + 2);
+    const band = 0.66 + 0.06 * Math.sin(x * 29 + 1);
+    [[0, 0.12, "#f5d0fe"], [0.12, flame, "#a855f7"], [flame, band, "#7dd3fc"], [band, 1.05, "#4b5563"]].forEach(([from, to, color]) => {
+      c.fillStyle = color;
+      c.fillRect(px, at(to), 1.5, at(from) - at(to) + 1);
+    });
+  }
+}
+
+// A little five-petalled yellow flower, the crest on Enma's scabbard and handle
+export function drawEnmaFlower(c, w, h) {
+  c.clearRect(0, 0, w, h);
+  const r = w * 0.17;
+  c.lineWidth = w * 0.05;
+  c.strokeStyle = "#1a1714";
+  c.fillStyle = "#ffdd00";
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
+    c.beginPath();
+    c.arc(w / 2 + Math.cos(a) * r * 1.15, h / 2 + Math.sin(a) * r * 1.15, r, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+  }
+  c.beginPath();
+  c.arc(w / 2, h / 2, r * 0.75, 0, Math.PI * 2);
+  c.fillStyle = "#ff7a1a";
+  c.fill();
+  c.stroke();
 }

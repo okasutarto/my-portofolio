@@ -25,13 +25,24 @@ function createContext() {
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
   if (!AudioCtx) return null;
   ctx = new AudioCtx();
-  // A gentle compressor keeps overlapping hits from clipping
+  // The sounds are synthesized quietly, so they go through a compressor that evens them out, a
+  // makeup gain that brings them up to a normal listening level, and a limiter on the end so
+  // overlapping hits can't clip
   const comp = ctx.createDynamicsCompressor();
-  comp.threshold.value = -18;
+  comp.threshold.value = -20;
+  comp.knee.value = 12;
   comp.ratio.value = 4;
+  const makeup = ctx.createGain();
+  makeup.gain.value = 2.6;
+  const limiter = ctx.createDynamicsCompressor();
+  limiter.threshold.value = -2;
+  limiter.knee.value = 0;
+  limiter.ratio.value = 20;
+  limiter.attack.value = 0.002;
+  limiter.release.value = 0.1;
   out = ctx.createGain();
-  out.gain.value = 0.55;
-  out.connect(comp).connect(ctx.destination);
+  out.gain.value = 1;
+  out.connect(comp).connect(makeup).connect(limiter).connect(ctx.destination);
   // One second of white noise, reused by every noisy sound
   noiseBuffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
   const data = noiseBuffer.getChannelData(0);
@@ -425,6 +436,26 @@ const SOUNDS = {
       tone(t + i * 0.16 + i * i * 0.03, { type: "sawtooth", freq: vary(260 - i * 30, 0.08), to: 200 - i * 25, attack: 0.01, peak: 0.05, decay: 0.08 });
     }
   },
+  // A dumbbell set down: a bright metallic clink over a heavy thump
+  clank(t, { strength = 1 } = {}) {
+    tone(t, { type: "triangle", freq: vary(1250, 0.04), peak: 0.16 * strength, decay: 0.22 });
+    tone(t + 0.004, { type: "triangle", freq: vary(1870, 0.04), peak: 0.1 * strength, decay: 0.16 });
+    tone(t, { freq: 95, to: 50, peak: 0.6 * strength, decay: 0.14 });
+    noise(t, { filter: "lowpass", freq: 700, peak: 0.25 * strength, decay: 0.05 });
+  },
+  // Steel leaving a scabbard: a scrape rising into a long ringing "shiiing"
+  shing(t) {
+    noise(t, { filter: "highpass", freq: 3500, to: 7500, q: 0.8, attack: 0.02, peak: 0.16, decay: 0.28 });
+    tone(t + 0.12, { freq: 2350, to: 2420, attack: 0.005, peak: 0.12, decay: 0.9 });
+    tone(t + 0.12, { freq: 3520, to: 3600, attack: 0.005, peak: 0.07, decay: 0.7 });
+    tone(t + 0.12, { type: "triangle", freq: 5280, attack: 0.005, peak: 0.03, decay: 0.5 });
+  },
+  // A blade sliding home: a short scrape and the guard's click against the scabbard
+  sheathe(t) {
+    noise(t, { filter: "highpass", freq: 5000, to: 2500, q: 0.8, attack: 0.01, peak: 0.08, decay: 0.18 });
+    tone(t + 0.2, { type: "triangle", freq: 1900, peak: 0.16, decay: 0.05 });
+    noise(t + 0.2, { filter: "highpass", freq: 3000, attack: 0.001, peak: 0.12, decay: 0.02 });
+  },
   // Plain UI click
   click(t) {
     tone(t, { freq: 900, to: 550, peak: 0.2, decay: 0.03 });
@@ -432,7 +463,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, patter: 0.4, chime: 1.2, hiss: 0.4, creak: 0.8 };
+const MIN_GAP = { slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, patter: 0.4, chime: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, shing: 0.5, sheathe: 0.4 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || (ctx.state !== "running" && !resuming) || document.hidden) return;

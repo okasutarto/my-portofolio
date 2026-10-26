@@ -46,6 +46,12 @@ import {
   drawWindowView,
   drawGameSpine,
   drawGameCover,
+  drawRepBadge,
+  drawGymCalendar,
+  drawSlash,
+  drawShout,
+  drawEnmaBlade,
+  drawEnmaFlower,
   drawWoodTop,
   drawWoodFloor,
   drawRug,
@@ -383,7 +389,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   windowGroup.position.set(-8.7, 3.9, -2.65);
   windowGroup.rotation.y = Math.PI / 2;
   room.add(windowGroup);
-  const frameWood = toon("#b5773e");
+  // A clean white frame and sill. Unlit, like the printed view and its cross bars, so the side
+  // wall's shading doesn't turn it grey: the whole window reads as one white
+  const frameWood = track(new THREE.MeshBasicMaterial({ color: "#ffffff" }));
   const windowFrame = mesh(new THREE.BoxGeometry(4.4, 4.5, 0.18), frameWood, { cast: false, outline: 0.07 });
   // The view outside is animated (see drawWindowView): redrawn from the render loop, often
   // while it's zoomed in on, a few times a second otherwise
@@ -411,7 +419,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // A guitar hanging on the left wall from a hook under its headstock. Click it for a strum;
   // it swings on the hook. Built standing up in its own plane, then turned to face the room.
   const guitar = new THREE.Group();
-  guitar.position.set(-8.5, 1.6, 5.0);
+  guitar.position.set(-8.5, 1.6, 4.5);
   guitar.rotation.y = Math.PI / 2;
   room.add(guitar);
   const HOOK_Y = 3.98;
@@ -937,7 +945,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // on it for a little hop.
   const shelf = new THREE.Group();
   // Clear of the About board on the wall (it spans x 1.2–8.0)
-  shelf.position.set(10.85, FLOOR_Y, -5.6);
+  shelf.position.set(10.5, FLOOR_Y, -5.6);
   scene.add(shelf);
   const SHELF_W = 4.2;
   const SHELF_D = 1.5;
@@ -1076,11 +1084,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const handheldItem = addItem(at(handheld, 1.35, standOn(3) + 0.47, -0.2), "console");
   handheldItem.rotation.x = -0.18;
 
-  // Top: two books lying flat
-  addItem(at(group(mesh(rbox(1.4, 0.24, 1.0, 0.03), toon("#c4b5fd"), { outline: 0.03 })), 0.75, standOn(4) + 0.12, 0), "book");
-  addItem(at(group(mesh(rbox(1.2, 0.22, 0.9, 0.03), toon("#ff6b6b"), { outline: 0.03 })), 0.8, standOn(4) + 0.35, 0, 0.05), "book");
-
-  // To their left, where it shows from the desk, Luffy's straw hat: a wide straw brim, a round crown and the red band
+  // Top: Luffy's straw hat at the left end (where it shows from the desk), and a katana on its
+  // stand beside it. The hat: a wide straw brim, a round crown and the red band
   const straw = toon("#f2c14e");
   const strawHat = group(
     at(mesh(new THREE.CylinderGeometry(0.74, 0.76, 0.05, 40), straw, { outline: 0.03 }), 0, 0.025, 0),
@@ -1091,13 +1096,244 @@ export function createDeskScene({ container, projects, experiences, dark = false
   );
   strawHat.children[1].rotation.x = Math.PI / 2;
   strawHat.children[4].scale.y = 0.8;
-  addItem(at(strawHat, -0.95, standOn(4), 0.05, 0.06), "hat").rotation.y = 0.4;
+  addItem(at(strawHat, -1.5, standOn(4), 0.05, 0.06), "hat").rotation.y = 0.4;
   // Click it for one of Luffy's lines, over the shelf without zooming in. The tail points down
   // to the hat from the bubble's lower right.
   // Read from the overview (no zoom), so it's big and set in larger type than the mug's
   const hatBubble = speechBubble(6.6, 3.45, { size: 40 });
-  hatBubble.sprite.position.set(shelf.position.x - 3.15, standOn(4) + FLOOR_Y + 2.3, shelf.position.z + 0.6);
+  hatBubble.sprite.position.set(shelf.position.x - 3.7, standOn(4) + FLOOR_Y + 2.3, shelf.position.z + 0.6);
   let luffyIndex = Math.floor(Math.random() * LUFFY_QUOTES.length);
+
+  // ---------- katana on its stand, beside the hat ----------
+  // Sheathed, handle to the right as in a display. Click it: the blade is drawn out of the
+  // scabbard with a ring of steel, swung in a slash that leaves a white crescent and a shower of
+  // sakura petals while the technique's name is shouted in a balloon, then slid back home with a
+  // click. Built with the blade along +x from the guard, then the stand turned half round.
+  // Scaled up to a full katana's length against the room (about 80 cm); the handle reaches a
+  // little past the shelf's right edge, as a sword does past its stand
+  const KATANA_SCALE = 1.3;
+  const katanaStand = new THREE.Group();
+  katanaStand.position.set(1.4, standOn(4), 0.05);
+  katanaStand.rotation.y = Math.PI;
+  katanaStand.scale.setScalar(KATANA_SCALE);
+  shelf.add(katanaStand);
+  const lacquer = toon("#141210");
+  const gold = toon("#d4a72c");
+  katanaStand.add(at(mesh(rbox(1.6, 0.1, 0.55, 0.04), lacquer, { outline: 0.025 }), 0.5, 0.05, 0));
+  [-0.15, 1.15].forEach((x) => katanaStand.add(at(mesh(rbox(0.12, 0.82, 0.12, 0.03), lacquer, { outline: 0.02 }), x, 0.46, 0)));
+  // A gentle curve (sori) shared by the blade and the scabbard: y rises with the square of x
+  const SORI = 0.1;
+  const BLADE_L = 1.9;
+  const bow = (x) => SORI * (x / BLADE_L) ** 2;
+  const bladeShape = (inset) => {
+    const shape = new THREE.Shape();
+    const steps = 16;
+    shape.moveTo(0, -0.055 + inset);
+    for (let i = 1; i <= steps; i++) {
+      const x = (i / steps) * BLADE_L;
+      shape.lineTo(x, bow(x) - 0.055 * (1 - 0.3 * (x / BLADE_L)) + inset);
+    }
+    shape.lineTo(BLADE_L + 0.14, bow(BLADE_L) + 0.03);
+    for (let i = steps; i >= 0; i--) {
+      const x = (i / steps) * BLADE_L;
+      shape.lineTo(x, bow(x) + 0.05 - (inset ? 0.05 : 0));
+    }
+    shape.closePath();
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.022, bevelEnabled: false });
+    geo.translate(0, 0, -0.011);
+    return geo;
+  };
+  const RACK_Y = 0.9;
+  // Styled on Enma: a purple scabbard and handle with gold fittings and little yellow flower
+  // crests, a red cord with a tassel at the scabbard's mouth, a four-lobed gold guard, and a
+  // blade with blue and purple flames along it
+  const enmaPurple = toon("#6b2fa8");
+  const cord = toon("#e11d48");
+  const flowerTex = canvasTexture(64, 64);
+  track(flowerTex.texture);
+  drawEnmaFlower(flowerTex.ctx, 64, 64);
+  const flowerMat = track(new THREE.MeshBasicMaterial({ map: flowerTex.texture, transparent: true, depthWrite: false }));
+  const flowerGeo = track(new THREE.PlaneGeometry(0.11, 0.11));
+  // A crest on both faces at x along the piece, `radius` out from its centre line
+  const crest = (parent, x, y, radius) => [-1, 1].forEach((side) => {
+    const decal = new THREE.Mesh(flowerGeo, flowerMat);
+    decal.position.set(x, y, side * (radius + 0.004));
+    if (side < 0) decal.rotation.y = Math.PI;
+    decal.raycast = noRaycast;
+    parent.add(decal);
+  });
+  // The blade's print, laid over its faces in the blade's own coordinates
+  const BLADE_SPAN = BLADE_L + 0.14;
+  const Y_MIN = -0.06;
+  const Y_MAX = 0.16;
+  const bladeTex = canvasTexture(1024, 128);
+  track(bladeTex.texture);
+  drawEnmaBlade(bladeTex.ctx, 1024, 128, { bow, length: BLADE_L, width: BLADE_SPAN, yMin: Y_MIN, yMax: Y_MAX });
+  bladeTex.texture.repeat.set(1 / BLADE_SPAN, 1 / (Y_MAX - Y_MIN));
+  bladeTex.texture.offset.set(0, -Y_MIN / (Y_MAX - Y_MIN));
+  const bladeMat = toon("#ffffff");
+  bladeMat.map = bladeTex.texture;
+  const katana = new THREE.Group();
+  katana.position.set(0, RACK_Y, 0);
+  // The steel, hidden while it's in the scabbard
+  const steel = new THREE.Group();
+  steel.add(mesh(bladeShape(0), bladeMat, { outline: 0.018 }));
+  steel.visible = false;
+  const habaki = at(mesh(rbox(0.09, 0.14, 0.05, 0.015), gold, { outline: 0.012 }), 0.045, 0, 0);
+  // Guard: four round gold lobes in a cross round the blade
+  const tsuba = new THREE.Group();
+  [[0, 0.085], [0, -0.085], [0.085, 0], [-0.085, 0]].forEach(([y, z]) => {
+    const lobe = mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.045, 20), gold, { outline: 0.012 });
+    lobe.rotation.z = Math.PI / 2;
+    lobe.position.set(0, y, z);
+    tsuba.add(lobe);
+  });
+  const tsuka = at(mesh(rbox(0.86, 0.12, 0.1, 0.04), enmaPurple, { outline: 0.02 }), -0.47, 0, 0);
+  katana.add(steel, habaki, tsuba, tsuka);
+  // Gold collars by the guard and part way up, a gold cap on the end, a crest between
+  [[-0.08, 0.05], [-0.62, 0.035], [-0.68, 0.035], [-0.92, 0.07]].forEach(([x, width]) => katana.add(at(mesh(rbox(width, 0.135, 0.115, 0.02), gold, { outline: 0.012 }), x, 0, 0)));
+  crest(katana, -0.36, 0, 0.05);
+  katanaStand.add(katana);
+  // The scabbard, from its mouth at the guard to a gold tip, on the stand's rest
+  const sayaCurve = new THREE.CatmullRomCurve3(Array.from({ length: 9 }, (_, i) => {
+    const x = 0.04 + (i / 8) * (BLADE_L + 0.16);
+    return new THREE.Vector3(x, bow(x), 0);
+  }));
+  const sayaGroup = new THREE.Group();
+  sayaGroup.position.y = RACK_Y;
+  katanaStand.add(sayaGroup);
+  sayaGroup.add(mesh(new THREE.TubeGeometry(sayaCurve, 32, 0.075, 12), enmaPurple, { outline: 0.02 }));
+  const sayaBand = (x, width, radius = 0.085) => {
+    const band = mesh(new THREE.CylinderGeometry(radius, radius, width, 16), gold, { outline: 0.012 });
+    // Square to the scabbard: turned on its side, then tilted by the curve's slope at x
+    band.rotation.z = Math.PI / 2 + Math.atan(2 * SORI * x / BLADE_L ** 2);
+    band.position.set(x, bow(x), 0);
+    sayaGroup.add(band);
+  };
+  sayaBand(0.06, 0.07);
+  sayaBand(1.2, 0.035);
+  sayaBand(1.27, 0.035);
+  sayaBand(BLADE_L + 0.15, 0.12, 0.088);
+  [0.62, 1.5, 1.82].forEach((x) => crest(sayaGroup, x, bow(x), 0.075));
+  // Red cord wound near the mouth, its tassel hanging down in front of the stand
+  const wrap = mesh(new THREE.CylinderGeometry(0.088, 0.088, 0.16, 16), cord, { outline: 0.012 });
+  wrap.rotation.z = Math.PI / 2;
+  wrap.position.set(0.32, bow(0.32), 0);
+  const tasselCord = rod(new THREE.Vector3(0.36, bow(0.36) - 0.06, -0.08), new THREE.Vector3(0.42, -0.42, -0.12), 0.012, cord, 0.008);
+  const tassel = mesh(new THREE.CylinderGeometry(0.02, 0.06, 0.2, 10), cord, { outline: 0.012 });
+  tassel.position.set(0.42, -0.52, -0.12);
+  sayaGroup.add(wrap, tasselCord, tassel);
+
+  const slashTex = canvasTexture(512, 256);
+  track(slashTex.texture);
+  drawSlash(slashTex.ctx, 512, 256);
+  const slash = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: slashTex.texture, depthTest: false, transparent: true })));
+  slash.renderOrder = 11;
+  slash.raycast = noRaycast;
+  slash.visible = false;
+  scene.add(slash);
+  const shoutTex = canvasTexture(640, 320);
+  track(shoutTex.texture);
+  const shout = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: shoutTex.texture, depthTest: false, transparent: true })));
+  shout.renderOrder = 12;
+  shout.raycast = noRaycast;
+  shout.scale.set(0.001, 0.001, 1);
+  scene.add(shout);
+  // Sakura petals: little pink ovals with a dark outline
+  const petalTex = canvasTexture(48, 48);
+  track(petalTex.texture);
+  petalTex.ctx.beginPath();
+  petalTex.ctx.ellipse(24, 24, 18, 11, 0.5, 0, Math.PI * 2);
+  petalTex.ctx.fillStyle = "#ffb7d5";
+  petalTex.ctx.fill();
+  petalTex.ctx.lineWidth = 4;
+  petalTex.ctx.strokeStyle = "#1a1714";
+  petalTex.ctx.stroke();
+  const petals = Array.from({ length: 18 }, () => {
+    const petal = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: petalTex.texture, transparent: true, depthWrite: false })));
+    petal.visible = false;
+    petal.raycast = noRaycast;
+    scene.add(petal);
+    return petal;
+  });
+  // Zoro's techniques, called out in the shout balloon, round the list from a random start
+  const TECHNIQUES = [
+    "SHISHI SONSON!", "36 POUND CANNON!", "DAI SHINKAN!", "ONI GIRI!", "TATSU MAKI!", "SANZEN SEKAI!",
+    "YAKKODORI!", "HIRYU KAEN!", "RENGOKU ONI GIRI!", "ASURA: ICHIBUGIN!", "KOKUJO: O TATSUMAKI!",
+    "ICHIDAI SANZEN DAISEN SEKAI!", "HYAKUHACHI POUND HO!", "ENMA: KING OF HELL!",
+  ];
+  let techniqueIndex = Math.floor(Math.random() * TECHNIQUES.length);
+  const katanaWorld = new THREE.Vector3();
+  let slashing = false;
+  let shoutTimer = null;
+  function slashKatana() {
+    if (slashing) return;
+    slashing = true;
+    const technique = TECHNIQUES[techniqueIndex++ % TECHNIQUES.length];
+    const home = katana.position.x;
+    // Fully drawn: the guard pulled the blade's length away from the scabbard's mouth
+    const drawn = home - (BLADE_L + 0.25);
+    gsap.timeline({ onComplete: () => (slashing = false) })
+      .call(() => {
+        steel.visible = true;
+        sfx.shing();
+      })
+      // Drawn out of the scabbard
+      .to(katana.position, { x: drawn, duration: 0.45, ease: "power2.in" })
+      // Up off the stand, back over the shelf, tip rising
+      .to(katana.position, { x: home - 0.9, y: RACK_Y + 1.1, duration: 0.35, ease: "power2.out" })
+      .to(katana.rotation, { z: 0.35, duration: 0.35, ease: "power2.out" }, "<")
+      // Wind-up overhead
+      .to(katana.rotation, { z: 1.25, duration: 0.25, ease: "power2.inOut" })
+      .to(katana.position, { x: home - 1.2, duration: 0.25, ease: "power2.inOut" }, "<")
+      // The cut
+      .to(katana.rotation, { z: -0.9, duration: 0.16, ease: "power4.in" })
+      .to(katana.position, { x: home - 0.5, duration: 0.16, ease: "power4.in" }, "<")
+      .call(() => {
+        katana.getWorldPosition(katanaWorld);
+        // The stand is turned round, so the blade reaches toward -x in the room
+        slash.visible = true;
+        slash.position.set(katanaWorld.x - 0.9, katanaWorld.y + 0.4, katanaWorld.z + 0.8);
+        slash.material.opacity = 1;
+        slash.material.rotation = 0.35;
+        gsap.fromTo(slash.scale, { x: 1, y: 0.5 }, { x: 4.6, y: 2.3, duration: 0.25, ease: "power3.out" });
+        gsap.to(slash.material, { opacity: 0, delay: 0.25, duration: 0.45, onComplete: () => (slash.visible = false) });
+        sfx.whoosh({ duration: 0.25, up: false });
+        drawShout(shoutTex.ctx, 640, 320, technique);
+        shoutTex.texture.needsUpdate = true;
+        // Up and to the left of the blade: the shelf's right side is off screen on many displays
+        shout.position.set(katanaWorld.x - 1.3, katanaWorld.y + 1.9, katanaWorld.z + 1.2);
+        gsap.fromTo(shout.scale, { x: 1, y: 0.5 }, { x: 5.4, y: 2.7, duration: 0.3, ease: "back.out(3)", overwrite: true });
+        gsap.fromTo(shout.material, { rotation: 0.15 }, { rotation: 0, duration: 0.5, ease: "elastic.out(1.2, 0.4)" });
+        clearTimeout(shoutTimer);
+        shoutTimer = setTimeout(() => gsap.to(shout.scale, { x: 0.001, y: 0.001, duration: 0.2, ease: "power2.in", overwrite: true }), 2200);
+        petals.forEach((petal, i) => {
+          gsap.killTweensOf([petal.position, petal.material]);
+          petal.visible = true;
+          petal.scale.setScalar(0.22 + Math.random() * 0.12);
+          petal.material.opacity = 1;
+          const x = katanaWorld.x - 2.5 + Math.random() * 4;
+          const z = katanaWorld.z + 0.4 + Math.random() * 1.2;
+          petal.position.set(x, katanaWorld.y + 1.2 + Math.random() * 1.6, z);
+          const fall = 2.2 + Math.random() * 1.2;
+          gsap.to(petal.position, { y: katanaWorld.y - 2.6 - Math.random(), x: x + 0.6 + Math.random() * 0.8, duration: fall, delay: i * 0.03, ease: "sine.in" });
+          gsap.fromTo(petal.material, { rotation: Math.random() * 3 }, { rotation: `+=${4 + Math.random() * 4}`, duration: fall, delay: i * 0.03 });
+          gsap.to(petal.material, { opacity: 0, delay: fall - 0.4 + i * 0.03, duration: 0.4, onComplete: () => (petal.visible = false) });
+        });
+      })
+      // Hold the finish, then line up with the scabbard and slide home
+      .to(katana.rotation, { z: 0, duration: 0.45, ease: "power2.inOut" }, "+=0.6")
+      .to(katana.position, { x: drawn, y: RACK_Y, duration: 0.45, ease: "power2.inOut" }, "<")
+      .call(() => sfx.sheathe())
+      .to(katana.position, { x: home, duration: 0.3, ease: "power2.in" })
+      .call(() => (steel.visible = false))
+      .fromTo(katanaStand.scale, { y: KATANA_SCALE * 0.92 }, { y: KATANA_SCALE, duration: 0.3, ease: "back.out(3)" });
+  }
+  register(katanaStand, {
+    // The gold fittings catch the light
+    onHover: (on) => on && !slashing && gsap.fromTo(gold.emissive, { r: 0.6, g: 0.5, b: 0.15 }, { r: 0, g: 0, b: 0, duration: 0.7, ease: "power2.out" }),
+    onClick: slashKatana,
+  });
 
   const SHELF_SOUNDS = {
     console: () => {
@@ -1129,6 +1365,144 @@ export function createDeskScene({ container, projects, experiences, dark = false
       const y = item.obj.userData.restY;
       gsap.fromTo(item.obj.position, { y }, { keyframes: [{ y: y + 0.28, duration: 0.16, ease: "power2.out" }, { y, duration: 0.3, ease: "bounce.out" }], overwrite: true });
       SHELF_SOUNDS[item.sound]();
+    },
+  });
+
+  // ---------- gym corner: a pair of dumbbells on the floor between the desk and the shelf ----------
+  // Click for a rep: one dumbbell is lifted and set down with a clank, and a counter pops up
+  // over them. Ten in a row is a new PR, with confetti.
+  const gym = new THREE.Group();
+  gym.position.set(7.95, FLOOR_Y, -3.35);
+  gym.rotation.y = -0.15;
+  scene.add(gym);
+  const HEAD_R = 0.27;
+  // Hex heads lie flat on a face: a six-sided cylinder turned onto its side
+  const dumbbell = (color, x, z, turn) => {
+    const db = new THREE.Group();
+    const bar = mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.66, 12), toon("#9ca3af"), { outline: 0.015 });
+    const grip = mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.34, 12), toon("#1a1714"), { outline: 0.015 });
+    db.add(bar, grip);
+    [-1, 1].forEach((side) => {
+      const head = mesh(new THREE.CylinderGeometry(HEAD_R, HEAD_R, 0.3, 6), toon(color), { outline: 0.025 });
+      head.position.y = side * 0.42;
+      const band = mesh(new THREE.CylinderGeometry(HEAD_R + 0.005, HEAD_R + 0.005, 0.06, 6), toon("#1a1714"), { outline: 0, cast: false });
+      band.position.y = side * 0.42;
+      db.add(head, band);
+    });
+    db.rotation.set(0, turn, Math.PI / 2, "YXZ");
+    db.position.set(x, HEAD_R * 0.866, z);
+    db.userData.restY = db.position.y;
+    gym.add(db);
+    return db;
+  };
+  const dumbbells = [dumbbell("#ffdd00", -0.45, -0.3, 0.25), dumbbell("#ff90e8", 0.5, 0.35, -0.15)];
+  const repTex = canvasTexture(320, 160);
+  track(repTex.texture);
+  const repBadge = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: repTex.texture, depthTest: false, transparent: true })));
+  repBadge.renderOrder = 10;
+  repBadge.raycast = noRaycast;
+  repBadge.scale.set(0.001, 0.001, 1);
+  repBadge.position.set(gym.position.x, FLOOR_Y + 2.7, gym.position.z);
+  scene.add(repBadge);
+  // Confetti for a PR (and for stamping the calendar): a pool of little coloured squares
+  const confetti = Array.from({ length: 22 }, (_, i) => {
+    const bit = new THREE.Sprite(track(new THREE.SpriteMaterial({ color: PALETTE[i % 7], transparent: true, depthWrite: false })));
+    bit.visible = false;
+    bit.raycast = noRaycast;
+    scene.add(bit);
+    return bit;
+  });
+  function burst(x, y, z) {
+    confetti.forEach((bit) => {
+      gsap.killTweensOf([bit.position, bit.material]);
+      bit.visible = true;
+      bit.position.set(x, y, z);
+      bit.scale.setScalar(0.1 + Math.random() * 0.08);
+      bit.material.opacity = 1;
+      bit.material.rotation = Math.random() * Math.PI;
+      const a = Math.random() * Math.PI * 2;
+      const r = 0.8 + Math.random() * 1.4;
+      gsap.to(bit.position, { x: x + Math.cos(a) * r, z: z + Math.sin(a) * r * 0.6, duration: 1.2, ease: "power2.out" });
+      gsap.to(bit.position, { keyframes: [{ y: y + 0.8 + Math.random() * 1.2, duration: 0.45, ease: "power2.out" }, { y: y - 1.2, duration: 0.8, ease: "power2.in" }] });
+      gsap.to(bit.material, { opacity: 0, delay: 0.9, duration: 0.4, onComplete: () => (bit.visible = false) });
+    });
+  }
+  let reps = 0;
+  let lifting = false;
+  let repTimer = null;
+  function showReps(text, fill) {
+    drawRepBadge(repTex.ctx, 320, 160, text, fill);
+    repTex.texture.needsUpdate = true;
+    gsap.fromTo(repBadge.scale, { x: 0.6, y: 0.3 }, { x: 1.8, y: 0.9, duration: 0.35, ease: "back.out(3)", overwrite: true });
+    clearTimeout(repTimer);
+    repTimer = setTimeout(() => {
+      reps = 0;
+      gsap.to(repBadge.scale, { x: 0.001, y: 0.001, duration: 0.2, ease: "power2.in", overwrite: true });
+    }, 2600);
+  }
+  function lift() {
+    if (lifting) return;
+    lifting = true;
+    const db = dumbbells[reps % 2];
+    const y = db.userData.restY;
+    gsap.timeline({ onComplete: () => (lifting = false) })
+      .to(db.position, { y: y + 1.5, duration: 0.32, ease: "power2.out" })
+      .to(db.rotation, { y: db.rotation.y + 0.5, duration: 0.32, ease: "power2.out" }, 0)
+      .to(db.position, { y, duration: 0.3, ease: "power2.in" }, 0.42)
+      .to(db.rotation, { y: db.rotation.y, duration: 0.3, ease: "power2.in" }, 0.42)
+      .call(() => {
+        sfx.clank();
+        reps++;
+        if (reps >= 10) {
+          showReps("NEW PR!", "#ff90e8");
+          burst(gym.position.x, FLOOR_Y + 1.6, gym.position.z);
+          sfx.sparkle();
+          reps = 0;
+        } else showReps(`REP ${reps}`);
+      }, null, 0.72);
+    sfx.whoosh({ duration: 0.3 });
+  }
+  register(gym, { onHover: hoverScale(gym, 1.03), onClick: lift });
+
+  // ---------- gym streak calendar on the wall above the game shelf ----------
+  // This month's training days stamped in; click to stamp today and grow the streak. Today's
+  // stamp is remembered on this device.
+  const gymNow = new Date();
+  const dayKey = `gym-${gymNow.getFullYear()}-${gymNow.getMonth() + 1}-${gymNow.getDate()}`;
+  const trained = new Set();
+  for (let d = 1; d < gymNow.getDate(); d++) {
+    // A rest day or two a week, but the last few days all done: a streak worth keeping
+    if (d >= gymNow.getDate() - 9 || (d % 7 !== 0 && d % 7 !== 3)) trained.add(d);
+  }
+  try {
+    if (localStorage.getItem(dayKey)) trained.add(gymNow.getDate());
+  } catch {
+    // Without storage today just isn't stamped yet
+  }
+  const gymCalendar = new THREE.Group();
+  gymCalendar.position.set(shelf.position.x, FLOOR_Y + SHELF_H + 2.0, -6.48);
+  scene.add(gymCalendar);
+  const calendarBack = mesh(rbox(2.75, 2.35, 0.06, 0.03), toon("#1a1714"), { outline: 0.03 });
+  const calendarPage = printed(2.6, 2.2, 260, (c, w, h) => drawGymCalendar(c, w, h, { done: trained }));
+  calendarPage.position.z = 0.035;
+  const calendarClip = mesh(rbox(0.6, 0.22, 0.12, 0.04), toon("#1a1714"), { outline: 0.02 });
+  calendarClip.position.set(0, 1.15, 0.06);
+  gymCalendar.add(calendarBack, calendarPage, calendarClip);
+  register(gymCalendar, {
+    onHover: (on) => on && gsap.fromTo(gymCalendar.rotation, { z: 0.03 }, { z: 0, duration: 0.8, ease: "elastic.out(1, 0.3)" }),
+    onClick: () => {
+      gsap.fromTo(gymCalendar.rotation, { z: 0.07 }, { z: 0, duration: 1.1, ease: "elastic.out(1, 0.25)" });
+      if (trained.has(gymNow.getDate())) return sfx.tick({ pitch: 0.8 });
+      trained.add(gymNow.getDate());
+      try {
+        localStorage.setItem(dayKey, "1");
+      } catch {
+        // Stamped for this visit only
+      }
+      calendarPage.userData.tex.redraw();
+      gsap.fromTo(gymCalendar.scale, { x: 1.08, y: 1.08 }, { x: 1, y: 1, duration: 0.5, ease: "back.out(3)" });
+      burst(gymCalendar.position.x, gymCalendar.position.y, gymCalendar.position.z + 0.6);
+      sfx.stamp();
     },
   });
 
@@ -3091,7 +3465,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const screenPos = new THREE.Vector3();
   const SHOTS = {
     // The camera sits inside the room, with no cutaway edges or outside backdrop.
-    overview: () => ({ target: [1.4, 2.7, 0.7], dir: [0.48, 0.72, 1] }),
+    overview: () => ({ target: [1.8, 2.7, 0.7], dir: [0.48, 0.72, 1] }),
     // Clip only what's well in front of the wall (the monitor), not the board behind the badge
     hero: () => ({ target: [badgePin.x, badgePin.y - (BADGE_PIN.y - BADGE_CLIP.y) - 1.0, BADGE_CLIP.z], dir: [0.06, 0.14, 1], fit: [1.9, 2.7], depth: 2.6 }),
     about: () => ({ target: aboutBoard.position.toArray(), dir: [0, 0.8, 1], fit: [7.3, 4.8] }),
@@ -3334,6 +3708,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
       bubbleTimers.forEach(clearTimeout);
       clearInterval(clockTimer);
       clearInterval(buzzTimer);
+      clearTimeout(repTimer);
+      clearTimeout(shoutTimer);
       intro.kill();
       mailIntro?.kill();
       gsap.killTweensOf(cam);

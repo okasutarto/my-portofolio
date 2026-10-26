@@ -1,6 +1,5 @@
 <template>
   <div class="min-h-screen flex flex-col">
-    <CustomCursor />
     <TheNavbar v-if="!immersive" />
     <div class="page-dots" aria-hidden="true"></div>
     <main class="flex-grow">
@@ -26,7 +25,6 @@ import TheNavbar from "./components/layout/TheNavbar.vue";
 import TheFooter from "./components/layout/TheFooter.vue";
 import MainLayout from "./layouts/MainLayout.vue";
 import ChatBot from "./components/features/ChatBot.vue";
-import CustomCursor from "./components/ui/CustomCursor.vue";
 import { useTheme } from "./composables/useTheme";
 import { useSpotlight } from "./composables/useSpotlight";
 import { inject } from "@vercel/analytics";

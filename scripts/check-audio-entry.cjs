@@ -17,7 +17,7 @@ const parameter = () => ({
   linearRampToValueAtTime(value, time) { assert.ok(Number.isFinite(value) && time >= 0); },
 });
 const node = () => ({
-  gain: parameter(), threshold: { value: 0 }, ratio: { value: 0 },
+  gain: parameter(), threshold: { value: 0 }, ratio: { value: 0 }, knee: { value: 0 }, attack: { value: 0 }, release: { value: 0 },
   connect() { return this; },
 });
 class AudioContext {

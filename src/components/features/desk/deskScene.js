@@ -53,6 +53,7 @@ import {
   drawEnmaBlade,
   drawEnmaFlower,
   drawWoodTop,
+  drawDeskMat,
   drawWoodFloor,
   drawRug,
   drawDrawerFront,
@@ -331,17 +332,52 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const desk = mesh(rbox(14, 0.7, 8.4, 0.14), deskMat, { outline: 0.06 });
   desk.position.y = -0.35;
   scene.add(desk);
+  // A sit-stand frame in matte black: two telescoping columns (three stages, widest at the
+  // floor) on flat T-feet, a crossbar between them and a rail under the top at each end, with
+  // the memory keypad tucked under the front edge on the right
   const legMat = toon("#1a1a1a");
-  [
-    [-6.4, -3.6],
-    [6.4, -3.6],
-    [-6.4, 3.6],
-    [6.4, 3.6],
-  ].forEach(([x, z]) => {
-    const leg = mesh(rbox(0.55, 4.5, 0.55, 0.08), legMat, { outline: 0.05 });
-    leg.position.set(x, -2.95, z);
-    scene.add(leg);
+  const frameBar = (w, h, d, x, y, z, outline = 0.045) => {
+    const part = mesh(rbox(w, h, d, 0.04), legMat, { outline });
+    part.position.set(x, y, z);
+    scene.add(part);
+    return part;
+  };
+  [-5.5, 5.5].forEach((x) => {
+    frameBar(0.62, 0.22, 7.6, x, FLOOR_Y + 0.13, 0.2, 0.05);
+    [-3.35, 3.75].forEach((z) => frameBar(0.4, 0.08, 0.4, x, FLOOR_Y + 0.04, z, 0.03));
+    frameBar(0.78, 2.0, 0.62, x, FLOOR_Y + 1.24, 0.2, 0.05);
+    frameBar(0.7, 1.4, 0.54, x, -2.25, 0.2);
+    frameBar(0.62, 1.0, 0.46, x, -1.15, 0.2);
+    frameBar(0.72, 0.1, 7.2, x, -0.75, 0.2, 0.035);
   });
+  frameBar(10.4, 0.32, 0.4, 0, -0.86, 0.2);
+  const keypad = mesh(rbox(1.25, 0.46, 0.2, 0.06), legMat, { outline: 0.03 });
+  keypad.position.set(4.3, -0.9, 3.98);
+  keypad.rotation.x = -0.35;
+  const keypadFace = printed(1.15, 0.4, 300, (c, w, h) => {
+    c.fillStyle = "#121212";
+    c.fillRect(0, 0, w, h);
+    c.fillStyle = "#8fd694";
+    c.font = "700 30px 'Space Grotesk', sans-serif";
+    c.textBaseline = "middle";
+    c.fillText("112", 22, h / 2);
+    ["^", "1", "3", "M", "v", "2", "4", "◐"].forEach((label, i) => {
+      const bx = w * 0.33 + (i % 4) * w * 0.165;
+      const by = h * (i < 4 ? 0.3 : 0.72);
+      c.fillStyle = "#2a2a2a";
+      c.beginPath();
+      c.arc(bx, by, 17, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = "#d8d8d8";
+      c.font = "600 18px 'Space Grotesk', sans-serif";
+      c.textAlign = "center";
+      c.fillText(label, bx, by + 1);
+      c.textAlign = "left";
+    });
+  });
+  keypadFace.position.z = 0.102;
+  keypad.add(keypadFace);
+  scene.add(keypad);
 
   // ---------- full-viewport room: walls and floor extend beyond every camera shot ----------
   const room = new THREE.Group();
@@ -1108,7 +1144,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // Click it for one of Luffy's lines, without zooming in. The bubble sits up and to the right of
   // the hat (toward the room), its tail down to the hat from the lower left. Read from the
   // overview, so it's big and set in larger type than the mug's.
-  const hatBubble = speechBubble(6.6, 3.45, { size: 40, tail: "left" });
+  const hatBubble = speechBubble(6.6, 3.45, { size: 32, tail: "left", style: "manga" });
   hatBubble.sprite.position.set(-5.3, 5.75, 0.45);
   let luffyIndex = Math.floor(Math.random() * LUFFY_QUOTES.length);
   register(hatPeg, {
@@ -1616,7 +1652,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
         const everything = [
           [[mug, coaster], ["#fffdf5", "#6f4e37", "#c8925a"]],
           [[mail], ["#e2cb9c", "#fffdf5", "#3b82f6"]],
-          [[phoneStand], ["#3b82f6", "#1a1714", "#ffdd00"]],
+          [[phoneStand], ["#f47b20", "#1a1714", "#ffdd00"]],
           [[plant], ["#16a34a", "#8fd694", "#ff7a1a"]],
           [[mouse], ["#ffffff", "#e11d48"]],
           [[keyboard], ["#1f1f1f", "#e8e4dc", "#ff90e8", "#00e0c6"]],
@@ -2286,13 +2322,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
   };
   const clip = mesh(rbox(0.22, 0.16, 0.08, 0.03), toon("#888888"), { outline: 0.025 });
   const badgeCard = new THREE.Group();
-  badgeCard.position.y = -1.0;
-  const badgeFront = printed(1.1, 1.8, 400, (c, w, h) => drawBadge(c, w, h));
-  badgeFront.position.z = 0.028;
-  const badgeBack = printed(1.1, 1.8, 400, (c, w, h) => drawBadge(c, w, h, { back: true }));
-  badgeBack.position.z = -0.028;
+  // About the size of a real ID card on a lanyard (it was reading as a clipboard)
+  badgeCard.position.y = -0.74;
+  const badgeFront = printed(0.8, 1.3, 560, (c, w, h) => drawBadge(c, w, h));
+  badgeFront.position.z = 0.023;
+  const badgeBack = printed(0.8, 1.3, 560, (c, w, h) => drawBadge(c, w, h, { back: true }));
+  badgeBack.position.z = -0.023;
   badgeBack.rotation.y = Math.PI;
-  badgeCard.add(mesh(rbox(1.1, 1.8, 0.05, 0.04), toon("#ffffff"), { outline: 0.035 }), badgeFront, badgeBack);
+  badgeCard.add(mesh(rbox(0.8, 1.3, 0.04, 0.035), toon("#ffffff"), { outline: 0.03 }), badgeFront, badgeBack);
   badge.add(clip, badgeCard);
   // Zoomed in, clicking the badge turns it over: the links are printed on the back
   let badgeFlipped = false;
@@ -2300,7 +2337,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     badgeFlipped = to;
     gsap.to(badgeCard.rotation, { y: to ? Math.PI : 0, duration: 0.6, ease: "back.out(1.4)", overwrite: true });
     // Turning, the card is wider than its gap to the board: lift it clear, then let it settle back
-    gsap.fromTo(badgeCard.position, { z: 0 }, { keyframes: [{ z: 0.6, duration: 0.25, ease: "power2.out" }, { z: 0, duration: 0.35, ease: "power2.in" }] });
+    gsap.fromTo(badgeCard.position, { z: 0 }, { keyframes: [{ z: 0.45, duration: 0.25, ease: "power2.out" }, { z: 0, duration: 0.35, ease: "power2.in" }] });
     sfx.whoosh({ duration: 0.3 });
   };
   register(badge, {
@@ -2459,8 +2496,19 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // ---------- keyboard: a standard 60% layout ----------
   // Every key is its own cap with its legend printed on top, keyed by KeyboardEvent.code, so the
   // key you press on your own keyboard presses the very same key on the desk.
+  // A felt desk mat under the keyboard and the mouse, wide enough for the mouse's run
+  const MAT_TOP = 0.03;
+  const matMat = toon("#ffffff");
+  const matPrint = canvasTexture(1360, 460);
+  track(matPrint.texture);
+  drawDeskMat(matPrint.ctx, 1360, 460);
+  matMat.map = matPrint.texture;
+  const deskMatPad = mesh(rbox(6.8, MAT_TOP, 2.3, 0.014), matMat, { outline: 0.03, cast: false });
+  deskMatPad.position.set(0.9, MAT_TOP / 2, 0.75);
+  scene.add(deskMatPad);
+
   const keyboard = new THREE.Group();
-  keyboard.position.set(0.2, 0, 0.75);
+  keyboard.position.set(0.2, MAT_TOP, 0.75);
   scene.add(keyboard);
   const keyBase = mesh(rbox(4.6, 0.25, 1.7), toon("#1f1f1f"));
   keyBase.position.y = 0.125;
@@ -2558,7 +2606,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
 
   // ---------- mouse (decor) ----------
   const mouse = new THREE.Group();
-  mouse.position.set(3.75, 0, 0.5);
+  mouse.position.set(3.75, MAT_TOP, 0.5);
   mouse.rotation.y = -0.12;
   scene.add(mouse);
   const mouseBody = mesh(rbox(0.5, 0.26, 0.8, 0.13), toon("#ffffff"), { outline: 0.035 });
@@ -2798,15 +2846,38 @@ export function createDeskScene({ container, projects, experiences, dark = false
   standBack.position.set(0, 0.6, -0.3);
   standBack.rotation.x = -0.28;
   const phone = new THREE.Group();
-  phone.position.set(0, 1.08, -0.12);
+  phone.position.set(0, 1.12, -0.12);
   phone.rotation.x = -0.28;
   let unread = true;
   const chat = { messages: [], input: "", active: false, waiting: false, scroll: 0, maxScroll: 0 };
   let chatDirty = false;
   let chatTypingAt = 0;
-  const phoneScreen = printed(0.82, 1.64, 700, (c, w, h) => drawChatScreen(c, w, h, chat, { unread, caret: caretOn && chat.active }));
-  phoneScreen.position.z = 0.047;
-  phone.add(mesh(rbox(0.95, 1.85, 0.09, 0.12), toon("#3b82f6"), { outline: 0.035 }), phoneScreen);
+  // A cosmic orange iPhone 17 Pro Max: tall aluminium body behind a thin black bezel, with the
+  // full-width camera plateau across the top of the back (three lenses and a flash)
+  const phoneOrange = toon("#f47b20");
+  const phoneScreen = printed(0.84, 1.82, 700, (c, w, h) => drawChatScreen(c, w, h, chat, { unread, caret: caretOn && chat.active }));
+  phoneScreen.position.z = 0.059;
+  const phoneBezel = mesh(rbox(0.89, 1.87, 0.02, 0.1), toon("#111111"), { outline: 0, cast: false });
+  phoneBezel.position.z = 0.047;
+  const plateau = mesh(rbox(0.93, 0.5, 0.05, 0.08), phoneOrange, { outline: 0.025 });
+  plateau.position.set(0, 0.7, -0.065);
+  const lensMat = toon("#1a1a1a");
+  [[-0.27, 0.8], [-0.27, 0.6], [-0.1, 0.7]].forEach(([x, y]) => {
+    const lens = mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.04, 20), lensMat, { outline: 0.015 });
+    lens.rotation.x = Math.PI / 2;
+    lens.position.set(-x, y, -0.1);
+    phone.add(lens);
+  });
+  const camFlash = mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.02, 12), toon("#fff3d6"), { outline: 0 });
+  camFlash.rotation.x = Math.PI / 2;
+  camFlash.position.set(-0.3, 0.7, -0.092);
+  phone.add(
+    mesh(rbox(0.95, 1.95, 0.09, 0.13), phoneOrange, { outline: 0.035 }),
+    phoneBezel,
+    phoneScreen,
+    plateau,
+    camFlash,
+  );
   phoneStand.add(standBase, standBack, phone);
   const redrawChat = () => phoneScreen.userData.tex.redraw();
   function editChat() {
@@ -2859,7 +2930,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     onHover: hoverScale(phone, 1.05),
     // Arrival: the phone hops, the unread badge clears and the chat box takes the keyboard
     onArrive: () => {
-      gsap.fromTo(phone.position, { y: 1.22 }, { y: 1.08, duration: 0.4, ease: "bounce.out" });
+      gsap.fromTo(phone.position, { y: 1.26 }, { y: 1.12, duration: 0.4, ease: "bounce.out" });
       unread = false;
       sfx.ping();
       editChat();
@@ -3517,9 +3588,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   };
   contactShadow(mug, 1.55, 1.55);
   contactShadow(plant, 1.9, 1.9);
-  contactShadow(mouse, 0.85, 1.2);
+  contactShadow(mouse, 0.85, 1.2, MAT_TOP);
   contactShadow(monitor, 2.2, 1.5);
-  contactShadow(keyboard, 5.8, 2.5, 0, 0.8);
+  contactShadow(keyboard, 5.8, 2.5, MAT_TOP, 0.8);
   contactShadow(phoneStand, 1.7, 1.5);
   contactShadow(tickets, 3.4, 1.8, 0, 0.6);
   contactShadow(folders, FOLDER_W * 1.35, FOLDER_D * 1.35, 0, 0.7);
@@ -3788,7 +3859,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     // The camera sits inside the room, with no cutaway edges or outside backdrop.
     overview: () => ({ target: [1.8, 2.7, 0.7], dir: [0.48, 0.72, 1] }),
     // Clip only what's well in front of the wall (the monitor), not the board behind the badge
-    hero: () => ({ target: [badgePin.x, badgePin.y - (BADGE_PIN.y - BADGE_CLIP.y) - 1.0, BADGE_CLIP.z], dir: [0.06, 0.14, 1], fit: [1.9, 2.7], depth: 2.6 }),
+    hero: () => ({ target: [badgePin.x, badgePin.y - (BADGE_PIN.y - BADGE_CLIP.y) - 0.74, BADGE_CLIP.z], dir: [0.06, 0.14, 1], fit: [1.5, 2.1], depth: 2.6 }),
     about: () => ({ target: aboutBoard.position.toArray(), dir: [0, 0.8, 1], fit: [7.3, 4.8] }),
     // The fan, or square on the pass being held up
     experience: () => {

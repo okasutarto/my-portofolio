@@ -726,6 +726,11 @@ export function drawChatScreen(c, w, h, chat, { unread = false, caret = false, n
   c.textBaseline = "middle";
   c.font = `700 24px ${BODY}`;
   c.fillText(now.toTimeString().slice(0, 5), 30, 34);
+  // Dynamic Island
+  c.fillStyle = "#000";
+  c.beginPath();
+  c.roundRect(w / 2 - 75, 16, 150, 40, 20);
+  c.fill();
   brutalBox(c, 28, 68, 72, 72, "#fff", { shadow: 5, line: 4 });
   c.fillStyle = "#000";
   c.fillRect(48, 92, 10, 10);
@@ -1065,47 +1070,64 @@ export function drawDrawerFront(c, w, h, count) {
 }
 
 // ---------- desk top: light oak planks running the desk's length, flat grain, bold seams ----------
+// Recycled messmate / Victorian ash, like a solid-timber standing desk: full-length boards in a
+// warm honey tone, dense straight grain with darker streaks, and little black gum veins
 export function drawWoodTop(c, w, h) {
-  const planks = 6;
-  const ph = h / planks;
-  const tones = ["#d9a066", "#cf9559", "#deaa70", "#d39b5f"];
+  const boards = 5;
+  const bh = h / boards;
+  const tones = ["#cf9459", "#c4864c", "#d69f65", "#c98d52", "#d29a5f"];
   // A fixed seed, so the grain is the same every load
   let seed = 7;
   const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  for (let i = 0; i < planks; i++) {
-    const y = i * ph;
+  for (let i = 0; i < boards; i++) {
+    const y = i * bh;
     c.fillStyle = tones[i % tones.length];
-    c.fillRect(0, y, w, ph);
-    // Long, gently wavy grain lines
-    c.strokeStyle = "rgba(120, 66, 24, 0.22)";
-    c.lineWidth = 3;
-    for (let g = 0; g < 7; g++) {
-      const gy = y + ph * (0.12 + g * 0.12) + rand() * 6;
-      const amp = 3 + rand() * 6;
-      const len = 120 + rand() * 160;
+    c.fillRect(0, y, w, bh);
+    // Broad bands of lighter and darker growth
+    for (let b = 0; b < 4; b++) {
+      const by = y + rand() * bh;
+      const band = 8 + rand() * 26;
+      c.fillStyle = rand() < 0.5 ? "rgba(120, 62, 22, 0.16)" : "rgba(255, 220, 170, 0.14)";
       c.beginPath();
-      for (let x = 0; x <= w; x += 20) c.lineTo(x, gy + Math.sin(x / len + g) * amp);
+      for (let x = 0; x <= w; x += 40) c.lineTo(x, by + Math.sin(x / 300 + b) * 4);
+      for (let x = w; x >= 0; x -= 40) c.lineTo(x, by + band + Math.sin(x / 300 + b) * 4);
+      c.fill();
+    }
+    // Dense, nearly straight grain lines that drift a little along the board
+    for (let g = 0; g < 22; g++) {
+      const gy = y + rand() * bh;
+      const amp = 1 + rand() * 4;
+      const len = 200 + rand() * 300;
+      const phase = rand() * 10;
+      c.strokeStyle = `rgba(${90 + rand() * 30}, ${44 + rand() * 20}, 14, ${0.12 + rand() * 0.28})`;
+      c.lineWidth = 1 + rand() * 2.5;
+      c.beginPath();
+      for (let x = 0; x <= w; x += 20) c.lineTo(x, gy + Math.sin(x / len + phase) * amp);
       c.stroke();
     }
-    // A knot or two
-    for (let k = 0; k < 2; k++) {
-      const kx = rand() * w;
-      const ky = y + ph * (0.3 + rand() * 0.4);
-      c.strokeStyle = "rgba(110, 58, 20, 0.35)";
-      c.lineWidth = 3;
-      [18, 30].forEach((r) => {
-        c.beginPath();
-        c.ellipse(kx, ky, r * 2.2, r * 0.6, 0, 0, Math.PI * 2);
-        c.stroke();
-      });
+    // Gum veins: short, sharp black streaks along the grain
+    for (let v = 0; v < 3; v++) {
+      const vx = rand() * w;
+      const vy = y + bh * (0.15 + rand() * 0.7);
+      const len = 14 + rand() * (v === 0 ? 120 : 40);
+      c.fillStyle = "rgba(28, 16, 8, 0.85)";
+      c.beginPath();
+      c.ellipse(vx, vy, len, 1.5 + rand() * 2.5, 0, 0, Math.PI * 2);
+      c.fill();
     }
-    // Plank ends are staggered, like a real top
-    c.fillStyle = "rgba(60, 32, 12, 0.55)";
-    const end = (0.2 + rand() * 0.6) * w;
-    c.fillRect(end, y, 4, ph);
-    // The seam between planks
-    c.fillRect(0, y, w, 4);
+    // The glue line between boards
+    c.fillStyle = "rgba(70, 36, 12, 0.45)";
+    c.fillRect(0, y, w, 2);
   }
+}
+
+// ---------- desk mat under the keyboard and mouse ----------
+// Plain charcoal felt with a faint dot grid
+export function drawDeskMat(c, w, h) {
+  c.fillStyle = "#26242b";
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = "rgba(255,255,255,.05)";
+  for (let y = 24; y < h; y += 32) for (let x = 24; x < w; x += 32) c.fillRect(x, y, 3, 3);
 }
 
 // ---------- floor: wood planks that tile seamlessly in both directions ----------
@@ -1384,9 +1406,51 @@ export const SIP_QUOTES = [
   { text: "Coffee in, features out.", by: "oka" },
   { text: "One more sip, one less bug.", by: "oka" },
 ];
-export function drawQuoteBubble(c, w, h, quote, { size = 32, tail: tailSide = "right" } = {}) {
+// A plain manga speech balloon: a white oval with a thin ink line and a curved, pointed tail
+function drawMangaBubble(c, w, h, quote, size, tailSide) {
+  const cx = w / 2;
+  const cy = h * 0.42;
+  const rx = w * 0.46;
+  const ry = h * 0.36;
+  // The tail leaves the bottom of the oval and curls out to a point, lower left or lower right
+  const dir = tailSide === "left" ? -1 : 1;
+  const baseA = cx + dir * rx * 0.18;
+  const baseB = cx + dir * rx * 0.42;
+  const tip = [cx + dir * rx * 0.62, h - 14];
+  c.beginPath();
+  c.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  c.moveTo(baseA, cy + ry * Math.sqrt(1 - ((baseA - cx) / rx) ** 2) - 6);
+  c.quadraticCurveTo(cx + dir * rx * 0.36, h * 0.82, tip[0], tip[1]);
+  c.quadraticCurveTo(cx + dir * rx * 0.44, h * 0.8, baseB, cy + ry * Math.sqrt(1 - ((baseB - cx) / rx) ** 2) - 6);
+  c.fillStyle = "#fff";
+  c.fill();
+  c.lineWidth = 4;
+  c.strokeStyle = "#000";
+  c.stroke();
+  // Paint the oval again over the tail's root, so the two read as one outline
+  c.beginPath();
+  c.ellipse(cx, cy, rx - 2, ry - 2, 0, 0, Math.PI * 2);
+  c.fill();
+  const lead = size * 1.2;
+  c.font = `italic 700 ${size}px ${BODY}`;
+  const lines = wrap(c, quote.text.toUpperCase(), rx * 1.45, 4);
+  const byH = size * 0.9;
+  const top = cy - (lines.length * lead + byH) / 2 + lead / 2;
+  c.fillStyle = "#000";
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  lines.forEach((line, i) => c.fillText(line, cx, top + i * lead));
+  c.font = `600 ${Math.round(size * 0.75)}px 'Caveat', cursive`;
+  c.fillStyle = "rgba(0,0,0,.6)";
+  c.fillText(`— ${quote.by}`, cx, top + lines.length * lead + byH * 0.2);
+  c.textAlign = "left";
+  c.textBaseline = "alphabetic";
+}
+
+export function drawQuoteBubble(c, w, h, quote, { size = 32, tail: tailSide = "right", style } = {}) {
   c.clearRect(0, 0, w, h);
   if (!quote) return;
+  if (style === "manga") return drawMangaBubble(c, w, h, quote, size, tailSide);
   const tail = 46;
   const box = { x: 14, y: 14, w: w - 40, h: h - tail - 40 };
   // hard shadow, then the bubble with its tail pointing down to the speaker: from the lower

@@ -1958,27 +1958,38 @@ export const SIP_QUOTES = [
   { text: "One more sip, one less bug.", by: "oka" },
 ];
 // A plain manga speech balloon: a white oval with a thin ink line and a curved, pointed tail
+// Where a manga bubble's tail goes, and the oval that leaves room for it in the canvas: the tail
+// leaves the oval at `angle` (canvas angles: 0 is right, π/2 is down) and its tip lands at
+// `tip`, as fractions of the canvas
+export const BUBBLE_TAILS = {
+  right: { oval: [0.5, 0.42, 0.46, 0.36], angle: 0.32 * Math.PI, tip: [0.79, 0.965] },
+  left: { oval: [0.5, 0.42, 0.46, 0.36], angle: 0.68 * Math.PI, tip: [0.21, 0.965] },
+  "up-right": { oval: [0.5, 0.58, 0.46, 0.36], angle: -0.32 * Math.PI, tip: [0.79, 0.035] },
+  "up-left": { oval: [0.5, 0.58, 0.46, 0.36], angle: -0.68 * Math.PI, tip: [0.21, 0.035] },
+  "side-left": { oval: [0.56, 0.5, 0.4, 0.42], angle: Math.PI, tip: [0.03, 0.5] },
+  "side-right": { oval: [0.44, 0.5, 0.4, 0.42], angle: 0, tip: [0.97, 0.5] },
+};
 function drawMangaBubble(c, w, h, quote, size, tailSide) {
-  const cx = w / 2;
-  const cy = h * 0.42;
-  const rx = w * 0.46;
-  const ry = h * 0.36;
-  // One outline: the oval round from one side of the tail's root to the other, then out along
-  // the tail's curl to its point and back (so no line crosses the root)
-  const dir = tailSide === "left" ? -1 : 1;
-  const angleAt = (x) => Math.acos((x - cx) / rx); // on the bottom half
-  const rootNear = cx + dir * rx * 0.18;
-  const rootFar = cx + dir * rx * 0.42;
-  const tip = [cx + dir * rx * 0.62, h - 14];
-  // The root's two ends in increasing angle (the bottom runs left to right as the angle falls)
-  const [first, second] = dir < 0 ? [rootNear, rootFar] : [rootFar, rootNear];
-  const at = (x) => [x, cy + ry * Math.sin(angleAt(x))];
-  const curlOut = [cx + dir * rx * (dir < 0 ? 0.36 : 0.44), h * 0.81];
-  const curlBack = [cx + dir * rx * (dir < 0 ? 0.44 : 0.36), h * 0.81];
+  const shape = BUBBLE_TAILS[tailSide] || BUBBLE_TAILS.right;
+  const cx = w * shape.oval[0];
+  const cy = h * shape.oval[1];
+  const rx = w * shape.oval[2];
+  const ry = h * shape.oval[3];
+  // One outline: round the oval from one side of the tail's root to the other, then out along
+  // a gentle curl to the tip and back (so no line crosses the root)
+  const spread = 0.13;
+  const point = (a) => [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry];
+  const a0 = shape.angle - spread;
+  const a1 = shape.angle + spread;
+  const tip = [w * shape.tip[0], h * shape.tip[1]];
+  const mid = (p, q, k) => [p[0] + (q[0] - p[0]) * k, p[1] + (q[1] - p[1]) * k];
+  const [sx, sy] = point(a0);
+  const curlOut = mid(point(a1), tip, 0.45);
+  const curlBack = mid([sx, sy], tip, 0.55);
   c.beginPath();
-  c.ellipse(cx, cy, rx, ry, 0, angleAt(second), angleAt(first) + Math.PI * 2);
+  c.ellipse(cx, cy, rx, ry, 0, a1, a0 + Math.PI * 2);
   c.quadraticCurveTo(...curlOut, ...tip);
-  c.quadraticCurveTo(...curlBack, ...at(second));
+  c.quadraticCurveTo(...curlBack, sx, sy);
   c.closePath();
   c.fillStyle = "#fff";
   c.fill();
@@ -2728,43 +2739,92 @@ export function drawSlash(c, w, h) {
   c.stroke();
 }
 
-// A manga shout: a jagged starburst balloon with the technique's name in heavy type
+// A manga shout, as in a fight panel: a white burst with uneven spikes over a ring of speed
+// lines, the technique's name in heavy slanted black type with a red offset shadow (split over
+// two lines when it's long), and a red 斬 ("cut") seal stamped in the corner
 export function drawShout(c, w, h, text) {
   c.clearRect(0, 0, w, h);
-  const spikes = 18;
+  const cx = w / 2;
+  const cy = h * 0.52;
+  // speed lines radiating out from behind the balloon
+  c.strokeStyle = "#1a1714";
+  for (let i = 0; i < 64; i++) {
+    const a = (i / 64) * Math.PI * 2 + Math.sin(i * 7.1) * 0.03;
+    const r0 = 0.42 + Math.abs(Math.sin(i * 3.7)) * 0.06;
+    c.lineWidth = 1.5 + Math.abs(Math.sin(i * 5.3)) * 3.5;
+    c.beginPath();
+    c.moveTo(cx + Math.cos(a) * w * r0, cy + Math.sin(a) * h * r0 * 1.05);
+    c.lineTo(cx + Math.cos(a) * w * 0.62, cy + Math.sin(a) * h * 0.62 * 1.05);
+    c.stroke();
+  }
+  // the balloon: long sharp spikes between short ones, no two alike
+  const spikes = 22;
   const burst = (dx, dy) => {
     c.beginPath();
     for (let i = 0; i <= spikes * 2; i++) {
       const a = (i / (spikes * 2)) * Math.PI * 2;
-      const r = i % 2 ? 0.8 : 1;
-      const x = w / 2 + dx + Math.cos(a) * (w * 0.47) * r;
-      const y = h / 2 + dy + Math.sin(a) * (h * 0.44) * r;
+      const long = 0.98 + Math.abs(Math.sin(i * 2.3)) * 0.1;
+      const r = i % 2 ? 0.74 + Math.abs(Math.sin(i * 1.7)) * 0.06 : long;
+      const x = cx + dx + Math.cos(a) * w * 0.43 * r;
+      const y = cy + dy + Math.sin(a) * h * 0.4 * r;
       if (i) c.lineTo(x, y);
       else c.moveTo(x, y);
     }
     c.closePath();
   };
-  burst(12, 12);
-  c.fillStyle = "#000";
+  burst(10, 10);
+  c.fillStyle = "#1a1714";
   c.fill();
   burst(0, 0);
-  c.fillStyle = "#ffdd00";
+  c.fillStyle = "#fffdf5";
   c.fill();
-  c.lineWidth = 8;
-  c.strokeStyle = "#000";
+  c.lineWidth = 7;
+  c.lineJoin = "miter";
+  c.strokeStyle = "#1a1714";
   c.stroke();
+  // the name: two lines at a colon or the middle space when it's long
+  let lines = [text];
+  if (text.length > 14) {
+    const colon = text.indexOf(":");
+    const cut = colon > 0 ? colon + 1 : text.lastIndexOf(" ", Math.ceil(text.length / 2) + 2);
+    if (cut > 0) lines = [text.slice(0, cut).trim(), text.slice(cut).trim()];
+  }
   c.save();
-  c.translate(w / 2, h / 2);
-  c.rotate(-0.06);
+  c.translate(cx, cy);
+  c.rotate(-0.07);
+  c.transform(1, 0, -0.18, 1, 0, 0);
   c.textAlign = "center";
   c.textBaseline = "middle";
-  fitFont(c, text, 800, DISPLAY, Math.round(h * 0.2), w * 0.66);
-  c.lineWidth = 10;
-  c.lineJoin = "round";
-  c.strokeStyle = "#fffdf5";
-  c.strokeText(text, 0, 0);
+  const longest = lines.reduce((a, b) => (a.length > b.length ? a : b));
+  fitFont(c, longest, 900, DISPLAY, Math.round(h * (lines.length > 1 ? 0.17 : 0.22)), w * 0.62);
+  const size = parseInt(c.font.match(/(\d+)px/)[1], 10);
+  const lead = size * 1.12;
+  lines.forEach((line, i) => {
+    const y = (i - (lines.length - 1) / 2) * lead;
+    c.lineJoin = "round";
+    c.lineWidth = size * 0.3;
+    c.strokeStyle = "#fffdf5";
+    c.strokeText(line, 0, y);
+    c.fillStyle = "#e11d48";
+    c.fillText(line, size * 0.07, y + size * 0.07);
+    c.fillStyle = "#1a1714";
+    c.fillText(line, 0, y);
+  });
+  c.restore();
+  // the seal
+  c.save();
+  c.translate(w * 0.83, h * 0.2);
+  c.rotate(0.15);
   c.fillStyle = "#e11d48";
-  c.fillText(text, 0, 0);
+  c.fillRect(-h * 0.1, -h * 0.1, h * 0.2, h * 0.2);
+  c.strokeStyle = "#1a1714";
+  c.lineWidth = 4;
+  c.strokeRect(-h * 0.1, -h * 0.1, h * 0.2, h * 0.2);
+  c.fillStyle = "#fffdf5";
+  c.font = `900 ${Math.round(h * 0.15)}px serif`;
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.fillText("斬", 0, h * 0.01);
   c.restore();
 }
 

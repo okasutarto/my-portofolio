@@ -592,7 +592,7 @@ export function setRainLevel(level) {
     rainLoop = null;
     return setRainLevel(level);
   }
-  rainLoop.gain.gain.setTargetAtTime(target * 0.09, ctx.currentTime, 0.6);
+  rainLoop.gain.gain.setTargetAtTime(target * 0.035, ctx.currentTime, 0.6);
 }
 
 // The live context and the master bus, for music that should share the sfx chain (the

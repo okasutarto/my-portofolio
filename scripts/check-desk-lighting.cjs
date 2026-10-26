@@ -16,6 +16,7 @@ const ambient = {};
 const readabilityFill = {};
 const skyFill = {};
 const context = vm.createContext({
+  deskNeons: [{ strip: {}, washMat: {} }, { strip: {}, washMat: {} }],
   darkNow: false, roomDark: false, sun, windowLight, lampLight, ambient, readabilityFill, skyFill,
   chairFrameMat: material(), jointMat: material(),
   bulbMat: material(), floorMat: material(), backWallMat: material(),
@@ -28,6 +29,7 @@ vm.runInContext(lampCode + themeCode, context);
 const theme = (dark) => vm.runInContext(`setTheme(${dark})`, context);
 
 theme(false);
+assert.ok(context.deskNeons.every(({ strip, washMat }) => !strip.visible && washMat.opacity === 0), 'desk neon must be completely off in daylight');
 const daySun = sun.intensity;
 const dayWindow = windowLight.intensity;
 const dayDirection = sun.position.xyz;
@@ -40,6 +42,7 @@ assert.equal(lampLight.castShadow, false);
 assert.ok(skyFill.intensity > 0 && readabilityFill.intensity > 0, 'daylight must fill areas beyond the window patch');
 
 theme(true);
+assert.ok(context.deskNeons.every(({ strip, washMat }) => strip.visible && washMat.opacity > 0.5), 'desk neon grows brighter at night');
 assert.ok(dayBaseFill > ambient.intensity + skyFill.intensity + readabilityFill.intensity,
   'the broad daytime fill must be stronger than the night fill');
 assert.ok(readabilityFill.intensity > 0, 'front fill must reveal dark object details at night');
@@ -77,3 +80,19 @@ assert.equal(plane.position.x, object.position.x);
 assert.ok(plane.material.opacity > 0 && plane.material.opacity < groundedOpacity);
 assert.ok(plane.scale.value > 1);
 console.log('Day/night light-source and shadow switching checks passed.');
+
+// Shelf lighting stays aligned in one hue; animation is reserved for the cheat-code party.
+{
+  const THREE = require('three');
+  const shelfLeds = Array.from({ length: 4 }, () => ({ ledMat: { color: new THREE.Color() }, glowMat: { color: new THREE.Color(), opacity: 0 } }));
+  const shelfContext = vm.createContext({ shelfLeds, ledColor: new THREE.Color(), ledPartyUntil: 0, darkNow: false });
+  const start = source.indexOf('  function updateShelfLeds(');
+  vm.runInContext(source.slice(start, source.indexOf('  // A neon sign', start)), shelfContext);
+  vm.runInContext('updateShelfLeds(0)', shelfContext);
+  assert.ok(shelfLeds.every(({ glowMat }) => glowMat.opacity === 0), 'shelf glow off by day');
+  shelfContext.darkNow = true;
+  vm.runInContext('updateShelfLeds(100)', shelfContext);
+  const hue = shelfLeds[0].ledMat.color.getHex();
+  vm.runInContext('updateShelfLeds(50000)', shelfContext);
+  assert.ok(shelfLeds.every(({ ledMat, glowMat }) => ledMat.color.getHex() === hue && glowMat.opacity === 0.5), 'all shelf bays keep a stable colour at night');
+}

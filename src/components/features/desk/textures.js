@@ -1957,15 +1957,15 @@ export const SIP_QUOTES = [
   { text: "Coffee in, features out.", by: "oka" },
   { text: "One more sip, one less bug.", by: "oka" },
 ];
-// A plain manga speech balloon: a white oval with a thin ink line and a curved, pointed tail
+// A plain manga speech balloon: a white oval with a thin ink line and a short triangular tail
 // Where a manga bubble's tail goes, and the oval that leaves room for it in the canvas: the tail
 // leaves the oval at `angle` (canvas angles: 0 is right, π/2 is down) and its tip lands at
 // `tip`, as fractions of the canvas
 export const BUBBLE_TAILS = {
-  right: { oval: [0.5, 0.42, 0.46, 0.36], angle: 0.32 * Math.PI, tip: [0.79, 0.965] },
-  left: { oval: [0.5, 0.42, 0.46, 0.36], angle: 0.68 * Math.PI, tip: [0.21, 0.965] },
-  "up-right": { oval: [0.5, 0.58, 0.46, 0.36], angle: -0.32 * Math.PI, tip: [0.79, 0.035] },
-  "up-left": { oval: [0.5, 0.58, 0.46, 0.36], angle: -0.68 * Math.PI, tip: [0.21, 0.035] },
+  right: { oval: [0.5, 0.42, 0.46, 0.36], angle: 0.32 * Math.PI, tip: [0.72, 0.91] },
+  left: { oval: [0.5, 0.42, 0.46, 0.36], angle: 0.68 * Math.PI, tip: [0.28, 0.91] },
+  "up-right": { oval: [0.5, 0.58, 0.46, 0.36], angle: -0.32 * Math.PI, tip: [0.72, 0.09] },
+  "up-left": { oval: [0.5, 0.58, 0.46, 0.36], angle: -0.68 * Math.PI, tip: [0.28, 0.09] },
   "side-left": { oval: [0.56, 0.5, 0.4, 0.42], angle: Math.PI, tip: [0.03, 0.5] },
   "side-right": { oval: [0.44, 0.5, 0.4, 0.42], angle: 0, tip: [0.97, 0.5] },
 };
@@ -1975,21 +1975,14 @@ function drawMangaBubble(c, w, h, quote, size, tailSide) {
   const cy = h * shape.oval[1];
   const rx = w * shape.oval[2];
   const ry = h * shape.oval[3];
-  // One outline: round the oval from one side of the tail's root to the other, then out along
-  // a gentle curl to the tip and back (so no line crosses the root)
-  const spread = 0.13;
-  const point = (a) => [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry];
+  // Leave a gap in the oval for a short, straight-sided tail, as in a manga balloon.
+  const spread = 0.09;
   const a0 = shape.angle - spread;
   const a1 = shape.angle + spread;
-  const tip = [w * shape.tip[0], h * shape.tip[1]];
-  const mid = (p, q, k) => [p[0] + (q[0] - p[0]) * k, p[1] + (q[1] - p[1]) * k];
-  const [sx, sy] = point(a0);
-  const curlOut = mid(point(a1), tip, 0.45);
-  const curlBack = mid([sx, sy], tip, 0.55);
   c.beginPath();
   c.ellipse(cx, cy, rx, ry, 0, a1, a0 + Math.PI * 2);
-  c.quadraticCurveTo(...curlOut, ...tip);
-  c.quadraticCurveTo(...curlBack, sx, sy);
+  c.lineTo(w * shape.tip[0], h * shape.tip[1]);
+  c.lineTo(cx + Math.cos(a1) * rx, cy + Math.sin(a1) * ry);
   c.closePath();
   c.fillStyle = "#fff";
   c.fill();

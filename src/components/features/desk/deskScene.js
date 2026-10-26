@@ -40,6 +40,7 @@ import {
   loadPortrait,
   drawKeyLabel,
   drawQuoteBubble,
+  BUBBLE_TAILS,
   drawStickyNote,
   drawPainting,
   PAINTING_COUNT,
@@ -249,8 +250,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     };
     return { sprite, say, hide };
   }
-  const hoverScale = (obj, amount = 1.05) => (on) =>
-    gsap.to(obj.scale, { x: on ? amount : 1, y: on ? amount : 1, z: on ? amount : 1, duration: 0.18, ease: "back.out(3)" });
+  const hoverScale = (obj, amount = 1.05, base = 1) => (on) =>
+    gsap.to(obj.scale, { x: on ? amount : base, y: on ? amount : base, z: on ? amount : base, duration: 0.18, ease: "back.out(3)" });
 
   const shadowFill = track(new THREE.MeshBasicMaterial({ color: PALETTES.light.shadow }));
 
@@ -439,6 +440,34 @@ export function createDeskScene({ container, projects, experiences, dark = false
   roomBox(200, 0.22, 0.16, trimMat, 0, FLOOR_Y + 0.17, WALL_Z + 0.23, 0.025);
   roomBox(0.16, 0.22, 200, trimMat, SIDE_X + 0.23, FLOOR_Y + 0.17, 1.2, 0.025);
 
+  // A hidden LED strip along the rear edge, with a soft wash on the wall above it.
+  const deskGlow = canvasTexture(256, 128);
+  track(deskGlow.texture);
+  const deskGlowGradient = deskGlow.ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  deskGlowGradient.addColorStop(0, "rgba(255,255,255,1)");
+  deskGlowGradient.addColorStop(0.45, "rgba(255,255,255,0.75)");
+  deskGlowGradient.addColorStop(1, "rgba(255,255,255,0)");
+  deskGlow.ctx.fillStyle = deskGlowGradient;
+  deskGlow.ctx.fillRect(0, 0, 256, 128);
+  const deskNeons = ["#00e0c6", "#ff90e8"].map((color, i) => {
+    const x = i === 0 ? -3.5 : 3.5;
+    const strip = new THREE.Mesh(
+      track(new THREE.BoxGeometry(7, 0.045, 0.06)),
+      track(new THREE.MeshBasicMaterial({ color })),
+    );
+    strip.position.set(x, 0.025, -4.23);
+    strip.raycast = noRaycast;
+    const washMat = track(new THREE.MeshBasicMaterial({
+      map: deskGlow.texture, color, transparent: true, depthWrite: false,
+      blending: THREE.AdditiveBlending, opacity: 0,
+    }));
+    const wash = new THREE.Mesh(track(new THREE.PlaneGeometry(10, 2.8)), washMat);
+    wash.position.set(x, 1.4, WALL_Z + 0.15);
+    wash.raycast = noRaycast;
+    scene.add(strip, wash);
+    return { strip, washMat };
+  });
+
   // A framed illustration on the left wall: four panes, a sun/moon and angular trees.
   const windowGroup = new THREE.Group();
   windowGroup.position.set(SIDE_X + 0.18, 4.7, -1.1);
@@ -521,18 +550,18 @@ export function createDeskScene({ container, projects, experiences, dark = false
       outside.clicks = [];
       outside.rainTarget = outside.rainTarget ? 0 : 0.9;
       discover("rain");
-      sfx.patter({ duration: 0.8 });
+      sfx.patter({ duration: 0.8, volume: 0.3 });
       return;
     }
     if (dayPart() === "night") {
       if (outside.t - outside.starAt < 1.6) return;
       outside.starAt = outside.t;
       discover("star");
-      sfx.sparkle({ delay: 0.15 });
+      sfx.sparkle({ delay: 0.15, volume: 0.3 });
     } else {
       if (outside.t - outside.flockAt < 2) return;
       outside.flockAt = outside.t;
-      [0.3, 0.75, 1.3].forEach((delay) => sfx.chirp({ delay }));
+      [0.3, 0.75, 1.3].forEach((delay) => sfx.chirp({ delay, volume: 0.3 }));
     }
   };
   register(windowGroup, { focus: "window", onArrive: lookOut, onClick: lookOut });
@@ -644,7 +673,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const clock = new THREE.Group();
   // Lined up over the monitor as seen from the desk view
   // Low enough that its top stays in frame on wide, short screens
-  clock.position.set(-0.9, 4.95 + WALL_LIFT - 0.6, WALL_Z + 0.25); // midway between the painting and the board
+  clock.position.set(-0.9, 4.95 + WALL_LIFT + 0.4, WALL_Z + 0.25); // midway between the painting and the board
   room.add(clock);
   const clockRim = mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.15, 48), toon("#7fb2ff"), { outline: 0.06 });
   clockRim.rotation.x = Math.PI / 2;
@@ -732,7 +761,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const PAINTING_DROP = 1.75; // nail to the painting's centre
   const paintingHang = new THREE.Group();
   // Hung low enough that the frame and its nail stay in frame on wide, short screens
-  paintingHang.position.set(-4.9, 3.4 + WALL_LIFT - 0.6 + PAINTING_DROP, WALL_Z + 0.24);
+  paintingHang.position.set(-4.9, 3.4 + WALL_LIFT + 0.4 + PAINTING_DROP, WALL_Z + 0.24);
   room.add(paintingHang);
   const paintingTurn = new THREE.Group();
   paintingTurn.position.y = -PAINTING_DROP;
@@ -999,6 +1028,31 @@ export function createDeskScene({ container, projects, experiences, dark = false
     },
   });
 
+  // Family keepsake: the supplied family artwork in a bold yellow-and-black desk frame.
+  const familyFrame = new THREE.Group();
+  familyFrame.position.set(-4.55, 0, -3.05);
+  familyFrame.scale.setScalar(0.8);
+  familyFrame.rotation.set(-0.08, 0.08, 0);
+  const familyInk = toon("#171717");
+  const frameBack = mesh(rbox(1.24, 1.95, 0.13, 0.025), familyInk, { outline: 0.018 });
+  frameBack.position.y = 1.06;
+  const frameMount = mesh(rbox(1.07, 1.78, 0.025, 0.01), toon("#ffdd00"), { outline: 0 });
+  frameMount.position.set(0, 1.06, 0.08);
+  const photoBorder = mesh(new THREE.PlaneGeometry(0.95, 1.72), familyInk, { outline: 0 });
+  photoBorder.position.set(0, 1.06, 0.098);
+  const familyTexture = track(new THREE.TextureLoader().load(`${process.env.BASE_URL}images/family-anime.png`));
+  familyTexture.colorSpace = THREE.SRGBColorSpace;
+  const familyPhoto = new THREE.Mesh(track(new THREE.PlaneGeometry(0.88, 1.65)), track(new THREE.MeshBasicMaterial({ map: familyTexture })));
+  familyPhoto.position.set(0, 1.06, 0.102);
+  const frameFoot = mesh(rbox(1.12, 0.07, 0.65, 0.02), familyInk, { outline: 0.016 });
+  frameFoot.position.set(0, 0.035, -0.12);
+  const frameLeg = mesh(rbox(0.14, 1.15, 0.12, 0.02), familyInk, { outline: 0.012 });
+  frameLeg.position.set(0, 0.6, -0.31);
+  frameLeg.rotation.x = -0.42;
+  familyFrame.add(frameBack, frameMount, photoBorder, familyPhoto, frameFoot, frameLeg);
+  scene.add(familyFrame);
+  register(familyFrame, { focus: "family", onHover: hoverScale(familyFrame, 0.82, 0.8) });
+
   // ---------- potted plant (back-right, decor) ----------
   const plant = new THREE.Group();
   plant.position.set(5.45, 0, -3.2);
@@ -1170,6 +1224,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const SHELF_W = 4.2;
   const SHELF_D = 1.5;
   const SHELF_H = 8.4;
+  let shelfLook = 1.7;
   const BOARD = 0.22;
   // Oak with a visible grain (the desk's wood print, toned warmer and deeper)
   const shelfWood = canvasTexture(512, 512);
@@ -1187,51 +1242,60 @@ export function createDeskScene({ container, projects, experiences, dark = false
   shelf.add(shelfBack);
   const LEVELS = [0.15, 2.25, 4.35, 6.4, SHELF_H - BOARD / 2];
   const lipMat = toon("#8a5426");
-  // An RGB light strip under the front of each shelf, with a soft glow on the back panel below
-  // it: the hue drifts slowly along the shelves, faint by day and bright at night
-  const glowTex = canvasTexture(64, 64);
+  // Recessed diffusers sit flush under the rear of each shelf; all bays share one colour.
+  const glowTex = canvasTexture(256, 128);
   track(glowTex.texture);
-  const glowGrad = glowTex.ctx.createLinearGradient(0, 0, 0, 64);
-  glowGrad.addColorStop(0, "rgba(255,255,255,1)");
+  const glowGrad = glowTex.ctx.createLinearGradient(0, 0, 0, 128);
+  glowGrad.addColorStop(0, "rgba(255,255,255,0.65)");
   glowGrad.addColorStop(1, "rgba(255,255,255,0)");
   glowTex.ctx.fillStyle = glowGrad;
-  glowTex.ctx.fillRect(0, 0, 64, 64);
+  glowTex.ctx.fillRect(0, 0, 256, 128);
+  const edgeFade = glowTex.ctx.createLinearGradient(0, 0, 256, 0);
+  edgeFade.addColorStop(0, "transparent");
+  edgeFade.addColorStop(0.08, "white");
+  edgeFade.addColorStop(0.92, "white");
+  edgeFade.addColorStop(1, "transparent");
+  glowTex.ctx.globalCompositeOperation = "destination-in";
+  glowTex.ctx.fillStyle = edgeFade;
+  glowTex.ctx.fillRect(0, 0, 256, 128);
+  glowTex.ctx.globalCompositeOperation = "source-over";
   const shelfLeds = [];
   LEVELS.forEach((y, i) => {
     const board = mesh(rbox(SHELF_W, BOARD, SHELF_D, 0.04), shelfMat, { outline: 0.045 });
     board.position.y = y;
-    // a darker lip along the front edge
     const lip = mesh(rbox(SHELF_W - BOARD * 2, BOARD + 0.06, 0.08, 0.02), lipMat, { outline: 0.02 });
     lip.position.set(0, y, SHELF_D / 2 - 0.02);
     shelf.add(board, lip);
     if (i === 0) return;
-    const ledMat = track(new THREE.MeshBasicMaterial({ color: "#ff90e8" }));
-    const strip = new THREE.Mesh(track(new THREE.BoxGeometry(SHELF_W - BOARD * 2 - 0.2, 0.035, 0.05)), ledMat);
-    // just below the lip, so it shows from the room
-    strip.position.set(0, y - BOARD / 2 - 0.1, SHELF_D / 2 - 0.08);
+    const channel = mesh(rbox(3.7, 0.055, 0.12, 0.015), toon("#454b50"), { outline: 0.008, cast: false });
+    channel.position.set(0, y - BOARD / 2 - 0.0275, -0.48);
+    channel.raycast = noRaycast;
+    const ledMat = track(new THREE.MeshBasicMaterial({ color: "#c4cece" }));
+    const strip = new THREE.Mesh(track(new THREE.BoxGeometry(3.6, 0.018, 0.045)), ledMat);
+    strip.position.set(0, y - BOARD / 2 - 0.055, -0.435);
     strip.raycast = noRaycast;
-    const glowMat = track(new THREE.MeshBasicMaterial({ map: glowTex.texture, color: "#ff90e8", transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.3 }));
-    const glow = new THREE.Mesh(track(new THREE.PlaneGeometry(SHELF_W - BOARD * 2, 1.2)), glowMat);
-    glow.position.set(0, y - BOARD / 2 - 0.6, -SHELF_D / 2 + 0.13);
+    const glowMat = track(new THREE.MeshBasicMaterial({ map: glowTex.texture, color: "#70e5e0", transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
+    const glow = new THREE.Mesh(track(new THREE.PlaneGeometry(3.7, 1.6)), glowMat);
+    glow.position.set(0, y - BOARD / 2 - 0.8, -0.619);
     glow.raycast = noRaycast;
-    shelf.add(strip, glow);
-    shelfLeds.push({ ledMat, glowMat, offset: i * 0.12 });
+    shelf.add(channel, strip, glow);
+    shelfLeds.push({ ledMat, glowMat });
   });
   const ledColor = new THREE.Color();
-  // Until this time the strips race through the colours (the Konami code's party)
   let ledPartyUntil = 0;
   function updateShelfLeds(now) {
     const party = now < ledPartyUntil;
-    shelfLeds.forEach(({ ledMat, glowMat, offset }) => {
-      ledColor.setHSL((now / (party ? 600 : 12000) + offset * (party ? 3 : 1)) % 1, 0.9, 0.62);
-      ledMat.color.copy(ledColor);
+    ledColor.set(party ? "#ff90e8" : "#70e5e0");
+    if (party) ledColor.setHSL((now / 1000) % 1, 0.8, 0.65);
+    shelfLeds.forEach(({ ledMat, glowMat }) => {
+      ledMat.color.set(darkNow || party ? ledColor : "#c4cece");
       glowMat.color.copy(ledColor);
-      glowMat.opacity = party ? 1 : darkNow ? 0.9 : 0.4;
+      glowMat.opacity = party ? 0.7 : darkNow ? 0.5 : 0;
     });
   }
   // A neon sign on the back panel above the console: "GAME ON" with a little controller. By
   // day its glass tubes sit unlit; at night it flickers on and glows
-  const NEON = { w: 2.5, h: 0.86 };
+  const NEON = { w: 1.9, h: 0.655 };
   const neonSign = (lit) => {
     const t = canvasTexture(1160, 400);
     track(t.texture);
@@ -1282,7 +1346,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const neonOn = new THREE.Mesh(track(new THREE.PlaneGeometry(NEON.w, NEON.h)), track(new THREE.MeshBasicMaterial({ map: neonSign(true), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 })));
   [neonOff, neonOn].forEach((plane, i) => {
     // low enough that the shelf above doesn't hide its top from the room
-    plane.position.set(0, (LEVELS[0] + LEVELS[1]) / 2 - 0.02, -SHELF_D / 2 + 0.14 + i * 0.01);
+    plane.position.set(-0.9, (LEVELS[0] + LEVELS[1]) / 2 + 0.12, -SHELF_D / 2 + 0.14 + i * 0.01);
     plane.raycast = noRaycast;
     shelf.add(plane);
   });
@@ -1368,43 +1432,101 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const black = toon("#1a1714");
   const white = toon("#fffdf5");
 
-  // Level 0: console + two controllers
-  const led = new THREE.Mesh(track(new THREE.SphereGeometry(0.05, 10, 8)), track(new THREE.MeshBasicMaterial({ color: "#16a34a" })));
+  // Level 0: thin PS5 shells with a real gap between the two upper panels.
+  const ps5Shell = (side, width = 2.16, offset = 0) => {
+    const geometry = rbox(width, 0.055, 1.12, 0.022);
+    geometry.translate(offset, 0, 0);
+    const positions = geometry.attributes.position;
+    for (let i = 0; i < positions.count; i++) {
+      const x = positions.getX(i);
+      positions.setY(i, positions.getY(i) + side * 0.025 * (x / 1.08) ** 2);
+    }
+    geometry.computeVertexNormals();
+    return at(mesh(geometry, white, { outline: 0.014 }), 0, side * 0.125, 0);
+  };
+  const led = new THREE.Mesh(track(new THREE.BoxGeometry(1.7, 0.01, 0.014)), track(new THREE.MeshBasicMaterial({ color: "#4f9dff" })));
   const consoleBody = group(
-    mesh(rbox(1.9, 0.5, 1.05, 0.08), white, { outline: 0.035 }),
-    at(mesh(rbox(1.92, 0.08, 1.07, 0.02), toon("#e11d48"), { outline: 0 }), 0, 0.05, 0),
-    at(mesh(rbox(0.5, 0.05, 0.02, 0.01), black, { outline: 0 }), 0.35, -0.08, 0.53),
-    at(led, -0.7, -0.08, 0.54),
+    mesh(rbox(1.98, 0.18, 1.0, 0.04), black, { outline: 0.016 }),
+    ps5Shell(-1), ps5Shell(1, 1.32, -0.42), ps5Shell(1, 0.81, 0.675),
+    at(mesh(rbox(1.18, 0.12, 0.17, 0.035), white, { outline: 0.012 }), -0.3, -0.14, 0.49),
+    at(mesh(rbox(0.95, 0.014, 0.012, 0.004), black, { outline: 0 }), -0.3, -0.135, 0.582),
+    at(led, 0, 0.094, 0.503),
   );
-  // cooling vents along the top, and little feet
-  for (let v = 0; v < 6; v++) consoleBody.add(at(mesh(rbox(0.06, 0.02, 0.6, 0.01), toon("#d4d0c8"), { outline: 0 }), -0.15 + v * 0.13, 0.25, -0.1));
-  [-0.75, 0.75].forEach((fx) => consoleBody.add(at(mesh(rbox(0.2, 0.05, 0.8, 0.02), black, { outline: 0.01 }), fx, -0.27, 0)));
-  addItem(at(consoleBody, -0.75, standOn(0) + 0.25, 0.05), "console");
+  [-0.05, 0.08].forEach((px) => consoleBody.add(at(mesh(rbox(0.05, 0.018, 0.012, 0.004), toon("#8e939a"), { outline: 0 }), px, -0.015, 0.506)));
+  [-0.7, 0.7].forEach((fx) => consoleBody.add(at(mesh(rbox(0.16, 0.065, 0.6, 0.02), black, { outline: 0.008 }), fx, -0.205, 0)));
+  addItem(at(consoleBody, -0.76, standOn(0) + 0.2375, 0.04), "console");
   const controller = (color) => {
-    const c = toon(color);
-    const pad = group(
-      mesh(rbox(0.85, 0.2, 0.42, 0.09), c, { outline: 0.03 }),
-      at(mesh(rbox(0.32, 0.22, 0.48, 0.1), c, { outline: 0.03 }), -0.4, 0, 0.1),
-      at(mesh(rbox(0.32, 0.22, 0.48, 0.1), c, { outline: 0.03 }), 0.4, 0, 0.1),
-      at(mesh(rbox(0.2, 0.05, 0.06, 0.01), black, { outline: 0 }), -0.24, 0.11, 0),
-      at(mesh(rbox(0.06, 0.05, 0.2, 0.01), black, { outline: 0 }), -0.24, 0.11, 0),
-      at(mesh(new THREE.SphereGeometry(0.05, 10, 8), toon("#ffdd00"), { outline: 0 }), 0.22, 0.11, -0.05),
-      at(mesh(new THREE.SphereGeometry(0.05, 10, 8), toon("#ff6b6b"), { outline: 0 }), 0.32, 0.11, 0.05),
-      at(mesh(new THREE.SphereGeometry(0.05, 10, 8), toon("#00e0c6"), { outline: 0 }), 0.22, 0.11, 0.12),
-      at(mesh(new THREE.SphereGeometry(0.05, 10, 8), toon("#3b82f6"), { outline: 0 }), 0.12, 0.11, 0.05),
-    );
-    // two thumbsticks and the shoulder buttons
-    [-0.1, 0.06].forEach((sx, k) => {
-      pad.add(at(mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.08, 12), black, { outline: 0.01 }), sx, 0.13, 0.13 - k * 0.02));
-      pad.add(at(mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.03, 14), toon("#3a3a3a"), { outline: 0.008 }), sx, 0.18, 0.13 - k * 0.02));
+    // One continuous silhouette, with tapered grips instead of overlapping blocks.
+    const outline = new THREE.Shape();
+    outline.moveTo(-0.4, 0.23);
+    outline.quadraticCurveTo(-0.5, 0.26, -0.54, 0.08);
+    outline.bezierCurveTo(-0.58, -0.05, -0.64, -0.34, -0.51, -0.37);
+    outline.quadraticCurveTo(-0.43, -0.4, -0.29, -0.18);
+    outline.quadraticCurveTo(-0.23, -0.11, -0.16, -0.13);
+    outline.lineTo(0.16, -0.13);
+    outline.quadraticCurveTo(0.23, -0.11, 0.29, -0.18);
+    outline.quadraticCurveTo(0.43, -0.4, 0.51, -0.37);
+    outline.bezierCurveTo(0.64, -0.34, 0.58, -0.05, 0.54, 0.08);
+    outline.quadraticCurveTo(0.5, 0.26, 0.4, 0.23);
+    outline.closePath();
+    const bodyGeo = new THREE.ExtrudeGeometry(outline, { depth: 0.12, bevelEnabled: true, bevelSize: 0.025, bevelThickness: 0.025, bevelSegments: 3, curveSegments: 16, steps: 1 });
+    bodyGeo.translate(0, 0, -0.06);
+    bodyGeo.rotateX(-Math.PI / 2);
+    const pad = group(mesh(bodyGeo, toon(color), { outline: 0.016 }));
+    // Dark central bridge, touchpad and shoulder buttons.
+    const bridge = new THREE.Shape();
+    bridge.moveTo(-0.22, 0.12);
+    bridge.quadraticCurveTo(-0.3, -0.08, -0.2, -0.19);
+    bridge.quadraticCurveTo(0, -0.12, 0.2, -0.19);
+    bridge.quadraticCurveTo(0.3, -0.08, 0.22, 0.12);
+    bridge.closePath();
+    const bridgeGeo = new THREE.ShapeGeometry(bridge, 16);
+    bridgeGeo.rotateX(-Math.PI / 2);
+    pad.add(at(mesh(bridgeGeo, black, { outline: 0, cast: false }), 0, 0.087, 0));
+    pad.add(at(mesh(rbox(0.35, 0.025, 0.13, 0.025), toon(color === "#fffdf5" ? "#e2e6eb" : "#34383f"), { outline: 0.006 }), 0, 0.105, -0.13));
+    [-0.14, 0.14].forEach((x) => {
+      pad.add(at(mesh(new THREE.CylinderGeometry(0.082, 0.082, 0.012, 24), toon("#101216"), { outline: 0 }), x, 0.105, 0.12));
+      pad.add(at(mesh(new THREE.CylinderGeometry(0.058, 0.063, 0.035, 24), toon("#373c43"), { outline: 0.006 }), x, 0.128, 0.12));
     });
-    [-0.33, 0.33].forEach((sx) => pad.add(at(mesh(rbox(0.22, 0.08, 0.1, 0.03), black, { outline: 0.01 }), sx, 0.08, -0.2)));
+    pad.add(at(mesh(rbox(0.18, 0.035, 0.055, 0.012), black, { outline: 0.004 }), -0.35, 0.106, -0.015));
+    pad.add(at(mesh(rbox(0.055, 0.035, 0.18, 0.012), black, { outline: 0.004 }), -0.35, 0.106, -0.015));
+    [[0.35, -0.095, "△"], [0.43, -0.015, "○"], [0.35, 0.065, "×"], [0.27, -0.015, "□"]].forEach(([x, z, symbol]) => {
+      const button = printed(0.072, 0.072, 1400, (c, w, h) => {
+        c.fillStyle = "#444a54";
+        c.beginPath(); c.arc(w / 2, h / 2, w * 0.48, 0, Math.PI * 2); c.fill();
+        c.fillStyle = "#f1f2f5";
+        c.font = `600 ${w * 0.7}px sans-serif`;
+        c.textAlign = "center"; c.textBaseline = "middle";
+        c.fillText(symbol, w / 2, h * 0.54);
+      });
+      button.material.transparent = true;
+      button.material.alphaTest = 0.1;
+      button.rotation.x = -Math.PI / 2;
+      button.position.set(x, 0.112, z);
+      pad.add(button);
+    });
+    [-0.34, 0.34].forEach((x) => pad.add(at(mesh(rbox(0.25, 0.085, 0.09, 0.025), black, { outline: 0.008 }), x, 0.015, -0.23)));
+    pad.add(at(mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.014, 16), toon("#9299a3"), { outline: 0 }), 0, 0.102, 0.04));
     return pad;
   };
-  const pad1 = addItem(at(controller("#1a1714"), 1.05, standOn(0) + 0.11, 0.25), "controller");
-  pad1.rotation.y = -0.3;
-  const pad2 = addItem(at(controller("#ff90e8"), 1.15, standOn(0) + 0.33, -0.05), "controller");
-  pad2.rotation.set(0, 0.25, 0);
+  // Two-tier wooden holder: a broad foot, leaning spine and a cradle per gamepad.
+  const holder = group(
+    at(mesh(rbox(1.15, 0.09, 1.02, 0.025), shelfMat, { outline: 0.025 }), 0, 0.045, 0),
+    at(mesh(rbox(0.34, 1.62, 0.13, 0.025), shelfMat, { outline: 0.02 }), 0, 0.85, -0.15),
+    at(mesh(rbox(0.26, 1.05, 0.12, 0.02), shelfMat, { outline: 0.02 }), 0, 0.48, -0.21),
+  );
+  holder.children[1].rotation.x = -0.18;
+  holder.children[2].rotation.x = 0.55;
+  [0.35, 1.12].forEach((y) => {
+    holder.add(at(mesh(rbox(0.98, 0.075, 0.4, 0.025), shelfMat, { outline: 0.02 }), 0, y, 0.12));
+    holder.add(at(mesh(rbox(0.98, 0.04, 0.05, 0.012), shelfMat, { outline: 0.015 }), 0, y + 0.055, 0.3));
+  });
+  holder.position.set(1.03, standOn(0), 0);
+  shelf.add(holder);
+  const pad1 = addItem(at(controller("#1a1714"), 1.03, standOn(0) + 0.64, 0.22), "controller");
+  pad1.rotation.set(Math.PI / 2 - 0.18, 0, 0);
+  const pad2 = addItem(at(controller("#fffdf5"), 1.03, standOn(0) + 1.41, 0.08), "controller");
+  pad2.rotation.set(Math.PI / 2 - 0.18, 0, 0);
 
   // A hardback, spine to the room: covers either side, cream pages showing between them at the
   // top, a dark title band and two gilt rules on the spine
@@ -1491,10 +1613,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const d20 = mesh(new THREE.IcosahedronGeometry(0.2, 0), toon("#c4b5fd"), { outline: 0.02 });
   d20.rotation.set(0.4, 0.6, 0.2);
   addItem(at(group(d20), -1.2, stackTop + 0.19, 0.2), "figure");
-  const trophyProfile = [[0, 0], [0.28, 0], [0.28, 0.08], [0.08, 0.14], [0.08, 0.42], [0.3, 0.6], [0.36, 0.95], [0.3, 0.95], [0.24, 0.66], [0, 0.6]].map(([px, py]) => new THREE.Vector2(px, py));
-  // A gold cup with handles on a black plinth with a little plate
-  const cup = mesh(new THREE.LatheGeometry(trophyProfile, 24), toon("#ffdd00"), { outline: 0.03 });
-  cup.position.y = 0.22;
+  const trophyGold = toon("#e8b640");
+  const trophyProfile = [[0, 0.52], [0.12, 0.53], [0.24, 0.65], [0.34, 0.87], [0.37, 1.12], [0.32, 1.12], [0.3, 0.9], [0.2, 0.71], [0.08, 0.65], [0, 0.65]].map(([r, y]) => new THREE.Vector2(r, y));
+  // A hollow bowl, rounded rim and continuous loop handles sit on a separate stem.
+  const cup = mesh(new THREE.LatheGeometry(trophyProfile, 40), trophyGold, { outline: 0.012 });
   // The plate on its plinth keeps score of the room's secrets found so far
   const trophyPlate = printed(0.4, 0.13, 700, (c, w, h) => {
     c.fillStyle = "#ffd34d";
@@ -1509,13 +1631,27 @@ export function createDeskScene({ container, projects, experiences, dark = false
     c.fillText(`${secretsFound.size}/${SECRETS.length}`, w / 2, h * 0.55);
   });
   trophyPlate.position.set(0, 0.11, 0.252);
-  const trophy = group(at(mesh(rbox(0.62, 0.22, 0.5, 0.04), black, { outline: 0.02 }), 0, 0.11, 0), trophyPlate, cup);
+  const trophy = group(
+    at(mesh(rbox(0.62, 0.22, 0.5, 0.035), black, { outline: 0.016 }), 0, 0.11, 0), trophyPlate, cup,
+    at(mesh(rbox(0.53, 0.04, 0.42, 0.02), trophyGold, { outline: 0.008 }), 0, 0.24, 0),
+    at(mesh(new THREE.CylinderGeometry(0.065, 0.085, 0.28, 24), trophyGold, { outline: 0.008 }), 0, 0.4, 0),
+  );
+  const trophyRim = mesh(new THREE.TorusGeometry(0.345, 0.025, 10, 40), trophyGold, { outline: 0 });
+  trophyRim.rotation.x = Math.PI / 2;
+  trophyRim.position.y = 1.12;
+  trophy.add(trophyRim);
   [-1, 1].forEach((side) => {
-    const handle = mesh(new THREE.TorusGeometry(0.12, 0.03, 8, 16, Math.PI), toon("#ffdd00"), { outline: 0.01 });
-    handle.position.set(side * 0.36, 0.98, 0);
-    handle.rotation.z = side > 0 ? -Math.PI / 2 : Math.PI / 2;
-    trophy.add(handle);
+    const path = new THREE.CatmullRomCurve3([[0.34, 1.04], [0.49, 1.02], [0.51, 0.85], [0.42, 0.71], [0.29, 0.74]].map(([x, y]) => new THREE.Vector3(side * x, y, 0)));
+    trophy.add(mesh(new THREE.TubeGeometry(path, 24, 0.027, 10, false), trophyGold, { outline: 0.008 }));
   });
+  const trophyStar = printed(0.16, 0.16, 700, (c, w, h) => {
+    c.fillStyle = "#89601f"; c.font = `900 ${w}px sans-serif`;
+    c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("★", w / 2, h * 0.54);
+  });
+  trophyStar.material.transparent = true;
+  trophyStar.material.alphaTest = 0.1;
+  trophyStar.position.set(0, 0.9, 0.35);
+  trophy.add(trophyStar);
   addItem(at(trophy, 0.45, standOn(3), 0.15), "trophy");
   const handheld = group(
     mesh(rbox(0.62, 0.95, 0.14, 0.08), toon("#8fd694"), { outline: 0.03 }),
@@ -1585,11 +1721,21 @@ export function createDeskScene({ container, projects, experiences, dark = false
       .map(([x, y, z]) => new THREE.Vector3(x, y, z)),
   );
   hatPeg.add(mesh(new THREE.TubeGeometry(hatCord, 64, 0.035, 8), toon("#6b4a2a"), { outline: 0.01, cast: false }));
-  // Click it for one of Luffy's lines, without zooming in. The bubble sits up and to the right of
-  // the hat (toward the room), its tail down to the hat from the lower left. Read from the
-  // overview, so it's big and set in larger type than the mug's.
+  // Anchor the tail to the hat's upper brim in camera space, including while it swings.
   const hatBubble = speechBubble(6.6, 3.45, { size: 32, tail: "left", style: "manga" });
   const hatAt = new THREE.Vector3();
+  const hatScreenRight = new THREE.Vector3();
+  const hatScreenUp = new THREE.Vector3();
+  function placeHatBubble() {
+    strawHat.localToWorld(hatAt.set(0, 0, -0.65));
+    hatScreenRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
+    hatScreenUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
+    const [tipX, tipY] = BUBBLE_TAILS.left.tip;
+    const sprite = hatBubble.sprite;
+    sprite.position.copy(hatAt)
+      .addScaledVector(hatScreenRight, (0.5 - tipX) * sprite.scale.x)
+      .addScaledVector(hatScreenUp, (tipY - 0.5) * sprite.scale.y);
+  }
   let luffyIndex = Math.floor(Math.random() * LUFFY_QUOTES.length);
   register(hatPeg, {
     onHover: (on) => on && gsap.fromTo(hatPeg.rotation, { z: -0.15 }, { z: -0.25, duration: 1, ease: "elastic.out(1, 0.3)" }),
@@ -1597,9 +1743,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
       gsap.fromTo(hatPeg.rotation, { z: 0.05 }, { z: -0.25, duration: 1.6, ease: "elastic.out(1, 0.2)" });
       sfx.shishishi();
       discover("luffy");
-      hatPeg.getWorldPosition(hatAt);
-      hatBubble.sprite.position.copy(hatAt).add(new THREE.Vector3(3.4, 2.6, 0));
       hatBubble.say(LUFFY_QUOTES[luffyIndex++ % LUFFY_QUOTES.length]);
+      placeHatBubble();
     },
   });
 
@@ -2178,7 +2323,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const SHELF_SOUNDS = {
     console: () => {
       sfx.blip();
-      gsap.fromTo(led.scale, { x: 2.2, y: 2.2, z: 2.2 }, { x: 1, y: 1, z: 1, duration: 0.5 });
+      gsap.fromTo(led.scale, { x: 1, y: 2.2, z: 2.2 }, { x: 1, y: 1, z: 1, duration: 0.5 });
     },
     controller: () => {
       sfx.click();
@@ -2197,23 +2342,24 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // controller buzzes and hints at a cheat code, the trophy reads out the secrets found
   // One bubble, out on the wall to the right of what was clicked, its tail pointing straight
   // across at it (the tip sits at the bubble's left edge, 0.47 of its width from the middle)
-  const SHELF_BUBBLE_W = 4.0;
+  const SHELF_BUBBLE_W = 2.7;
   const shelfBubbleAt = new THREE.Vector3();
-  const shelfBubble = speechBubble(SHELF_BUBBLE_W, 2.1, { size: 40, tail: "side-left", style: "manga" });
+  const shelfBubblePrint = { size: 40, tail: "side-left", style: "manga" };
+  const shelfBubble = speechBubble(SHELF_BUBBLE_W, 1.42, shelfBubblePrint);
   function shelfSay(obj, text, by = "the shelf", hold = 3200, lift = 0.3) {
     obj.getWorldPosition(shelfBubbleAt);
-    shelfBubble.sprite.position.copy(shelfBubbleAt).add(new THREE.Vector3(SHELF_BUBBLE_W * 0.47 + 0.15, lift, 0.3));
+    const left = container.clientWidth < 900 && shelfBubbleAt.clone().project(camera).x > 0;
+    shelfBubblePrint.tail = left ? "side-right" : "side-left";
+    shelfBubble.sprite.position.copy(shelfBubbleAt).add(new THREE.Vector3((SHELF_BUBBLE_W * 0.47 + 0.15) * (left ? -1 : 1), lift, 0.3));
     shelfBubble.say({ text, by }, hold);
   }
-  let consoleOn = false;
   function powerConsole() {
     discover("console");
     sfx.power({ duration: 0.8 });
-    led.material.color.set("#4ade80");
+    led.material.color.set("#8fdcff");
     gsap.fromTo(led.scale, { x: 3, y: 3, z: 3 }, { x: 1.4, y: 1.4, z: 1.4, duration: 0.6, ease: "back.out(3)" });
     [pad1, pad2].forEach((pad, i) => gsap.fromTo(pad.rotation, { z: 0.08 }, { z: 0, duration: 0.5, delay: i * 0.08, ease: "elastic.out(1.5, 0.15)" }));
-    shelfSay(consoleBody, consoleOn ? "Continue?" : "PRESS START", "the shelf", 3200, 0);
-    consoleOn = true;
+    shelfBubble.hide();
     // Off to the monitor, where Snake is waiting
     timers.push(setTimeout(() => {
       setFocus("monitor");
@@ -2231,6 +2377,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
   }
   register(shelf, {
     focus: "shelf",
+    onLeave: () => { finishShelfDrag(); shelfBubble.hide(); },
+    onKey: (e) => {
+      if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return false;
+      browseShelf(shelfLook + (e.key === "ArrowUp" ? 1.4 : -1.4));
+      return true;
+    },
     onClick: (hit) => {
       const item = itemFor(hit.object);
       if (!item) return sfx.knock({ strength: 0.6 });
@@ -2363,7 +2515,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     // Without storage today just isn't stamped yet
   }
   const gymCalendar = new THREE.Group();
-  gymCalendar.position.set(shelf.position.x, FLOOR_Y + SHELF_H + 2.0, WALL_Z + 0.2);
+  gymCalendar.position.set(shelf.position.x, FLOOR_Y + SHELF_H + 2.6, WALL_Z + 0.2);
   scene.add(gymCalendar);
   const calendarBack = mesh(rbox(2.75, 2.35, 0.06, 0.03), toon("#1a1714"), { outline: 0.03 });
   const calendarPage = printed(2.6, 2.2, 260, (c, w, h) => drawGymCalendar(c, w, h, { done: trained }));
@@ -2436,7 +2588,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
     { text: "drink water!", color: "#ff90e8", x: 2.4, y: 2.15, rz: 0.18 },
   ].forEach((n) => {
     const note = printed(0.62, 0.62, 500, (c, w, h) => drawStickyNote(c, w, h, n));
-    note.raycast = noRaycast;
     const shadow = new THREE.Mesh(track(new THREE.PlaneGeometry(0.62, 0.62)), noteShadowMat);
     shadow.position.set(0.05, -0.05, -0.004);
     shadow.raycast = noRaycast;
@@ -2445,6 +2596,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     stuck.rotation.z = n.rz;
     stuck.add(shadow, note);
     monitor.add(stuck);
+    register(note, { focus: "monitor", item: true, sticky: stuck });
   });
 
   // Speakers either side of the monitor: click one to switch the sound on or off. The LED
@@ -2495,29 +2647,66 @@ export function createDeskScene({ container, projects, experiences, dark = false
     gsap.to(sprite.material, { opacity: 0, delay: 1.0, duration: 0.6, onComplete: () => (sprite.visible = false) });
   }
   function pump(speaker, strength = 1) {
-    gsap.fromTo(speaker.woofer.scale, { x: 1 + 0.3 * strength, z: 1 + 0.3 * strength }, { x: 1, z: 1, duration: 0.18, ease: "power2.out", overwrite: true });
-    gsap.fromTo(speaker.dustCap.position, { z: 0.6 }, { z: 0.47, duration: 0.18, ease: "power2.out", overwrite: true });
-    gsap.fromTo(speaker.group.scale, { x: 1.05, y: 0.95, z: 1.05 }, { x: 1, y: 1, z: 1, duration: 0.22, ease: "power2.out", overwrite: true });
+    gsap.fromTo(speaker.woofer.scale, { x: 1 + 0.04 * strength, z: 1 + 0.04 * strength }, { x: 1, z: 1, duration: 0.18, ease: "power2.out", overwrite: true });
+    gsap.fromTo(speaker.dustCap.position, { z: speaker.dustCap.userData.restZ + 0.018 * strength }, { z: speaker.dustCap.userData.restZ, duration: 0.18, ease: "power2.out", overwrite: true });
+    gsap.fromTo(speaker.group.scale, { x: 1.02, y: 0.98, z: 1.02 }, { x: 1, y: 1, z: 1, duration: 0.22, ease: "power2.out", overwrite: true });
   }
   [-3.05, 2.55].forEach((x) => {
     const speaker = new THREE.Group();
     speaker.position.set(x, 0, -3.55);
     scene.add(speaker);
-    const cabinet = mesh(rbox(0.95, 1.75, 0.85, 0.1), toon("#1a1714"), { outline: 0.045 });
+    const cabinet = mesh(rbox(0.95, 1.75, 0.85, 0.065), toon("#252a31"), { outline: 0.028 });
     cabinet.position.y = 0.875;
-    const woofer = mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.06, 28), toon("#7fb2ff"), { outline: 0.02 });
+    const baffle = mesh(rbox(0.83, 1.58, 0.035, 0.045), toon("#14181e"), { outline: 0.009 });
+    baffle.position.set(0, 0.9, 0.431);
+    // A recessed cone meets its rubber surround; the centre cap sits inside the cone.
+    const coneProfile = [[0.278, 0.018], [0.26, 0.012], [0.13, -0.035], [0.09, -0.035]].map(([r, depth]) => new THREE.Vector2(r, depth));
+    const woofer = mesh(new THREE.LatheGeometry(coneProfile, 48), toon("#7f9fd8"), { outline: 0 });
     woofer.rotation.x = Math.PI / 2;
-    woofer.position.set(0, 0.55, 0.43);
-    const dustCap = mesh(new THREE.SphereGeometry(0.11, 14, 10), toon("#1a1714"), { outline: 0.015 });
-    dustCap.position.set(0, 0.55, 0.47);
-    const tweeter = mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.06, 20), toon("#ffdd00"), { outline: 0.015 });
-    tweeter.rotation.x = Math.PI / 2;
-    tweeter.position.set(0, 1.25, 0.43);
-    const ledMat = track(new THREE.MeshBasicMaterial({ color: "#16a34a" }));
-    const led = new THREE.Mesh(track(new THREE.SphereGeometry(0.045, 10, 8)), ledMat);
-    led.position.set(0, 1.6, 0.43);
+    woofer.position.set(0, 0.62, 0.49);
+    const basket = mesh(new THREE.TorusGeometry(0.322, 0.014, 10, 48), toon("#454e5d"), { outline: 0 });
+    basket.position.set(0, 0.62, 0.485);
+    const surround = mesh(new THREE.TorusGeometry(0.287, 0.027, 12, 48), toon("#080b10"), { outline: 0 });
+    surround.position.set(0, 0.62, 0.498);
+    const dustCap = mesh(new THREE.SphereGeometry(0.105, 24, 16), toon("#252b35"), { outline: 0.004 });
+    dustCap.scale.z = 0.4;
+    dustCap.position.set(0, 0.62, 0.477);
+    dustCap.userData.restZ = dustCap.position.z;
+    const waveguide = mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.02, 40), toon("#080b10"), { outline: 0.005 });
+    waveguide.rotation.x = Math.PI / 2;
+    waveguide.position.set(0, 1.25, 0.463);
+    const tweeter = mesh(new THREE.SphereGeometry(0.105, 24, 16), toon("#ffdd00"), { outline: 0.004 });
+    tweeter.scale.z = 0.38;
+    tweeter.position.set(0, 1.25, 0.485);
+    const tweeterRim = mesh(new THREE.TorusGeometry(0.128, 0.012, 10, 40), toon("#434c59"), { outline: 0 });
+    tweeterRim.position.set(0, 1.25, 0.48);
+    const statusX = x < 0 ? -0.24 : 0.24;
+    const ledMat = track(new THREE.MeshBasicMaterial({ color: soundMuted ? "#e11d48" : "#16a34a" }));
+    const ledHousing = mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.012, 28), toon("#080b10"), { outline: 0.005 });
+    ledHousing.rotation.x = Math.PI / 2;
+    ledHousing.position.set(statusX, 1.55, 0.452);
+    const led = new THREE.Mesh(track(new THREE.SphereGeometry(0.045, 20, 14)), ledMat);
+    led.scale.z = 0.4;
+    led.position.set(statusX, 1.55, 0.46);
     speakerLeds.push(ledMat);
-    speaker.add(cabinet, woofer, dustCap, tweeter, led);
+    // Flush fasteners, a small bass port and the power control finish the front panel.
+    [-0.35, 0.35].forEach((sx) => [0.18, 1.6].forEach((sy) => {
+      const screw = new THREE.Mesh(track(new THREE.CircleGeometry(0.012, 12)), toon("#747c89"));
+      screw.position.set(sx, sy, 0.451);
+      screw.raycast = noRaycast;
+      speaker.add(screw);
+    }));
+    const port = mesh(new THREE.CylinderGeometry(0.047, 0.047, 0.012, 24), toon("#050608"), { outline: 0 });
+    port.rotation.x = Math.PI / 2;
+    port.position.set(-0.26, 0.18, 0.455);
+    const portRim = mesh(new THREE.TorusGeometry(0.05, 0.007, 8, 24), toon("#434c59"), { outline: 0 });
+    portRim.position.set(-0.26, 0.18, 0.46);
+    const knob = mesh(new THREE.CylinderGeometry(0.044, 0.044, 0.035, 24), toon("#697383"), { outline: 0.004 });
+    knob.rotation.x = Math.PI / 2;
+    knob.position.set(0.26, 0.18, 0.465);
+    const knobMark = mesh(new THREE.BoxGeometry(0.006, 0.02, 0.004), toon("#f1f1ed"), { outline: 0 });
+    knobMark.position.set(0.26, 0.194, 0.485);
+    speaker.add(cabinet, baffle, basket, surround, woofer, dustCap, waveguide, tweeter, tweeterRim, ledHousing, led, port, portRim, knob, knobMark);
     const entry = { group: speaker, woofer, dustCap, tweeter };
     speakers.push(entry);
     register(speaker, {
@@ -2770,15 +2959,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
   });
 
   // ---------- ID badge on a lanyard, hung from a push pin on the About board's corner (hero) ----------
-  // The board is 6.8 × 4.2 centred at (4.6, 4.8) on the back wall: the pin sits inside its
+  // The board is 6.8 × 4.2 centred at (4.6, 5.8) on the back wall: the pin sits inside its
   // top-left corner and the badge hangs just off its left edge. Close up, the camera's near
   // plane cuts away the monitor in front of it (see the hero shot's depth).
-  const BADGE_PIN = new THREE.Vector3(1.4, 6.55, WALL_Z + 0.48);
-  const BADGE_CLIP = new THREE.Vector3(1.4, 4.85, WALL_Z + 0.58); // straight below the pin: the rope's resting shape
+  const BADGE_PIN = new THREE.Vector3(1.4, 7.55, WALL_Z + 0.48);
+  const BADGE_CLIP = new THREE.Vector3(1.4, 5.85, WALL_Z + 0.58); // straight below the pin: the rope's resting shape
   const strapMat = toon("#ffdd00");
   // Where the pin is now: drag it to re-pin the badge anywhere on this stretch of wall
   const badgePin = BADGE_PIN.clone();
-  const PIN_BOUNDS = { minX: 0.3, maxX: 8.0, minY: 4.3 + WALL_LIFT, maxY: 8.4 + WALL_LIFT };
+  const PIN_BOUNDS = { minX: 0.3, maxX: 8.0, minY: 4.9 + WALL_LIFT, maxY: 9.0 + WALL_LIFT };
   // A strap point (or the pin, index 0) held by the pointer: { index, x, y }
   let ropeHold = null;
   // The strap is a little verlet rope: a chain of points from the pin to the badge's clip,
@@ -2989,7 +3178,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // ---------- pinned About board, matching the 2D sticker board ----------
   const aboutBoard = new THREE.Group();
   // Level with the painting across the room
-  aboutBoard.position.set(4.6, 4.8, -4.28); // on the wall: WALL_Z + 0.3, lifted by WALL_LIFT - 0.3
+  aboutBoard.position.set(4.6, 5.8, -4.28); // on the wall: WALL_Z + 0.3
   scene.add(aboutBoard);
   const boardFrame = mesh(rbox(6.8, 4.2, 0.16, 0.06), toon("#9c6230"), { outline: 0.06 });
   const boardFace = printed(6.55, 3.95, 170, drawAboutBoard);
@@ -3248,7 +3437,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
     sfx.groove();
     sfx.meow({ delay: 0.4 });
     gsap.fromTo(neonOn.material, { opacity: 0 }, { opacity: 1, duration: 0.12, repeat: 9, yoyo: true, onComplete: () => (neonOn.material.opacity = darkNow ? 1 : 0) });
-    shelfSay(consoleBody, "+30 LIVES!", "cheat activated", 3200, 0);
   };
   window.addEventListener("keydown", onKonami);
 
@@ -3942,6 +4130,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
     },
   });
   const onWheel = (e) => {
+    if (focus.name === "shelf") {
+      e.preventDefault();
+      const delta = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? container.clientHeight : 1);
+      browseShelf(shelfLook - delta * 0.0035);
+      return;
+    }
     if (focus.name !== "chat" || !chat.maxScroll) return;
     e.preventDefault();
     chat.scroll = Math.max(0, Math.min(chat.maxScroll, chat.scroll - e.deltaY));
@@ -4627,6 +4821,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
   let darkNow = dark;
   function setTheme(isDark) {
     darkNow = isDark;
+    deskNeons.forEach(({ strip, washMat }) => {
+      strip.visible = isDark;
+      washMat.opacity = isDark ? 1 : 0;
+    });
     ambient.intensity = isDark ? 1.0 : 0.65;
     skyFill.intensity = isDark ? 0 : 1.45;
     readabilityFill.intensity = isDark ? 0.55 : 0.35;
@@ -4703,9 +4901,68 @@ export function createDeskScene({ container, projects, experiences, dark = false
     hovered?.onHover?.(false);
     hovered = entry;
     hovered?.onHover?.(true);
-    renderer.domElement.style.cursor = entry?.note && focus.name === "about" ? "grab" : entry ? "pointer" : "default";
+    renderer.domElement.style.cursor = entry?.sticky || (entry?.note && focus.name === "about") ? "grab" : entry ? "pointer" : "default";
   };
+  let shelfDrag = null;
+  function browseShelf(y) {
+    shelfLook = THREE.MathUtils.clamp(y, 1.7, 9);
+    shelfBubble.hide();
+    applyShot(false, 0.22);
+  }
+  function finishShelfDrag(pointerId = null) {
+    if (!shelfDrag || (pointerId !== null && shelfDrag.pointerId !== pointerId)) return null;
+    const drag = shelfDrag;
+    shelfDrag = null;
+    if (renderer.domElement.hasPointerCapture(drag.pointerId)) renderer.domElement.releasePointerCapture(drag.pointerId);
+    renderer.domElement.style.cursor = "grab";
+    if (drag.moved) downAt = null;
+    return drag;
+  }
+  let stickyDrag = null;
+  const stickyPlane = new THREE.Plane();
+  const stickyPoint = new THREE.Vector3();
+  function stickyPointer(e) {
+    monitor.updateWorldMatrix(true, false);
+    stickyPlane.setFromNormalAndCoplanarPoint(
+      new THREE.Vector3(0, 0, 1).transformDirection(monitor.matrixWorld),
+      monitor.localToWorld(stickyPoint.set(0, 0, 0.1)),
+    );
+    const hit = rayFromPointer(e).intersectPlane(stickyPlane, stickyPoint);
+    return hit ? monitor.worldToLocal(hit) : null;
+  }
+  function finishStickyDrag(pointerId = null) {
+    if (!stickyDrag || (pointerId !== null && stickyDrag.pointerId !== pointerId)) return null;
+    const drag = stickyDrag;
+    stickyDrag = null;
+    downAt = null;
+    if (renderer.domElement.hasPointerCapture(drag.pointerId)) renderer.domElement.releasePointerCapture(drag.pointerId);
+    renderer.domElement.style.cursor = "grab";
+    return drag;
+  }
   const onPointerMove = (e) => {
+    if (shelfDrag) {
+      if (e.pointerId !== shelfDrag.pointerId) return;
+      const dy = e.clientY - shelfDrag.startY;
+      if (!shelfDrag.moved && Math.hypot(e.clientX - shelfDrag.startX, dy) < 6) return;
+      shelfDrag.moved = true;
+      renderer.domElement.style.cursor = "grabbing";
+      browseShelf(shelfDrag.startLook + dy * shelfDrag.unitsPerPixel);
+      e.preventDefault();
+      return;
+    }
+    if (stickyDrag) {
+      if (e.pointerId !== stickyDrag.pointerId) return;
+      if (!stickyDrag.moved && Math.hypot(e.clientX - stickyDrag.startX, e.clientY - stickyDrag.startY) < 4) return;
+      const point = stickyPointer(e);
+      if (!point) return;
+      stickyDrag.moved = true;
+      // Keep a little overhang around the bezel, as in the original placements.
+      stickyDrag.sticky.position.x = THREE.MathUtils.clamp(point.x - stickyDrag.offsetX, -2.5, 2.5);
+      stickyDrag.sticky.position.y = THREE.MathUtils.clamp(point.y - stickyDrag.offsetY, 1.1, 3.7);
+      renderer.domElement.style.cursor = "grabbing";
+      e.preventDefault();
+      return;
+    }
     if (lanyardDrag) {
       if (e.pointerId !== lanyardDrag.pointerId) return;
       if (!lanyardDrag.moved && Math.hypot(e.clientX - lanyardDrag.startX, e.clientY - lanyardDrag.startY) < 4) return;
@@ -4771,8 +5028,32 @@ export function createDeskScene({ container, projects, experiences, dark = false
     return drag;
   }
   const onPointerDown = (e) => {
-    if (noteDrag || lanyardDrag || e.button !== 0) return;
+    if (shelfDrag || stickyDrag || noteDrag || lanyardDrag || e.button !== 0) return;
     downAt = { x: e.clientX, y: e.clientY };
+    if (focus.name === "shelf") {
+      shelfDrag = {
+        pointerId: e.pointerId, startX: e.clientX, startY: e.clientY,
+        startLook: shelfLook, unitsPerPixel: viewH / cam.zoom / container.clientHeight, moved: false,
+      };
+      renderer.domElement.setPointerCapture(e.pointerId);
+      e.preventDefault();
+      return;
+    }
+    const stickyEntry = pick(e)?.entry;
+    if (stickyEntry?.sticky) {
+      const point = stickyPointer(e);
+      if (!point) return;
+      stickyDrag = {
+        sticky: stickyEntry.sticky, entry: stickyEntry, pointerId: e.pointerId,
+        startX: e.clientX, startY: e.clientY, moved: false,
+        offsetX: point.x - stickyEntry.sticky.position.x,
+        offsetY: point.y - stickyEntry.sticky.position.y,
+      };
+      renderer.domElement.setPointerCapture(e.pointerId);
+      renderer.domElement.style.cursor = "grabbing";
+      e.preventDefault();
+      return;
+    }
     const hold = lanyardUnder(e);
     if (hold) {
       lanyardDrag = { ...hold, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moved: false };
@@ -4815,14 +5096,29 @@ export function createDeskScene({ container, projects, experiences, dark = false
     return drag;
   }
   const onPointerCancel = (e) => {
+    if (finishShelfDrag(e.pointerId)) downAt = null;
+    finishStickyDrag(e.pointerId);
     finishNoteDrag(e.pointerId);
     if (lanyardDrag?.pointerId === e.pointerId) finishLanyardDrag();
   };
   const onWindowBlur = () => {
+    if (finishShelfDrag()) downAt = null;
+    finishStickyDrag();
     finishNoteDrag();
     finishLanyardDrag();
   };
   const onPointerUp = (e) => {
+    if (shelfDrag) {
+      if (e.pointerId !== shelfDrag.pointerId) return;
+      const drag = finishShelfDrag(e.pointerId);
+      if (drag.moved) return;
+    }
+    if (stickyDrag) {
+      if (e.pointerId !== stickyDrag.pointerId) return;
+      const drag = finishStickyDrag(e.pointerId);
+      if (!drag.moved) handleClick(drag.entry);
+      return;
+    }
     if (lanyardDrag && e.pointerId === lanyardDrag.pointerId) {
       const drag = finishLanyardDrag();
       if (drag.moved) {
@@ -4855,7 +5151,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     else back();
   };
   const onPointerLeave = () => {
-    if (noteDrag) return;
+    if (shelfDrag || noteDrag || stickyDrag) return;
     setHover(null);
     parallax.tx = parallax.ty = 0;
   };
@@ -4877,9 +5173,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const SHOTS = {
     // The camera sits inside the room, with no cutaway edges or outside backdrop.
     overview: () => ({ target: [1.8, 3.0, 0.7], dir: [0.48, 0.72, 1] }),
-    // Straight on and a touch from above, the shelf left of centre with bare wall to its right for
-    // the speech bubble; the near plane cuts away the desk and dumbbells in front of it
-    shelf: () => ({ target: [shelf.position.x + 1.5, FLOOR_Y + 4.2, shelf.position.z], dir: [0.03, 0.12, 1], fit: [8.8, 9.6], depth: 1.4 }),
+    // Browse the tall collection in close-up, starting at the console and GAME ON sign.
+    shelf: () => {
+      const fit = [container.clientWidth < 900 ? 5.4 : 6.8, 4.6];
+      const visibleH = Math.max(fit[1], fit[0] * container.clientHeight / container.clientWidth);
+      const bottom = visibleH / 2 - (container.clientWidth < 600 ? 1.2 : 0.5);
+      const top = Math.max(bottom, gymCalendar.position.y - FLOOR_Y + 1.5 - visibleH / 2);
+      const y = bottom + (shelfLook - 1.7) / 7.3 * (top - bottom);
+      return { target: [shelf.position.x + 0.35, FLOOR_Y + y, shelf.position.z], dir: [0.24, 0.1, 1], fit, depth: 1.6 };
+    },
     // Clip only what's well in front of the wall (the monitor), not the board behind the badge
     hero: () => ({ target: [badgePin.x, badgePin.y - (BADGE_PIN.y - BADGE_CLIP.y) - 0.74, BADGE_CLIP.z], dir: [0.06, 0.14, 1], fit: [1.5, 2.1], depth: 0.9 }),
     about: () => ({ target: aboutBoard.position.toArray(), dir: [0, 0.8, 1], fit: [7.3, 4.8] }),
@@ -4908,6 +5210,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
       const narrow = container.clientWidth < 768;
       folders.localToWorld(screenPos.set(OUT.x, OUT.y, OUT.z - (narrow ? 0 : FOLDER_W / 2)));
       return { target: [screenPos.x, screenPos.y + 0.17, screenPos.z], dir: [0.03, 1, 0.35], fit: narrow ? [FOLDER_W + 0.2, FOLDER_D + 0.4] : [FOLDER_W * 2 + 0.35, FOLDER_D + 0.55] };
+    },
+    family: () => {
+      familyFrame.updateWorldMatrix(true, false);
+      familyFrame.localToWorld(screenPos.set(0, 1.06, 0.1));
+      familyFrame.getWorldDirection(screenNormal);
+      return { target: screenPos.toArray(), dir: screenNormal.toArray(), fit: [1.55, 2.3], depth: 0.9 };
     },
     // Face-on to the phone's screen, whatever angle the stand holds it at
     chat: () => {
@@ -4962,6 +5270,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     byFocus.get(focus.name)?.onLeave?.();
     clearTimeout(arriveTimer);
     focus.name = name;
+    if (name === "shelf") shelfLook = 1.7;
     catSettle();
     applyShot();
     sfx.whoosh({ duration: 0.45, up: name !== "overview" });
@@ -5088,6 +5397,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       if (!termBusy) redrawTerminal();
       typing?.redraw();
     }
+    if (hatBubble.sprite.scale.x > 0.01) placeHatBubble();
     if (catBubble.sprite.scale.x > 0.01) placeCatBubble();
     // The desktop animates (windows, dock, the player's visualizer) at about 30 fps
     if ((desktop.busy() || lofi.playing) && now - screenDrawnAt > 33) redrawScreen();
@@ -5135,6 +5445,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     },
 
     destroy() {
+      finishShelfDrag();
+      finishStickyDrag();
       finishNoteDrag(null, false);
       destroyed = true;
       lofi.destroy();

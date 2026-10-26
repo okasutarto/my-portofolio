@@ -1,6 +1,6 @@
 // Spotifree's music: lo-fi hip hop synthesized live with WebAudio, so there are no audio
 // files to host or license. Each track is a four-chord loop played by a wobbly electric piano,
-// a round bass, a lazy swung beat, a sparse bell melody and vinyl crackle, all through a dull
+// a round bass, a lazy swung beat and a sparse bell melody, all through a dull
 // low-pass so it sounds like an old tape.
 import { audioBus } from "@/composables/useSfx";
 
@@ -58,7 +58,6 @@ export function createLofi({ onHit = () => {}, onTrack = () => {} } = {}) {
   let playing = false;
   let nextTime = 0;
   let timer = null;
-  let crackle = null;
   const pending = new Set();
 
   // Built once per audio context: the music bus, its tape filter, an analyser for the visualizer
@@ -85,14 +84,7 @@ export function createLofi({ onHit = () => {}, onTrack = () => {} } = {}) {
     wobbleDepth.gain.value = 9; // cents
     wobble.connect(wobbleDepth);
     wobble.start();
-    // Two seconds of vinyl: a low hiss with the odd pop
-    const vinyl = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
-    const data = vinyl.getChannelData(0);
-    for (let i = 0; i < data.length; i++) {
-      data[i] = (Math.random() * 2 - 1) * 0.012;
-      if (Math.random() < 0.0004) data[i] += (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.35);
-    }
-    graph = { ctx, input, analyser, wobbleDepth, noiseBuffer, vinyl, bins: new Uint8Array(analyser.frequencyBinCount) };
+    graph = { ctx, input, analyser, wobbleDepth, noiseBuffer, bins: new Uint8Array(analyser.frequencyBinCount) };
     return graph;
   }
 
@@ -206,7 +198,7 @@ export function createLofi({ onHit = () => {}, onTrack = () => {} } = {}) {
     const bar = Math.floor(n / 16);
     const s = n % 16;
     const chord = track.chords[bar % track.chords.length];
-    // An intro bar of just keys and crackle before the beat drops
+    // An intro bar of just keys before the beat drops
     const drums = bar > 0 && bar < BARS - 1;
     if (s === 0) chord.slice(1).forEach((m, i) => keys(g, t + i * 0.012, m, len * 15));
     if (s === 10 && bar % 2 === 1) chord.slice(2).forEach((m) => keys(g, t, m, len * 5, 0.03));
@@ -285,11 +277,6 @@ export function createLofi({ onHit = () => {}, onTrack = () => {} } = {}) {
     if (playing) return true;
     playing = true;
     nextTime = g.ctx.currentTime + 0.06;
-    crackle = g.ctx.createBufferSource();
-    crackle.buffer = g.vinyl;
-    crackle.loop = true;
-    crackle.connect(g.input);
-    crackle.start();
     pump();
     timer = setInterval(pump, 25);
     return true;
@@ -299,9 +286,6 @@ export function createLofi({ onHit = () => {}, onTrack = () => {} } = {}) {
     playing = false;
     clearInterval(timer);
     stopVoices();
-    crackle?.stop();
-    crackle?.disconnect();
-    crackle = null;
   }
   function skip(by) {
     const wasPlaying = playing;

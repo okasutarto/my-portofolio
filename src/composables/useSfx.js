@@ -371,14 +371,14 @@ const SOUNDS = {
     }
   },
   // A small bird: two quick rising whistles
-  chirp(t) {
-    tone(t, { freq: vary(2600, 0.06), to: 3700, attack: 0.004, peak: 0.12, decay: 0.05 });
-    tone(t + 0.09, { freq: vary(2900, 0.06), to: 4000, attack: 0.004, peak: 0.1, decay: 0.06 });
+  chirp(t, { volume = 1 } = {}) {
+    tone(t, { freq: vary(2600, 0.06), to: 3700, attack: 0.004, peak: 0.12 * volume, decay: 0.05 });
+    tone(t + 0.09, { freq: vary(2900, 0.06), to: 4000, attack: 0.004, peak: 0.1 * volume, decay: 0.06 });
   },
   // Sparkle for a shooting star: a bright falling glint over a soft shimmer
-  sparkle(t) {
-    tone(t, { freq: 2800, to: 1600, attack: 0.005, peak: 0.12, decay: 0.5 });
-    [0, 0.07, 0.15, 0.24].forEach((d, i) => tone(t + d, { type: "triangle", freq: 2093 * (1 + i * 0.25), peak: 0.07, decay: 0.18 }));
+  sparkle(t, { volume = 1 } = {}) {
+    tone(t, { freq: 2800, to: 1600, attack: 0.005, peak: 0.12 * volume, decay: 0.5 });
+    [0, 0.07, 0.15, 0.24].forEach((d, i) => tone(t + d, { type: "triangle", freq: 2093 * (1 + i * 0.25), peak: 0.07 * volume, decay: 0.18 }));
   },
   // The speakers coming on: a two-bar groove (kick, hats, a bass line and a bright riff).
   // Beat i lands at t + i * GROOVE_BEAT, so visuals can pulse in time.
@@ -408,9 +408,9 @@ const SOUNDS = {
     tone(t + 0.1, { freq: vary(2700, 0.05), to: 3600, attack: 0.01, peak: 0.11, decay: 0.08 });
   },
   // Little feet scampering over the desk
-  patter(t, { duration = 0.6 } = {}) {
+  patter(t, { duration = 0.6, volume = 1 } = {}) {
     for (let at = t; at < t + duration; at += 0.05 + Math.random() * 0.03) {
-      noise(at, { freq: vary(2500, 0.3), q: 2, attack: 0.002, peak: 0.06, decay: 0.012 });
+      noise(at, { freq: vary(2500, 0.3), q: 2, attack: 0.002, peak: 0.06 * volume, decay: 0.012 });
     }
   },
   // A cat: a nasal rise and fall through a vowel-ish band (higher and shorter for a "mrrp")
@@ -592,7 +592,7 @@ export function setRainLevel(level) {
     rainLoop = null;
     return setRainLevel(level);
   }
-  rainLoop.gain.gain.setTargetAtTime(target * 0.035, ctx.currentTime, 0.6);
+  rainLoop.gain.gain.setTargetAtTime(target * 0.01, ctx.currentTime, 0.6);
 }
 
 // The live context and the master bus, for music that should share the sfx chain (the

@@ -79,9 +79,9 @@ const { muted, toggleMute } = useSfx();
 
 const hint = computed(() => {
   if (introPlaying.value) return "";
-  if (focus.value === "monitor") return isDesktop.value ? "Type a command and hit Enter. Try: help" : "Tap a command, or tap the screen";
+  if (focus.value === "monitor") return isDesktop.value ? "Type a command and hit Enter, or open Spotifree from the dock ♫" : "Tap a command, or the dock to open Spotifree ♫";
   if (focus.value === "keyboard") return "1–5 jump to a section · T terminal · C chat · Esc back";
-  if (focus.value === "window") return isDark.value ? "Click the sky and make a wish" : "Click the window to call the birds over";
+  if (focus.value === "window") return isDesktop.value ? "Click for birds (a shooting star at night). Three quick clicks bring the rain" : "Tap for birds or a shooting star. Three quick taps bring the rain";
   if (focus.value === "mug") return "Click the mug for a sip. Finish the cup for the night shift";
   if (focus.value === "experience") return isDesktop.value ? "Click a pass to hold it up, again to flip it (← → to browse)" : "Tap a pass to hold it, tap again to flip it";
   if (focus.value === "projects" && projectOpen.value) return isDesktop.value ? "Click the pages to turn them (or ← →)" : "Tap the pages to turn them";

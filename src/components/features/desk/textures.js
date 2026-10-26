@@ -626,7 +626,7 @@ export function drawCaseBack(c, w, h, project, { inside = false, index = 0, kind
   return hotspots.map((hs) => ({ ...hs, x: w - hs.x - hs.w, y: h - hs.y - hs.h }));
 }
 
-// ---------- phone: a chat with Oka's AI assistant ----------
+// ---------- phone: a chat with the desk's AI assistant ----------
 // `chat` is the scene's live state ({ messages, input, active, waiting, scroll }); the
 // renderer writes chat.maxScroll back so the wheel can clamp.
 export const CHAT_QUESTIONS = [
@@ -702,8 +702,8 @@ export function drawChatScreen(c, w, h, chat, { unread = false, caret = false, n
     c.fillStyle = "#000";
     c.textBaseline = "top";
     c.font = `500 25px ${BODY}`;
-    c.fillText("hey! i'm oka's AI twin.", 46, top + 40);
-    c.fillText("ask me anything about him", 46, top + 74);
+    c.fillText("hey! i'm the desk's AI.", 46, top + 40);
+    c.fillText("ask me anything about oka", 46, top + 74);
     c.font = `700 20px ${BODY}`;
     c.fillText("TRY ONE:", 30, top + 160);
     CHAT_QUESTIONS.forEach((q, i) => {
@@ -726,13 +726,18 @@ export function drawChatScreen(c, w, h, chat, { unread = false, caret = false, n
   c.textBaseline = "middle";
   c.font = `700 24px ${BODY}`;
   c.fillText(now.toTimeString().slice(0, 5), 30, 34);
+  // Dynamic Island
+  c.fillStyle = "#000";
+  c.beginPath();
+  c.roundRect(w / 2 - 75, 16, 150, 40, 20);
+  c.fill();
   brutalBox(c, 28, 68, 72, 72, "#fff", { shadow: 5, line: 4 });
   c.fillStyle = "#000";
   c.fillRect(48, 92, 10, 10);
   c.fillRect(72, 92, 10, 10);
   c.fillRect(50, 116, 30, 6);
   c.font = `800 28px ${DISPLAY}`;
-  c.fillText("OKA'S AI", 122, 92);
+  c.fillText("DESK AI", 122, 92);
   c.font = `700 20px ${BODY}`;
   c.fillStyle = chat.waiting ? "#b45309" : "#166534";
   c.fillText(chat.waiting ? "● typing…" : "● online", 122, 124);
@@ -1065,47 +1070,64 @@ export function drawDrawerFront(c, w, h, count) {
 }
 
 // ---------- desk top: light oak planks running the desk's length, flat grain, bold seams ----------
+// Recycled messmate / Victorian ash, like a solid-timber standing desk: full-length boards in a
+// warm honey tone, dense straight grain with darker streaks, and little black gum veins
 export function drawWoodTop(c, w, h) {
-  const planks = 6;
-  const ph = h / planks;
-  const tones = ["#d9a066", "#cf9559", "#deaa70", "#d39b5f"];
+  const boards = 5;
+  const bh = h / boards;
+  const tones = ["#cf9459", "#c4864c", "#d69f65", "#c98d52", "#d29a5f"];
   // A fixed seed, so the grain is the same every load
   let seed = 7;
   const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  for (let i = 0; i < planks; i++) {
-    const y = i * ph;
+  for (let i = 0; i < boards; i++) {
+    const y = i * bh;
     c.fillStyle = tones[i % tones.length];
-    c.fillRect(0, y, w, ph);
-    // Long, gently wavy grain lines
-    c.strokeStyle = "rgba(120, 66, 24, 0.22)";
-    c.lineWidth = 3;
-    for (let g = 0; g < 7; g++) {
-      const gy = y + ph * (0.12 + g * 0.12) + rand() * 6;
-      const amp = 3 + rand() * 6;
-      const len = 120 + rand() * 160;
+    c.fillRect(0, y, w, bh);
+    // Broad bands of lighter and darker growth
+    for (let b = 0; b < 4; b++) {
+      const by = y + rand() * bh;
+      const band = 8 + rand() * 26;
+      c.fillStyle = rand() < 0.5 ? "rgba(120, 62, 22, 0.16)" : "rgba(255, 220, 170, 0.14)";
       c.beginPath();
-      for (let x = 0; x <= w; x += 20) c.lineTo(x, gy + Math.sin(x / len + g) * amp);
+      for (let x = 0; x <= w; x += 40) c.lineTo(x, by + Math.sin(x / 300 + b) * 4);
+      for (let x = w; x >= 0; x -= 40) c.lineTo(x, by + band + Math.sin(x / 300 + b) * 4);
+      c.fill();
+    }
+    // Dense, nearly straight grain lines that drift a little along the board
+    for (let g = 0; g < 22; g++) {
+      const gy = y + rand() * bh;
+      const amp = 1 + rand() * 4;
+      const len = 200 + rand() * 300;
+      const phase = rand() * 10;
+      c.strokeStyle = `rgba(${90 + rand() * 30}, ${44 + rand() * 20}, 14, ${0.12 + rand() * 0.28})`;
+      c.lineWidth = 1 + rand() * 2.5;
+      c.beginPath();
+      for (let x = 0; x <= w; x += 20) c.lineTo(x, gy + Math.sin(x / len + phase) * amp);
       c.stroke();
     }
-    // A knot or two
-    for (let k = 0; k < 2; k++) {
-      const kx = rand() * w;
-      const ky = y + ph * (0.3 + rand() * 0.4);
-      c.strokeStyle = "rgba(110, 58, 20, 0.35)";
-      c.lineWidth = 3;
-      [18, 30].forEach((r) => {
-        c.beginPath();
-        c.ellipse(kx, ky, r * 2.2, r * 0.6, 0, 0, Math.PI * 2);
-        c.stroke();
-      });
+    // Gum veins: short, sharp black streaks along the grain
+    for (let v = 0; v < 3; v++) {
+      const vx = rand() * w;
+      const vy = y + bh * (0.15 + rand() * 0.7);
+      const len = 14 + rand() * (v === 0 ? 120 : 40);
+      c.fillStyle = "rgba(28, 16, 8, 0.85)";
+      c.beginPath();
+      c.ellipse(vx, vy, len, 1.5 + rand() * 2.5, 0, 0, Math.PI * 2);
+      c.fill();
     }
-    // Plank ends are staggered, like a real top
-    c.fillStyle = "rgba(60, 32, 12, 0.55)";
-    const end = (0.2 + rand() * 0.6) * w;
-    c.fillRect(end, y, 4, ph);
-    // The seam between planks
-    c.fillRect(0, y, w, 4);
+    // The glue line between boards
+    c.fillStyle = "rgba(70, 36, 12, 0.45)";
+    c.fillRect(0, y, w, 2);
   }
+}
+
+// ---------- desk mat under the keyboard and mouse ----------
+// Plain charcoal felt with a faint dot grid
+export function drawDeskMat(c, w, h) {
+  c.fillStyle = "#26242b";
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = "rgba(255,255,255,.05)";
+  for (let y = 24; y < h; y += 32) for (let x = 24; x < w; x += 32) c.fillRect(x, y, 3, 3);
 }
 
 // ---------- floor: wood planks that tile seamlessly in both directions ----------
@@ -1384,9 +1406,55 @@ export const SIP_QUOTES = [
   { text: "Coffee in, features out.", by: "oka" },
   { text: "One more sip, one less bug.", by: "oka" },
 ];
-export function drawQuoteBubble(c, w, h, quote, { size = 32, tail: tailSide = "right" } = {}) {
+// A plain manga speech balloon: a white oval with a thin ink line and a curved, pointed tail
+function drawMangaBubble(c, w, h, quote, size, tailSide) {
+  const cx = w / 2;
+  const cy = h * 0.42;
+  const rx = w * 0.46;
+  const ry = h * 0.36;
+  // One outline: the oval round from one side of the tail's root to the other, then out along
+  // the tail's curl to its point and back (so no line crosses the root)
+  const dir = tailSide === "left" ? -1 : 1;
+  const angleAt = (x) => Math.acos((x - cx) / rx); // on the bottom half
+  const rootNear = cx + dir * rx * 0.18;
+  const rootFar = cx + dir * rx * 0.42;
+  const tip = [cx + dir * rx * 0.62, h - 14];
+  // The root's two ends in increasing angle (the bottom runs left to right as the angle falls)
+  const [first, second] = dir < 0 ? [rootNear, rootFar] : [rootFar, rootNear];
+  const at = (x) => [x, cy + ry * Math.sin(angleAt(x))];
+  const curlOut = [cx + dir * rx * (dir < 0 ? 0.36 : 0.44), h * 0.81];
+  const curlBack = [cx + dir * rx * (dir < 0 ? 0.44 : 0.36), h * 0.81];
+  c.beginPath();
+  c.ellipse(cx, cy, rx, ry, 0, angleAt(second), angleAt(first) + Math.PI * 2);
+  c.quadraticCurveTo(...curlOut, ...tip);
+  c.quadraticCurveTo(...curlBack, ...at(second));
+  c.closePath();
+  c.fillStyle = "#fff";
+  c.fill();
+  c.lineWidth = 4;
+  c.lineJoin = "round";
+  c.strokeStyle = "#000";
+  c.stroke();
+  const lead = size * 1.2;
+  c.font = `italic 700 ${size}px ${BODY}`;
+  const lines = wrap(c, quote.text.toUpperCase(), rx * 1.45, 4);
+  const byH = size * 0.9;
+  const top = cy - (lines.length * lead + byH) / 2 + lead / 2;
+  c.fillStyle = "#000";
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  lines.forEach((line, i) => c.fillText(line, cx, top + i * lead));
+  c.font = `600 ${Math.round(size * 0.75)}px 'Caveat', cursive`;
+  c.fillStyle = "rgba(0,0,0,.6)";
+  c.fillText(`— ${quote.by}`, cx, top + lines.length * lead + byH * 0.2);
+  c.textAlign = "left";
+  c.textBaseline = "alphabetic";
+}
+
+export function drawQuoteBubble(c, w, h, quote, { size = 32, tail: tailSide = "right", style } = {}) {
   c.clearRect(0, 0, w, h);
   if (!quote) return;
+  if (style === "manga") return drawMangaBubble(c, w, h, quote, size, tailSide);
   const tail = 46;
   const box = { x: 14, y: 14, w: w - 40, h: h - tail - 40 };
   // hard shadow, then the bubble with its tail pointing down to the speaker: from the lower
@@ -1505,7 +1573,29 @@ const VIEW_STARS = Array.from({ length: 38 }, (_, i) => {
 });
 const VIEW_FLIES = Array.from({ length: 14 }, (_, i) => ({ x: (i * 0.137 + 0.05) % 1, y: 0.8 + ((i * 0.071) % 0.17), p: i * 1.7 }));
 
-export function drawWindowView(c, w, h, { t = 0, dark = false, flockAt = -99, starAt = -99 } = {}) {
+// A colour part-way to another (both "#rrggbb")
+function mixHex(a, b, k) {
+  const pa = parseInt(a.slice(1), 16);
+  const pb = parseInt(b.slice(1), 16);
+  const ch = (shift) => Math.round(((pa >> shift) & 255) * (1 - k) + ((pb >> shift) & 255) * k);
+  return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, "0")}`;
+}
+// Raindrops stuck to the glass: where each sits, how big, and how fast it slides
+const GLASS_DROPS = Array.from({ length: 22 }, (_, i) => ({ x: (i * 0.383 + 0.07) % 1, y: (i * 0.617) % 1, r: 0.8 + ((i * 0.29) % 1) * 1.2, v: 0.004 + ((i * 0.53) % 1) * 0.02 }));
+// The sky through the day: top band, middle, horizon; the sun's height, colour and side
+const SKIES = {
+  morning: { sky: ["#ffb98a", "#ffd4a8", "#fff0d6"], sun: [0.26, 0.38, "#ffcf5c"], cloud: "#fff3e3" },
+  day: { sky: ["#7fdfff", "#a8ecff", "#cdf6ff"], sun: [0.74, 0.19, "#ffdd00"], cloud: "#ffffff" },
+  evening: { sky: ["#6d5cc4", "#ff8fa3", "#ffb35c"], sun: [0.7, 0.44, "#ff7a1a"], cloud: "#ffd0e0" },
+  night: { sky: ["#1e2a5a", "#26356b", "#30437f"], sun: [0.74, 0.19, "#fffdf5"], cloud: "#55638f" },
+};
+
+// `time` is the part of the day outside (morning, day, evening, night), `rain` 0–1
+export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt = -99, starAt = -99 } = {}) {
+  const dark = time === "night";
+  const look = SKIES[time];
+  // Rain greys everything over
+  const grey = (color) => mixHex(color, dark ? "#2a2f45" : "#8d97a8", rain * 0.55);
   const u = w / 100;
   const line = Math.max(3, u * 0.7);
   c.lineJoin = "round";
@@ -1535,7 +1625,7 @@ export function drawWindowView(c, w, h, { t = 0, dark = false, flockAt = -99, st
   const wrapX = (x, margin) => ((x % (w + margin * 2)) + w + margin * 2) % (w + margin * 2) - margin;
 
   // Sky in flat bands, lighter toward the horizon
-  const SKY = dark ? ["#1e2a5a", "#26356b", "#30437f"] : ["#7fdfff", "#a8ecff", "#cdf6ff"];
+  const SKY = look.sky.map(grey);
   c.fillStyle = SKY[0];
   c.fillRect(0, 0, w, h);
   c.fillStyle = SKY[1];
@@ -1543,7 +1633,7 @@ export function drawWindowView(c, w, h, { t = 0, dark = false, flockAt = -99, st
   c.fillStyle = SKY[2];
   c.fillRect(0, h * 0.4, w, h * 0.1);
 
-  if (dark) {
+  if (dark && rain < 0.6) {
     VIEW_STARS.forEach((star) => {
       const k = 0.55 + 0.45 * Math.sin(t * 2.2 + star.p);
       const s = u * star.s * k;
@@ -1571,10 +1661,12 @@ export function drawWindowView(c, w, h, { t = 0, dark = false, flockAt = -99, st
     }
   }
 
-  // Sun (turning rays) or moon (with craters)
-  const sx = w * 0.74;
-  const sy = h * 0.19;
+  // Sun (turning rays) or moon (with craters), fading behind rain clouds
+  const sx = w * look.sun[0];
+  const sy = h * look.sun[1];
   const sr = w * 0.085;
+  const sunColor = look.sun[2];
+  c.globalAlpha = 1 - rain * 0.85;
   if (!dark) {
     c.save();
     c.translate(sx, sy);
@@ -1588,10 +1680,10 @@ export function drawWindowView(c, w, h, { t = 0, dark = false, flockAt = -99, st
       c.beginPath();
       c.moveTo(sr * 1.3, 0);
       c.lineTo(sr * 1.65, 0);
-      stroke(line * 1.4, "#ffdd00");
+      stroke(line * 1.4, sunColor);
     }
     c.restore();
-    blob([[sx, sy, sr]], "#ffdd00");
+    blob([[sx, sy, sr]], sunColor);
   } else {
     blob([[sx, sy, sr]], "#fffdf5");
     [[-0.3, -0.2, 0.22], [0.3, 0.25, 0.16], [0.15, -0.38, 0.1]].forEach(([dx, dy, r]) => {
@@ -1602,14 +1694,25 @@ export function drawWindowView(c, w, h, { t = 0, dark = false, flockAt = -99, st
       stroke(line * 0.6);
     });
   }
+  c.globalAlpha = 1;
 
-  // Clouds drifting across
+  // Clouds drifting across (more, lower and heavier when it rains)
   [[0.1, 0.12, 1, 6], [0.55, 0.3, 0.75, 9], [0.85, 0.08, 0.6, 4.5]].forEach(([bx, by, size, speed], i) => {
     const x = wrapX(bx * w + t * speed * u, w * 0.2);
     const y = by * h + Math.sin(t * 0.4 + i) * u * 0.4;
     const s = size * u * 9;
-    blob([[x - s * 0.55, y + s * 0.1, s * 0.42], [x, y - s * 0.15, s * 0.58], [x + s * 0.55, y + s * 0.08, s * 0.45], [x - s * 0.55, y + s * 0.1, 0, s * 1.1, s * 0.42]], dark ? "#55638f" : "#ffffff");
+    blob([[x - s * 0.55, y + s * 0.1, s * 0.42], [x, y - s * 0.15, s * 0.58], [x + s * 0.55, y + s * 0.08, s * 0.45], [x - s * 0.55, y + s * 0.1, 0, s * 1.1, s * 0.42]], grey(look.cloud));
   });
+  if (rain > 0.05) {
+    c.globalAlpha = Math.min(1, rain * 1.5);
+    [[0.25, 0.05, 1.5, 3], [0.7, 0.16, 1.3, 2.2], [-0.05, 0.22, 1.1, 2.6]].forEach(([bx, by, size, speed]) => {
+      const x = wrapX(bx * w + t * speed * u, w * 0.25);
+      const y = by * h;
+      const s = size * u * 9;
+      blob([[x - s * 0.55, y + s * 0.1, s * 0.45], [x, y - s * 0.12, s * 0.6], [x + s * 0.55, y + s * 0.08, s * 0.48], [x - s * 0.55, y + s * 0.1, 0, s * 1.1, s * 0.45]], dark ? "#3a4060" : "#7d8798");
+    });
+    c.globalAlpha = 1;
+  }
 
   // Mountains behind the lake
   c.beginPath();
@@ -1617,7 +1720,7 @@ export function drawWindowView(c, w, h, { t = 0, dark = false, flockAt = -99, st
   [[0, 0.46], [0.14, 0.34], [0.3, 0.5], [0.45, 0.38], [0.62, 0.52], [0.8, 0.36], [1, 0.48]].forEach(([x, y]) => c.lineTo(w * x, h * y));
   c.lineTo(w + line, h * 0.6);
   c.closePath();
-  c.fillStyle = dark ? "#3b3570" : "#c4b5fd";
+  c.fillStyle = grey(dark ? "#3b3570" : time === "evening" ? "#9b7fd4" : "#c4b5fd");
   c.fill();
   stroke();
   // Snow caps
@@ -1637,7 +1740,7 @@ export function drawWindowView(c, w, h, { t = 0, dark = false, flockAt = -99, st
   // The lake: ripples sliding, the sun/moon's reflection wobbling, a little sailboat
   const lakeTop = h * 0.58;
   const lakeBottom = h * 0.78;
-  c.fillStyle = dark ? "#172554" : "#3b82f6";
+  c.fillStyle = grey(dark ? "#172554" : "#3b82f6");
   c.fillRect(0, lakeTop, w, lakeBottom - lakeTop);
   c.beginPath();
   c.moveTo(0, lakeTop);
@@ -1645,8 +1748,21 @@ export function drawWindowView(c, w, h, { t = 0, dark = false, flockAt = -99, st
   stroke();
   for (let i = 0; i < 4; i++) {
     const bar = sr * (1.5 - i * 0.3) * (1 + 0.15 * Math.sin(t * 3 + i));
-    c.fillStyle = dark ? "#fffdf5" : "#ffdd00";
+    c.globalAlpha = 1 - rain * 0.85;
+    c.fillStyle = sunColor;
     c.fillRect(sx - bar / 2 + Math.sin(t * 2 + i * 2) * u, lakeTop + u * 2 + i * u * 2.6, bar, u * 1.2);
+    c.globalAlpha = 1;
+  }
+  // Rings spreading on the lake where the rain lands
+  for (let i = 0; i < Math.round(rain * 10); i++) {
+    const life = (t * 0.9 + i * 0.37) % 1;
+    const rx = ((i * 0.419 + Math.floor(t * 0.9 + i * 0.37) * 0.31) % 1) * w;
+    const ry = lakeTop + u * 2 + ((i * 0.23) % 1) * (lakeBottom - lakeTop - u * 4);
+    c.globalAlpha = 1 - life;
+    c.beginPath();
+    c.ellipse(rx, ry, u * (0.5 + life * 3.5), u * (0.2 + life * 1.1), 0, 0, Math.PI * 2);
+    stroke(line * 0.5, "#cdf6ff");
+    c.globalAlpha = 1;
   }
   for (let i = 0; i < 9; i++) {
     const row = i % 4;
@@ -1688,7 +1804,7 @@ export function drawWindowView(c, w, h, { t = 0, dark = false, flockAt = -99, st
   c.restore();
 
   // Grass, flowers, and trees swaying on the near shore
-  c.fillStyle = dark ? "#2f6b45" : "#8fd694";
+  c.fillStyle = grey(dark ? "#2f6b45" : "#8fd694");
   c.fillRect(0, lakeBottom, w, h - lakeBottom);
   c.beginPath();
   c.moveTo(0, lakeBottom);
@@ -1747,7 +1863,7 @@ export function drawWindowView(c, w, h, { t = 0, dark = false, flockAt = -99, st
     c.quadraticCurveTo(x + s * 0.45, y - s * 0.15, x + s, y - s * 0.55 * flap);
     stroke(line * 1.1);
   };
-  if (!dark) {
+  if (!dark && rain < 0.3) {
     for (let i = 0; i < 3; i++) {
       const x = wrapX(w * (i * 0.37) + t * u * (5 + i * 1.5), u * 6);
       const y = h * (0.12 + i * 0.07) + Math.sin(t * 1.3 + i * 2) * u * 1.5;
@@ -1762,7 +1878,7 @@ export function drawWindowView(c, w, h, { t = 0, dark = false, flockAt = -99, st
         bird(x, y, u * 2.4, Math.sin(t * 12 + i));
       }
     }
-  } else {
+  } else if (dark && rain < 0.3) {
     VIEW_FLIES.forEach((fly) => {
       const on = Math.sin(t * 2.3 + fly.p);
       if (on < 0.1) return;
@@ -1776,6 +1892,21 @@ export function drawWindowView(c, w, h, { t = 0, dark = false, flockAt = -99, st
     });
   }
 
+  // Rain: slanted streaks falling past
+  if (rain > 0.02) {
+    c.strokeStyle = dark ? "rgba(190,205,255,.5)" : "rgba(235,245,255,.75)";
+    c.lineWidth = Math.max(1.5, u * 0.45);
+    c.beginPath();
+    for (let i = 0; i < Math.round(rain * 90); i++) {
+      const fall = (i * 0.291 + t * (1.4 + (i % 5) * 0.12)) % 1;
+      const x = wrapX(((i * 0.137) % 1) * w - fall * u * 8, u * 4);
+      const y = fall * h * 1.1 - h * 0.05;
+      c.moveTo(x, y);
+      c.lineTo(x - u * 1.6, y + u * 6);
+    }
+    c.stroke();
+  }
+
   // The window's own cross bars: white, like the frame, with a black outline
   const bar = u * 2.4;
   c.fillStyle = "#000";
@@ -1784,6 +1915,30 @@ export function drawWindowView(c, w, h, { t = 0, dark = false, flockAt = -99, st
   c.fillStyle = "#ffffff";
   c.fillRect(w / 2 - bar / 2, 0, bar, h);
   c.fillRect(0, h / 2 - bar / 2, w, bar);
+
+  // Drops on the glass, sliding down now and then, each with a little wet trail
+  if (rain > 0.05) {
+    c.globalAlpha = Math.min(1, rain * 1.3);
+    GLASS_DROPS.forEach((drop, i) => {
+      // They hold still most of the time, then run
+      const slide = Math.max(0, Math.sin(t * 0.6 + i * 1.9)) ** 6;
+      const y = ((drop.y + t * drop.v + slide * 0.04) % 1) * h;
+      const x = drop.x * w + Math.sin(i + y / h * 6) * u * 0.4;
+      const r = drop.r * u;
+      c.fillStyle = "rgba(255,255,255,.18)";
+      c.fillRect(x - r * 0.25, y - r * 6, r * 0.5, r * 6);
+      c.beginPath();
+      c.arc(x, y, r, 0, Math.PI * 2);
+      c.fillStyle = "rgba(220,240,255,.45)";
+      c.fill();
+      c.lineWidth = Math.max(1, u * 0.25);
+      c.strokeStyle = "rgba(0,0,0,.45)";
+      c.stroke();
+      c.fillStyle = "rgba(255,255,255,.9)";
+      c.fillRect(x - r * 0.45, y - r * 0.5, r * 0.35, r * 0.35);
+    });
+    c.globalAlpha = 1;
+  }
 }
 
 // ---------- game cases on the shelf ----------

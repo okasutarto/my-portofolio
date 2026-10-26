@@ -13,7 +13,7 @@ const routes = [
     path: "/",
     name: "desk",
     component: DeskPage,
-    meta: { title: "Oka Sutarto Putra", immersive: true },
+    meta: { title: "Oka Sutarto Putra | Full Stack Developer", immersive: true },
   },
   {
     path: "/2d",

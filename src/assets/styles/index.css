@@ -123,18 +123,6 @@
   }
 }
 
-/* Custom cursor styles - hide default cursor on interactive elements */
-@media (hover: hover) and (pointer: fine) {
-  a,
-  button,
-  input,
-  textarea,
-  [role="button"],
-  .cursor-hover-target {
-    cursor: none !important;
-  }
-}
-
 /* Selection styling */
 ::selection {
   background: rgba(139, 92, 246, 0.3);

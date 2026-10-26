@@ -1,4 +1,7 @@
 import { createRouter, createWebHistory, START_LOCATION } from "vue-router";
+// The front page ships with the app bundle (three.js still loads on its own), so a fresh load
+// goes straight to the desk's backdrop instead of a blank page while a chunk downloads
+import DeskPage from "../views/DeskPage.vue";
 
 // Let the router own scroll restoration, including the explicit return to a project.
 window.history.scrollRestoration = "manual";
@@ -9,7 +12,7 @@ const routes = [
     // The 3D desk is the front page; the classic scrolling site lives at /2d
     path: "/",
     name: "desk",
-    component: () => import("../views/DeskPage.vue"),
+    component: DeskPage,
     meta: { title: "Oka Sutarto Putra", immersive: true },
   },
   {

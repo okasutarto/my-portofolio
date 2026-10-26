@@ -16,19 +16,33 @@ let ctx = null;
 let out = null;
 let noiseBuffer = null;
 let hushDepth = 0;
+// True while a gesture's resume() is pending: sounds scheduled now play once it lands, so the
+// very click that unlocks audio is heard too
+let resuming = false;
 const lastPlayed = {};
 
 function createContext() {
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
   if (!AudioCtx) return null;
   ctx = new AudioCtx();
-  // A gentle compressor keeps overlapping hits from clipping
+  // The sounds are synthesized quietly, so they go through a compressor that evens them out, a
+  // makeup gain that brings them up to a normal listening level, and a limiter on the end so
+  // overlapping hits can't clip
   const comp = ctx.createDynamicsCompressor();
-  comp.threshold.value = -18;
+  comp.threshold.value = -20;
+  comp.knee.value = 12;
   comp.ratio.value = 4;
+  const makeup = ctx.createGain();
+  makeup.gain.value = 2.6;
+  const limiter = ctx.createDynamicsCompressor();
+  limiter.threshold.value = -2;
+  limiter.knee.value = 0;
+  limiter.ratio.value = 20;
+  limiter.attack.value = 0.002;
+  limiter.release.value = 0.1;
   out = ctx.createGain();
-  out.gain.value = 0.55;
-  out.connect(comp).connect(ctx.destination);
+  out.gain.value = 1;
+  out.connect(comp).connect(makeup).connect(limiter).connect(ctx.destination);
   // One second of white noise, reused by every noisy sound
   noiseBuffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
   const data = noiseBuffer.getChannelData(0);
@@ -53,7 +67,12 @@ const unlock = async () => {
       primer.connect(out);
       primer.onended = () => primer.disconnect();
       primer.start(0);
-      await resumed;
+      resuming = true;
+      try {
+        await resumed;
+      } finally {
+        resuming = false;
+      }
     }
     return ctx.state === "running";
   } catch {
@@ -68,7 +87,9 @@ export function initializeAudio() {
 
 // First interaction enables audio if autoplay was blocked.
 // Later gestures also recover Safari audio after an interruption.
-["click", "touchend", "keydown"].forEach((event) =>
+// Browsers only allow audio after a real gesture (a press, a tap or a key); moving the pointer
+// or scrolling doesn't count, so the earliest moment is the first press anywhere.
+["pointerdown", "click", "touchend", "keydown"].forEach((event) =>
   window.addEventListener(event, () => {
     if (!muted.value && (!ctx || ctx.state !== "running")) void unlock();
   }, { capture: true, passive: true }),
@@ -152,6 +173,8 @@ const CHORDS = [
   [82.41, 123.47, 164.81, 196, 246.94, 329.63], // Em
 ];
 let chordIndex = 0;
+// The groove's tempo (seconds per beat): exported so the speakers can pump in time
+export const GROOVE_BEAT = 0.2;
 
 // ---------- the sounds ----------
 const SOUNDS = {
@@ -338,6 +361,101 @@ const SOUNDS = {
     const chord = CHORDS[chordIndex++ % CHORDS.length];
     chord.forEach((freq, i) => pluck(t + i * 0.022 + Math.random() * 0.006, freq, 0.32 - i * 0.025));
   },
+  // Luffy's laugh, "shi-shi-shi": three hissed syllables climbing in pitch, each with a little
+  // voiced bounce under it
+  shishishi(t) {
+    for (let i = 0; i < 3; i++) {
+      const at = t + i * 0.13;
+      noise(at, { filter: "highpass", freq: vary(4200 + i * 500, 0.05), q: 1.2, attack: 0.008, peak: 0.22, decay: 0.07 });
+      tone(at + 0.01, { type: "triangle", freq: vary(330 + i * 40, 0.03), to: 290 + i * 40, attack: 0.01, peak: 0.12, decay: 0.07 });
+    }
+  },
+  // A small bird: two quick rising whistles
+  chirp(t) {
+    tone(t, { freq: vary(2600, 0.06), to: 3700, attack: 0.004, peak: 0.12, decay: 0.05 });
+    tone(t + 0.09, { freq: vary(2900, 0.06), to: 4000, attack: 0.004, peak: 0.1, decay: 0.06 });
+  },
+  // Sparkle for a shooting star: a bright falling glint over a soft shimmer
+  sparkle(t) {
+    tone(t, { freq: 2800, to: 1600, attack: 0.005, peak: 0.12, decay: 0.5 });
+    [0, 0.07, 0.15, 0.24].forEach((d, i) => tone(t + d, { type: "triangle", freq: 2093 * (1 + i * 0.25), peak: 0.07, decay: 0.18 }));
+  },
+  // The speakers coming on: a two-bar groove (kick, hats, a bass line and a bright riff).
+  // Beat i lands at t + i * GROOVE_BEAT, so visuals can pulse in time.
+  groove(t) {
+    const beat = GROOVE_BEAT;
+    const bass = [65.41, 65.41, 98, 87.31, 65.41, 65.41, 116.54, 98];
+    const riff = [523.25, 659.25, 783.99, 659.25, 880, 783.99, 659.25, 1046.5];
+    for (let i = 0; i < 8; i++) {
+      const at = t + i * beat;
+      if (i % 2 === 0) tone(at, { freq: 150, to: 45, peak: 0.7, decay: 0.16 });
+      noise(at + beat / 2, { filter: "highpass", freq: 7000, peak: 0.12, decay: 0.03 });
+      if (i % 4 === 2) noise(at, { freq: 1800, q: 0.8, peak: 0.3, decay: 0.09 });
+      tone(at, { type: "sawtooth", freq: bass[i], peak: 0.12, decay: beat * 0.8 });
+      tone(at + beat / 2, { type: "square", freq: riff[i], peak: 0.06, decay: beat * 0.4 });
+    }
+    tone(t + 8 * beat, { type: "triangle", freq: 1046.5, peak: 0.12, decay: 0.5 });
+    tone(t + 8 * beat, { type: "triangle", freq: 1318.5, peak: 0.08, decay: 0.5 });
+  },
+  // The speakers switching off: a tape-stop slide down and a soft thump
+  powerDown(t) {
+    tone(t, { type: "sawtooth", freq: 440, to: 55, attack: 0.01, peak: 0.16, decay: 0.45 });
+    tone(t + 0.45, { freq: 90, to: 40, peak: 0.4, decay: 0.12 });
+  },
+  // A cartoon mouse: two high squeaks
+  squeak(t) {
+    tone(t, { freq: vary(2400, 0.05), to: 3300, attack: 0.01, peak: 0.13, decay: 0.07 });
+    tone(t + 0.1, { freq: vary(2700, 0.05), to: 3600, attack: 0.01, peak: 0.11, decay: 0.08 });
+  },
+  // Little feet scampering over the desk
+  patter(t, { duration = 0.6 } = {}) {
+    for (let at = t; at < t + duration; at += 0.05 + Math.random() * 0.03) {
+      noise(at, { freq: vary(2500, 0.3), q: 2, attack: 0.002, peak: 0.06, decay: 0.012 });
+    }
+  },
+  // A flower popping open: a soft rising pluck
+  bloom(t, { pitch = 1 } = {}) {
+    tone(t, { type: "triangle", freq: 520 * pitch, to: 1040 * pitch, attack: 0.01, peak: 0.18, decay: 0.18 });
+    tone(t + 0.05, { freq: 1560 * pitch, peak: 0.06, decay: 0.25 });
+  },
+  // A wall clock striking: a bell "ding-dong" with a soft metallic shimmer
+  chime(t) {
+    [[659.25, 0], [523.25, 0.42]].forEach(([freq, d]) => {
+      tone(t + d, { freq, peak: 0.22, decay: 1.1 });
+      tone(t + d, { type: "triangle", freq: freq * 2.76, peak: 0.05, decay: 0.5 });
+    });
+  },
+  // An office chair's gas lift letting go: a short pneumatic "pssht"
+  hiss(t) {
+    noise(t, { filter: "highpass", freq: 4200, to: 1800, q: 0.7, attack: 0.01, peak: 0.25, decay: 0.32 });
+    tone(t, { freq: 120, to: 70, peak: 0.12, decay: 0.12 });
+  },
+  // A chair swivelling: a few dry creaks of the base, dropping in pitch as it slows
+  creak(t) {
+    for (let i = 0; i < 4; i++) {
+      tone(t + i * 0.16 + i * i * 0.03, { type: "sawtooth", freq: vary(260 - i * 30, 0.08), to: 200 - i * 25, attack: 0.01, peak: 0.05, decay: 0.08 });
+    }
+  },
+  // A dumbbell set down: a bright metallic clink over a heavy thump
+  clank(t, { strength = 1 } = {}) {
+    tone(t, { type: "triangle", freq: vary(1250, 0.04), peak: 0.16 * strength, decay: 0.22 });
+    tone(t + 0.004, { type: "triangle", freq: vary(1870, 0.04), peak: 0.1 * strength, decay: 0.16 });
+    tone(t, { freq: 95, to: 50, peak: 0.6 * strength, decay: 0.14 });
+    noise(t, { filter: "lowpass", freq: 700, peak: 0.25 * strength, decay: 0.05 });
+  },
+  // Steel leaving a scabbard: a scrape rising into a long ringing "shiiing"
+  shing(t) {
+    noise(t, { filter: "highpass", freq: 3500, to: 7500, q: 0.8, attack: 0.02, peak: 0.16, decay: 0.28 });
+    tone(t + 0.12, { freq: 2350, to: 2420, attack: 0.005, peak: 0.12, decay: 0.9 });
+    tone(t + 0.12, { freq: 3520, to: 3600, attack: 0.005, peak: 0.07, decay: 0.7 });
+    tone(t + 0.12, { type: "triangle", freq: 5280, attack: 0.005, peak: 0.03, decay: 0.5 });
+  },
+  // A blade sliding home: a short scrape and the guard's click against the scabbard
+  sheathe(t) {
+    noise(t, { filter: "highpass", freq: 5000, to: 2500, q: 0.8, attack: 0.01, peak: 0.08, decay: 0.18 });
+    tone(t + 0.2, { type: "triangle", freq: 1900, peak: 0.16, decay: 0.05 });
+    noise(t + 0.2, { filter: "highpass", freq: 3000, attack: 0.001, peak: 0.12, decay: 0.02 });
+  },
   // Plain UI click
   click(t) {
     tone(t, { freq: 900, to: 550, peak: 0.2, decay: 0.03 });
@@ -345,10 +463,10 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15 };
+const MIN_GAP = { slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, patter: 0.4, chime: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, shing: 0.5, sheathe: 0.4 };
 
 function play(name, options = {}) {
-  if (muted.value || hushDepth > 0 || !ctx || ctx.state !== "running" || document.hidden) return;
+  if (muted.value || hushDepth > 0 || !ctx || (ctx.state !== "running" && !resuming) || document.hidden) return;
   const now = ctx.currentTime;
   const at = now + (options.delay || 0);
   const gap = MIN_GAP[name] ?? 0.02;
@@ -374,7 +492,6 @@ export function hush(fn) {
   }
 }
 
-// Called directly by the entry buttons, before mounting any animated content.
 export async function setSoundEnabled(enabled) {
   if (enabled && !(await unlock())) return false;
   muted.value = !enabled;

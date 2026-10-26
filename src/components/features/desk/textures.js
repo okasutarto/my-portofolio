@@ -168,9 +168,8 @@ export function drawBadge(c, w, h, { back = false, now = new Date() } = {}) {
   c.textBaseline = "middle";
   const hotspots = [];
   if (back) {
+    // White card, black print: the same stock as the front
     c.fillStyle = "#000";
-    c.fillRect(0, 0, w, h);
-    c.fillStyle = "#ffdd00";
     c.font = `800 40px ${DISPLAY}`;
     c.fillText("IF FOUND,", w / 2, 120);
     c.fillText("PLEASE HIRE.", w / 2, 172);
@@ -187,7 +186,7 @@ export function drawBadge(c, w, h, { back = false, now = new Date() } = {}) {
       c.fillText(link.label, w / 2, box.y + box.h / 2 + 2);
       hotspots.push({ ...box, href: link.href });
     });
-    c.fillStyle = "#fff";
+    c.fillStyle = "#000";
     c.font = `700 22px ${BODY}`;
     c.fillText("property of okasp", w / 2, h - 60);
   } else {
@@ -636,7 +635,8 @@ export const CHAT_QUESTIONS = [
   { label: "Projects", color: "#ff6b6b", text: "What projects has Oka built?" },
   { label: "Hire Oka", color: "#3b82f6", text: "How can I contact Oka to hire him?" },
 ];
-const plain = (text) => text.replace(/\*\*([^*]+)\*\*/g, "$1").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+// Markdown down to plain text. A reply still streaming in can hold an unclosed "**": drop it too.
+const plain = (text) => text.replace(/\*\*([^*]+)\*\*/g, "$1").replace(/\*\*/g, "").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
 
 export function drawChatScreen(c, w, h, chat, { unread = false, caret = false, now = new Date() } = {}) {
   const hotspots = [];
@@ -645,13 +645,17 @@ export function drawChatScreen(c, w, h, chat, { unread = false, caret = false, n
   c.fillStyle = "rgba(0,0,0,.08)";
   for (let y = 12; y < h; y += 30) for (let x = 12; x < w; x += 30) c.fillRect(x, y, 4, 4);
 
-  // messages, laid out bottom-up from the newest, between the header and the input bar
+  // messages between the header and the input bar: from the top while they fit, then laid out
+  // bottom-up from the newest (scrolling back through the older ones)
   const top = 180;
-  const bottom = h - 190;
+  // Laid out clear of the input panel (h - 182), with room for the bubbles' outline and shadow
+  const bottom = h - 202;
   const maxW = w * 0.78;
   c.font = `500 25px ${BODY}`;
   const laid = chat.messages.map((m) => {
-    const text = plain(m.text) || (m.pending ? "…" : "");
+    // A reply that hasn't started yet shows as a "typing" bubble of three bouncing dots
+    if (m.pending && !m.text) return { m, typing: true, lines: [], height: 63 };
+    const text = plain(m.text);
     const lines = text.split("\n").flatMap((para) => wrap(c, para, maxW - 40, 40));
     return { m, lines, height: lines.length * 33 + 30 };
   });
@@ -660,17 +664,30 @@ export function drawChatScreen(c, w, h, chat, { unread = false, caret = false, n
   chat.scroll = Math.min(chat.scroll || 0, chat.maxScroll);
   c.save();
   c.beginPath();
-  c.rect(0, top, w, bottom - top);
+  c.rect(0, top, w, h - 182 - top);
   c.clip();
-  let y = bottom + chat.scroll;
+  let y = bottom + chat.scroll - Math.max(0, bottom - top - total);
   for (let i = laid.length - 1; i >= 0; i--) {
-    const { m, lines, height } = laid[i];
+    const { m, lines, height, typing } = laid[i];
     y -= height;
     if (y > bottom || y + height < top) {
       y -= 18;
       continue;
     }
     const mine = m.sender === "user";
+    if (typing) {
+      brutalBox(c, 26, y, 120, height, "#fff", { shadow: 6, line: 4 });
+      const t = Date.now() / 1000;
+      c.fillStyle = "#000";
+      for (let k = 0; k < 3; k++) {
+        const lift = Math.max(0, Math.sin(t * 7 - k * 0.9)) * 9;
+        c.beginPath();
+        c.arc(56 + k * 30, y + height / 2 + 2 - lift, 7, 0, Math.PI * 2);
+        c.fill();
+      }
+      y -= 18;
+      continue;
+    }
     const bw = Math.min(maxW, Math.max(...lines.map((l) => c.measureText(l).width)) + 40);
     const x = mine ? w - bw - 26 : 26;
     brutalBox(c, x, y, bw, height, mine ? "#00e0c6" : "#fff", { shadow: 6, line: 4 });
@@ -820,12 +837,82 @@ export function drawEnvelopeFlap(c, w, h) {
   c.fillStyle = "#e2cb9c"; c.fill();
   c.strokeStyle = "#000"; c.lineWidth = 6; c.stroke();
 }
+// Pontianak's Tugu Khatulistiwa (the Equator Monument), neo-brutalist: four pillars on a
+// plinth carrying a globe with the equator ring round it and the arrow through it. Centred on
+// cx, in a box `size` wide and `height` tall from `top`.
+function drawEquatorMonument(c, cx, top, size, height) {
+  const ink = Math.max(3, size * 0.035);
+  const shadow = ink * 1.2;
+  c.lineJoin = "round";
+  const shape = (draw, fill) => {
+    c.save();
+    c.translate(shadow, shadow);
+    draw();
+    c.fillStyle = "#000";
+    c.fill();
+    c.restore();
+    draw();
+    c.fillStyle = fill;
+    c.fill();
+    c.lineWidth = ink;
+    c.strokeStyle = "#000";
+    c.stroke();
+  };
+  const r = size * 0.24;
+  const gy = top + r + height * 0.02;
+  const bottom = top + height;
+  // plinth and pillars: the back pair (darker, inside) first, then the front pair over them
+  shape(() => {
+    c.beginPath();
+    c.rect(cx - size * 0.42, bottom - height * 0.09, size * 0.84, height * 0.09);
+  }, "#c98a4b");
+  [[-0.13, "#c98a4b"], [0.05, "#c98a4b"], [-0.3, "#e7c08a"], [0.22, "#e7c08a"]].forEach(([dx, fill]) => {
+    shape(() => {
+      c.beginPath();
+      c.rect(cx + size * dx, gy + r * 0.55, size * 0.08, bottom - height * 0.09 - (gy + r * 0.55));
+    }, fill);
+  });
+  // globe, equator ring, arrow
+  shape(() => {
+    c.beginPath();
+    c.arc(cx, gy, r, 0, Math.PI * 2);
+  }, "#7fb2ff");
+  c.beginPath();
+  c.ellipse(cx, gy, r * 1.25, r * 0.32, 0, 0, Math.PI * 2);
+  c.lineWidth = ink * 2.2;
+  c.strokeStyle = "#000";
+  c.stroke();
+  c.lineWidth = ink * 1.1;
+  c.strokeStyle = "#ff7a1a";
+  c.stroke();
+  shape(() => {
+    const y = gy - r * 0.55;
+    const x0 = cx - size * 0.46;
+    const x1 = cx + size * 0.46;
+    const t = height * 0.05;
+    c.beginPath();
+    c.moveTo(x0, y - t / 2);
+    c.lineTo(x1 - t * 2, y - t / 2);
+    c.lineTo(x1 - t * 2, y - t * 1.5);
+    c.lineTo(x1, y);
+    c.lineTo(x1 - t * 2, y + t * 1.5);
+    c.lineTo(x1 - t * 2, y + t / 2);
+    c.lineTo(x0, y + t / 2);
+    c.closePath();
+  }, "#ffdd00");
+  c.fillStyle = "#000";
+  c.font = `800 ${Math.round(size * 0.16)}px ${BODY}`;
+  c.textAlign = "right";
+  c.textBaseline = "middle";
+  c.fillText("0°", cx - size * 0.34, gy + r * 1.3);
+}
+
 export function drawPostcardStamp(c, w, h) {
   c.fillStyle = "#ffdd00"; c.fillRect(0, 0, w, h);
   c.strokeStyle = "#000"; c.lineWidth = 5; c.strokeRect(3, 3, w - 6, h - 6);
   c.strokeStyle = "#fffdf5"; c.lineWidth = 3; c.setLineDash([3, 5]);
   c.strokeRect(10, 10, w - 20, h - 20); c.setLineDash([]);
-  c.strokeStyle = "#000"; c.lineWidth = 4; c.strokeRect(w * 0.36, h * 0.18, w * 0.28, h * 0.32);
+  drawEquatorMonument(c, w / 2, h * 0.14, w * 0.5, h * 0.44);
   c.fillStyle = "#000"; c.textAlign = "center"; c.textBaseline = "middle";
   c.font = `800 ${Math.round(w * 0.11)}px ${BODY}`;
   c.fillText("PONTIANAK", w / 2, h * 0.69); c.fillText("2026", w / 2, h * 0.82);
@@ -1048,7 +1135,9 @@ export function drawWoodFloor(c, w, h) {
 }
 
 // ---------- wall painting: a bold sunset over the hills, neo-brutal flat shapes ----------
-export function drawPainting(c, w, h) {
+// The painting is a little gallery: `art` picks the picture (0 sunset, 1 night city, 2 the wave)
+export const PAINTING_COUNT = 3;
+export function drawPainting(c, w, h, { art = 0 } = {}) {
   const ink = (path, fill) => {
     c.fillStyle = fill;
     c.fill(path);
@@ -1056,6 +1145,113 @@ export function drawPainting(c, w, h) {
     c.strokeStyle = "#000";
     c.stroke(path);
   };
+  if (art === 1) drawNightCity(c, w, h, ink);
+  else if (art === 2) drawWave(c, w, h, ink);
+  else drawSunset(c, w, h, ink);
+  // white mat and black frame line
+  c.lineWidth = w * 0.05;
+  c.strokeStyle = "#fffdf5";
+  c.strokeRect(0, 0, w, h);
+  c.lineWidth = Math.max(6, w / 90);
+  c.strokeStyle = "#000";
+  c.strokeRect(w * 0.025, h * 0.035, w * 0.95, h * 0.93);
+}
+
+// A city at night: moon, stars, a skyline with lit windows over the river
+function drawNightCity(c, w, h, ink) {
+  c.fillStyle = "#1e2a5a";
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = "#26356b";
+  c.fillRect(0, h * 0.4, w, h * 0.3);
+  c.fillStyle = "#fffdf5";
+  [[0.1, 0.12], [0.25, 0.22], [0.4, 0.09], [0.6, 0.18], [0.92, 0.3], [0.52, 0.3], [0.16, 0.34]].forEach(([x, y]) => c.fillRect(w * x, h * y, w * 0.01, w * 0.01));
+  const moon = new Path2D();
+  moon.arc(w * 0.8, h * 0.2, h * 0.11, 0, Math.PI * 2);
+  ink(moon, "#ffdd00");
+  c.fillStyle = "#1e2a5a";
+  c.beginPath();
+  c.arc(w * 0.84, h * 0.17, h * 0.1, 0, Math.PI * 2);
+  c.fill();
+  const towers = [[0.04, 0.5, 0.1, "#7fb2ff"], [0.15, 0.36, 0.09, "#ff90e8"], [0.25, 0.56, 0.08, "#00e0c6"], [0.34, 0.28, 0.11, "#ffb35c"],
+    [0.46, 0.48, 0.09, "#c4b5fd"], [0.56, 0.4, 0.1, "#ff6b6b"], [0.67, 0.54, 0.08, "#8fd694"], [0.76, 0.44, 0.1, "#7fb2ff"], [0.87, 0.58, 0.1, "#ff90e8"]];
+  towers.forEach(([x, top, bw, color], i) => {
+    const tower = new Path2D();
+    tower.rect(w * x, h * top, w * bw, h * (0.8 - top));
+    ink(tower, color);
+    c.fillStyle = "#ffdd00";
+    for (let wy = top + 0.05; wy < 0.74; wy += 0.07) {
+      for (let wx = 0; wx < 3; wx++) if ((i + wx + Math.round(wy * 20)) % 3) c.fillRect(w * (x + 0.015 + wx * bw * 0.3), h * wy, w * bw * 0.16, h * 0.035);
+    }
+  });
+  const river = new Path2D();
+  river.rect(-10, h * 0.8, w + 20, h * 0.25);
+  ink(river, "#172554");
+  c.fillStyle = "#ffdd00";
+  for (let i = 0; i < 6; i++) c.fillRect(w * (0.08 + i * 0.15), h * (0.86 + (i % 2) * 0.04), w * 0.06, h * 0.012);
+}
+
+// A neo-brutalist great wave: a curling crest with foam claws, a small mountain far behind
+function drawWave(c, w, h, ink) {
+  c.fillStyle = "#fffdf5";
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = "#ffdd00";
+  c.fillRect(0, 0, w, h * 0.45);
+  const sun = new Path2D();
+  sun.arc(w * 0.2, h * 0.22, h * 0.1, 0, Math.PI * 2);
+  ink(sun, "#ff6b6b");
+  const mountain = new Path2D();
+  mountain.moveTo(w * 0.55, h * 0.7);
+  mountain.lineTo(w * 0.68, h * 0.48);
+  mountain.lineTo(w * 0.81, h * 0.7);
+  mountain.closePath();
+  ink(mountain, "#7fb2ff");
+  const cap = new Path2D();
+  cap.moveTo(w * 0.64, h * 0.55);
+  cap.lineTo(w * 0.68, h * 0.48);
+  cap.lineTo(w * 0.72, h * 0.55);
+  cap.lineTo(w * 0.68, h * 0.53);
+  cap.closePath();
+  ink(cap, "#fffdf5");
+  const sea = new Path2D();
+  sea.rect(-10, h * 0.7, w + 20, h * 0.35);
+  ink(sea, "#3b82f6");
+  // The big wave rising from the left and curling over to the right
+  const wave = new Path2D();
+  wave.moveTo(-10, h);
+  wave.lineTo(-10, h * 0.55);
+  wave.bezierCurveTo(w * 0.05, h * 0.2, w * 0.4, h * 0.1, w * 0.5, h * 0.3);
+  wave.bezierCurveTo(w * 0.42, h * 0.24, w * 0.32, h * 0.3, w * 0.36, h * 0.42);
+  wave.bezierCurveTo(w * 0.42, h * 0.58, w * 0.55, h * 0.75, w * 0.62, h);
+  wave.closePath();
+  ink(wave, "#1e40af");
+  const inner = new Path2D();
+  inner.moveTo(w * 0.04, h);
+  inner.bezierCurveTo(w * 0.02, h * 0.6, w * 0.18, h * 0.38, w * 0.3, h * 0.36);
+  inner.bezierCurveTo(w * 0.24, h * 0.5, w * 0.36, h * 0.8, w * 0.42, h);
+  inner.closePath();
+  ink(inner, "#00e0c6");
+  // foam claws along the crest
+  c.fillStyle = "#fffdf5";
+  c.strokeStyle = "#000";
+  c.lineWidth = Math.max(4, w / 140);
+  [[0.38, 0.17], [0.43, 0.2], [0.47, 0.25], [0.3, 0.16], [0.22, 0.2], [0.5, 0.31]].forEach(([x, y], i) => {
+    c.beginPath();
+    c.arc(w * x, h * y, h * (0.035 - (i % 2) * 0.01), 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+  });
+  // small waves in the foreground
+  for (let i = 0; i < 5; i++) {
+    const small = new Path2D();
+    const x = w * (0.55 + i * 0.1);
+    small.moveTo(x - w * 0.05, h * 0.9);
+    small.quadraticCurveTo(x, h * 0.8, x + w * 0.05, h * 0.9);
+    small.closePath();
+    ink(small, "#7fb2ff");
+  }
+}
+
+function drawSunset(c, w, h, ink) {
   // sky bands
   [["#ff90e8", 0], ["#ffb35c", 0.28], ["#ffdd00", 0.46]].forEach(([color, y]) => {
     c.fillStyle = color;
@@ -1108,13 +1304,6 @@ export function drawPainting(c, w, h) {
   ink(roof, "#ff6b6b");
   c.fillStyle = "#ffdd00";
   c.fillRect(w * 0.7, h * 0.765, w * 0.025, h * 0.03);
-  // white mat and black frame line
-  c.lineWidth = w * 0.05;
-  c.strokeStyle = "#fffdf5";
-  c.strokeRect(0, 0, w, h);
-  c.lineWidth = Math.max(6, w / 90);
-  c.strokeStyle = "#000";
-  c.strokeRect(w * 0.025, h * 0.035, w * 0.95, h * 0.93);
 }
 
 // ---------- rug under the desk: plain dusty blue with a thin cream inset border ----------
@@ -1173,6 +1362,17 @@ export function drawKeyLabel(c, w, h, label, color = "#fff") {
 }
 
 // ---------- speech bubble over the mug: a quote per sip ----------
+// Said by the straw hat on the shelf
+export const LUFFY_QUOTES = [
+  { text: "I'm gonna be King of the Pirates!", by: "Monkey D. Luffy" },
+  { text: "If you don't take risks, you can't create a future!", by: "Monkey D. Luffy" },
+  { text: "Power isn't determined by your size, but the size of your heart and dreams!", by: "Monkey D. Luffy" },
+  { text: "I don't care if I die trying. I'll never give up!", by: "Monkey D. Luffy" },
+  { text: "When do you think people die? When they are forgotten.", by: "Dr. Hiriluk" },
+  { text: "Meat!!! Shishishi!", by: "Monkey D. Luffy" },
+  { text: "I know I need help from others to survive!", by: "Monkey D. Luffy" },
+];
+
 export const SIP_QUOTES = [
   { text: "First, solve the problem. Then, write the code.", by: "John Johnson" },
   { text: "Simplicity is prerequisite for reliability.", by: "Edsger W. Dijkstra" },
@@ -1184,7 +1384,7 @@ export const SIP_QUOTES = [
   { text: "Coffee in, features out.", by: "oka" },
   { text: "One more sip, one less bug.", by: "oka" },
 ];
-export function drawQuoteBubble(c, w, h, quote) {
+export function drawQuoteBubble(c, w, h, quote, { size = 32 } = {}) {
   c.clearRect(0, 0, w, h);
   if (!quote) return;
   const tail = 46;
@@ -1211,32 +1411,39 @@ export function drawQuoteBubble(c, w, h, quote) {
   c.strokeStyle = "#000";
   c.stroke();
   // quote + attribution, centred as a block
-  c.font = `700 32px ${BODY}`;
+  // `size` is the quote's type size; the line spacing and attribution scale with it
+  const lead = size * 1.3;
+  c.font = `700 ${size}px ${BODY}`;
   const lines = wrap(c, quote.text, box.w - 100, 3);
-  const blockH = lines.length * 42 + 50;
-  const top = box.y + (box.h - blockH) / 2;
+  // The quote is centred in the space above the attribution, which sits in the bottom-right corner
+  const byH = size * 1.5;
+  const blockH = lines.length * lead;
+  const top = box.y + (box.h - byH - blockH) / 2 + size * 0.2;
   c.fillStyle = "#000";
   c.textBaseline = "top";
-  lines.forEach((line, i) => c.fillText(line, box.x + 64, top + i * 42));
+  lines.forEach((line, i) => c.fillText(line, box.x + 64, top + i * lead));
   c.font = `800 60px ${DISPLAY}`;
   c.fillStyle = "#ff90e8";
   c.fillText("“", box.x + 18, top - 8);
   c.fillStyle = "rgba(0,0,0,.6)";
-  c.font = `600 32px 'Caveat', cursive`;
+  c.font = `600 ${size}px 'Caveat', cursive`;
   c.textAlign = "right";
-  c.fillText(`— ${quote.by}`, box.x + box.w - 28, top + lines.length * 42 + 8);
+  c.textBaseline = "bottom";
+  c.fillText(`— ${quote.by}`, box.x + box.w - 28, box.y + box.h - size * 0.45);
   c.textAlign = "left";
   c.textBaseline = "alphabetic";
 }
 
 // Retro terminal on the monitor: lines of text plus an optional blinking cursor
-export function drawTerminal(c, w, h, lines, cursor) {
+// A line starting "# " prints as a highlighted banner. `alert` makes the title bar call for
+// attention (it alternates with `alertOn`, the blink phase) with a NEW MESSAGE flag.
+export function drawTerminal(c, w, h, lines, cursor, { alert = false, alertOn = false } = {}) {
   c.fillStyle = "#1a1714";
   c.fillRect(0, 0, w, h);
   c.fillStyle = "rgba(143,214,148,.06)";
   for (let y = 0; y < h; y += 6) c.fillRect(0, y, w, 3);
   // title bar
-  c.fillStyle = "#ff7a1a";
+  c.fillStyle = alert && alertOn ? "#ffdd00" : "#ff7a1a";
   c.fillRect(0, 0, w, 44);
   c.fillStyle = "#000";
   c.fillRect(0, 44, w, 5);
@@ -1249,19 +1456,645 @@ export function drawTerminal(c, w, h, lines, cursor) {
   c.font = "700 22px 'Space Grotesk', monospace";
   c.textBaseline = "middle";
   c.fillText("oka@desk: ~", 120, 23);
+  if (alert) {
+    c.font = "800 18px 'Space Grotesk', monospace";
+    const label = "● NEW MESSAGE";
+    const lw = c.measureText(label).width + 24;
+    c.fillStyle = alertOn ? "#000" : "#e11d48";
+    c.fillRect(w - lw - 12, 8, lw, 28);
+    c.fillStyle = alertOn ? "#ffdd00" : "#fff";
+    c.fillText(label, w - lw, 23);
+  }
 
-  c.font = "700 30px ui-monospace, Menlo, monospace";
+  c.font = "700 22px ui-monospace, Menlo, monospace";
   c.textBaseline = "top";
-  const visible = lines.slice(-7);
+  const visible = lines.slice(-9);
   visible.forEach((line, i) => {
+    const y = 64 + i * 33;
+    if (line.startsWith("# ")) {
+      const text = line.slice(2);
+      c.font = "800 24px ui-monospace, Menlo, monospace";
+      c.fillStyle = "#ffdd00";
+      c.fillRect(16, y - 4, c.measureText(text).width + 20, 31);
+      c.fillStyle = "#000";
+      c.fillText(text, 26, y);
+      c.font = "700 22px ui-monospace, Menlo, monospace";
+      return;
+    }
     c.fillStyle = line.startsWith(">") ? "#ff7a1a" : "#8fd694";
-    c.fillText(line, 24, 66 + i * 44);
+    c.fillText(line, 24, y);
   });
   if (cursor) {
     const last = visible[visible.length - 1] || "";
     const x = 24 + c.measureText(last).width + 4;
     c.fillStyle = "#8fd694";
-    c.fillRect(x, 66 + (visible.length - 1) * 44, 17, 32);
+    c.fillRect(x, 64 + (visible.length - 1) * 33, 13, 24);
   }
   c.textBaseline = "alphabetic";
+}
+
+// ---------- the view out of the window: an animated neo-brutalist landscape ----------
+// Flat colours, thick black outlines and hard offset shadows. `t` is seconds; the scene loops
+// on its own (clouds, birds, ripples, swaying trees, a bobbing boat). Night swaps the sun for a
+// moon, adds twinkling stars and fireflies. `flockAt` / `starAt` (seconds, same clock) start a
+// flock of birds or a shooting star.
+const VIEW_STARS = Array.from({ length: 38 }, (_, i) => {
+  const r = (n) => (Math.sin(i * 127.1 + n * 311.7) * 43758.5453) % 1;
+  return { x: Math.abs(r(1)), y: Math.abs(r(2)) * 0.5, s: 0.6 + Math.abs(r(3)) * 0.8, p: Math.abs(r(4)) * 6 };
+});
+const VIEW_FLIES = Array.from({ length: 14 }, (_, i) => ({ x: (i * 0.137 + 0.05) % 1, y: 0.8 + ((i * 0.071) % 0.17), p: i * 1.7 }));
+
+export function drawWindowView(c, w, h, { t = 0, dark = false, flockAt = -99, starAt = -99 } = {}) {
+  const u = w / 100;
+  const line = Math.max(3, u * 0.7);
+  c.lineJoin = "round";
+  c.lineCap = "round";
+  const stroke = (width = line, color = "#000") => {
+    c.lineWidth = width;
+    c.strokeStyle = color;
+    c.stroke();
+  };
+  // A union of circles (and rects) with one clean outline and a hard shadow: drawn three times,
+  // shadow, then grown by the line width in black, then the fill on top
+  const blob = (parts, fill, shadow = line * 1.4) => {
+    [[shadow, shadow, 0, "#000"], [0, 0, line, "#000"], [0, 0, 0, fill]].forEach(([dx, dy, grow, color]) => {
+      if (color === "#000" && dx && !shadow) return;
+      c.fillStyle = color;
+      c.beginPath();
+      parts.forEach(([x, y, r, rw, rh]) => {
+        if (rw) c.rect(x + dx - grow, y + dy - grow, rw + grow * 2, rh + grow * 2);
+        else {
+          c.moveTo(x + dx + r + grow, y + dy);
+          c.arc(x + dx, y + dy, r + grow, 0, Math.PI * 2);
+        }
+      });
+      c.fill();
+    });
+  };
+  const wrapX = (x, margin) => ((x % (w + margin * 2)) + w + margin * 2) % (w + margin * 2) - margin;
+
+  // Sky in flat bands, lighter toward the horizon
+  const SKY = dark ? ["#1e2a5a", "#26356b", "#30437f"] : ["#7fdfff", "#a8ecff", "#cdf6ff"];
+  c.fillStyle = SKY[0];
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = SKY[1];
+  c.fillRect(0, h * 0.3, w, h * 0.1);
+  c.fillStyle = SKY[2];
+  c.fillRect(0, h * 0.4, w, h * 0.1);
+
+  if (dark) {
+    VIEW_STARS.forEach((star) => {
+      const k = 0.55 + 0.45 * Math.sin(t * 2.2 + star.p);
+      const s = u * star.s * k;
+      c.fillStyle = "#fffdf5";
+      c.save();
+      c.translate(star.x * w, star.y * h);
+      c.rotate(Math.PI / 4);
+      c.fillRect(-s / 2, -s / 2, s, s);
+      c.restore();
+    });
+    // Shooting star: a streak from the upper right down to the left, fading at its tail
+    const sp = (t - starAt) / 1.1;
+    if (sp >= 0 && sp <= 1) {
+      const x = w * (0.95 - sp * 0.7);
+      const y = h * (0.04 + sp * 0.26);
+      c.beginPath();
+      c.moveTo(x, y);
+      c.lineTo(x + w * 0.16, y - h * 0.06);
+      stroke(line * 2.2, "#000");
+      c.beginPath();
+      c.moveTo(x, y);
+      c.lineTo(x + w * 0.16, y - h * 0.06);
+      stroke(line * 1.1, "#ffdd00");
+      blob([[x, y, u * 1.4]], "#fffdf5", 0);
+    }
+  }
+
+  // Sun (turning rays) or moon (with craters)
+  const sx = w * 0.74;
+  const sy = h * 0.19;
+  const sr = w * 0.085;
+  if (!dark) {
+    c.save();
+    c.translate(sx, sy);
+    c.rotate(t * 0.25);
+    for (let i = 0; i < 10; i++) {
+      c.rotate((Math.PI * 2) / 10);
+      c.beginPath();
+      c.moveTo(sr * 1.3, 0);
+      c.lineTo(sr * 1.65, 0);
+      stroke(line * 3.2, "#000");
+      c.beginPath();
+      c.moveTo(sr * 1.3, 0);
+      c.lineTo(sr * 1.65, 0);
+      stroke(line * 1.4, "#ffdd00");
+    }
+    c.restore();
+    blob([[sx, sy, sr]], "#ffdd00");
+  } else {
+    blob([[sx, sy, sr]], "#fffdf5");
+    [[-0.3, -0.2, 0.22], [0.3, 0.25, 0.16], [0.15, -0.38, 0.1]].forEach(([dx, dy, r]) => {
+      c.beginPath();
+      c.arc(sx + dx * sr, sy + dy * sr, r * sr, 0, Math.PI * 2);
+      c.fillStyle = "#e7e0cc";
+      c.fill();
+      stroke(line * 0.6);
+    });
+  }
+
+  // Clouds drifting across
+  [[0.1, 0.12, 1, 6], [0.55, 0.3, 0.75, 9], [0.85, 0.08, 0.6, 4.5]].forEach(([bx, by, size, speed], i) => {
+    const x = wrapX(bx * w + t * speed * u, w * 0.2);
+    const y = by * h + Math.sin(t * 0.4 + i) * u * 0.4;
+    const s = size * u * 9;
+    blob([[x - s * 0.55, y + s * 0.1, s * 0.42], [x, y - s * 0.15, s * 0.58], [x + s * 0.55, y + s * 0.08, s * 0.45], [x - s * 0.55, y + s * 0.1, 0, s * 1.1, s * 0.42]], dark ? "#55638f" : "#ffffff");
+  });
+
+  // Mountains behind the lake
+  c.beginPath();
+  c.moveTo(-line, h * 0.6);
+  [[0, 0.46], [0.14, 0.34], [0.3, 0.5], [0.45, 0.38], [0.62, 0.52], [0.8, 0.36], [1, 0.48]].forEach(([x, y]) => c.lineTo(w * x, h * y));
+  c.lineTo(w + line, h * 0.6);
+  c.closePath();
+  c.fillStyle = dark ? "#3b3570" : "#c4b5fd";
+  c.fill();
+  stroke();
+  // Snow caps
+  [[0.14, 0.34], [0.45, 0.38], [0.8, 0.36]].forEach(([x, y]) => {
+    c.beginPath();
+    c.moveTo(w * x, h * y);
+    c.lineTo(w * (x + 0.045), h * (y + 0.05));
+    c.lineTo(w * (x + 0.015), h * (y + 0.04));
+    c.lineTo(w * (x - 0.02), h * (y + 0.055));
+    c.lineTo(w * (x - 0.05), h * (y + 0.05));
+    c.closePath();
+    c.fillStyle = dark ? "#c9c5dc" : "#fffdf5";
+    c.fill();
+    stroke(line * 0.8);
+  });
+
+  // The lake: ripples sliding, the sun/moon's reflection wobbling, a little sailboat
+  const lakeTop = h * 0.58;
+  const lakeBottom = h * 0.78;
+  c.fillStyle = dark ? "#172554" : "#3b82f6";
+  c.fillRect(0, lakeTop, w, lakeBottom - lakeTop);
+  c.beginPath();
+  c.moveTo(0, lakeTop);
+  c.lineTo(w, lakeTop);
+  stroke();
+  for (let i = 0; i < 4; i++) {
+    const bar = sr * (1.5 - i * 0.3) * (1 + 0.15 * Math.sin(t * 3 + i));
+    c.fillStyle = dark ? "#fffdf5" : "#ffdd00";
+    c.fillRect(sx - bar / 2 + Math.sin(t * 2 + i * 2) * u, lakeTop + u * 2 + i * u * 2.6, bar, u * 1.2);
+  }
+  for (let i = 0; i < 9; i++) {
+    const row = i % 4;
+    const dir = row % 2 ? 1 : -1;
+    const x = wrapX(((i * 0.29) % 1) * w + dir * t * u * (2 + row), u * 10);
+    const y = lakeTop + u * 3.5 + row * (lakeBottom - lakeTop - u * 6) / 3;
+    c.beginPath();
+    c.moveTo(x, y);
+    c.lineTo(x + u * (5 + (i % 3) * 2), y);
+    stroke(line * 0.8, dark ? "#7fb2ff" : "#cdf6ff");
+  }
+  const bx = w * 0.3 + Math.sin(t * 0.22) * w * 0.14;
+  const by = lakeTop + (lakeBottom - lakeTop) * 0.45 + Math.sin(t * 2) * u * 0.6;
+  c.save();
+  c.translate(bx, by);
+  c.rotate(Math.sin(t * 1.6) * 0.06);
+  c.beginPath();
+  c.moveTo(-u * 6, 0);
+  c.lineTo(u * 6, 0);
+  c.lineTo(u * 4, u * 2.6);
+  c.lineTo(-u * 4, u * 2.6);
+  c.closePath();
+  c.fillStyle = "#ff6b6b";
+  c.fill();
+  stroke();
+  c.beginPath();
+  c.moveTo(0, 0);
+  c.lineTo(0, -u * 9);
+  stroke();
+  c.beginPath();
+  c.moveTo(u * 0.6, -u * 8.5);
+  c.lineTo(u * 6, -u * 1.2);
+  c.lineTo(u * 0.6, -u * 1.2);
+  c.closePath();
+  c.fillStyle = "#fffdf5";
+  c.fill();
+  stroke();
+  if (dark) blob([[-u * 3.2, -u * 1.4, u * 1]], "#ffdd00", 0);
+  c.restore();
+
+  // Grass, flowers, and trees swaying on the near shore
+  c.fillStyle = dark ? "#2f6b45" : "#8fd694";
+  c.fillRect(0, lakeBottom, w, h - lakeBottom);
+  c.beginPath();
+  c.moveTo(0, lakeBottom);
+  c.lineTo(w, lakeBottom);
+  stroke();
+  [[0.38, 0.86, "#ff90e8"], [0.47, 0.92, "#ffdd00"], [0.62, 0.88, "#fffdf5"], [0.7, 0.95, "#ff90e8"], [0.31, 0.95, "#ffdd00"]].forEach(([x, y, color], i) => {
+    const fx = w * x + Math.sin(t * 1.5 + i) * u * 0.3;
+    c.beginPath();
+    c.moveTo(w * x, h * y + u * 2.4);
+    c.lineTo(fx, h * y);
+    stroke(line * 0.7, dark ? "#14532d" : "#166534");
+    blob([[fx, h * y, u * 1.1]], dark ? "#7c6b9e" : color, 0);
+  });
+  const tree = (x, scale, i, round) => {
+    const base = h * 0.97;
+    c.save();
+    c.translate(w * x, base);
+    c.rotate(Math.sin(t * 1.1 + i * 1.3) * 0.035);
+    c.beginPath();
+    c.rect(-u * 1.2 * scale, -u * 10 * scale, u * 2.4 * scale, u * 10 * scale);
+    c.fillStyle = "#8b5a2b";
+    c.fill();
+    stroke();
+    if (round) {
+      const r = u * 6 * scale;
+      blob([[-r * 0.6, -u * 13 * scale, r * 0.75], [r * 0.6, -u * 13 * scale, r * 0.7], [0, -u * 18 * scale, r]], dark ? "#1f5c3a" : "#22a65c");
+    } else {
+      [[-u * 8, -u * 18, u * 7], [-u * 14, -u * 30, u * 5.5]].forEach(([bottom, top, half]) => {
+        c.beginPath();
+        c.moveTo(0, top * scale);
+        c.lineTo(half * scale, bottom * scale);
+        c.lineTo(-half * scale, bottom * scale);
+        c.closePath();
+        c.fillStyle = "#000";
+        c.save();
+        c.translate(line * 1.4, line * 1.4);
+        c.fill();
+        c.restore();
+        c.fillStyle = dark ? "#14532d" : "#166534";
+        c.fill();
+        stroke();
+      });
+    }
+    c.restore();
+  };
+  tree(0.09, 1.2, 0, false);
+  tree(0.22, 0.9, 1, true);
+  tree(0.85, 1.05, 2, false);
+  tree(0.96, 0.8, 3, true);
+
+  // Birds by day (a few always about, a flock when called), fireflies by night
+  const bird = (x, y, s, flap) => {
+    c.beginPath();
+    c.moveTo(x - s, y - s * 0.55 * flap);
+    c.quadraticCurveTo(x - s * 0.45, y - s * 0.15, x, y);
+    c.quadraticCurveTo(x + s * 0.45, y - s * 0.15, x + s, y - s * 0.55 * flap);
+    stroke(line * 1.1);
+  };
+  if (!dark) {
+    for (let i = 0; i < 3; i++) {
+      const x = wrapX(w * (i * 0.37) + t * u * (5 + i * 1.5), u * 6);
+      const y = h * (0.12 + i * 0.07) + Math.sin(t * 1.3 + i * 2) * u * 1.5;
+      bird(x, y, u * (2.2 - i * 0.3), Math.sin(t * 9 + i * 1.7));
+    }
+    const fp = (t - flockAt) / 5;
+    if (fp >= 0 && fp <= 1) {
+      for (let i = 0; i < 7; i++) {
+        const row = Math.ceil(i / 2) * (i % 2 ? 1 : -1);
+        const x = -w * 0.15 + fp * w * 1.35 - Math.abs(row) * u * 4;
+        const y = h * 0.3 + row * u * 3.5 - fp * h * 0.12 + Math.sin(t * 2 + i) * u * 0.6;
+        bird(x, y, u * 2.4, Math.sin(t * 12 + i));
+      }
+    }
+  } else {
+    VIEW_FLIES.forEach((fly) => {
+      const on = Math.sin(t * 2.3 + fly.p);
+      if (on < 0.1) return;
+      const x = w * fly.x + Math.sin(t * 0.7 + fly.p) * u * 3;
+      const y = h * fly.y + Math.sin(t * 1.1 + fly.p * 2) * u * 1.5;
+      const s = u * 0.9 * (0.6 + on * 0.6);
+      c.fillStyle = "#000";
+      c.fillRect(x - s / 2 - line * 0.4, y - s / 2 - line * 0.4, s + line * 0.8, s + line * 0.8);
+      c.fillStyle = "#ffdd00";
+      c.fillRect(x - s / 2, y - s / 2, s, s);
+    });
+  }
+
+  // The window's own cross bars: white, like the frame, with a black outline
+  const bar = u * 2.4;
+  c.fillStyle = "#000";
+  c.fillRect(w / 2 - bar / 2 - line, 0, bar + line * 2, h);
+  c.fillRect(0, h / 2 - bar / 2 - line, w, bar + line * 2);
+  c.fillStyle = "#ffffff";
+  c.fillRect(w / 2 - bar / 2, 0, bar, h);
+  c.fillRect(0, h / 2 - bar / 2, w, bar);
+}
+
+// ---------- game cases on the shelf ----------
+// A case's spine: the platform's header band and logo at the top, the game's own colour with its
+// title running up the spine, and an age rating at the foot
+const RATINGS = ["E", "E10", "T", "3", "7", "12"];
+export function drawGameSpine(c, w, h, { platform, art, title, ink = "#000", i = 0 }) {
+  c.fillStyle = art;
+  c.fillRect(0, 0, w, h);
+  const band = h * 0.15;
+  c.fillStyle = platform;
+  c.fillRect(0, 0, w, band);
+  c.fillStyle = "#000";
+  c.fillRect(0, band - 3, w, 6);
+  // logo: a white pill with a dot
+  c.fillStyle = "#fff";
+  c.beginPath();
+  c.roundRect(w * 0.2, band * 0.3, w * 0.6, band * 0.4, band * 0.2);
+  c.fill();
+  c.fillStyle = platform;
+  c.beginPath();
+  c.arc(w * 0.38, band * 0.5, band * 0.1, 0, Math.PI * 2);
+  c.fill();
+  // title, reading bottom to top
+  c.save();
+  c.translate(w / 2 + 1, h * 0.56);
+  c.rotate(-Math.PI / 2);
+  c.fillStyle = ink;
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  fitFont(c, title, 800, DISPLAY, Math.round(w * 0.5), h * 0.62);
+  c.fillText(title, 0, 0);
+  c.restore();
+  // rating
+  const r = w * 0.62;
+  c.fillStyle = "#fff";
+  c.fillRect((w - r) / 2, h - r - 10, r, r);
+  c.lineWidth = 4;
+  c.strokeStyle = "#000";
+  c.strokeRect((w - r) / 2, h - r - 10, r, r);
+  c.fillStyle = "#000";
+  c.font = `800 ${Math.round(r * 0.5)}px ${BODY}`;
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.fillText(RATINGS[i % RATINGS.length], w / 2, h - r / 2 - 9);
+  c.lineWidth = 6;
+  c.strokeRect(0, 0, w, h);
+  c.textAlign = "left";
+  c.textBaseline = "alphabetic";
+}
+
+// The cover of the one case standing face-out: platform band, a little pixel-art scene, the title
+export function drawGameCover(c, w, h, { platform = "#e11d48", title = "PIXEL KART" } = {}) {
+  const band = h * 0.1;
+  // sky, sun, hills
+  c.fillStyle = "#7fdfff";
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = "#ffdd00";
+  c.beginPath();
+  c.arc(w * 0.78, h * 0.3, w * 0.11, 0, Math.PI * 2);
+  c.fill();
+  c.lineWidth = 6;
+  c.strokeStyle = "#000";
+  c.stroke();
+  c.fillStyle = "#8fd694";
+  c.beginPath();
+  c.moveTo(0, h * 0.72);
+  c.quadraticCurveTo(w * 0.3, h * 0.5, w * 0.6, h * 0.68);
+  c.quadraticCurveTo(w * 0.85, h * 0.58, w, h * 0.66);
+  c.lineTo(w, h);
+  c.lineTo(0, h);
+  c.closePath();
+  c.fill();
+  c.stroke();
+  // a road and a kart
+  c.fillStyle = "#3a3a3a";
+  c.beginPath();
+  c.moveTo(w * 0.35, h);
+  c.lineTo(w * 0.47, h * 0.7);
+  c.lineTo(w * 0.55, h * 0.7);
+  c.lineTo(w * 0.8, h);
+  c.closePath();
+  c.fill();
+  c.stroke();
+  const kx = w * 0.42;
+  const ky = h * 0.78;
+  const u = w / 40;
+  c.fillStyle = "#ff6b6b";
+  c.fillRect(kx, ky, u * 10, u * 4);
+  c.strokeRect(kx, ky, u * 10, u * 4);
+  c.fillStyle = "#ffdd00";
+  c.fillRect(kx + u * 3, ky - u * 4, u * 4, u * 4);
+  c.strokeRect(kx + u * 3, ky - u * 4, u * 4, u * 4);
+  c.fillStyle = "#000";
+  [kx + u * 1.5, kx + u * 8.5].forEach((x) => {
+    c.beginPath();
+    c.arc(x, ky + u * 4.5, u * 1.6, 0, Math.PI * 2);
+    c.fill();
+  });
+  // title block
+  c.save();
+  c.translate(w / 2, h * 0.33);
+  c.rotate(-0.06);
+  c.fillStyle = "#000";
+  c.fillRect(-w * 0.4 + 8, -h * 0.09 + 8, w * 0.8, h * 0.18);
+  c.fillStyle = "#ff90e8";
+  c.fillRect(-w * 0.4, -h * 0.09, w * 0.8, h * 0.18);
+  c.strokeRect(-w * 0.4, -h * 0.09, w * 0.8, h * 0.18);
+  c.fillStyle = "#000";
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  fitFont(c, title, 800, DISPLAY, Math.round(h * 0.09), w * 0.7);
+  c.fillText(title, 0, 2);
+  c.restore();
+  // platform band on top, rating at the foot
+  c.fillStyle = platform;
+  c.fillRect(0, 0, w, band);
+  c.fillStyle = "#000";
+  c.fillRect(0, band - 3, w, 6);
+  c.fillStyle = "#fff";
+  c.beginPath();
+  c.roundRect(w * 0.06, band * 0.25, w * 0.3, band * 0.5, band * 0.25);
+  c.fill();
+  c.fillStyle = "#fff";
+  c.fillRect(w * 0.06, h - w * 0.2, w * 0.14, w * 0.14);
+  c.lineWidth = 4;
+  c.strokeRect(w * 0.06, h - w * 0.2, w * 0.14, w * 0.14);
+  c.fillStyle = "#000";
+  c.font = `800 ${Math.round(w * 0.08)}px ${BODY}`;
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.fillText("E", w * 0.13, h - w * 0.13);
+  c.lineWidth = 8;
+  c.strokeRect(0, 0, w, h);
+  c.textAlign = "left";
+  c.textBaseline = "alphabetic";
+}
+
+// ---------- gym corner ----------
+// The rep counter that pops up over the dumbbells
+export function drawRepBadge(c, w, h, text, fill = "#ffdd00") {
+  c.clearRect(0, 0, w, h);
+  brutalBox(c, 10, 10, w - 34, h - 34, fill, { shadow: 12, line: 8 });
+  c.fillStyle = "#000";
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  fitFont(c, text, 800, DISPLAY, Math.round(h * 0.42), w - 80);
+  c.fillText(text, (w - 24) / 2 + 2, (h - 24) / 2 + 4);
+  c.textAlign = "left";
+  c.textBaseline = "alphabetic";
+}
+
+// A month of training on the wall: done days stamped, today ringed, the streak in the header.
+// `done` holds the day numbers trained this month.
+export function drawGymCalendar(c, w, h, { now = new Date(), done = new Set() } = {}) {
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const today = now.getDate();
+  const days = new Date(year, month + 1, 0).getDate();
+  const lead = (new Date(year, month, 1).getDay() + 6) % 7; // weeks start on Monday
+  let streak = 0;
+  for (let d = done.has(today) ? today : today - 1; d >= 1 && done.has(d); d--) streak++;
+
+  c.fillStyle = "#fffdf5";
+  c.fillRect(0, 0, w, h);
+  // header: title and the streak
+  const head = h * 0.24;
+  c.fillStyle = "#ff7a1a";
+  c.fillRect(0, 0, w, head);
+  c.fillStyle = "#000";
+  c.fillRect(0, head - 4, w, 8);
+  c.textBaseline = "middle";
+  fitFont(c, "GYM STREAK", 800, DISPLAY, Math.round(head * 0.34), w * 0.56);
+  c.fillText("GYM STREAK", w * 0.05, head * 0.36);
+  c.font = `700 ${Math.round(head * 0.24)}px ${BODY}`;
+  c.fillText(now.toLocaleString("en-US", { month: "long" }).toUpperCase() + " " + year, w * 0.05, head * 0.74);
+  brutalBox(c, w * 0.66, head * 0.16, w * 0.29, head * 0.62, "#ffdd00", { shadow: 6, line: 5 });
+  c.fillStyle = "#000";
+  c.textAlign = "center";
+  c.font = `800 ${Math.round(head * 0.3)}px ${DISPLAY}`;
+  c.fillText(`${streak} 🔥`, w * 0.66 + w * 0.145 - 3, head * 0.47);
+  // weekday initials and the grid
+  const gx = w * 0.05;
+  const gw = w * 0.9;
+  const cell = gw / 7;
+  const top = head + h * 0.1;
+  const rows = Math.ceil((lead + days) / 7);
+  const ch = (h * 0.96 - top) / rows;
+  c.font = `800 ${Math.round(h * 0.045)}px ${BODY}`;
+  "MTWTFSS".split("").forEach((l, i) => c.fillText(l, gx + cell * (i + 0.5), head + h * 0.05));
+  for (let d = 1; d <= days; d++) {
+    const i = lead + d - 1;
+    const x = gx + (i % 7) * cell;
+    const y = top + Math.floor(i / 7) * ch;
+    const pad = 4;
+    if (done.has(d)) {
+      c.fillStyle = ["#8fd694", "#00e0c6", "#ff90e8", "#7fb2ff"][d % 4];
+      c.fillRect(x + pad, y + pad, cell - pad * 2, ch - pad * 2);
+    }
+    c.lineWidth = d === today ? 7 : 3;
+    c.strokeStyle = d === today ? "#e11d48" : "#000";
+    c.strokeRect(x + pad, y + pad, cell - pad * 2, ch - pad * 2);
+    c.fillStyle = "#000";
+    c.font = `700 ${Math.round(ch * 0.34)}px ${BODY}`;
+    c.fillText(done.has(d) ? "✓" : String(d), x + cell / 2, y + ch / 2 + 2);
+  }
+  c.lineWidth = 10;
+  c.strokeStyle = "#000";
+  c.strokeRect(0, 0, w, h);
+  c.textAlign = "left";
+  c.textBaseline = "alphabetic";
+}
+
+// ---------- katana ----------
+// The slash: a thick white crescent with a black outline, tapering at both ends
+export function drawSlash(c, w, h) {
+  c.clearRect(0, 0, w, h);
+  const arc = (r1, r2) => {
+    c.beginPath();
+    c.ellipse(w / 2, h * 0.95, w * 0.46 * r1, h * 0.85 * r1, 0, Math.PI * 1.08, Math.PI * 1.92);
+    c.ellipse(w / 2, h * 1.02, w * 0.44 * r2, h * 0.72 * r2, 0, Math.PI * 1.92, Math.PI * 1.08, true);
+    c.closePath();
+  };
+  arc(1.02, 0.98);
+  c.fillStyle = "#000";
+  c.fill();
+  arc(1, 1);
+  c.fillStyle = "#fffdf5";
+  c.fill();
+  c.lineWidth = 6;
+  c.strokeStyle = "#7fdfff";
+  c.stroke();
+}
+
+// A manga shout: a jagged starburst balloon with the technique's name in heavy type
+export function drawShout(c, w, h, text) {
+  c.clearRect(0, 0, w, h);
+  const spikes = 18;
+  const burst = (dx, dy) => {
+    c.beginPath();
+    for (let i = 0; i <= spikes * 2; i++) {
+      const a = (i / (spikes * 2)) * Math.PI * 2;
+      const r = i % 2 ? 0.8 : 1;
+      const x = w / 2 + dx + Math.cos(a) * (w * 0.47) * r;
+      const y = h / 2 + dy + Math.sin(a) * (h * 0.44) * r;
+      if (i) c.lineTo(x, y);
+      else c.moveTo(x, y);
+    }
+    c.closePath();
+  };
+  burst(12, 12);
+  c.fillStyle = "#000";
+  c.fill();
+  burst(0, 0);
+  c.fillStyle = "#ffdd00";
+  c.fill();
+  c.lineWidth = 8;
+  c.strokeStyle = "#000";
+  c.stroke();
+  c.save();
+  c.translate(w / 2, h / 2);
+  c.rotate(-0.06);
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  fitFont(c, text, 800, DISPLAY, Math.round(h * 0.2), w * 0.66);
+  c.lineWidth = 10;
+  c.lineJoin = "round";
+  c.strokeStyle = "#fffdf5";
+  c.strokeText(text, 0, 0);
+  c.fillStyle = "#e11d48";
+  c.fillText(text, 0, 0);
+  c.restore();
+}
+
+// Enma's blade, printed in the blade's own coordinates (x along it, y across, in world units):
+// a dark steel back, a pale blue band and purple flames licking up from a pale pink edge.
+// `bow(x)` is the blade's curve; `length` its straight length; `width` the canvas's span in x.
+export function drawEnmaBlade(c, w, h, { bow, length, width, yMin, yMax }) {
+  c.clearRect(0, 0, w, h);
+  const toRow = (y) => (1 - (y - yMin) / (yMax - yMin)) * h;
+  for (let px = 0; px < w; px++) {
+    const x = (px / w) * width;
+    const t = Math.min(1, x / length);
+    const edge = bow(Math.min(x, length)) - 0.055 * (1 - 0.3 * t);
+    const spine = bow(Math.min(x, length)) + 0.05;
+    const at = (f) => toRow(edge + (spine - edge) * f);
+    const flame = 0.36 + 0.09 * Math.sin(x * 38) + 0.05 * Math.sin(x * 91 + 2);
+    const band = 0.66 + 0.06 * Math.sin(x * 29 + 1);
+    [[0, 0.12, "#f5d0fe"], [0.12, flame, "#a855f7"], [flame, band, "#7dd3fc"], [band, 1.05, "#4b5563"]].forEach(([from, to, color]) => {
+      c.fillStyle = color;
+      c.fillRect(px, at(to), 1.5, at(from) - at(to) + 1);
+    });
+  }
+}
+
+// A little five-petalled yellow flower, the crest on Enma's scabbard and handle
+export function drawEnmaFlower(c, w, h) {
+  c.clearRect(0, 0, w, h);
+  const r = w * 0.17;
+  c.lineWidth = w * 0.05;
+  c.strokeStyle = "#1a1714";
+  c.fillStyle = "#ffdd00";
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
+    c.beginPath();
+    c.arc(w / 2 + Math.cos(a) * r * 1.15, h / 2 + Math.sin(a) * r * 1.15, r, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+  }
+  c.beginPath();
+  c.arc(w / 2, h / 2, r * 0.75, 0, Math.PI * 2);
+  c.fillStyle = "#ff7a1a";
+  c.fill();
+  c.stroke();
 }

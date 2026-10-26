@@ -62,6 +62,7 @@ import { projects } from "@/data/projects";
 import { experiences } from "@/data/experience";
 import { useTheme } from "@/composables/useTheme";
 import { useSfx } from "@/composables/useSfx";
+import { hideBootLoader } from "@/utils/bootLoader";
 
 const COMMAND_CHIPS = ["help", "whoami", "projects", "hobbies", "sudo hire oka"];
 const stageRef = ref(null);
@@ -80,22 +81,24 @@ const hint = computed(() => {
   if (introPlaying.value) return "";
   if (focus.value === "monitor") return isDesktop.value ? "Type a command and hit Enter. Try: help" : "Tap a command, or tap the screen";
   if (focus.value === "keyboard") return "1–5 jump to a section · T terminal · C chat · Esc back";
+  if (focus.value === "window") return isDark.value ? "Click the sky and make a wish" : "Click the window to call the birds over";
   if (focus.value === "mug") return "Click the mug for a sip. Finish the cup for the night shift";
   if (focus.value === "experience") return isDesktop.value ? "Click a pass to hold it up, again to flip it (← → to browse)" : "Tap a pass to hold it, tap again to flip it";
   if (focus.value === "projects" && projectOpen.value) return isDesktop.value ? "Click the pages to turn them (or ← →)" : "Tap the pages to turn them";
   if (focus.value === "projects") return isDesktop.value ? "Click a tab (or ← →) to flip through, the front file to pull it out" : "Tap a tab to flip through, the front file to pull it out";
   if (focus.value === "contact") return isDesktop.value ? "Write on the card (Tab moves along), then hit SEND POSTCARD" : "Tap the card to write, then tap SEND POSTCARD";
   if (focus.value === "chat") return isDesktop.value ? "Type a question and hit Enter (scroll to read back)" : "Tap a question or the box below to ask";
-  if (focus.value === "hero") return "Click the badge to flip it. The links are on the back";
+  if (focus.value === "hero") return isDesktop.value ? "Click the badge to flip it (links on the back). Drag the pin to move it" : "Tap the badge to flip it. Drag the pin to move it";
   if (focus.value === "about") return isDesktop.value ? "Drag the papers to rearrange them. Release to pin them back" : "Drag a paper to move it. Release to pin it back";
-  if (zoomed.value) return "";
-  // No map of the desk: finding out what does what is the fun part
-  return isDesktop.value ? "Look around. Almost everything on this desk does something" : "Tap around. Almost everything on this desk does something";
+  // The overview needs no hint: the terminal's welcome already says to look around
+  return "";
 });
 
 function onEvent(name, payload = {}) {
   // An empty coffee cup (or the lamp) flips the desk to the night shift, or back to day
-  if (name === "nightShift" && payload.dark !== isDark.value) toggleTheme();
+  // The room's first frame is drawn: the boot loader fades out over it
+  if (name === "ready") hideBootLoader();
+  else if (name === "nightShift" && payload.dark !== isDark.value) toggleTheme();
   else if (name === "toggleSound") toggleMute();
   else if (name === "projectOpen") projectOpen.value = payload.open;
   else if (name === "focus") {
@@ -119,14 +122,16 @@ onMounted(async () => {
       muted: muted.value,
       onEvent,
     });
-    setTimeout(() => (introPlaying.value = false), 2600);
+    setTimeout(() => (introPlaying.value = false), 1600);
   } catch (err) {
     console.error(err);
     unsupported.value = true;
+    hideBootLoader();
   }
 });
 
 onUnmounted(() => {
+  hideBootLoader();
   scene.value?.destroy();
 });
 </script>
@@ -134,6 +139,8 @@ onUnmounted(() => {
 <style scoped>
 .desk-page {
   z-index: 20;
+  /* The boot loader's colour: it fades straight from the loader to the room */
+  background: #1a1714;
 }
 .hud-btn {
   @apply inline-flex items-center gap-1 border-3 border-black px-3 py-1.5 text-xs md:text-sm font-bold uppercase shadow-neo-sm transition-transform;

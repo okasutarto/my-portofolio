@@ -2366,6 +2366,7 @@ export const BUBBLE_TAILS = {
   left: { oval: [0.5, 0.42, 0.46, 0.36], angle: 0.68 * Math.PI, tip: [0.28, 0.91] },
   "up-right": { oval: [0.5, 0.58, 0.46, 0.36], angle: -0.32 * Math.PI, tip: [0.72, 0.09] },
   "up-left": { oval: [0.5, 0.58, 0.46, 0.36], angle: -0.68 * Math.PI, tip: [0.28, 0.09] },
+  "down-left": { oval: [0.53, 0.41, 0.4, 0.35], angle: 0.7 * Math.PI, tip: [0.24, 0.81] },
   "side-left": { oval: [0.56, 0.5, 0.4, 0.42], angle: Math.PI, tip: [0.03, 0.5] },
   "side-right": { oval: [0.44, 0.5, 0.4, 0.42], angle: 0, tip: [0.97, 0.5] },
 };
@@ -4640,7 +4641,7 @@ export function drawWeatherCard(c, w, h, { place, weather }) {
 // ---------- book spines on the shelf ----------
 const BOOK_TITLES = [
   ["CLEAN CODE", "R. MARTIN"], ["FLUTTER", "IN ACTION"], ["ALGORITHMS", "4TH ED."], ["VUE.JS", "UP & RUNNING"],
-  ["NODE.JS", "DESIGN"], ["UX BASICS", "A PRIMER"], ["TYPESCRIPT", "DEEP DIVE"], ["ONE PIECE", "VOL. 105"],
+  ["NODE.JS", "DESIGN"], ["UX BASICS", "A PRIMER"], ["TYPESCRIPT", "DEEP DIVE"], ["NARUTO", "VOL. 01"],
   ["SKETCHBOOK", "2026"], ["COFFEE", "BREWING"], ["GIT POCKET", "GUIDE"], ["PIXEL ART", "STUDIO"],
 ];
 // A hardback's spine (drawn upright, long side vertical), neo-brutalist: one flat colour, black
@@ -4749,71 +4750,115 @@ export function drawPageEdges(c, w, h) {
   }
 }
 
-// ---------- manga volumes ----------
-// A manga volume's spine, drawn upright: white, with the series' coloured block at the top
-// holding the volume number, the title running down in heavy type, a little character
-// cameo in a roundel, and the publisher's tag at the foot. Each volume gets its own colour.
-export function drawMangaSpine(c, w, h, { vol, color, title = "ONE PIECE" }) {
-  const ink = "#1a1714";
-  c.fillStyle = "#fffdf5";
-  c.fillRect(0, 0, w, h);
-  // top block with the volume number
-  const block = w * 1.15;
-  c.fillStyle = color;
-  c.fillRect(0, 0, w, block);
-  c.fillStyle = ink;
-  c.fillRect(0, block, w, Math.max(2, w * 0.05));
-  c.beginPath();
-  c.arc(w / 2, block / 2, w * 0.36, 0, Math.PI * 2);
-  c.fillStyle = "#fffdf5";
-  c.fill();
-  c.lineWidth = Math.max(2, w * 0.05);
-  c.strokeStyle = ink;
-  c.stroke();
-  c.fillStyle = ink;
-  c.textAlign = "center";
-  c.textBaseline = "middle";
-  c.font = `900 ${Math.round(w * 0.36)}px 'Lexend Mega', sans-serif`;
-  c.fillText(String(vol), w / 2, block / 2 + 1);
-  // title down the spine
+// ---------- Naruto manga collection ----------
+function drawLeafMark(c, x, y, size) {
   c.save();
-  c.translate(w / 2, block + (h - block) * 0.42);
-  c.rotate(Math.PI / 2);
-  let size = Math.round(w * 0.42);
-  c.font = `900 ${size}px 'Lexend Mega', sans-serif`;
-  while (c.measureText(title).width > (h - block) * 0.55 && size > 8) {
-    size -= 1;
-    c.font = `900 ${size}px 'Lexend Mega', sans-serif`;
+  c.translate(x, y);
+  c.scale(size, size);
+  c.strokeStyle = "#182434";
+  c.lineWidth = 0.09;
+  c.lineCap = "round";
+  c.lineJoin = "round";
+  c.beginPath();
+  for (let i = 0; i <= 60; i++) {
+    const t = i / 60;
+    const angle = t * Math.PI * 3.7;
+    const r = 0.03 + t * 0.32;
+    const px = Math.cos(angle) * r;
+    const py = Math.sin(angle) * r;
+    i ? c.lineTo(px, py) : c.moveTo(px, py);
   }
-  c.fillStyle = ink;
-  c.fillText(title, 0, 0);
-  c.restore();
-  // a straw-hat cameo in a roundel
-  const cy = h * 0.82;
-  c.beginPath();
-  c.arc(w / 2, cy, w * 0.3, 0, Math.PI * 2);
-  c.fillStyle = color;
-  c.fill();
+  c.lineTo(-0.48, 0.36);
+  c.lineTo(-0.4, -0.06);
   c.stroke();
+  c.restore();
+}
+
+// Original flat-colour fan illustration, drawn with the same ink as the room's other props.
+function drawNarutoPortrait(c, x, y, size) {
+  c.save();
+  c.translate(x, y);
+  c.scale(size, size);
+  const ink = "#182434";
+  c.lineWidth = 0.035;
+  c.strokeStyle = ink;
+  c.lineJoin = "round";
+  // Orange jacket, dark shoulders and a high zip collar.
+  c.fillStyle = "#f68026";
+  c.beginPath(); c.moveTo(-0.58, 0.65); c.quadraticCurveTo(-0.55, 0.23, 0, 0.23); c.quadraticCurveTo(0.55, 0.23, 0.58, 0.65); c.closePath(); c.fill(); c.stroke();
+  c.fillStyle = ink; c.fillRect(-0.47, 0.31, 0.94, 0.16);
+  c.fillStyle = "#f68026"; c.fillRect(-0.26, 0.25, 0.52, 0.24); c.strokeRect(-0.26, 0.25, 0.52, 0.24);
+  c.strokeStyle = "#fff4d6"; c.lineWidth = 0.018;
+  c.beginPath(); c.moveTo(0, 0.36); c.lineTo(0, 0.65); c.stroke();
+  // Spiky blond silhouette and the face.
+  c.strokeStyle = ink; c.lineWidth = 0.035; c.fillStyle = "#ffd438";
   c.beginPath();
-  c.ellipse(w / 2, cy - w * 0.02, w * 0.24, w * 0.07, 0, 0, Math.PI * 2);
-  c.fillStyle = "#f2c14e";
-  c.fill();
-  c.beginPath();
-  c.arc(w / 2, cy - w * 0.04, w * 0.12, Math.PI, 0);
-  c.fill();
-  c.fillStyle = "#d62828";
-  c.fillRect(w / 2 - w * 0.12, cy - w * 0.08, w * 0.24, w * 0.05);
-  // publisher tag
+  [[-0.37, 0.02], [-0.51, -0.24], [-0.35, -0.2], [-0.4, -0.47], [-0.21, -0.36], [-0.13, -0.63], [0.01, -0.43], [0.17, -0.65], [0.22, -0.4], [0.43, -0.5], [0.36, -0.22], [0.53, -0.23], [0.36, 0.07]].forEach(([px, py], i) => i ? c.lineTo(px, py) : c.moveTo(px, py));
+  c.closePath(); c.fill(); c.stroke();
+  c.fillStyle = "#ffd0a1";
+  c.beginPath(); c.moveTo(-0.33, -0.21); c.lineTo(0.33, -0.21); c.lineTo(0.3, 0.14); c.quadraticCurveTo(0, 0.48, -0.3, 0.14); c.closePath(); c.fill(); c.stroke();
+  // Forehead protector with a silver plate, rivets and the Leaf mark.
+  c.fillStyle = ink; c.fillRect(-0.39, -0.28, 0.78, 0.19);
+  c.fillStyle = "#bdc8d3"; c.fillRect(-0.29, -0.27, 0.58, 0.17); c.strokeRect(-0.29, -0.27, 0.58, 0.17);
+  drawLeafMark(c, 0, -0.185, 0.17);
   c.fillStyle = ink;
-  c.fillRect(w * 0.15, h * 0.93, w * 0.7, h * 0.035);
-  c.fillStyle = "#fffdf5";
-  c.font = `800 ${Math.round(w * 0.16)}px 'Space Grotesk', sans-serif`;
-  c.fillText("JUMP", w / 2, h * 0.948);
+  [-0.25, 0.25].forEach((px) => { c.beginPath(); c.arc(px, -0.18, 0.012, 0, Math.PI * 2); c.fill(); });
+  // Blue eyes, brows and three whisker marks on each cheek.
+  [-1, 1].forEach((side) => {
+    c.fillStyle = "#fffdf5"; c.beginPath(); c.ellipse(side * 0.15, 0.015, 0.075, 0.035, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = "#268fd0"; c.beginPath(); c.arc(side * 0.15, 0.015, 0.027, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = ink; c.lineWidth = 0.018;
+    c.beginPath(); c.moveTo(side * 0.07, -0.045); c.lineTo(side * 0.24, -0.065); c.stroke();
+    for (let i = 0; i < 3; i++) { c.beginPath(); c.moveTo(side * 0.2, 0.09 + i * 0.047); c.lineTo(side * 0.3, 0.065 + i * 0.06); c.stroke(); }
+  });
+  c.beginPath(); c.moveTo(-0.085, 0.23); c.quadraticCurveTo(0, 0.29, 0.085, 0.23); c.stroke();
+  c.restore();
+}
+
+export function drawNarutoCover(c, w, h, { vol = 1, color = "#f68026" } = {}) {
+  const ink = "#182434";
+  c.fillStyle = "#fff4d6"; c.fillRect(0, 0, w, h);
+  c.fillStyle = color; c.fillRect(w * 0.04, h * 0.18, w * 0.92, h * 0.69);
+  // Graphic sun and speed rays behind the character; clear type bands above and below.
+  c.save(); c.beginPath(); c.rect(w * 0.04, h * 0.18, w * 0.92, h * 0.69); c.clip();
+  c.fillStyle = "#ffdb77";
+  c.beginPath(); c.arc(w * 0.52, h * 0.48, w * 0.46, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = "rgba(255,244,214,.6)"; c.lineWidth = w * 0.016;
+  for (let i = 0; i < 18; i++) { const angle = i * Math.PI * 2 / 18; c.beginPath(); c.moveTo(w * 0.5 + Math.cos(angle) * w * 0.3, h * 0.5 + Math.sin(angle) * w * 0.3); c.lineTo(w * 0.5 + Math.cos(angle) * w, h * 0.5 + Math.sin(angle) * w); c.stroke(); }
+  drawNarutoPortrait(c, w * 0.5, h * 0.53, w * 0.77);
+  c.restore();
+  c.textAlign = "center"; c.textBaseline = "middle";
+  c.font = `italic 900 ${Math.round(w * 0.18)}px 'Space Grotesk', sans-serif`;
+  c.strokeStyle = ink; c.lineWidth = w * 0.013; c.strokeText("NARUTO", w / 2, h * 0.09, w * 0.88);
+  c.fillStyle = "#ff8c2b"; c.fillText("NARUTO", w / 2, h * 0.09, w * 0.88);
+  c.fillStyle = ink; c.fillRect(w * 0.04, h * 0.87, w * 0.92, h * 0.09);
+  c.fillStyle = "#fff4d6"; c.font = `800 ${Math.round(w * 0.045)}px 'Space Grotesk', sans-serif`;
+  c.fillText("MASASHI KISHIMOTO", w * 0.5, h * 0.915, w * 0.7);
+  c.fillStyle = ink; c.fillRect(w * 0.74, h * 0.19, w * 0.2, w * 0.2);
+  c.fillStyle = "#fff4d6"; c.font = `900 ${Math.round(w * 0.11)}px 'Lexend Mega', sans-serif`; c.fillText(String(vol).padStart(2, "0"), w * 0.84, h * 0.19 + w * 0.1);
+  c.strokeStyle = ink; c.lineWidth = w * 0.012; c.strokeRect(w * 0.02, h * 0.015, w * 0.96, h * 0.97);
   c.textAlign = "left";
-  c.strokeStyle = "rgba(0,0,0,.6)";
-  c.lineWidth = Math.max(2, w * 0.04);
-  c.strokeRect(0, 0, w, h);
+}
+
+// Consistent cream, orange and navy spines with a volume badge and a headband cameo.
+export function drawMangaSpine(c, w, h, { vol, color, title = "NARUTO" }) {
+  const ink = "#182434";
+  c.fillStyle = "#fff4d6"; c.fillRect(0, 0, w, h);
+  const block = w * 1.05;
+  c.fillStyle = color; c.fillRect(0, 0, w, block);
+  c.fillStyle = ink; c.fillRect(0, block, w, Math.max(2, w * 0.045));
+  c.textAlign = "center"; c.textBaseline = "middle";
+  c.font = `900 ${Math.round(w * 0.48)}px 'Lexend Mega', sans-serif`;
+  c.fillText(String(vol).padStart(2, "0"), w / 2, block / 2);
+  c.save(); c.translate(w / 2, h * 0.45); c.rotate(Math.PI / 2);
+  let size = w * 0.58;
+  do { c.font = `italic 900 ${Math.round(size)}px 'Space Grotesk', sans-serif`; size--; } while (c.measureText(title).width > h * 0.43 && size > 8);
+  c.fillStyle = ink; c.fillText(title, 0, 0); c.restore();
+  drawNarutoPortrait(c, w / 2, h * 0.8, w * 0.77);
+  c.fillStyle = ink; c.fillRect(0, h * 0.93, w, h * 0.07);
+  c.fillStyle = "#fff4d6"; c.font = `800 ${Math.round(w * 0.17)}px 'Space Grotesk', sans-serif`; c.fillText("JUMP", w / 2, h * 0.965);
+  c.strokeStyle = ink; c.lineWidth = Math.max(2, w * 0.04); c.strokeRect(0, 0, w, h);
+  c.textAlign = "left";
 }
 
 // ---------- the handheld's screen: a little space-invaders loop ----------

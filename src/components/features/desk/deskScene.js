@@ -68,6 +68,7 @@ import {
   drawSakuraBlossom,
   drawBookSpine,
   drawMangaSpine,
+  drawNarutoCover,
   drawInvaders,
   drawPageEdges,
   drawWeatherCard,
@@ -271,9 +272,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
     };
     return { sprite, say, hide };
   }
-  const hoverScale = (obj, amount = 1.05, base = 1) => (on) =>
-    gsap.to(obj.scale, { x: on ? amount : base, y: on ? amount : base, z: on ? amount : base, duration: 0.18, ease: "back.out(3)" });
-
   const shadowFill = track(new THREE.MeshBasicMaterial({ color: PALETTES.light.shadow }));
 
   // ---------- interaction registry ----------
@@ -604,10 +602,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const catchLever = mesh(rbox(0.05, 0.22, 0.04, 0.02), brass, { cast: false, outline: 0.01 });
   catchLever.position.set(0.06, -0.08, 0.17);
   catchLever.rotation.z = 0.5;
-  windowGroup.add(catchPlate, catchLever);
+  // The catch turns around the spindle in the fixed plate.
+  const windowCatch = new THREE.Group();
+  windowCatch.position.z = 0.17;
+  catchLever.position.z = 0;
+  windowCatch.add(catchLever);
+  windowGroup.add(catchPlate, windowCatch);
   const glareTex = canvasTexture(256, 256);
   track(glareTex.texture);
-  glareTex.ctx.fillStyle = "rgba(255,255,255,.16)";
+  glareTex.ctx.fillStyle = "rgba(255,255,255,.32)";
   [[40, 26], [96, 12]].forEach(([x, wd]) => {
     glareTex.ctx.beginPath();
     glareTex.ctx.moveTo(x, 256);
@@ -617,7 +620,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     glareTex.ctx.closePath();
     glareTex.ctx.fill();
   });
-  const windowGlare = new THREE.Mesh(track(new THREE.PlaneGeometry(4.0, 4.1)), track(new THREE.MeshBasicMaterial({ map: glareTex.texture, transparent: true, depthWrite: false })));
+  const windowGlare = new THREE.Mesh(track(new THREE.PlaneGeometry(4.0, 4.1)), track(new THREE.MeshBasicMaterial({ map: glareTex.texture, transparent: true, opacity: 0.55, depthWrite: false })));
+  glareTex.texture.wrapS = THREE.RepeatWrapping;
   windowGlare.position.z = 0.115;
   windowGlare.raycast = noRaycast;
   windowGroup.add(windowGlare);
@@ -725,6 +729,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const hideWeather = () => gsap.to(weatherCard.scale, { x: 0.001, y: 0.001, duration: 0.15, ease: "power2.in", overwrite: true });
   register(windowGroup, {
     focus: "window",
+    onHover: (on) => {
+      gsap.to(windowCatch.rotation, { z: on ? -0.55 : 0, duration: on ? 0.25 : 0.4, ease: "power2.out", overwrite: true });
+      gsap.to(windowGlare.material, { opacity: on ? 1 : 0.55, duration: 0.35, overwrite: true });
+      gsap.to(glareTex.texture.offset, { x: on ? -0.45 : 0, duration: on ? 0.65 : 0.4, ease: "power2.out", overwrite: true });
+    },
     onArrive: () => {
       showWeather();
       lookOut();
@@ -859,7 +868,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     run.quaternion.setFromUnitVectors(UP, dir.normalize());
     strings.push(run);
   }));
-  const stringGeo = track(new THREE.BoxGeometry(0.008, 4.15, 0.008));
+  const stringGeo = track(new THREE.BoxGeometry(0.008, 4.15, 0.008, 1, 16, 1));
   strings.push(...Array.from({ length: 6 }, (_, k) => {
     const str = new THREE.Mesh(stringGeo, stringMat);
     str.position.set(-0.085 + k * 0.034, 1.925, 0.23);
@@ -875,13 +884,37 @@ export function createDeskScene({ container, projects, experiences, dark = false
     guitar.add(rod(new THREE.Vector3(x, HOOK_Y, -0.22), new THREE.Vector3(x, HOOK_Y, 0.12), 0.03, hookMat, 0.015));
     guitar.add(rod(new THREE.Vector3(x, HOOK_Y, 0.12), new THREE.Vector3(x, HOOK_Y + 0.12, 0.15), 0.03, hookMat, 0.015));
   });
+  const stringRestColor = stringMat.color.clone();
+  const stringRestPositions = stringGeo.attributes.position.array.slice();
+  const stringVibration = { strength: 0, phase: 0 };
+  const updateGuitarStrings = () => {
+    const positions = stringGeo.attributes.position;
+    for (let i = 0; i < positions.count; i++) {
+      const y = stringRestPositions[i * 3 + 1];
+      // Both ends stay on the nut and bridge; only the middle of the strings moves.
+      const envelope = Math.sin(Math.PI * (y / 4.15 + 0.5));
+      positions.setX(i, stringRestPositions[i * 3] + envelope * Math.sin(stringVibration.phase) * stringVibration.strength);
+    }
+    positions.needsUpdate = true;
+  };
+  let guitarBusy = false;
   register(guitarSwing, {
+    onHover: (on) => {
+      if (guitarBusy) return;
+      gsap.to(guitarSwing.rotation, { z: on ? 0.075 : 0, duration: on ? 0.35 : 0.8, ease: on ? "back.out(1.8)" : "elastic.out(1, 0.5)", overwrite: true });
+      gsap.to(stringMat.color, { r: on ? 1 : stringRestColor.r, g: on ? 0.95 : stringRestColor.g, b: on ? 0.65 : stringRestColor.b, duration: 0.25, overwrite: true });
+      if (on) gsap.fromTo(stringVibration, { strength: 0.014, phase: 0 }, { strength: 0, phase: Math.PI * 14, duration: 0.8, ease: "power1.out", onUpdate: updateGuitarStrings, overwrite: true });
+      else gsap.to(stringVibration, { strength: 0, duration: 0.2, onUpdate: updateGuitarStrings, overwrite: true });
+    },
     onClick: () => {
+      if (guitarBusy) return;
+      guitarBusy = true;
       sfx.strum();
       discover("guitar");
-      gsap.fromTo(guitarSwing.rotation, { z: 0.09 * (Math.random() < 0.5 ? -1 : 1) }, { z: 0, duration: 1.6, ease: "elastic.out(1, 0.25)", overwrite: true });
+      gsap.fromTo(guitarSwing.rotation, { z: 0.09 * (Math.random() < 0.5 ? -1 : 1) }, { z: 0, duration: 1.6, ease: "elastic.out(1, 0.25)", overwrite: true, onComplete: () => (guitarBusy = false) });
       // The strings shimmer for a moment
-      gsap.fromTo(stringMat.color, { r: 1, g: 0.87, b: 0 }, { r: 0.957, g: 0.949, b: 0.933, duration: 1.2, ease: "power2.out" });
+      gsap.fromTo(stringMat.color, { r: 1, g: 0.87, b: 0 }, { r: stringRestColor.r, g: stringRestColor.g, b: stringRestColor.b, duration: 1.2, ease: "power2.out", overwrite: true });
+      gsap.fromTo(stringVibration, { strength: 0.025, phase: 0 }, { strength: 0, phase: Math.PI * 28, duration: 1.2, onUpdate: updateGuitarStrings, overwrite: true });
     },
   });
 
@@ -908,7 +941,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // Lined up over the monitor as seen from the desk view
   // Low enough that its top stays in frame on wide, short screens
   clock.position.set(-0.9, 4.95 + WALL_LIFT + 0.4, WALL_Z + 0.25); // midway between the painting and the board
-  room.add(clock);
+  const clockMount = new THREE.Group();
+  clockMount.position.copy(clock.position).add(new THREE.Vector3(0, 0.78, 0));
+  clock.position.set(0, -0.78, 0);
+  clockMount.add(clock);
+  room.add(clockMount);
   const clockRim = mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.15, 48), toon("#7fb2ff"), { outline: 0.06 });
   clockRim.rotation.x = Math.PI / 2;
   // a rolled bezel round the glass
@@ -957,18 +994,20 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // Click the clock: its hands whirl round twice, it rocks on its nail, then strikes the hour
   let clockBusy = false;
   register(clock, {
-    onHover: (on) => on && gsap.fromTo(clock.rotation, { z: 0.06 }, { z: 0, duration: 0.8, ease: "elastic.out(1, 0.3)" }),
+    onHover: (on) => {
+      if (!clockBusy) gsap.to(clockMount.rotation, { z: on ? 0.13 : 0, duration: on ? 0.35 : 0.8, ease: on ? "back.out(1.8)" : "elastic.out(1, 0.5)", overwrite: true });
+    },
     onClick: () => {
       if (clockBusy) return;
       clockBusy = true;
+      gsap.to(clockMount.rotation, { z: 0, duration: 0.2, overwrite: true });
       discover("clock");
       gsap.to(minuteHand.rotation, { z: minuteHand.rotation.z - Math.PI * 4, duration: 1.4, ease: "power2.inOut" });
       gsap.to(hourHand.rotation, {
         z: hourHand.rotation.z - Math.PI * 2, duration: 1.4, ease: "power2.inOut",
         onComplete: () => {
           updateRoomClock();
-          clockBusy = false;
-          gsap.fromTo(clock.rotation, { z: 0.14 }, { z: 0, duration: 1.4, ease: "elastic.out(1, 0.2)" });
+          gsap.fromTo(clockMount.rotation, { z: 0.14 }, { z: 0, duration: 1.4, ease: "elastic.out(1, 0.2)", overwrite: true, onComplete: () => (clockBusy = false) });
           gsap.fromTo(clock.scale, { x: 1.1, y: 1.1 }, { x: 1, y: 1, duration: 0.5, ease: "back.out(3)" });
           // It strikes the hour, as a wall clock does (a few strokes at most)
           sfx.clockStrike({ count: Math.min(3, new Date().getHours() % 12 || 12) });
@@ -1015,14 +1054,16 @@ export function createDeskScene({ container, projects, experiences, dark = false
   [-1, 1].forEach((side) => paintingHang.add(rod(new THREE.Vector3(0, 0, 0.02), new THREE.Vector3(side * 1.3, -PAINTING_DROP + 1.45, 0.02), 0.015, toon("#1a1714"), 0)));
   let paintingBusy = false;
   register(paintingHang, {
-    onHover: (on) => on && gsap.fromTo(paintingHang.rotation, { z: 0.025 }, { z: 0, duration: 1, ease: "elastic.out(1, 0.3)" }),
+    onHover: (on) => {
+      if (!paintingBusy) gsap.to(paintingHang.rotation, { z: on ? -0.085 : 0, duration: on ? 0.35 : 0.9, ease: on ? "back.out(1.8)" : "elastic.out(1, 0.5)", overwrite: true });
+    },
     onClick: () => {
       if (paintingBusy) return;
       paintingBusy = true;
       discover("painting");
-      gsap.fromTo(paintingHang.rotation, { z: 0.09 }, { z: 0, duration: 1.6, ease: "elastic.out(1, 0.25)" });
+      gsap.fromTo(paintingHang.rotation, { z: 0.09 }, { z: 0, duration: 1.6, ease: "elastic.out(1, 0.25)", overwrite: true, onComplete: () => (paintingBusy = false) });
       // Squashed edge-on and back (a turn round its vertical axis would go through the wall)
-      gsap.timeline({ onComplete: () => (paintingBusy = false) })
+      gsap.timeline()
         .to(paintingTurn.scale, { x: 0.02, duration: 0.2, ease: "power2.in" })
         .call(() => {
           paintingArt = (paintingArt + 1) % PAINTING_COUNT;
@@ -1356,17 +1397,21 @@ export function createDeskScene({ container, projects, experiences, dark = false
       .to(lampLight, { intensity: 2, duration: 0.08 })
       .to(lampLight, { intensity: 55, duration: 0.2, delay: 0.12 });
   }
-  // Like a desk lamp with a mind of its own: on hover it straightens up and cocks its head; on a
+  // Like a desk lamp with a mind of its own: on hover it cocks its shade toward you; on a
   // click it crouches, hops, nods, and only then throws the switch
+  const lampHeadRest = lampHead.rotation.clone();
   let lampHopping = false;
   register(lamp, {
     onHover: (on) => {
-      gsap.to(lampHead.rotation, { z: on ? 0.18 : 0, duration: 0.35, ease: "back.out(3)" });
-      gsap.to(lamp.scale, { y: on ? 1.04 : 1, duration: 0.3, ease: "back.out(3)" });
+      if (lampHopping) return;
+      // Articulate the shade; the heavy base and metal arms keep their proportions.
+      gsap.to(lampHead.rotation, { x: lampHeadRest.x + (on ? -0.16 : 0), z: lampHeadRest.z + (on ? 0.24 : 0), duration: on ? 0.32 : 0.45, ease: "power2.out", overwrite: true });
     },
     onClick: () => {
       if (lampHopping) return;
       lampHopping = true;
+      gsap.killTweensOf(lampHead.rotation);
+      lampHead.rotation.copy(lampHeadRest);
       discover("lamp");
       gsap.timeline({ onComplete: () => (lampHopping = false) })
         .to(lamp.scale, { y: 0.88, duration: 0.12, ease: "power2.in" })
@@ -1375,7 +1420,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
         .to(lamp.position, { y: 0, duration: 0.2, ease: "power2.in" })
         .call(() => sfx.knock({ strength: 0.5 }))
         .to(lamp.scale, { y: 1, duration: 0.35, ease: "elastic.out(1.2, 0.4)" })
-        .to(lampHead.rotation, { z: -0.25, duration: 0.12, yoyo: true, repeat: 3, ease: "sine.inOut" }, "<")
+        .to(lampHead.rotation, { z: lampHeadRest.z - 0.25, duration: 0.12, yoyo: true, repeat: 3, ease: "sine.inOut" }, "<")
         .call(() => {
           sfx.click();
           onEvent("nightShift", { dark: !darkNow });
@@ -1446,7 +1491,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
   frameLeg.rotation.x = -0.42;
   familyFrame.add(frameFoot, frameLeg);
   scene.add(familyFrame);
-  register(familyFrame, { focus: "family", onHover: hoverScale(familyFrame, 0.82, 0.8) });
+  register(familyFrame, {
+    focus: "family",
+    onHover: (on) => gsap.to(familyFrame.rotation, { x: on ? -0.015 : -0.08, y: on ? 0.14 : 0.08, duration: 0.35, ease: "power2.out", overwrite: true }),
+  });
 
   // ---------- potted plant (back-right, decor) ----------
   const plant = new THREE.Group();
@@ -1594,9 +1642,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   }
 
   register(plant, {
-    onHover: (on) => on && gsap.fromTo(foliage.rotation, { z: 0.06 }, { z: 0, duration: 1.2, ease: "elastic.out(1, 0.3)" }),
+    onHover: (on) => gsap.to(foliage.rotation, { z: on ? 0.12 : 0, duration: on ? 0.3 : 0.65, ease: "power2.out", overwrite: true }),
     onClick: () => {
-      gsap.fromTo(foliage.rotation, { z: 0.15 }, { z: 0, duration: 1.4, ease: "elastic.out(1, 0.25)" });
+      gsap.fromTo(foliage.rotation, { z: 0.15 }, { z: 0, duration: 1.4, ease: "elastic.out(1, 0.25)", overwrite: true });
       gsap.fromTo(pot.scale, { x: 1.12, y: 0.88, z: 1.12 }, { x: 1, y: 1, z: 1, duration: 0.6, ease: "elastic.out(1.2, 0.35)" });
       sfx.leaves();
       if (bloomed < flowers.length) {
@@ -1801,7 +1849,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     console: "press start",
     robot: "the little robot likes attention: five pokes",
   };
+  // Local-only preview; all secrets exist for this scene without touching saved progress.
+  const previewTrophy = process.env.NODE_ENV === "development" && new URLSearchParams(window.location.search).get("preview") === "trophy";
   const secretsFound = new Set((() => {
+    if (previewTrophy) return SECRETS;
     try {
       return JSON.parse(localStorage.getItem("desk-secrets") || "[]").filter((id) => SECRETS.includes(id));
     } catch {
@@ -1838,12 +1889,37 @@ export function createDeskScene({ container, projects, experiences, dark = false
     timers.push(setTimeout(whenStill, there ? 500 : 300));
   }
   function cheerTrophy() {
+    if (trophyCelebrating) return;
+    trophyCelebrating = true;
+    shelfBubble.hide();
+    ledPartyUntil = performance.now() + 6500;
     trophy.getWorldPosition(shelfBubbleAt);
-    burst(shelfBubbleAt.x, shelfBubbleAt.y + 1.2, shelfBubbleAt.z);
-    sfx.sparkle();
-    gsap.fromTo(cup.material.emissive, { r: 1, g: 0.8, b: 0.2 }, { r: 0.25, g: 0.18, b: 0, duration: 2.5, ease: "power2.out" });
-    gsap.fromTo(trophy.scale, { x: 1.3, y: 1.3, z: 1.3 }, { x: 1, y: 1, z: 1, duration: 0.8, ease: "elastic.out(1.2, 0.4)" });
-    shelfSay(trophy, "ALL SECRETS FOUND! 🏆", "the trophy", 3200, 0.5, 0.55);
+    trophyHalo.position.copy(shelfBubbleAt).add(new THREE.Vector3(0, 0.9, -0.2));
+    trophyHalo.visible = true;
+    gsap.fromTo(trophyHalo.material, { opacity: 0 }, { opacity: 0.65, duration: 0.5, overwrite: true });
+    gsap.fromTo(trophyHalo.scale, { x: 1.2, y: 1.2 }, { x: 3.4, y: 3.4, duration: 1, ease: "power2.out", overwrite: true });
+    gsap.killTweensOf([trophy.position, trophy.rotation, trophy.scale, trophyGold.emissive]);
+    const restY = trophy.userData.restY;
+    trophyCelebration = gsap.timeline({ onComplete: () => { trophyCelebrating = false; } })
+      .to(trophy.position, { y: restY + 0.18, duration: 0.6, ease: "power2.out" })
+      .to(trophy.rotation, { y: Math.PI * 2, duration: 1.5, ease: "power2.inOut" }, 0.25)
+      .fromTo(trophyGold.emissive, { r: 0, g: 0, b: 0 }, { r: 0.6, g: 0.35, b: 0.04, duration: 0.5 }, 0)
+      .call(() => {
+        // Align the emitter above the bowl in screen space, then bring it in front of the shelf.
+        trophy.localToWorld(shelfBubbleAt.set(0, 1.38, 0));
+        const towardCamera = new THREE.Vector3(0, 0, 1).applyQuaternion(camera.quaternion);
+        const frontZ = shelf.position.z + SHELF_D / 2 + 0.25;
+        shelfBubbleAt.addScaledVector(towardCamera, Math.max(0, frontZ - shelfBubbleAt.z) / towardCamera.z);
+        burst(shelfBubbleAt.x, shelfBubbleAt.y, shelfBubbleAt.z, true);
+        sfx.sparkle();
+        sfx.cheer();
+        sfx.applause({ delay: 0.2 });
+        shelfSay(trophy, "19/19 SECRETS FOUND!", "master of the desk", 6000);
+      }, null, 0.65)
+      .to(trophy.position, { y: restY, duration: 0.6, ease: "bounce.out" }, 2.1)
+      .set(trophy.rotation, { y: 0 }, 2.7)
+      .to(trophyGold.emissive, { r: 0, g: 0, b: 0, duration: 1.5 }, 3.2)
+      .to(trophyHalo.material, { opacity: 0, duration: 1.5, onComplete: () => { trophyHalo.visible = false; } }, 3.2);
   }
 
   const PALETTE = ["#ff6b6b", "#ffdd00", "#00e0c6", "#ff90e8", "#8fd694", "#3b82f6", "#ffb35c", "#c4b5fd", "#fffdf5"];
@@ -2237,10 +2313,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // Level 3: a pile of manga volumes lying down, a trophy, and a handheld console. Manga are
   // smaller than the hardbacks, with white covers and the series' colour on each spine, the
   // pile a little untidy.
-  const MANGA = [[104, "#e5484d"], [105, "#3b82f6"], [106, "#ffb000"], [107, "#16a34a"], [108, "#c4b5fd"]];
+  const MANGA = [[1, "#f68026"], [2, "#ffc342"], [3, "#ed6d37"], [4, "#ffb15c"], [5, "#e99a32"]];
   const stackTop = MANGA.reduce((y, [vol, color], i) => {
     const thick = 0.15;
     const lying = bookMesh(thick, 1.02, "#fffdf5", i, 0.72, (c, cw, ch) => drawMangaSpine(c, cw, ch, { vol, color }));
+    const coverArt = printed(0.7, 1.0, 750, (c, cw, ch) => drawNarutoCover(c, cw, ch, { vol, color }));
+    coverArt.rotation.y = Math.PI / 2;
+    coverArt.position.x = thick / 2 + 0.003;
+    lying.add(coverArt);
     lying.rotation.z = Math.PI / 2;
     const item = addItem(at(group(lying), -1.05 + (i % 2 ? 0.05 : -0.04), y + thick / 2, 0.25), "book");
     item.rotation.y = (i % 3 - 1) * 0.07;
@@ -2301,7 +2381,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // a few turns from solved, as if put down mid-solve
   [["y", 1, 1], ["x", -1, -1], ["z", 1, 1], ["y", -1, -1]].forEach(([axis, layer, dir]) => turnLayer(axis, layer, dir));
   rubik.rotation.set(0, 0.6, 0);
-  const rubikItem = addItem(at(group(rubik), -1.15, stackTop + CUBE / 2, 0.3), "rubik");
+  const rubikItem = addItem(at(group(rubik), -0.7, stackTop + CUBE / 2, 0.3), "rubik");
   let rubikBusy = false;
   function playRubik() {
     if (rubikBusy) return;
@@ -2321,6 +2401,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
     gsap.to(rubik.rotation, { y: rubik.rotation.y + Math.PI * 2, duration: 6 * 0.17, ease: "power1.inOut" });
     gsap.fromTo(rubik.rotation, { x: 0 }, { x: 0.35, duration: 6 * 0.085, yoyo: true, repeat: 1, ease: "sine.inOut" });
   }
+  let trophyCelebrating = false;
+  let trophyCelebration = null;
+  const trophyHalo = new THREE.Sprite(track(new THREE.SpriteMaterial({
+    map: radial([[0, "rgba(255,220,100,.8)"], [0.4, "rgba(255,204,60,.35)"], [1, "rgba(255,190,40,0)"]]),
+    transparent: true, depthWrite: false, opacity: 0, blending: THREE.AdditiveBlending,
+  })));
+  trophyHalo.raycast = noRaycast;
+  trophyHalo.visible = false;
+  scene.add(trophyHalo);
   const trophyGold = toon("#e8b640");
   const trophyProfile = [[0, 0.52], [0.12, 0.53], [0.24, 0.65], [0.34, 0.87], [0.37, 1.12], [0.32, 1.12], [0.3, 0.9], [0.2, 0.71], [0.08, 0.65], [0, 0.65]].map(([r, y]) => new THREE.Vector2(r, y));
   // A hollow bowl, rounded rim and continuous loop handles sit on a separate stem.
@@ -3862,6 +3951,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   function snapFingers() {
     if (snapping) return;
     snapping = true;
+    gsap.killTweensOf(glovePart.position);
     discover("snap");
     setFocus("gauntlet");
     const tl = gsap.timeline({ onComplete: () => (snapping = false) });
@@ -3957,7 +4047,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   register(gauntlet, {
     // A ripple of light across the stones, with a little shimmer
     onHover: (on) => {
-      if (!on || snapping) return;
+      if (snapping) return;
+      gsap.to(glovePart.position, { y: on ? 0.28 : 0, duration: on ? 0.4 : 0.5, ease: on ? "back.out(1.5)" : "power2.out", overwrite: true });
+      if (!on) return;
       stones.forEach((gem, i) => flare(gem, i * 0.06));
       sfx.tick({ pitch: 2.2 });
       sfx.tick({ pitch: 2.6, delay: 0.12 });
@@ -3994,8 +4086,29 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const shelfBubbleAt = new THREE.Vector3();
   const shelfBubblePrint = { size: 40, tail: "side-left", style: "manga" };
   const shelfBubble = speechBubble(SHELF_BUBBLE_W, 1.42, shelfBubblePrint);
+  let shelfBubbleTarget = null;
+  const trophyBubbleRight = new THREE.Vector3();
+  const trophyBubbleUp = new THREE.Vector3();
+  function placeTrophyBubble() {
+    trophy.localToWorld(shelfBubbleAt.set(0.25, 1.12, 0.3));
+    trophyBubbleRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
+    trophyBubbleUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
+    shelfBubbleAt.addScaledVector(trophyBubbleRight, 0.06).addScaledVector(trophyBubbleUp, 0.14);
+    const [tipX, tipY] = BUBBLE_TAILS["down-left"].tip;
+    const sprite = shelfBubble.sprite;
+    sprite.position.copy(shelfBubbleAt)
+      .addScaledVector(trophyBubbleRight, (0.5 - tipX) * sprite.scale.x)
+      .addScaledVector(trophyBubbleUp, (tipY - 0.5) * sprite.scale.y);
+  }
   // `reach`: half the width of what's speaking, so the bubble starts beyond its side
   function shelfSay(obj, text, by = "the shelf", hold = 3200, lift = 0.3, reach = 0) {
+    shelfBubbleTarget = obj;
+    if (obj === trophy) {
+      shelfBubblePrint.tail = "down-left";
+      shelfBubble.say({ text, by }, hold);
+      placeTrophyBubble();
+      return;
+    }
     obj.getWorldPosition(shelfBubbleAt);
     // To the right if it fits on screen, else to the left; if neither, whichever has more room
     const spot = (side) => shelfBubbleAt.clone().add(new THREE.Vector3((SHELF_BUBBLE_W * 0.47 + 0.15 + reach) * side, lift, 0.3));
@@ -4032,7 +4145,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
   }
   register(shelf, {
     focus: "shelf",
-    onLeave: () => { finishShelfDrag(); shelfBubble.hide(); },
+    onLeave: () => {
+      finishShelfDrag();
+      shelfBubble.hide();
+      shelfHoverCarriers.forEach((carrier) => gsap.to(carrier.position, { y: 0, z: 0, duration: 0.25, overwrite: true }));
+    },
     onKey: (e) => {
       if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return false;
       browseShelf(shelfLook + (e.key === "ArrowUp" ? 1.4 : -1.4));
@@ -4049,6 +4166,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       else if (item.obj === trophy) {
         // The score, and a hint toward one of the secrets still to find
         const left = SECRETS.filter((id) => !secretsFound.has(id));
+        if (!left.length) return cheerTrophy();
         const text = left.length ? `${secretsFound.size}/${SECRETS.length} found. Hint: ${SECRET_HINTS[left[Math.floor(Math.random() * left.length)]]}` : "ALL SECRETS FOUND! 🏆";
         shelfSay(trophy, text, "the trophy", 4500, 0.5, 0.55);
       }
@@ -4059,6 +4177,31 @@ export function createDeskScene({ container, projects, experiences, dark = false
       gsap.fromTo(hopper.position, { y }, { keyframes: [{ y: y + 0.28, duration: 0.16, ease: "power2.out" }, { y, duration: 0.3, ease: "bounce.out" }], overwrite: true });
       SHELF_SOUNDS[item.sound]();
     },
+  });
+
+  // Every shelf prop has its own hover target; the fixed shelf never moves.
+  // Translation-only carriers preserve local coordinates used by the existing click routines.
+  const shelfHoverCarriers = [];
+  shelfItems.forEach((item) => {
+    const movable = item.obj === pad1 || item.obj === pad2 ? item.obj.userData.moves
+      : item.obj === nintendoSwitch ? switchConsole : item.obj;
+    const carrier = new THREE.Group();
+    movable.parent.add(carrier);
+    carrier.add(movable);
+    shelfHoverCarriers.push(carrier);
+    const lift = item.sound === "book" || item.sound === "case" || item.obj === ps5 ? 0
+      : item.obj === trophy ? 0.06 : item.sound === "rubik" ? 0.12 : 0.09;
+    const forward = item.sound === "book" ? 0.22 : item.sound === "case" ? 0.18 : 0.09;
+    register(item.obj, {
+      focus: "shelf", item: true,
+      onHover: (on) => {
+        const busy = (item.obj === trophy && trophyCelebrating) || (item.obj === robot && botBusy)
+          || (item.obj === rubikItem && rubikBusy) || (item.obj === nintendoSwitch && switchBusy);
+        if (on && busy) return;
+        gsap.to(carrier.position, { y: on ? lift : 0, z: on ? forward : 0, duration: on ? 0.25 : 0.35, ease: "power2.out", overwrite: true });
+      },
+      onClick: (hit) => interactive.get(shelf).onClick(hit),
+    });
   });
 
   // ---------- gym corner: a pair of dumbbells on the floor between the desk and the shelf ----------
@@ -4100,26 +4243,31 @@ export function createDeskScene({ container, projects, experiences, dark = false
   repBadge.position.set(gym.position.x, FLOOR_Y + 2.7, gym.position.z);
   scene.add(repBadge);
   // Confetti for a PR: a pool of little coloured squares
-  const confetti = Array.from({ length: 22 }, (_, i) => {
+  const confetti = Array.from({ length: 72 }, (_, i) => {
     const bit = new THREE.Sprite(track(new THREE.SpriteMaterial({ color: PALETTE[i % 7], transparent: true, depthWrite: false })));
     bit.visible = false;
     bit.raycast = noRaycast;
     scene.add(bit);
     return bit;
   });
-  function burst(x, y, z) {
-    confetti.forEach((bit) => {
+  function burst(x, y, z, celebration = false) {
+    // Trophy confetti falls in front of the shelf, clear of its boards and side panels.
+    const frontZ = celebration ? shelf.position.z + SHELF_D / 2 + 0.25 : z;
+    confetti.slice(0, celebration ? 72 : 22).forEach((bit, i) => {
+      const delay = celebration ? i * 0.008 : 0;
+      const duration = celebration ? 3.2 : 1.3;
       gsap.killTweensOf([bit.position, bit.material]);
       bit.visible = true;
-      bit.position.set(x, y, z);
+      bit.position.set(x, y, celebration ? Math.max(z, frontZ) : z);
       bit.scale.setScalar(0.1 + Math.random() * 0.08);
       bit.material.opacity = 1;
       bit.material.rotation = Math.random() * Math.PI;
       const a = Math.random() * Math.PI * 2;
-      const r = 0.8 + Math.random() * 1.4;
-      gsap.to(bit.position, { x: x + Math.cos(a) * r, z: z + Math.sin(a) * r * 0.6, duration: 1.2, ease: "power2.out" });
-      gsap.to(bit.position, { keyframes: [{ y: y + 0.8 + Math.random() * 1.2, duration: 0.45, ease: "power2.out" }, { y: y - 1.2, duration: 0.8, ease: "power2.in" }] });
-      gsap.to(bit.material, { opacity: 0, delay: 0.9, duration: 0.4, onComplete: () => (bit.visible = false) });
+      const r = (0.8 + Math.random() * 1.4) * (celebration ? 1.45 : 1);
+      gsap.to(bit.position, { x: x + Math.cos(a) * r, z: celebration ? frontZ + 0.15 + Math.random() * 0.35 : z + Math.sin(a) * r * 0.6, duration: duration * 0.9, delay, ease: "power2.out" });
+      gsap.to(bit.position, { delay, keyframes: [{ y: y + 0.8 + Math.random() * 1.2, duration: duration * 0.35, ease: "power2.out" }, { y: y - (celebration ? 2.2 : 1.2), duration: duration * 0.65, ease: "power2.in" }] });
+      gsap.to(bit.material, { rotation: bit.material.rotation + Math.PI * (celebration ? 4 : 1), duration, delay });
+      gsap.to(bit.material, { opacity: 0, delay: delay + duration * 0.7, duration: duration * 0.3, onComplete: () => (bit.visible = false) });
     });
   }
   let reps = 0;
@@ -4135,10 +4283,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
       gsap.to(repBadge.scale, { x: 0.001, y: 0.001, duration: 0.2, ease: "power2.in", overwrite: true });
     }, 2600);
   }
-  function lift() {
+  function lift(db = dumbbells[reps % 2]) {
     if (lifting) return;
     lifting = true;
-    const db = dumbbells[reps % 2];
+    gsap.killTweensOf(db.position);
     const y = db.userData.restY;
     gsap.timeline({ onComplete: () => (lifting = false) })
       .to(db.position, { y: y + 1.5, duration: 0.32, ease: "power2.out" })
@@ -4158,7 +4306,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
       }, null, 0.72);
     sfx.whoosh({ duration: 0.3 });
   }
-  register(gym, { onHover: hoverScale(gym, 1.03), onClick: lift });
+  dumbbells.forEach((db) => register(db, {
+    onHover: (on) => {
+      if (lifting) return;
+      gsap.to(db.position, { y: db.userData.restY + (on ? 0.14 : 0), duration: on ? 0.25 : 0.35, ease: "power2.out", overwrite: true });
+    },
+    onClick: () => lift(db),
+  }));
+  register(gym, { onClick: () => lift() });
 
   // ---------- monitor + terminal ----------
   const monitor = new THREE.Group();
@@ -4215,7 +4370,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
     stuck.rotation.z = n.rz;
     stuck.add(shadow, note);
     monitor.add(stuck);
-    register(note, { focus: "monitor", item: true, sticky: stuck });
+    register(note, {
+      focus: "monitor", item: true, sticky: stuck,
+      // Curl the loose paper forward, keeping its draggable mounting group in place.
+      onHover: (on) => {
+        const angle = on ? -0.2 : 0;
+        gsap.to(note.rotation, { x: angle, duration: 0.25, ease: "power2.out", overwrite: true });
+        gsap.to(note.position, { y: 0.31 * (1 - Math.cos(angle)), z: -0.31 * Math.sin(angle), duration: 0.25, ease: "power2.out", overwrite: true });
+      },
+    });
   });
 
   // Speakers either side of the monitor: click one to switch the sound on or off. The LED
@@ -4329,7 +4492,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const entry = { group: speaker, woofer, dustCap, tweeter };
     speakers.push(entry);
     register(speaker, {
-      onHover: (on) => on && pump(entry, 0.4),
+      onHover: (on) => {
+        gsap.to(speaker.rotation, { x: on ? -0.045 : 0, duration: 0.3, ease: "power2.out", overwrite: true });
+        if (on) {
+          pump(entry, 1.2);
+          floatNote(entry);
+        }
+      },
       onClick: () => {
         // Played before the switch: once muted, nothing would be heard
         if (!soundMuted) sfx.powerDown();
@@ -4544,6 +4713,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     desktop.launch("terminal");
     redrawScreen();
   };
+  const monitorEdgeRest = panelEdge.material.color.clone();
   register(monitor, {
     focus: "monitor",
     // Leaving the screen switches the console off
@@ -4558,9 +4728,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
       desktop.click(hs);
       redrawScreen();
     },
-    onHover: (on) => !on && desktop.hover(null) && redrawScreen(),
+    onHover: (on) => {
+      if (!on && desktop.hover(null)) redrawScreen();
+      // The screen acknowledges attention without moving the stand or its clickable UI.
+      gsap.to(powerLed.scale, { x: on ? 1.8 : 1, y: on ? 1.8 : 1, duration: 0.25, overwrite: true });
+      gsap.to(panelEdge.material.color, { r: on ? 0.12 : monitorEdgeRest.r, g: on ? 0.25 : monitorEdgeRest.g, b: on ? 0.23 : monitorEdgeRest.b, duration: 0.25, overwrite: true });
+    },
     onPointer: (hit) => {
-      const moved = hit ? desktop.hover(hit.uv.x * SCREEN_W, (1 - hit.uv.y) * SCREEN_H) : desktop.hover(null);
+      const moved = hit?.object === screen && hit.uv ? desktop.hover(hit.uv.x * SCREEN_W, (1 - hit.uv.y) * SCREEN_H) : desktop.hover(null);
       if (moved) redrawScreen();
     },
     // The console, Snake or Spotifree up front take their keys; anything else goes to the terminal
@@ -4846,21 +5021,26 @@ export function createDeskScene({ container, projects, experiences, dark = false
     paper.rotation.z = -THREE.MathUtils.clamp(note.rotate, -4, 4) * Math.PI / 180;
     const curl = note.id === "resume" ? 0 : 0.05 + (n % 3) * 0.02;
     const side = n % 2 ? -1 : 1;
+    const pinY = h / 2 - Math.min(0.1, h * 0.15);
+    const sheet = new THREE.Group();
+    sheet.position.y = pinY;
+    paper.add(sheet);
     const backing = mesh(curlPaper(new THREE.BoxGeometry(w, h, 0.025, 10, 10, 1), w, h, curl, side), toon("#fffdf5"), { outline: 0.018 });
     // Same canvas as a full-size paper, so the print keeps its layout and sharpness
     const face = printed(w, h, 230 / NOTE_SCALE, (c, pw, ph) => drawAboutNote(c, pw, ph, note));
     face.geometry.dispose();
     face.geometry = track(curlPaper(new THREE.PlaneGeometry(w, h, 10, 10), w, h, curl, side));
-    face.position.z = 0.014;
+    backing.position.y = -pinY;
+    face.position.set(0, -pinY, 0.014);
+    sheet.add(backing, face);
     // A strip of washi tape over a corner on a couple of them, as well as the pin
     if (TAPED[note.id]) {
       const [tx, ty] = TAPED[note.id];
       const tape = new THREE.Mesh(track(new THREE.PlaneGeometry(0.36, 0.1)), track(new THREE.MeshBasicMaterial({ color: note.id === "resume" ? "#00e0c6" : "#ff90e8", transparent: true, opacity: 0.85 })));
-      tape.position.set(tx * (w / 2 - 0.04), ty * (h / 2 - 0.03), 0.03);
+      tape.position.set(tx * (w / 2 - 0.04), ty * (h / 2 - 0.03) - pinY, 0.03);
       tape.rotation.z = tx * ty * 0.75;
-      paper.add(tape);
+      sheet.add(tape);
     }
-    const pinY = h / 2 - Math.min(0.1, h * 0.15);
     const pin = new THREE.Group();
     pin.position.set(0, pinY, 0.09);
     const head = mesh(pinGeo, toon(note.pin), { outline: 0.012 });
@@ -4878,15 +5058,21 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const shadow = new THREE.Mesh(track(new THREE.PlaneGeometry(w, h)), track(new THREE.MeshBasicMaterial({ color: "#000", transparent: true, opacity: 0.32, depthWrite: false })));
     shadow.position.set(x + 0.04, y - 0.04, 0.115);
     shadow.rotation.z = paper.rotation.z;
-    paper.add(backing, face, pinShadow, pin, ring);
+    paper.add(pinShadow, pin, ring);
     aboutBoard.add(shadow, paper);
-    return { paper, shadow, pin, pinShadow, head, ring, w, h, href: note.href, angle: paper.rotation.z };
+    return { paper, sheet, shadow, pin, pinShadow, head, highlight, ring, w, h, href: note.href, angle: paper.rotation.z };
   });
+  const boardPinGlints = [];
   // Spare push pins left stuck in the cork
   [[-3.0, -1.55, "#00e0c6"], [0.6, 1.45, "#ffdd00"], [3.02, 0.25, "#ff6b6b"], [-0.6, 1.55, "#7fb2ff"]].forEach(([x, y, color], i) => {
     const spare = mesh(pinGeo, toon(color), { outline: 0.012 });
     spare.position.set(x, y, 0.13);
     spare.scale.setScalar(0.85);
+    const glint = new THREE.Mesh(track(new THREE.SphereGeometry(0.018, 8, 6)), track(new THREE.MeshBasicMaterial({ color: "#fff", transparent: true, opacity: 0.35 })));
+    glint.position.set(-0.022, 0.023, 0.044);
+    glint.raycast = noRaycast;
+    spare.add(glint);
+    boardPinGlints.push(glint);
     const stem = mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.08, 8), toon("#9ca3af"), { outline: 0, cast: false });
     stem.rotation.set(Math.PI / 2 + (i % 2 ? 0.4 : -0.3), 0, 0.3);
     stem.position.set(x, y, 0.1);
@@ -4913,6 +5099,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
       Math.abs(a.paper.position.y - b.paper.position.y) < aa.y + bb.y;
   }
   function liftNote(note) {
+    // Drag takes over the sheet and shadow, while its pin is pulled out separately.
+    gsap.killTweensOf([note.sheet.rotation, note.shadow.material, note.highlight.scale]);
+    note.sheet.rotation.set(0, 0, 0);
+    note.shadow.material.opacity = 0.32;
+    note.highlight.scale.setScalar(1);
     gsap.killTweensOf([note.paper.position, note.paper.rotation, note.paper.scale, note.pin.position, note.pin.rotation, note.head.scale, note.shadow.position, note.shadow.rotation, note.shadow.scale, note.pinShadow.position, note.pinShadow.material, note.ring.scale, note.ring.material]);
     note.ring.material.opacity = 0;
     note.layer = ++noteLayer;
@@ -4952,12 +5143,25 @@ export function createDeskScene({ container, projects, experiences, dark = false
   boardNotes.forEach((note) => register(note.paper, {
     focus: "about", item: true, note,
     onHover: (on) => {
-      if (!noteDrag) renderer.domElement.style.cursor = on ? "grab" : "default";
+      if (noteDrag || (on && gsap.isTweening(note.pin.position))) return;
+      renderer.domElement.style.cursor = on ? "grab" : "default";
+      gsap.to(note.sheet.rotation, { x: on ? -0.24 : 0, z: on ? 0.035 : 0, duration: on ? 0.3 : 0.5, ease: on ? "back.out(1.6)" : "power2.out", overwrite: true });
+      gsap.to(note.shadow.scale, { x: on ? 1.08 : 1, y: on ? 1.08 : 1, duration: 0.3, overwrite: true });
+      gsap.to(note.shadow.material, { opacity: on ? 0.22 : 0.32, duration: 0.3, overwrite: true });
+      gsap.to(note.highlight.scale, { x: on ? 1.5 : 1, y: on ? 1.5 : 1, duration: 0.25, overwrite: true });
     },
   }));
   let boardIntroduced = false;
   register(aboutBoard, {
     focus: "about",
+    onHover: (on) => {
+      boardPinGlints.forEach((glint) => gsap.to(glint.material, { opacity: on ? 1 : 0.35, duration: 0.3, overwrite: true }));
+      // A staggered flutter reads from the room view while the cork and pins stay fixed.
+      boardNotes.forEach((note, i) => {
+        if (noteDrag?.note === note || gsap.isTweening(note.pin.position)) return;
+        gsap.to(note.sheet.rotation, { x: on ? -0.16 : 0, z: 0, delay: on ? i * 0.035 : 0, duration: on ? 0.35 : 0.5, ease: "power2.out", overwrite: true });
+      });
+    },
     onArrive: () => {
       if (boardIntroduced) return;
       boardIntroduced = true;
@@ -5059,7 +5263,20 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const sc = shortcutByCode.get(code);
     if (sc) timers.push(setTimeout(() => setFocus(sc.shot), 200));
   };
-  register(keyboard, { focus: "keyboard", onClick: hitKey });
+  let hoveredKey = null;
+  function hoverKey(hit) {
+    let key = hit?.object;
+    while (key && !key.userData.code) key = key.parent;
+    if (key === hoveredKey) return;
+    if (hoveredKey) gsap.to(hoveredKey.position, { y: KEY_Y, duration: 0.18, overwrite: true });
+    hoveredKey = key || null;
+    if (hoveredKey) gsap.to(hoveredKey.position, { y: KEY_Y + 0.09, duration: 0.18, ease: "power2.out", overwrite: true });
+  }
+  register(keyboard, {
+    focus: "keyboard", onClick: hitKey,
+    onHover: (on) => { if (!on) hoverKey(null); },
+    onPointer: hoverKey,
+  });
   const onKeyDown = (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest?.("input, textarea, [contenteditable]")) return;
     if (e.key === "Escape") {
@@ -5148,6 +5365,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   function scamper() {
     if (mouseRunning) return;
     mouseRunning = true;
+    gsap.killTweensOf(mouse.rotation);
     discover("rat");
     critter.forEach((part, i) => gsap.to(part.scale, { ...part.userData.scale, duration: 0.3, delay: i * 0.04, ease: "back.out(3)" }));
     sfx.squeak();
@@ -5190,7 +5408,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
     timers.push(setTimeout(() => sfx.squeak(), 4100));
   }
   register(mouse, {
-    onHover: hoverScale(mouse, 1.06),
+    onHover: (on) => {
+      if (mouseRunning) return;
+      gsap.to(mouse.rotation, { y: on ? -0.28 : -0.12, duration: 0.25, ease: "power2.out", overwrite: true });
+      gsap.to(wheel.rotation, { x: on ? -0.65 : 0, duration: 0.3, overwrite: true });
+    },
     onClick: () => {
       sfx.click();
       scamper();
@@ -5240,8 +5462,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     gsap.to(entry.t.rotation, { x: 0, y: to.r, duration: 0.4 });
     gsap.to(entry.t.scale, { x: 1, y: 1, z: 1, duration: 0.4 });
   }
-  // Hover works like a wallet's card stack: the hovered pass stays put and every pass lying
-  // over it (the ones behind it in the fan) slides back to open a gap, so it shows whole.
+  // Hover works like a wallet's card stack: the selected pass peeks forward and sideways;
+  // every pass over it slides back to open a gap, so its face reads clearly.
   // Each pass only ever moves along its own layer, so nothing can pass through anything,
   // and every offset rides a critically damped spring, so sweeping fast stays smooth.
   const TICKET_REVEAL = 0.62; // the overlap with the pass behind (fan step 0.45, depth 1.0) plus a margin
@@ -5254,10 +5476,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const hoveredIndex = ticketList.findIndex((entry) => entry.hoverTarget === 1 && entry !== heldTicket);
     ticketList.forEach((entry, i) => {
       if (entry === heldTicket) return;
-      const goalZ = hoveredIndex >= 0 && i < hoveredIndex ? -TICKET_REVEAL : 0;
+      const goalZ = i === hoveredIndex ? 0.24 : hoveredIndex >= 0 && i < hoveredIndex ? -TICKET_REVEAL : 0;
+      const goalX = i === hoveredIndex ? 0.12 : 0;
       // A hair of lift for the hovered one, well under the 0.024 gap between layers
       const goalY = i === hoveredIndex ? 0.01 : 0;
       const p = entry.flipper.position;
+      entry.vx = (entry.vx || 0) + (SPRING * (goalX - p.x) - DAMPING * (entry.vx || 0)) * dt;
+      p.x += entry.vx * dt;
       entry.vz = (entry.vz || 0) + (SPRING * (goalZ - p.z) - DAMPING * (entry.vz || 0)) * dt;
       entry.vy = (entry.vy || 0) + (SPRING * (goalY - p.y) - DAMPING * (entry.vy || 0)) * dt;
       p.z += entry.vz * dt;
@@ -5266,8 +5491,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   }
   function holdTicket(entry) {
     if (heldTicket === entry) return;
-    Object.assign(entry, { vz: 0, vy: 0, hoverTarget: 0 });
-    gsap.to(entry.flipper.position, { y: 0, z: 0, duration: 0.3, ease: "power2.out" });
+    Object.assign(entry, { vx: 0, vz: 0, vy: 0, hoverTarget: 0 });
+    gsap.to(entry.flipper.position, { x: 0, y: 0, z: 0, duration: 0.3, ease: "power2.out" });
     if (heldTicket) settleTicket(heldTicket, heldTicket.fan);
     heldTicket = entry;
     gsap.to(entry.t.position, { ...HOLD, duration: 0.5, ease: "back.out(1.4)" });
@@ -5473,6 +5698,24 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const bell = mesh(new THREE.SphereGeometry(0.075, 12, 10), toon("#ffd34d"), { outline: 0.01, cast: false });
   bell.position.set(0, -0.44, 0.32);
   catHead.add(collar, bell);
+  const catNeck = mesh(new THREE.SphereGeometry(1, 16, 12), fur, { outline: 0 });
+  cat.add(catNeck);
+  const neckBase = new THREE.Vector3();
+  const neckTop = new THREE.Vector3();
+  const neckDirection = new THREE.Vector3();
+  function updateCatNeck() {
+    catNeck.visible = catChest.visible;
+    if (!catNeck.visible) return;
+    catBody.localToWorld(neckBase.set(0.72, 0.78, 0));
+    catHead.localToWorld(neckTop.set(0, -0.24, -0.1));
+    catNeck.parent.worldToLocal(neckBase);
+    catNeck.parent.worldToLocal(neckTop);
+    neckDirection.subVectors(neckTop, neckBase);
+    const length = neckDirection.length();
+    catNeck.position.copy(neckBase).add(neckTop).multiplyScalar(0.5);
+    catNeck.scale.set(0.27, length / 2 + 0.18, 0.27);
+    if (length > 0.0001) catNeck.quaternion.setFromUnitVectors(UP, neckDirection.divideScalar(length));
+  }
   // Tail: wrapped round her front when curled, held up in a hook when she walks
   const tailTube = (points, radius) => mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points.map(([x, y, z]) => new THREE.Vector3(x, y, z))), 32, radius, 10), fur, { outline: 0.015 });
   const tailCurl = new THREE.Group();
@@ -5653,7 +5896,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const dy = catLook.y - catHead.position.y;
     const dz = catLook.z - catHead.position.z;
     const yaw = THREE.MathUtils.clamp(Math.atan2(dx, dz), HEAD_REST_YAW - 0.7, HEAD_REST_YAW + 0.7);
-    const pitch = THREE.MathUtils.clamp(Math.atan2(dy, Math.hypot(dx, dz)), -0.2, 0.8);
+    const pitch = THREE.MathUtils.clamp(Math.atan2(dy, Math.hypot(dx, dz)), -0.2, 0.55);
     catHead.rotation.y += (yaw - catHead.rotation.y) * 0.07;
     catHead.rotation.x += (-pitch - catHead.rotation.x) * 0.07;
   }
@@ -5975,7 +6218,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       });
       tl.to({}, { duration: 0.6 });
       // head raised toward the glass
-      tl.to(catHead.position, { y: HEAD_UP.y + 0.2, duration: 0.35, ease: "power2.out" });
+      tl.to(catHead.position, { y: HEAD_UP.y + 0.08, duration: 0.35, ease: "power2.out" });
       catWatch(tl, windowPoint, 6, tailUp);
       tl.call(() => sfx.meow({ short: true }), null, "-=3");
       tl.to(cat.rotation, { y: restYaw, duration: 0.6, ease: "power2.inOut" });
@@ -6228,14 +6471,20 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // Unread message: the phone buzzes now and then until you pick it up
   const buzz = () => {
     if (!unread || focus.name !== "overview") return;
-    gsap.fromTo(phone.rotation, { z: 0.06 }, { z: 0, duration: 0.5, ease: "elastic.out(1.4, 0.2)" });
+    gsap.fromTo(phone.rotation, { z: 0.06 }, { z: 0, duration: 0.5, ease: "elastic.out(1.4, 0.2)", overwrite: "auto" });
   };
   const buzzTimer = setInterval(buzz, 4000);
   register(phoneStand, {
     focus: "chat",
-    onHover: hoverScale(phone, 1.05),
+    onHover: (on) => {
+      if (focus.name === "chat") return;
+      gsap.to(phone.rotation, { x: on ? -0.2 : -0.28, z: 0, duration: 0.25, overwrite: true });
+      if (on) buzz();
+    },
     // Arrival: the phone hops, the unread badge clears and the chat box takes the keyboard
     onArrive: () => {
+      gsap.killTweensOf(phone.rotation);
+      phone.rotation.set(-0.28, 0, 0);
       gsap.fromTo(phone.position, { y: 1.26 }, { y: 1.12, duration: 0.4, ease: "bounce.out" });
       unread = false;
       sfx.ping();
@@ -6583,8 +6832,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
       focus: "projects",
       item: true,
       // In the drawer a folder is pulled up a little (its local -z points up while it stands)
-      onHover: (on) =>
-        gsap.to(entry.body.position, { y: 0, z: on && !openFolder ? -0.22 : 0, duration: 0.4, ease: "sine.inOut", overwrite: true }),
+      onHover: (on) => {
+        const lift = on && !openFolder;
+        gsap.to(entry.body.position, { y: 0, z: lift ? -0.42 : 0, duration: lift ? 0.28 : 0.4, ease: "power2.out", overwrite: true });
+      },
       onClick: clickFolder,
       onHotspot: (hs) => openFolder && turnSheet(hs.action === "prev" ? -1 : 1),
     }),
@@ -6593,6 +6844,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     focus: "projects",
     onLeave: () => {
       if (openFolder) closeProject();
+    },
+    onHover: (on) => {
+      gsap.to(drawerHandle.position, { z: DRAWER_D / 2 + (on && !openFolder ? 0.23 : 0.13), duration: 0.25, overwrite: true });
+      folderList[frontIndex()] && interactive.get(folderList[frontIndex()].f).onHover(on);
     },
     onClick: clickFolder,
     onKey: (e) => {
@@ -6751,6 +7006,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     envelope.visible = true;
     envelope.position.set(0, 0.04, 0);
     envelope.rotation.set(0, 0, 0);
+    gsap.killTweensOf(flap.rotation);
     flap.rotation.x = 0;
     flap.position.y = 0.075;
     envTop.userData.tex.redraw({ delivered: false });
@@ -6810,7 +7066,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
   }
   register(mail, {
     focus: "contact",
-    onHover: (on) => focus.name !== "contact" && hoverScale(mail, 1.04)(on),
+    onHover: (on) => {
+      if (focus.name === "contact") return;
+      gsap.to(flap.rotation, { x: on ? -0.32 : 0, duration: 0.3, ease: "power2.out", overwrite: true });
+    },
     onArrive: openEnvelope,
     onLeave: resetEnvelope,
     onHotspot: (hs) => cardReady && (hs.id === "send" ? sendCard() : editField(hs.id)),
@@ -6953,6 +7212,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   function sip() {
     if (sipping || sipsLeft === 0) return;
     sipping = true;
+    gsap.killTweensOf(mug.position);
     // No steam while it's at your lips (nor after: it's no longer full)
     puffs.forEach((puff) => (puff.visible = false));
     // Lift and tip the rim toward you, then put it back down
@@ -6992,8 +7252,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
     focus: "mug",
     onHover: (on) => {
       if (sipping) return;
-      gsap.to(mug.position, { y: on ? MUG_Y + 0.08 : MUG_Y, duration: 0.22, ease: on ? "back.out(2.5)" : "power2.out" });
-      gsap.to(mug.scale, { x: on ? 1.06 : 1, y: on ? 1.06 : 1, z: on ? 1.06 : 1, duration: 0.22, ease: on ? "back.out(2.5)" : "power2.out" });
+      gsap.to(mug.position, { y: on ? MUG_Y + 0.06 : MUG_Y, duration: 0.3, ease: "power2.out", overwrite: true });
+      gsap.to(steam.scale, { x: on ? 1 : 0.8, y: on ? 1.95 : 1.6, duration: 0.4, overwrite: true });
+      if (on) gsap.fromTo(crema.rotation, { z: -0.12 }, { z: 0, duration: 0.7, ease: "elastic.out(1, 0.4)", overwrite: true });
     },
     onArrive: sip,
     onClick: sip,
@@ -7141,8 +7402,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const pickHover = (e) => {
     rayFromPointer(e);
     const hits = visibleHits();
+    const nearest = hits[0] ? entryFor(hits[0].object) : null;
+    // A paper in front of its board must take hover from the parent behind it.
+    // Keep the existing retention for overlapping peers such as tickets and folders.
+    if (hovered && nearest?.object !== hovered.object) {
+      for (let o = nearest?.object.parent; o; o = o.parent) if (o === hovered.object) return nearest;
+    }
     if (hovered && hits.some((h) => entryFor(h.object)?.object === hovered.object)) return hovered;
-    return hits[0] ? entryFor(hits[0].object) : null;
+    return nearest;
   };
   const setHover = (entry) => {
     if (hovered?.object === entry?.object) return;
@@ -7250,7 +7517,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       setHover(pickHover(e));
       if (hovered?.onPointer) {
         const hit = visibleHits()[0];
-        hovered.onPointer(hit?.object === screen && hit.uv ? hit : null);
+        hovered.onPointer(entryFor(hit?.object)?.object === hovered.object ? hit : null);
       }
       if (lanyardUnder(e)?.strap) renderer.domElement.style.cursor = "grab";
       mouseAim.x = MOUSE_ORIGIN.x + parallax.tx * 0.6;
@@ -7344,12 +7611,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
     return drag;
   }
   const onPointerCancel = (e) => {
+    setHover(null);
     if (finishShelfDrag(e.pointerId)) downAt = null;
     finishStickyDrag(e.pointerId);
     finishNoteDrag(e.pointerId);
     if (lanyardDrag?.pointerId === e.pointerId) finishLanyardDrag();
   };
   const onWindowBlur = () => {
+    setHover(null);
     if (finishShelfDrag()) downAt = null;
     finishStickyDrag();
     finishNoteDrag();
@@ -7540,6 +7809,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   let arriveTimer = null;
   function setFocus(name, hit = null) {
     if (focus.name === name) return;
+    setHover(null);
     stopTyping();
     byFocus.get(focus.name)?.onLeave?.();
     clearTimeout(arriveTimer);
@@ -7569,7 +7839,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
 
   // A clickable rectangle printed on a texture, under the pointer
   function hotspotAt(hit) {
-    const t = hit.object.userData.tex;
+    const t = hit?.object.userData.tex;
     if (!t?.hotspots?.length || !hit.uv) return null;
     const px = hit.uv.x * t.canvas.width;
     const py = (1 - hit.uv.y) * t.canvas.height;
@@ -7583,6 +7853,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   }
 
   function handleClick(entry, hit) {
+    setHover(null);
     if (!entry.focus || focus.name === entry.focus) {
       const hs = entry.focus && hotspotAt(hit);
       if (typing && hs?.id !== typing.id) stopTyping();
@@ -7652,6 +7923,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     updateShelfLeds(now);
     updateCatWatch(now);
     updateCatLife(now);
+    updateCatNeck();
     updateSecondHand();
     outside.t += dt;
     outside.rain += (outside.rainTarget - outside.rain) * Math.min(1, dt * 0.35);
@@ -7696,6 +7968,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
       if (!termBusy) redrawTerminal();
       typing?.redraw();
     }
+    if (shelfBubbleTarget === trophy && shelfBubble.sprite.scale.x > 0.01) placeTrophyBubble();
+    if (trophyCelebrating) trophy.localToWorld(trophyHalo.position.set(0, 0.9, -0.2));
     if (hatBubble.sprite.scale.x > 0.01) placeHatBubble();
     if (catBubble.sprite.scale.x > 0.01) placeCatBubble();
     // The desktop animates (windows, dock, the player's visualizer) at about 30 fps
@@ -7731,6 +8005,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   intro = gsap.to(cam, { zoom: settledZoom, duration: 1.4, ease: "power2.out", delay: 0.15 });
   let firstFrame = true;
   frame = requestAnimationFrame(tick);
+  if (previewTrophy) timers.push(setTimeout(celebrateSecrets, 2000));
 
   return {
     setTheme: setRoomTheme,
@@ -7760,7 +8035,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
       clearTimeout(shoutTimer);
       intro.kill();
       mailIntro?.kill();
-      gsap.killTweensOf(cam);
+      trophyCelebration?.kill();
+      gsap.killTweensOf(trophyHalo.material);
+      confetti.forEach((bit) => gsap.killTweensOf(bit.material));
+      gsap.killTweensOf([cam, stringVibration, stringMat.color, windowGlare.material, glareTex.texture.offset, panelEdge.material.color]);
+      boardPinGlints.forEach((glint) => gsap.killTweensOf(glint.material));
       ro.disconnect();
       window.removeEventListener("resize", resize);
       window.visualViewport?.removeEventListener("resize", resize);
@@ -7778,7 +8057,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       renderer.domElement.removeEventListener("lostpointercapture", onPointerCancel);
       window.removeEventListener("blur", onWindowBlur);
       scene.traverse((o) => gsap.killTweensOf([o.position, o.rotation, o.scale]));
-      boardNotes.forEach((note) => gsap.killTweensOf([note.ring.material, note.pinShadow.material]));
+      boardNotes.forEach((note) => gsap.killTweensOf([note.ring.material, note.pinShadow.material, note.shadow.material]));
       disposables.forEach((d) => d.dispose?.());
       sun.shadow.dispose();
       windowLight.shadow.dispose();

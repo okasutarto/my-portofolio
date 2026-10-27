@@ -47,7 +47,30 @@ function createContext() {
   noiseBuffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
   const data = noiseBuffer.getChannelData(0);
   for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  void loadSamples();
   return ctx;
+}
+
+// A few recorded blade sounds (Kenney RPG Audio, CC0) layered under the synth, which can't fake
+// the grain of real steel. Until they've loaded (or if they fail) the synth plays alone.
+const SAMPLE_FILES = { draw: ["blade-draw-1", "blade-draw-2"], slice: ["blade-slice-1", "blade-slice-2"] };
+const samples = {};
+let samplesLoading = null;
+
+function loadSamples() {
+  if (samplesLoading) return samplesLoading;
+  const loadOne = async (file) => {
+    const res = await fetch(`${process.env.BASE_URL}sfx/${file}.m4a`);
+    if (!res.ok) throw new Error(file);
+    return ctx.decodeAudioData(await res.arrayBuffer());
+  };
+  samplesLoading = Promise.all(
+    Object.entries(SAMPLE_FILES).map(async ([group, files]) => {
+      const buffers = await Promise.allSettled(files.map(loadOne));
+      samples[group] = buffers.filter((r) => r.status === "fulfilled").map((r) => r.value);
+    }),
+  );
+  return samplesLoading;
 }
 
 const unlock = async () => {
@@ -96,6 +119,22 @@ export function initializeAudio() {
 );
 
 // ---------- building blocks ----------
+// One of a group's recordings, picked at random and nudged in pitch so repeats don't sound
+// identical. False when none is loaded, so the caller can fall back to pure synth.
+function sample(t, group, { peak = 0.5, rate = 1 } = {}) {
+  const list = samples[group];
+  if (!list || !list.length) return false;
+  const src = ctx.createBufferSource();
+  src.buffer = list[Math.floor(Math.random() * list.length)];
+  src.playbackRate.value = vary(rate, 0.06);
+  const gain = ctx.createGain();
+  gain.gain.value = vary(peak, 0.1);
+  src.connect(gain).connect(out);
+  src.onended = () => gain.disconnect();
+  src.start(t);
+  return true;
+}
+
 // Attack/decay envelope on a gain node
 function envelope(gain, t, { attack = 0.005, peak = 0.5, decay = 0.15 }) {
   gain.gain.setValueAtTime(0.0001, t);
@@ -501,9 +540,18 @@ const SOUNDS = {
   // A katana drawn: steel sliding out along the saya's wooden mouth, a dry "shhk" that rises,
   // ending in a low, short hum of the freed blade (no bright bell ring)
   shing(t) {
-    noise(t, { filter: "bandpass", freq: 900, to: 3800, q: 2.2, attack: 0.05, peak: 0.22, decay: 0.32 });
-    noise(t + 0.02, { filter: "highpass", freq: 2500, to: 5200, q: 0.7, attack: 0.04, peak: 0.07, decay: 0.3 });
+    // With the recording carrying the scrape, the synth scrape drops to a thin layer of air
+    const real = sample(t, "draw", { peak: 0.45 });
+    const layer = real ? 0.35 : 1;
+    noise(t, { filter: "bandpass", freq: 900, to: 3800, q: 2.2, attack: 0.05, peak: 0.22 * layer, decay: 0.32 });
+    noise(t + 0.02, { filter: "highpass", freq: 2500, to: 5200, q: 0.7, attack: 0.04, peak: 0.07 * layer, decay: 0.3 });
     tone(t + 0.3, { type: "triangle", freq: 620, to: 590, attack: 0.01, peak: 0.05, decay: 0.35 });
+  },
+  // The cut itself: a recorded blade slicing through, over a short falling rush of air (just the
+  // old synth whoosh when the recording isn't there)
+  slash(t) {
+    const real = sample(t, "slice", { peak: 0.4 });
+    noise(t, { filter: "bandpass", freq: 2200, to: 500, q: 1.2, attack: 0.02, peak: real ? 0.12 : 0.3, decay: 0.25 });
   },
   // Sheathed: the scrape going home, falling in pitch, then the dull wooden "tak" of the guard
   // seating against the saya's mouth
@@ -613,7 +661,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { cheer: 2, applause: 3, meow: 0.3, purr: 1.5, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, shing: 0.5, sheathe: 0.4, whooshAway: 0.4, power: 1.4, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
+const MIN_GAP = { cheer: 2, applause: 3, meow: 0.3, purr: 1.5, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, shing: 0.5, slash: 0.15, sheathe: 0.4, whooshAway: 0.4, power: 1.4, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || (ctx.state !== "running" && !resuming) || document.hidden) return;

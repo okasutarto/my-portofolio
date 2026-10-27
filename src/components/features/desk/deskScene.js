@@ -3716,7 +3716,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
         // the rack, which hid them
         cutAt.set(katanaWorld.x - 0.9, katanaWorld.y + 0.5, katanaWorld.z + 0.2);
         playTechnique(technique, sword.style);
-        sfx.whoosh({ duration: 0.25, up: false });
+        sfx.slash();
         if (FLYING.has(technique)) sfx.whooshAway({ delay: 0.1 });
         if (sword.style === "wado") {
           // light catching the tip as it cuts

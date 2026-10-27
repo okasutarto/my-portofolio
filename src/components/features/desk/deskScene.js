@@ -4390,41 +4390,76 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const monitor = new THREE.Group();
   monitor.position.set(-0.2, 0, -2.75);
   scene.add(monitor);
-  // iMac-style, in black: a thin slab with a black bezel around the screen, a dark chin below
-  // it, on a flat foot with a slanted plate for a stand (a few near-blacks, so it keeps its shape)
-  const aluminium = toon("#2b2d31");
-  const base = mesh(rbox(1.75, 0.07, 1.3, 0.03), aluminium, { outline: 0.03 });
-  base.position.set(0, 0.035, -0.15);
-  const neck = mesh(rbox(1.3, 1.75, 0.09, 0.03), aluminium, { outline: 0.03 });
-  neck.position.set(0, 0.9, -0.42);
-  neck.rotation.x = 0.16;
-  const body = mesh(rbox(4.6, 3.2, 0.14, 0.1), toon("#1f2125"), { outline: 0.06 });
-  body.position.set(0, 2.4, 0);
-  const bezel = mesh(rbox(4.46, 2.62, 0.02, 0.06), toon("#141518"), { outline: 0, cast: false });
-  bezel.position.set(0, 2.63, 0.075);
-  monitor.add(base, neck, body, bezel);
-  // The details: a thin black border round the panel, a webcam in the top bezel, a dark chin
-  // with a little logo and a power light, and the cable hole through the stand
-  // between the bezel's face (z 0.085) and the screen (z 0.09)
+  // A gaming monitor, to go with the PC: a thin black bezel round the screen with a slim lip
+  // under it (a small mark and a power light), a rounded housing behind, on a gunmetal column
+  // and a V-shaped foot with teal tips. Behind it, an RGB bias light washes the wall in the
+  // PC's colours, and a cable runs from it along the back of the desk into the PC.
+  // (The screen stays where it was: 4.0 × 2.4 at y 2.63, z 0.09.)
+  const gunmetal = toon("#3a3e45");
+  const monitorBlack = toon("#1b1c20");
+  // the panel's frame: 1.25 (under the lip) to 3.94, a hair round the screen at the sides and top
+  const body = mesh(rbox(4.24, 2.69, 0.12, 0.05), monitorBlack, { outline: 0.05 });
+  body.position.set(0, 2.595, 0);
+  const bezel = mesh(rbox(4.16, 2.6, 0.02, 0.04), toon("#121316"), { outline: 0, cast: false });
+  bezel.position.set(0, 2.6, 0.07);
+  const housing = mesh(rbox(2.5, 1.55, 0.42, 0.16), monitorBlack, { outline: 0.03 });
+  housing.position.set(0, 2.45, -0.26);
+  // the stand: a column from the housing down to a V-shaped foot
+  const neck = mesh(rbox(0.36, 1.95, 0.18, 0.06), gunmetal, { outline: 0.025 });
+  neck.position.set(0, 1.25, -0.5);
+  neck.rotation.x = 0.06;
+  const footHub = mesh(new THREE.CylinderGeometry(0.24, 0.26, 0.08, 20), gunmetal, { outline: 0.02 });
+  footHub.position.set(0, 0.04, -0.52);
+  const footArms = [-1, 1].map((side) => {
+    const arm = mesh(rbox(0.2, 0.07, 1.3, 0.03), gunmetal, { outline: 0.02 });
+    arm.rotation.y = side * 0.55;
+    arm.position.set(side * 0.34, 0.035, 0.02);
+    const tip = mesh(rbox(0.21, 0.075, 0.18, 0.03), toon("#00e0c6"), { outline: 0.012, cast: false });
+    tip.position.set(0, 0, 0.56);
+    arm.add(tip);
+    return arm;
+  });
+  monitor.add(body, bezel, housing, neck, footHub, ...footArms);
+  // The details: a thin black border round the panel, a small mark in the lip under it and a
+  // power light at its right end, the cable hole in the column
+  // between the bezel's face (z 0.08) and the screen (z 0.09)
   const panelEdge = mesh(rbox(4.08, 2.44, 0.006, 0.002), toon("#1a1714"), { outline: 0, cast: false });
   panelEdge.position.set(0, 2.63, 0.084);
-  // in the strip of bezel above the panel (3.85 to 3.94)
-  const webcam = new THREE.Mesh(track(new THREE.CircleGeometry(0.03, 16)), track(new THREE.MeshBasicMaterial({ color: "#2a2d33" })));
-  webcam.position.set(0, 3.897, 0.087);
-  const webcamLens = new THREE.Mesh(track(new THREE.CircleGeometry(0.012, 12)), track(new THREE.MeshBasicMaterial({ color: "#5a7bb0" })));
-  webcamLens.position.set(0, 3.897, 0.088);
-  const chin = mesh(rbox(4.5, 0.46, 0.02, 0.05), toon("#26282d"), { outline: 0, cast: false });
-  chin.position.set(0, 1.06, 0.072);
-  // a small, plain round mark (the pentagon read as clutter)
-  const chinLogo = new THREE.Mesh(track(new THREE.CircleGeometry(0.05, 24)), track(new THREE.MeshBasicMaterial({ color: "#5c6169" })));
-  chinLogo.position.set(0, 1.06, 0.085);
-  const powerLed = new THREE.Mesh(track(new THREE.CircleGeometry(0.025, 10)), track(new THREE.MeshBasicMaterial({ color: "#16a34a" })));
-  powerLed.position.set(1.95, 0.95, 0.085);
-  const cableHole = new THREE.Mesh(track(new THREE.CircleGeometry(0.12, 18)), track(new THREE.MeshBasicMaterial({ color: "#0e0f11" })));
-  cableHole.position.set(0, 0.25, 0.05);
+  const lipMark = new THREE.Mesh(track(new THREE.CircleGeometry(0.045, 3)), track(new THREE.MeshBasicMaterial({ color: "#e11d48" })));
+  lipMark.position.set(0, 1.34, 0.086);
+  lipMark.rotation.z = Math.PI / 2;
+  const powerLed = new THREE.Mesh(track(new THREE.CircleGeometry(0.022, 10)), track(new THREE.MeshBasicMaterial({ color: "#7fdfff" })));
+  powerLed.position.set(1.9, 1.34, 0.086);
+  const cableHole = new THREE.Mesh(track(new THREE.CircleGeometry(0.08, 16)), track(new THREE.MeshBasicMaterial({ color: "#0e0f11" })));
+  cableHole.position.set(0, -0.55, -0.095);
+  cableHole.rotation.y = Math.PI;
   neck.add(cableHole);
-  [panelEdge, webcam, webcamLens, chin, chinLogo, powerLed].forEach((part) => (part.raycast = noRaycast));
-  monitor.add(panelEdge, webcam, webcamLens, chin, chinLogo, powerLed);
+  [panelEdge, lipMark, powerLed].forEach((part) => (part.raycast = noRaycast));
+  monitor.add(panelEdge, lipMark, powerLed);
+  // The bias light: a soft glow on the wall behind the monitor in the PC's colours (it adds
+  // light, so it only really shows once the room's dark)
+  const biasTex = canvasTexture(256, 160);
+  track(biasTex.texture);
+  const biasGlow = biasTex.ctx.createRadialGradient(128, 80, 10, 128, 80, 128);
+  biasGlow.addColorStop(0, "rgba(255,255,255,.9)");
+  biasGlow.addColorStop(1, "rgba(255,255,255,0)");
+  biasTex.ctx.fillStyle = biasGlow;
+  biasTex.ctx.fillRect(0, 0, 256, 160);
+  biasTex.texture.needsUpdate = true;
+  const biasMat = track(new THREE.MeshBasicMaterial({ map: biasTex.texture, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.6 }));
+  pcRgbParts.push({ mat: biasMat, offset: 0.35 });
+  const biasLight = new THREE.Mesh(track(new THREE.PlaneGeometry(6.4, 4.0)), biasMat);
+  biasLight.position.set(monitor.position.x, 2.55, WALL_Z + 0.14);
+  biasLight.raycast = noRaycast;
+  scene.add(biasLight);
+  // The display cable: out of the column, down to the desk, along its back edge behind the
+  // right speaker, and into the back of the PC
+  const displayCable = new THREE.CatmullRomCurve3([
+    [-0.2, 0.75, -3.33], [-0.15, 0.12, -3.5], [0.6, 0.04, -3.95], [2.6, 0.04, -4.15], [4.4, 0.05, -4.15], [4.85, 0.35, -4.1], [4.95, 0.7, -4.05],
+  ].map(([x, y, z]) => new THREE.Vector3(x, y, z)));
+  const cable = mesh(new THREE.TubeGeometry(displayCable, 64, 0.04, 8), toon("#141518"), { outline: 0.01, cast: false });
+  cable.raycast = noRaycast;
+  scene.add(cable);
   // Sticky notes on the right of the bezel, each with a hard little shadow behind it
   const noteShadowMat = track(new THREE.MeshBasicMaterial({ color: "#000000" }));
   [
@@ -7720,8 +7755,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     // Square on the window in the left wall. A shallow clip: the desk's left end sits close to it.
     // The window, with its weather card on the wall to its left
     window: () => ({ target: [windowGroup.position.x + 0.1, windowGroup.position.y + 0.15, windowGroup.position.z + 1.55], dir: [1, 0.08, 0.04], fit: [8.6, 6.2], depth: 1.4 }),
-    // Framed a little high, with room under the monitor's chin for the command chips and the
-    // hint (they'd sit over the chin otherwise)
+    // Framed a little high, with room under the monitor's lower edge for the command chips and
+    // the hint (they'd sit over the screen's bottom otherwise)
     monitor: () => ({ target: [-0.2, 2.25, -2.66], dir: [0.1, 0.32, 1], fit: [5.2, 4.6] }),
     keyboard: () => ({ target: [0.2, 0.3, 0.75], dir: [0.1, 1, 0.75], fit: [5.4, 2.6] }),
     // A higher angle pushes the plant above the frame and leaves room for the sip quote.

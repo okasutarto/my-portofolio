@@ -310,10 +310,10 @@ const openFile = async (index) => {
     // The cover swings over to the left and lies flat
     .to(coverRef.value, { rotationY: -180, duration: 0.8, ease: "power2.inOut" }, 0.75);
   // pulled out of the drawer, the drawer rolls away, the cover is swung open and lands flat
-  tl.call(() => sfx.slide({ duration: 0.4 }), null, 0)
+  tl.call(() => sfx.folderSlide({ duration: 0.5 }), null, 0)
     .call(() => sfx.drawer({ duration: 0.6 }), null, 0.05)
-    .call(() => sfx.slide({ duration: 0.5, up: false }), null, 0.8)
-    .call(() => sfx.flop(), null, 1.5);
+    .call(() => sfx.coverOpen({ duration: 0.8 }), null, 0.75)
+    .call(() => sfx.flop({ recorded: false }), null, 1.5);
 };
 
 const closeFile = async () => {

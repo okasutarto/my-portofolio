@@ -51,9 +51,26 @@ function createContext() {
   return ctx;
 }
 
-// A few recorded blade sounds (Kenney RPG Audio, CC0) layered under the synth, which can't fake
-// the grain of real steel. Until they've loaded (or if they fail) the synth plays alone.
-const SAMPLE_FILES = { draw: ["blade-draw-1", "blade-draw-2"], slice: ["blade-slice-1", "blade-slice-2"] };
+// A few recorded sounds (Kenney RPG Audio, CC0) layered under the synth, which can't fake the
+// grain of real steel, paper or wood. Until they've loaded (or if they fail) the synth plays alone.
+const SAMPLE_FILES = {
+  draw: ["blade-draw-1", "blade-draw-2"],
+  slice: ["blade-slice-1", "blade-slice-2"],
+  pages: ["page-flip-1", "page-flip-2", "page-flip-3"],
+  cover: ["cover-close-1"],
+  creak: ["creak-1", "creak-2"],
+  // Kenney Impact Sounds (CC0), one set per object so a recording never lands on the wrong thing
+  paw: ["paw-land-1", "paw-land-2", "paw-land-3"],
+  mug: ["mug-down-1", "mug-down-2"],
+  dumbbell: ["dumbbell-1", "dumbbell-2", "dumbbell-3"],
+  rack: ["wood-rack-1", "wood-rack-2"],
+  plastic: ["plastic-click-1", "plastic-click-2", "plastic-click-3"],
+  tin: ["tin-hit-1", "tin-hit-2", "tin-hit-3"],
+  book: ["book-place-1", "book-place-2", "book-place-3"],
+  bell: ["clock-bell-1"],
+  // OpenGameArt (CC0): qubodup's drink set
+  swallow: ["swallow-1"],
+};
 const samples = {};
 let samplesLoading = null;
 
@@ -121,18 +138,46 @@ export function initializeAudio() {
 // ---------- building blocks ----------
 // One of a group's recordings, picked at random and nudged in pitch so repeats don't sound
 // identical. False when none is loaded, so the caller can fall back to pure synth.
-function sample(t, group, { peak = 0.5, rate = 1 } = {}) {
+// `duration` fades it out early to fit a shorter motion; `send` feeds some of it to the hall.
+function sample(t, group, { peak = 0.5, rate = 1, duration, send = 0 } = {}) {
   const list = samples[group];
   if (!list || !list.length) return false;
   const src = ctx.createBufferSource();
   src.buffer = list[Math.floor(Math.random() * list.length)];
   src.playbackRate.value = vary(rate, 0.06);
   const gain = ctx.createGain();
-  gain.gain.value = vary(peak, 0.1);
+  const level = vary(peak, 0.1);
+  gain.gain.setValueAtTime(level, t);
+  if (duration) {
+    gain.gain.setValueAtTime(level, t + duration * 0.6);
+    gain.gain.linearRampToValueAtTime(0.0001, t + duration);
+  }
   src.connect(gain).connect(out);
+  if (send) toHall(gain, send);
   src.onended = () => gain.disconnect();
   src.start(t);
+  if (duration) src.stop(t + duration + 0.02);
   return true;
+}
+
+// A big hall, built once from decaying noise, for the few sounds that need space around them
+let hall = null;
+function toHall(node, amount) {
+  if (!hall || hall.context !== ctx) {
+    const len = Math.floor(ctx.sampleRate * 3.2);
+    const ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = ir.getChannelData(ch);
+      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.5);
+    }
+    const convolver = ctx.createConvolver();
+    convolver.buffer = ir;
+    hall = ctx.createGain();
+    hall.connect(convolver).connect(out);
+  }
+  const send = ctx.createGain();
+  send.gain.value = amount;
+  node.connect(send).connect(hall);
 }
 
 // Attack/decay envelope on a gain node
@@ -142,7 +187,7 @@ function envelope(gain, t, { attack = 0.005, peak = 0.5, decay = 0.15 }) {
   gain.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay);
 }
 
-function tone(t, { type = "sine", freq = 440, to, attack, peak, decay = 0.15 }) {
+function tone(t, { type = "sine", freq = 440, to, attack, peak, decay = 0.15, send = 0 }) {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.type = type;
@@ -150,11 +195,12 @@ function tone(t, { type = "sine", freq = 440, to, attack, peak, decay = 0.15 }) 
   if (to) osc.frequency.exponentialRampToValueAtTime(to, t + (attack || 0.005) + decay);
   envelope(gain, t, { attack, peak, decay });
   osc.connect(gain).connect(out);
+  if (send) toHall(gain, send);
   osc.start(t);
   osc.stop(t + (attack || 0.005) + decay + 0.05);
 }
 
-function noise(t, { filter = "bandpass", freq = 1500, to, q = 1, attack, peak, decay = 0.15 }) {
+function noise(t, { filter = "bandpass", freq = 1500, to, q = 1, attack, peak, decay = 0.15, send = 0 }) {
   const src = ctx.createBufferSource();
   src.buffer = noiseBuffer;
   const biquad = ctx.createBiquadFilter();
@@ -165,6 +211,7 @@ function noise(t, { filter = "bandpass", freq = 1500, to, q = 1, attack, peak, d
   const gain = ctx.createGain();
   envelope(gain, t, { attack, peak, decay });
   src.connect(biquad).connect(gain).connect(out);
+  if (send) toHall(gain, send);
   src.start(t, Math.random() * 0.5);
   src.stop(t + (attack || 0.005) + decay + 0.05);
 }
@@ -233,10 +280,12 @@ const SOUNDS = {
   },
   // Thumbing through a stack of pages: soft swishes in quick succession over a breath of air
   riffle(t, { count = 6, duration = 0.4 } = {}) {
-    noise(t, { filter: "lowpass", freq: 900, attack: 0.03, peak: 0.13, decay: duration });
+    // Real pages flipping up front, with the synth swishes thinned to fill out the length
+    const layer = sample(t, "pages", { peak: 0.45 }) ? 0.5 : 1;
+    noise(t, { filter: "lowpass", freq: 900, attack: 0.03, peak: 0.13 * layer, decay: duration });
     for (let i = 0; i < count; i++) {
       const at = t + (duration / count) * i + Math.random() * 0.015;
-      noise(at, { freq: vary(2000, 0.3), q: 0.9, attack: 0.006, peak: 0.16 + Math.random() * 0.06, decay: 0.05 + Math.random() * 0.03 });
+      noise(at, { freq: vary(2000, 0.3), q: 0.9, attack: 0.006, peak: (0.16 + Math.random() * 0.06) * layer, decay: 0.05 + Math.random() * 0.03 });
     }
   },
   // A cover or a big sheet moving: a crinkle of many short crackles that swells and fades
@@ -263,8 +312,9 @@ const SOUNDS = {
     }
   },
   // A cardboard folder cover landing flat: a dull flop pushing a puff of air out
-  flop(t, { strength = 1 } = {}) {
-    noise(t, { filter: "lowpass", freq: 900, to: 180, attack: 0.004, peak: 0.3 * strength, decay: 0.13 });
+  flop(t, { strength = 1, recorded = true } = {}) {
+    const real = recorded && sample(t, "cover", { peak: 0.4 * strength });
+    noise(t, { filter: "lowpass", freq: 900, to: 180, attack: 0.004, peak: (real ? 0.15 : 0.3) * strength, decay: 0.13 });
     tone(t, { freq: vary(95), to: 60, peak: 0.22 * strength, decay: 0.11 });
   },
   // A filing drawer rolling on its runners, ending in a soft clunk against the stop
@@ -315,35 +365,41 @@ const SOUNDS = {
     band.Q.value = 1.4;
     band.frequency.setValueAtTime(800, t);
     band.frequency.exponentialRampToValueAtTime(2400, t + duration);
+    // A second, higher band: the hiss of air squeezed between the lips
+    const lips = ctx.createBiquadFilter();
+    lips.type = "bandpass";
+    lips.Q.value = 2.5;
+    lips.frequency.setValueAtTime(3200, t);
+    lips.frequency.linearRampToValueAtTime(4200, t + duration);
+    const lipsLevel = ctx.createGain();
+    lipsLevel.gain.value = 0.35;
     const env = ctx.createGain();
     env.gain.setValueAtTime(0.0001, t);
-    env.gain.exponentialRampToValueAtTime(0.32, t + 0.08);
-    env.gain.setValueAtTime(0.32, t + duration - 0.12);
+    env.gain.exponentialRampToValueAtTime(0.3, t + 0.08);
+    env.gain.setValueAtTime(0.3, t + duration - 0.12);
     env.gain.exponentialRampToValueAtTime(0.0001, t + duration);
-    // Flutter: the liquid keeps breaking the airflow up
+    // Flutter: the liquid breaks the airflow up irregularly (a steady wobble sounds like a motor)
     const flutter = ctx.createGain();
-    flutter.gain.value = 0.55;
-    const lfo = ctx.createOscillator();
-    lfo.type = "triangle";
-    lfo.frequency.setValueAtTime(18, t);
-    lfo.frequency.linearRampToValueAtTime(34, t + duration);
-    const depth = ctx.createGain();
-    depth.gain.value = 0.45;
-    lfo.connect(depth).connect(flutter.gain);
-    src.connect(band).connect(env).connect(flutter).connect(out);
+    flutter.gain.setValueAtTime(0.6, t);
+    for (let at = t + 0.02; at < t + duration; at += 0.012 + Math.random() * 0.035) {
+      flutter.gain.linearRampToValueAtTime(0.2 + Math.random() * 0.8, at);
+    }
+    src.connect(band).connect(env);
+    src.connect(lips).connect(lipsLevel).connect(env);
+    env.connect(flutter).connect(out);
     src.start(t, Math.random() * 0.5);
     src.stop(t + duration + 0.05);
-    lfo.start(t);
-    lfo.stop(t + duration + 0.05);
-    // Bubbles: tiny rising chirps scattered through it
-    for (let at = t + 0.05; at < t + duration - 0.05; at += 0.03 + Math.random() * 0.06) {
-      tone(at, { freq: vary(450, 0.3), to: vary(1300, 0.3), peak: 0.05 + Math.random() * 0.06, decay: 0.025 });
+    // Droplets: a few small, quick wet ticks rather than a stream of chirps
+    for (let at = t + 0.06; at < t + duration - 0.05; at += 0.05 + Math.random() * 0.1) {
+      tone(at, { freq: vary(1400, 0.35), to: vary(2600, 0.3), peak: 0.03 + Math.random() * 0.04, decay: 0.015 });
     }
-    // Gulp, then the "ahh"
+    // Gulp (a real swallow when it's loaded), then the "ahh"
     const gulp = t + duration + 0.12;
-    tone(gulp, { freq: 230, to: 85, peak: 0.4, decay: 0.12 });
-    noise(gulp, { filter: "lowpass", freq: 380, peak: 0.25, decay: 0.08 });
-    noise(gulp + 0.22, { freq: 1100, to: 650, q: 0.8, attack: 0.06, peak: 0.07, decay: 0.35 });
+    if (!sample(gulp, "swallow", { peak: 0.55 })) {
+      tone(gulp, { freq: 230, to: 85, peak: 0.4, decay: 0.12 });
+      noise(gulp, { filter: "lowpass", freq: 380, peak: 0.25, decay: 0.08 });
+    }
+    noise(gulp + 0.3, { freq: 1100, to: 650, q: 0.8, attack: 0.06, peak: 0.07, decay: 0.35 });
   },
   // Leaves brushing together: a soft airy swish with a few gentle flutters, no paper crackle
   leaves(t, { duration = 0.6 } = {}) {
@@ -374,9 +430,9 @@ const SOUNDS = {
   },
   // Mechanical keyboard key: a sharp click, then the low "thock" of the keycap bottoming out
   key(t) {
-    noise(t, { freq: vary(1800, 0.2), q: 1.2, attack: 0.001, peak: 0.25, decay: 0.012 });
-    noise(t + 0.008, { filter: "lowpass", freq: 600, attack: 0.002, peak: 0.18, decay: 0.03 });
-    tone(t, { freq: vary(140, 0.15), to: 90, peak: 0.08, decay: 0.035 });
+    noise(t, { freq: vary(1800, 0.2), q: 1.2, attack: 0.001, peak: 0.34, decay: 0.012 });
+    noise(t + 0.008, { filter: "lowpass", freq: 600, attack: 0.002, peak: 0.25, decay: 0.03 });
+    tone(t, { freq: vary(140, 0.15), to: 90, peak: 0.11, decay: 0.035 });
   },
   // Cartoon "speech": a short voiced syllable at a random pitch, for talking speech bubbles
   talk(t) {
@@ -488,32 +544,6 @@ const SOUNDS = {
     osc.start(t);
     osc.stop(t + len + 0.05);
   },
-  // A purr: a low rumble pulsing about 25 times a second
-  purr(t, { duration = 1.6 } = {}) {
-    const src = ctx.createBufferSource();
-    src.buffer = noiseBuffer;
-    src.loop = true;
-    const low = ctx.createBiquadFilter();
-    low.type = "lowpass";
-    low.frequency.value = 180;
-    const pulse = ctx.createGain();
-    pulse.gain.value = 0.5;
-    const lfo = ctx.createOscillator();
-    lfo.frequency.value = 24;
-    const depth = ctx.createGain();
-    depth.gain.value = 0.5;
-    lfo.connect(depth).connect(pulse.gain);
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.5, t + 0.25);
-    gain.gain.setValueAtTime(0.5, t + duration - 0.4);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
-    src.connect(low).connect(pulse).connect(gain).connect(out);
-    src.start(t);
-    lfo.start(t);
-    src.stop(t + duration + 0.05);
-    lfo.stop(t + duration + 0.05);
-  },
   // A flower popping open: a soft rising pluck
   bloom(t, { pitch = 1 } = {}) {
     tone(t, { type: "triangle", freq: 520 * pitch, to: 1040 * pitch, attack: 0.01, peak: 0.18, decay: 0.18 });
@@ -524,7 +554,9 @@ const SOUNDS = {
   // with the little wooden clack of its hammer
   clockStrike(t, { count = 3 } = {}) {
     for (let i = 0; i < count; i++) {
-      const at = t + i * 0.62;
+      const at = t + i * 0.9;
+      // A real struck bell when it's loaded, the synth gong otherwise
+      if (sample(at, "bell", { peak: 0.4, send: 0.2 })) continue;
       noise(at, { filter: "bandpass", freq: 2600, q: 2, peak: 0.12, decay: 0.03 });
       tone(at, { freq: 174.6, peak: 0.2, decay: 1.5 });
       tone(at, { freq: 174.6 * 2.76, peak: 0.05, decay: 0.7 });
@@ -538,6 +570,8 @@ const SOUNDS = {
   },
   // A chair swivelling: a few dry creaks of the base, dropping in pitch as it slows
   creak(t) {
+    // A recorded wooden creak replaces the sawtooth stand-in outright
+    if (sample(t, "creak", { peak: 0.35 })) return;
     for (let i = 0; i < 4; i++) {
       tone(t + i * 0.16 + i * i * 0.03, { type: "sawtooth", freq: vary(260 - i * 30, 0.08), to: 200 - i * 25, attack: 0.01, peak: 0.05, decay: 0.08 });
     }
@@ -548,6 +582,92 @@ const SOUNDS = {
     tone(t + 0.004, { type: "triangle", freq: vary(1870, 0.04), peak: 0.1 * strength, decay: 0.16 });
     tone(t, { freq: 95, to: 50, peak: 0.6 * strength, decay: 0.14 });
     noise(t, { filter: "lowpass", freq: 700, peak: 0.25 * strength, decay: 0.05 });
+  },
+  // ---------- per-object landings ----------
+  // thud, clank and flop are shared by very different things, so each object that gets a
+  // recording has its own sound here, falling back to the shared synth when it isn't loaded
+  // The cat landing: soft padded paws, with only a little of the synth weight under them
+  catLand(t, { strength = 0.3 } = {}) {
+    if (!sample(t, "paw", { peak: 1.2 * strength })) return SOUNDS.thud(t, { strength });
+    tone(t, { freq: vary(110), to: 50, peak: 0.6 * strength, decay: 0.12 });
+  },
+  // A ceramic mug set back on the desk
+  mugDown(t, { strength = 0.35 } = {}) {
+    if (!sample(t, "mug", { peak: 0.9 * strength })) return SOUNDS.thud(t, { strength });
+    tone(t, { freq: vary(130), to: 60, peak: 0.4 * strength, decay: 0.1 });
+  },
+  // A dumbbell set down: heavy iron, the synth thump keeping the weight under it
+  dumbbell(t, { strength = 1 } = {}) {
+    if (!sample(t, "dumbbell", { peak: 0.4 * strength })) return SOUNDS.clank(t, { strength });
+    tone(t, { freq: 95, to: 50, peak: 0.5 * strength, decay: 0.14 });
+  },
+  // A sheathed sword dropping back into its wooden rack
+  rackLand(t, { strength = 0.8 } = {}) {
+    if (!sample(t, "rack", { peak: 0.5 * strength })) SOUNDS.clank(t, { strength });
+  },
+  // The Switch seating in its dock: a hard plastic click
+  dock(t, { strength = 0.5 } = {}) {
+    if (!sample(t, "plastic", { peak: 0.7 * strength })) SOUNDS.clank(t, { strength });
+  },
+  // A paper ball clipping the bin's thin metal rim
+  rimHit(t, { strength = 0.5 } = {}) {
+    if (!sample(t, "tin", { peak: 0.6 * strength })) SOUNDS.clank(t, { strength });
+  },
+  // A book put down
+  bookDown(t, { strength = 0.4 } = {}) {
+    if (!sample(t, "book", { peak: 0.9 * strength })) SOUNDS.flop(t, { strength });
+  },
+  // A paper ball bouncing on the floor, and a card settling on its envelope: light, so they keep
+  // the synth flop rather than the book-cover recording folders use
+  // A cardboard folder drawn out from between the others: a smooth, low "shhh" of card on card,
+  // much darker than loose paper, with a little drag in it
+  folderSlide(t, { duration = 0.5, up = true } = {}) {
+    noise(t, { freq: up ? 700 : 1100, to: up ? 1100 : 700, q: 0.9, attack: duration * 0.35, peak: 0.12, decay: duration * 0.65 });
+    noise(t, { filter: "lowpass", freq: 450, attack: duration * 0.3, peak: 0.07, decay: duration * 0.7 });
+    for (let at = t + duration * 0.2; at < t + duration * 0.75; at += 0.05 + Math.random() * 0.06) {
+      noise(at, { freq: vary(1800, 0.2), q: 1.2, attack: 0.004, peak: 0.02, decay: 0.03 });
+    }
+  },
+  // A folder's cover swung open: the air it pushes, a soft rising-and-falling "fwoom", no crackle
+  coverOpen(t, { duration = 0.6 } = {}) {
+    noise(t, { filter: "lowpass", freq: 300, to: 900, attack: duration * 0.5, peak: 0.1, decay: duration * 0.5 });
+    noise(t, { freq: 600, to: 1400, q: 0.6, attack: duration * 0.5, peak: 0.04, decay: duration * 0.5 });
+  },
+  // A butterfly's wing beat: the faintest soft puff of air on the downstroke
+  wingFlap(t, { volume = 1 } = {}) {
+    if (volume < 0.05) return;
+    noise(t, { filter: "lowpass", freq: 900, to: 350, attack: 0.012, peak: 0.18 * volume, decay: 0.05 });
+    noise(t, { freq: vary(1800, 0.15), q: 0.8, attack: 0.01, peak: 0.07 * volume, decay: 0.04 });
+  },
+  // The lanyard's woven strap dragged about: a soft fabric swish, louder the faster it moves
+  strap(t, { speed = 1 } = {}) {
+    const level = Math.min(1, 0.4 + speed * 0.6);
+    noise(t, { freq: vary(1100, 0.2), q: 0.8, attack: 0.03, peak: 0.13 * level, decay: 0.12 });
+  },
+  // The badge swinging on its clip: the plastic holder knocking the metal clip ring as each
+  // swing turns back
+  badgeClick(t, { strength = 0.5 } = {}) {
+    tone(t, { type: "triangle", freq: vary(2900, 0.08), peak: 0.08 * strength, decay: 0.04 });
+    noise(t, { freq: vary(4200, 0.15), q: 2, attack: 0.001, peak: 0.14 * strength, decay: 0.015 });
+  },
+  // A paper ball caught by the hoop's net: the crisp "tsssh" of the cords flicking past it
+  swish(t) {
+    noise(t, { filter: "bandpass", freq: 2600, to: 6500, q: 1.1, attack: 0.012, peak: 0.26, decay: 0.13 });
+    noise(t + 0.03, { filter: "highpass", freq: 6000, q: 0.7, attack: 0.01, peak: 0.08, decay: 0.12 });
+    for (let i = 0; i < 4; i++) {
+      noise(t + 0.015 + i * 0.03 + Math.random() * 0.01, { freq: vary(3500, 0.25), q: 3, attack: 0.002, peak: 0.06, decay: 0.02 });
+    }
+  },
+  // The light ball settling on the paper already in the bin
+  binLand(t) {
+    noise(t, { filter: "lowpass", freq: 900, to: 300, attack: 0.004, peak: 0.12, decay: 0.07 });
+    noise(t, { filter: "highpass", freq: vary(3000, 0.2), attack: 0.002, peak: 0.05, decay: 0.03 });
+  },
+  paperBounce(t, { strength = 0.4 } = {}) {
+    SOUNDS.flop(t, { strength, recorded: false });
+  },
+  cardDown(t, { strength = 0.5 } = {}) {
+    SOUNDS.flop(t, { strength, recorded: false });
   },
   // A katana drawn: steel sliding out along the saya's wooden mouth, a dry "shhk" that rises,
   // ending in a low, short hum of the freed blade (no bright bell ring)
@@ -590,17 +710,23 @@ const SOUNDS = {
   // THE snap: a hard crack, a deep shock-wave boom under it, the crack echoing off into the
   // distance, and a cosmic shimmer falling away
   snap(t) {
-    const crack = (at, peak, freq) => {
-      noise(at, { filter: "highpass", freq, attack: 0.001, peak, decay: 0.035 });
-      noise(at, { freq: freq * 0.55, q: 1.4, attack: 0.001, peak: peak * 0.6, decay: 0.07 });
+    // Everything goes partly into the hall, so the snap rings out like it's heard across a universe
+    const crack = (at, peak, freq, send) => {
+      noise(at, { filter: "highpass", freq, attack: 0.001, peak, decay: 0.035, send });
+      noise(at, { freq: freq * 0.55, q: 1.4, attack: 0.001, peak: peak * 0.6, decay: 0.07, send });
     };
-    crack(t, 0.95, 2600);
-    tone(t, { freq: 360, to: 160, peak: 0.4, decay: 0.06 });
-    [[0.14, 0.38, 2000], [0.3, 0.2, 1600], [0.5, 0.1, 1300]].forEach(([d, peak, freq]) => crack(t + d, peak, freq));
-    tone(t + 0.01, { freq: 95, to: 26, attack: 0.006, peak: 0.95, decay: 1.5 });
-    noise(t + 0.01, { filter: "lowpass", freq: 260, to: 60, attack: 0.01, peak: 0.45, decay: 0.8 });
+    crack(t, 1, 2800, 0.5);
+    crack(t + 0.004, 0.6, 1500, 0.3);
+    tone(t, { freq: 380, to: 150, peak: 0.45, decay: 0.07 });
+    [[0.16, 0.36, 2000], [0.36, 0.2, 1600], [0.6, 0.11, 1300], [0.9, 0.06, 1100]].forEach(([d, peak, freq]) => crack(t + d, peak, freq, 0.6));
+    // The shock wave: a sub drop that keeps falling and a pressure "whomp" under it
+    tone(t + 0.01, { freq: 90, to: 22, attack: 0.006, peak: 1, decay: 2.4 });
+    noise(t + 0.01, { filter: "lowpass", freq: 300, to: 40, attack: 0.01, peak: 0.6, decay: 1.4, send: 0.3 });
+    // A low, dark chord swelling up behind it as the universe takes it in
+    tone(t + 0.05, { type: "triangle", freq: 55, attack: 0.25, peak: 0.22, decay: 2.6, send: 0.6 });
+    tone(t + 0.05, { type: "triangle", freq: 65.4, attack: 0.3, peak: 0.14, decay: 2.4, send: 0.6 });
     for (let i = 0; i < 9; i++) {
-      tone(t + 0.06 + i * 0.07, { type: "triangle", freq: 2600 * (1 - i * 0.07), peak: 0.06, decay: 0.7 });
+      tone(t + 0.06 + i * 0.07, { type: "triangle", freq: 2600 * (1 - i * 0.07), peak: 0.06, decay: 1.1, send: 0.7 });
     }
   },
   // Things turning to dust: a long, soft, sandy hiss drifting down
@@ -673,7 +799,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { cheer: 2, applause: 3, meow: 0.3, purr: 1.5, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, rubber: 0.15, boing: 0.3, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, shing: 0.5, slash: 0.15, sheathe: 0.4, whooshAway: 0.4, power: 1.4, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
+const MIN_GAP = { cheer: 2, applause: 3, meow: 0.3, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, rubber: 0.15, boing: 0.3, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, dumbbell: 0.12, rackLand: 0.12, dock: 0.12, rimHit: 0.12, paperBounce: 0.05, swish: 0.2, wingFlap: 0.08, strap: 0.08, badgeClick: 0.12, shing: 0.5, slash: 0.15, sheathe: 0.4, whooshAway: 0.4, power: 1.4, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || (ctx.state !== "running" && !resuming) || document.hidden) return;
@@ -691,6 +817,42 @@ export const sfx = Object.fromEntries(Object.keys(SOUNDS).map((name) => [name, (
 // True when sounds would actually be heard: not muted and unlocked by a user gesture.
 // Lets an intro wait for a click instead of playing silently.
 export const audioReady = () => muted.value || (!!ctx && ctx.state === "running");
+
+// Paper dragged over cork: one held, soft scrape for a whole drag rather than repeated bursts
+// (which read as wing beats). set(level) swells it with the hand's speed (0–1) and lets it fade
+// on its own once the hand stops; stop() lets it die away. Null when sound is off.
+export function startScrape() {
+  if (muted.value || hushDepth > 0 || !ctx || ctx.state !== "running") return null;
+  const src = ctx.createBufferSource();
+  src.buffer = noiseBuffer;
+  src.loop = true;
+  const band = ctx.createBiquadFilter();
+  band.type = "bandpass";
+  band.frequency.value = 2200;
+  band.Q.value = 0.6;
+  const low = ctx.createBiquadFilter();
+  low.type = "highpass";
+  low.frequency.value = 700;
+  const gain = ctx.createGain();
+  gain.gain.value = 0;
+  src.connect(band).connect(low).connect(gain).connect(out);
+  src.start();
+  return {
+    set(level) {
+      const now = ctx.currentTime;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setTargetAtTime(0.16 * Math.min(1, 0.25 + level * 0.75) * vary(1, 0.15), now, 0.03);
+      gain.gain.setTargetAtTime(0, now + 0.1, 0.06);
+    },
+    stop() {
+      const now = ctx.currentTime;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setTargetAtTime(0, now, 0.04);
+      src.stop(now + 0.3);
+      src.onended = () => gain.disconnect();
+    },
+  };
+}
 
 // Rain against the window: a looping hiss whose level follows the weather (0–1). It goes
 // quiet while muted, and the loop is only built once there's rain to hear.

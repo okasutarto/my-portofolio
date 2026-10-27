@@ -83,6 +83,9 @@ import {
   drawGuitarTop,
   drawStraw,
   drawCarbonWeave,
+  drawLeatherGrain,
+  drawPlantLeaf,
+  drawTerracotta,
   drawChairCrest,
   drawWoodFloor,
   drawRug,
@@ -1354,7 +1357,23 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // leatherette: a tall reclined back with the headrest built in, a raised centre panel
   // between carbon-weave wings, fine dark red stitching along every seam, gold badges, a thick
   // padded seat, recline hubs, 4D armrests and a flat-legged base.
-  const leather = toon("#2a2725");
+  // The leatherette: a pebbled grain tile, tinted dark, that also bumps the toon shading so
+  // the grain catches the light; the centre panel's is perforated. The pads' uv run in world
+  // units (a tile to a unit), the boxes' 0 to 1 a face, so theirs repeat more.
+  const leatherTile = (perforated, repeat) => {
+    const tex = canvasTexture(256, 256);
+    track(tex.texture);
+    drawLeatherGrain(tex.ctx, 256, 256, { perforated });
+    tex.texture.wrapS = tex.texture.wrapT = THREE.RepeatWrapping;
+    tex.texture.repeat.set(repeat, repeat);
+    const mat = toon("#35312e");
+    mat.map = mat.bumpMap = tex.texture;
+    mat.bumpScale = 2.2;
+    return mat;
+  };
+  const leather = leatherTile(false, 1);
+  const leatherPanel = leatherTile(true, 1.6);
+  const leatherBox = leatherTile(false, 3.5);
   const CHAIR_STITCH = "#7a1a24";
   // Stitching is a fine dashed thread: a dash, a gap, along every seam
   const dashTex = canvasTexture(16, 4);
@@ -1386,7 +1405,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   };
 
   // A deep cushion under it, so the seat reads thick, and the tilt mechanism under that
-  const seatBase = mesh(rbox(4.5, 0.5, 4.0, 0.2), leather, { outline: 0.04 });
+  const seatBase = mesh(rbox(4.5, 0.5, 4.0, 0.2), leatherBox, { outline: 0.04 });
   seatBase.position.y = -2.55;
   const mechanism = mesh(rbox(1.9, 0.34, 2.2, 0.08), chairFrameMat, { outline: 0.03 });
   mechanism.position.set(0, -2.95, 0.2);
@@ -1537,7 +1556,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const CENTRE_H = BACK_H - 0.35;
   const centrePad = pillow((y) => Math.min(y < 3.9 ? BOLSTER_IN - 0.02 : bolsterInner(y) - 0.02, backWidth(y) - 0.22), CENTRE_H, 0.24, { cols: 28, rows: 110 });
   const CENTRE_Z = -BACK_DEPTH / 2 + 0.04;
-  chairBack.add(mesh(bent(centrePad.geo, BACK_Y + 0.12, CENTRE_Z), leather, { outline: 0.03 }), stitched(centrePad, 0.1, -1, BACK_Y + 0.12, CENTRE_Z));
+  chairBack.add(mesh(bent(centrePad.geo, BACK_Y + 0.12, CENTRE_Z), leatherPanel, { outline: 0.03 }), stitched(centrePad, 0.1, -1, BACK_Y + 0.12, CENTRE_Z));
 
   // The seat: one thick padded cushion as wide as the back, a touch wider at the front, its
   // top stitched round in red. Built standing up like the back's
@@ -1552,14 +1571,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
   chairSeat.rotation.x = -Math.PI / 2;
   chairSeat.position.y = -1.77 - SEAT_DEPTH / 2;
   chairSeat.add(mesh(seatPad.geo, leather, { outline: 0.06 }), stitched(seatPad, 0.2, 1, -SEAT_L / 2, 0, () => 0));
-  // Gold: a small badge high on the headrest, front and back, and a larger one on the chest
-  // just under the shoulders
+  // Gold: a small badge high on the headrest, front and back
   const crestTex = canvasTexture(128, 128);
   track(crestTex.texture);
   drawChairCrest(crestTex.ctx, 128, 128);
   const crestMat = printMaterial(crestTex.texture, { transparent: true });
   const CREST_FRONT = CENTRE_Z - 0.12 - 0.04;
-  [[0.55, BACK_H / 2 - 0.85, CREST_FRONT, Math.PI], [0.75, 0.75, CREST_FRONT, Math.PI], [0.6, BACK_H / 2 - 0.95, BACK_DEPTH / 2 + 0.03, 0]].forEach(([size, y, z, turn]) => {
+  [[0.55, BACK_H / 2 - 0.85, CREST_FRONT, Math.PI], [0.6, BACK_H / 2 - 0.95, BACK_DEPTH / 2 + 0.03, 0]].forEach(([size, y, z, turn]) => {
     const crest = new THREE.Mesh(track(new THREE.PlaneGeometry(size, size)), crestMat);
     crest.position.set(0, y, z);
     crest.rotation.y = turn;
@@ -1612,7 +1630,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     bracket.position.set(x * 0.72, -3.05, 0.6);
     const stem = mesh(rbox(0.3, 2.65, 0.46, 0.1), chairFrameMat, { outline: 0.03 });
     stem.position.set(x, -1.78, 0.6);
-    const pad = mesh(rbox(0.55, 0.24, 2.7, 0.1), leather, { outline: 0.03 });
+    const pad = mesh(rbox(0.55, 0.24, 2.7, 0.1), leatherBox, { outline: 0.03 });
     pad.position.set(x, -0.4, 0.4);
     chairTop.add(bracket, stem, pad);
   }
@@ -1633,17 +1651,54 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // Click it for a spin: the gas lift sinks with a hiss and springs back, the seat whirls round
   // on its post and the whole chair rolls back a little on its casters and back again
   let chairBusy = false;
+  // Dragged sideways, the seat turns on its post with the hand, and let go it carries on
+  // spinning with the hand's speed, slowing to a stop. It keeps whatever way it ends up facing.
+  const CHAIR_TURN_PER_PX = 0.012;
+  function grabChair(drag) {
+    gsap.killTweensOf(chairTop.rotation);
+    Object.assign(drag, { turned: 0, speed: 0, lastX: drag.startX, lastTime: performance.now(), lastSound: 0 });
+  }
+  function turnChair(drag, x, time) {
+    const turn = (x - drag.lastX) * CHAIR_TURN_PER_PX;
+    const dt = Math.max(1, time - drag.lastTime);
+    // radians a millisecond, smoothed so one jittery event doesn't fling it
+    drag.speed = drag.speed * 0.6 + (turn / dt) * 0.4;
+    drag.lastX = x;
+    drag.lastTime = time;
+    drag.turned += turn;
+    chairTop.rotation.y += turn;
+    if (Math.abs(turn) > 0.02 && time - drag.lastSound > 260) {
+      sfx.creak();
+      drag.lastSound = time;
+    }
+  }
+  function releaseChair(drag) {
+    // a hand that stopped before letting go leaves it still
+    const speed = performance.now() - drag.lastTime > 90 ? 0 : THREE.MathUtils.clamp(drag.speed, -0.03, 0.03);
+    const coast = speed * 500;
+    if (Math.abs(drag.turned + coast) > Math.PI) discover("chair");
+    if (Math.abs(coast) < 0.02) return;
+    gsap.to(chairTop.rotation, { y: chairTop.rotation.y + coast, duration: 0.6 + Math.abs(speed) * 60, ease: "power3.out" });
+    if (Math.abs(coast) > 1.5) sfx.patter({ duration: 0.4 });
+  }
   register(chair, {
-    onHover: (on) => on && gsap.fromTo(chairTop.rotation, { y: 0.08 }, { y: 0, duration: 0.9, ease: "elastic.out(1, 0.3)" }),
+    grabTurn: true,
+    onHover: (on) => {
+      if (!on || chairBusy || gsap.isTweening(chairTop.rotation)) return;
+      const y = chairTop.rotation.y;
+      gsap.fromTo(chairTop.rotation, { y: y + 0.08 }, { y, duration: 0.9, ease: "elastic.out(1, 0.3)" });
+    },
     onClick: () => {
       if (chairBusy) return;
       chairBusy = true;
       discover("chair");
       const z = chair.position.z;
+      gsap.killTweensOf(chairTop.rotation);
+      const y = chairTop.rotation.y;
       gsap.timeline({ onComplete: () => (chairBusy = false) })
         .to(chairTop.position, { y: -0.35, duration: 0.18, ease: "power2.in" })
         .to(chairTop.position, { y: 0, duration: 0.7, ease: "elastic.out(1.1, 0.35)" })
-        .fromTo(chairTop.rotation, { y: 0 }, { y: Math.PI * 2, duration: 1.5, ease: "power3.out" }, 0.12)
+        .fromTo(chairTop.rotation, { y }, { y: y + Math.PI * 2, duration: 1.5, ease: "power3.out" }, 0.12)
         .to(chair.position, { z: z + 0.5, duration: 0.5, ease: "power2.out" }, 0.1)
         .to(chair.position, { z, duration: 0.9, ease: "power2.inOut" }, 0.7);
       sfx.hiss();
@@ -1934,40 +1989,113 @@ export function createDeskScene({ container, projects, experiences, dark = false
     [0.5, 1.0],
     [0, 1.0],
   ].map(([x, y]) => new THREE.Vector2(x, y));
-  const pot = mesh(new THREE.LatheGeometry(potProfile, 28), toon("#ff7a1a"), { outline: 0.045 });
+  // The pot: speckled glazed terracotta, wheel rings up its wall, standing in a shallow saucer.
+  // The lathe's uv runs one step of the profile to each seventh: its wall is the second, the
+  // rim's outer face the fourth.
+  const potTex = canvasTexture(256, 256);
+  track(potTex.texture);
+  drawTerracotta(potTex.ctx, 256, 256, { wall: [1 / 7, 2 / 7], rim: [3 / 7, 4 / 7] });
+  potTex.texture.wrapS = THREE.RepeatWrapping;
+  potTex.texture.repeat.set(3, 1);
+  const potMat = toon("#ffffff");
+  potMat.map = potTex.texture;
+  const pot = mesh(new THREE.LatheGeometry(potProfile, 36), potMat, { outline: 0.045 });
+  pot.position.y = 0.03;
+  const saucerProfile = [[0, 0], [0.62, 0], [0.7, 0.12], [0.64, 0.12], [0.57, 0.035], [0, 0.035]].map(([x, y]) => new THREE.Vector2(x, y));
+  const saucer = mesh(new THREE.LatheGeometry(saucerProfile, 36), toon("#e0631a"), { outline: 0.03 });
   const soil = mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.04, 24), toon("#3b2a1a"), { outline: 0, cast: false });
-  soil.position.y = 1.02;
+  soil.position.y = 1.05;
+  // a few clumps of earth and pale pebbles on top of it
+  const pebbleGeo = new THREE.DodecahedronGeometry(1, 0);
+  const clumpMat = toon("#2a1d12");
+  const pebbleMat = toon("#d6cfc4");
+  [
+    [0.3, 0.12, 0.05, clumpMat], [-0.28, 0.2, 0.06, clumpMat], [0.08, -0.34, 0.045, clumpMat], [-0.12, -0.18, 0.04, clumpMat],
+    [0.36, -0.15, 0.045, pebbleMat], [-0.34, -0.12, 0.04, pebbleMat], [0.18, 0.33, 0.035, pebbleMat], [-0.05, 0.38, 0.04, pebbleMat],
+  ].forEach(([x, z, size, material], i) => {
+    const bit = mesh(pebbleGeo, material, { outline: 0, cast: false });
+    bit.scale.set(size, size * 0.6, size * 1.1);
+    bit.position.set(x, 0.03, z);
+    bit.rotation.set(i, i * 2.3, 0);
+    bit.raycast = noRaycast;
+    soil.add(bit);
+  });
   const foliage = new THREE.Group();
-  foliage.position.y = 1.02;
-  plant.add(pot, soil, foliage);
+  foliage.position.y = 1.05;
+  plant.add(saucer, pot, soil, foliage);
   const stemMat = toon("#166534");
-  const leafMats = [toon("#16a34a"), toon("#8fd694")];
-  const veinMat = toon("#166534");
-  // Teardrop leaves, each on its own stem: the stem runs from the soil to the leaf's base, and the
-  // leaf leans out from there toward its heading. [heading°, base height, lean, length, width]
-  const leafShape = (length, width) => {
-    const shape = new THREE.Shape();
-    shape.moveTo(0, 0);
-    shape.bezierCurveTo(width * 0.62, length * 0.12, width * 0.58, length * 0.68, 0, length);
-    shape.bezierCurveTo(-width * 0.58, length * 0.68, -width * 0.62, length * 0.12, 0, 0);
-    const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.03, bevelEnabled: false, curveSegments: 12 });
-    geo.translate(0, 0, -0.015);
+  // Each leaf colouring is its own painted texture: [base, tip, vein]; the last is the young
+  // leaves' fresh lime
+  const leafMats = [
+    ["#166534", "#22c55e", "#a7f3c0"], ["#15803d", "#4ade80", "#bbf7d0"], ["#2f7d43", "#8fd694", "#dcfce7"], ["#4d9c2f", "#a3e66b", "#ecfccb"],
+  ].map(([base, tip, vein], seed) => {
+    const tex = canvasTexture(256, 256);
+    track(tex.texture);
+    drawPlantLeaf(tex.ctx, 256, 256, { base, tip, vein, seed: seed + 1 });
+    const material = toon("#ffffff");
+    material.map = tex.texture;
+    return material;
+  });
+  // A leaf blade as a thin solid: a teardrop outline, folded up a little either side of its
+  // midrib, arching back so its tip droops, its edges faintly rippled. Built along +y with its
+  // upper face toward -z; uv runs edge to edge across it and base to tip along it.
+  const leafGeo = (length, width, { fold = 0.3, arch = 0.22, ripple = 0.012 } = {}) => {
+    const ROWS = 22;
+    const COLS = 10;
+    const THICK = 0.012;
+    const halfWidth = (t) => (width / 2) * Math.sin(Math.PI * t ** 0.72);
+    const position = [];
+    const uv = [];
+    const index = [];
+    for (const side of [-1, 1]) {
+      for (let j = 0; j <= ROWS; j++) {
+        const t = j / ROWS;
+        for (let i = 0; i <= COLS; i++) {
+          const u = (i / COLS) * 2 - 1;
+          const x = u * halfWidth(t);
+          const z = -fold * Math.abs(x) + arch * length * t * t + ripple * Math.sin(t * 15 + u * 2) * Math.abs(u);
+          position.push(x, t * length, z + side * THICK);
+          uv.push((u + 1) / 2, t);
+        }
+      }
+    }
+    const at = (side, i, j) => (side < 0 ? 0 : (ROWS + 1) * (COLS + 1)) + j * (COLS + 1) + i;
+    for (let j = 0; j < ROWS; j++) {
+      for (let i = 0; i < COLS; i++) {
+        // the upper face looks toward -z, the lower toward +z
+        index.push(at(-1, i, j), at(-1, i, j + 1), at(-1, i + 1, j), at(-1, i + 1, j), at(-1, i, j + 1), at(-1, i + 1, j + 1));
+        index.push(at(1, i, j), at(1, i + 1, j), at(1, i, j + 1), at(1, i + 1, j), at(1, i + 1, j + 1), at(1, i, j + 1));
+      }
+      // its thin edges either side
+      index.push(at(-1, 0, j), at(1, 0, j), at(-1, 0, j + 1), at(1, 0, j), at(1, 0, j + 1), at(-1, 0, j + 1));
+      index.push(at(-1, COLS, j), at(-1, COLS, j + 1), at(1, COLS, j), at(1, COLS, j), at(-1, COLS, j + 1), at(1, COLS, j + 1));
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(position, 3));
+    geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+    geo.setIndex(index);
+    geo.computeVertexNormals();
     return geo;
   };
+  // Teardrop leaves, each on its own stem: the stem runs from the soil to the leaf's base, and the
+  // leaf leans out from there toward its heading, rolled a little about its own length. The big
+  // ones, then a few small young ones in the middle, more upright.
+  // [heading°, base height, lean, length, width, colouring]
   [
-    [20, 0.3, 0.85, 1.5, 0.62], [100, 0.4, 0.8, 1.6, 0.6], [170, 0.5, 0.7, 1.5, 0.58], [250, 0.35, 0.85, 1.6, 0.62],
-    [320, 0.55, 0.65, 1.4, 0.56], [60, 0.7, 0.45, 1.35, 0.52], [210, 0.8, 0.4, 1.35, 0.52],
-  ].forEach(([heading, height, lean, length, width], i) => {
+    [20, 0.3, 0.85, 1.5, 0.62, 0], [100, 0.4, 0.8, 1.6, 0.6, 1], [170, 0.5, 0.7, 1.5, 0.58, 2], [250, 0.35, 0.85, 1.6, 0.62, 0],
+    [320, 0.55, 0.65, 1.4, 0.56, 1], [60, 0.7, 0.45, 1.35, 0.52, 2], [210, 0.8, 0.4, 1.35, 0.52, 1],
+    [140, 0.9, 0.3, 0.7, 0.3, 3], [290, 0.95, 0.32, 0.65, 0.28, 3], [30, 1.05, 0.22, 0.55, 0.25, 3],
+    [350, 0.62, 0.5, 0.8, 0.34, 3], [195, 0.68, 0.48, 0.75, 0.32, 3],
+  ].forEach(([heading, height, lean, length, width, colouring], i) => {
     const angle = THREE.MathUtils.degToRad(heading);
+    const young = length < 1;
     const base = new THREE.Vector3(Math.sin(angle) * 0.16, height, Math.cos(angle) * 0.16);
-    foliage.add(rod(new THREE.Vector3(0, 0, 0), base, 0.035, stemMat, 0.015));
+    foliage.add(rod(new THREE.Vector3(0, 0, 0), base, young ? 0.024 : 0.035, stemMat, 0.015));
     const leaf = new THREE.Group();
     leaf.position.copy(base);
-    leaf.rotation.set(lean, angle, 0, "YXZ");
-    const blade = mesh(leafShape(length, width), leafMats[i % 2], { outline: 0.025 });
-    const vein = mesh(new THREE.BoxGeometry(0.025, length * 0.78, 0.04), veinMat, { outline: 0, cast: false });
-    vein.position.y = length * 0.42;
-    leaf.add(blade, vein);
+    leaf.rotation.set(lean, angle, (((i * 37) % 7) - 3) * 0.07, "YXZ");
+    const shape = young ? { fold: 0.45, arch: 0.08 } : { fold: 0.25 + (i % 3) * 0.05, arch: 0.18 + (i % 4) * 0.03 };
+    leaf.add(mesh(leafGeo(length, width, shape), leafMats[colouring], { outline: young ? 0.018 : 0.025 }));
     foliage.add(leaf);
   });
   // Each click wiggles it and opens one of three flowers: they stand on their own stems above the
@@ -9043,7 +9171,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     hovered?.onHover?.(false);
     hovered = entry;
     hovered?.onHover?.(true);
-    renderer.domElement.style.cursor = entry?.sticky || (entry?.note && focus.name === "about") ? "grab" : entry ? "pointer" : "default";
+    renderer.domElement.style.cursor = entry?.sticky || entry?.grabTurn || (entry?.note && focus.name === "about") ? "grab" : entry ? "pointer" : "default";
   };
   let shelfDrag = null;
   function browseShelf(y, instant = false) {
@@ -9105,6 +9233,18 @@ export function createDeskScene({ container, projects, experiences, dark = false
       renderer.domElement.style.cursor = "grabbing";
       e.preventDefault();
       return;
+    if (chairDrag) {
+      if (e.pointerId !== chairDrag.pointerId) return;
+      if (!chairDrag.moved && Math.hypot(e.clientX - chairDrag.startX, e.clientY - chairDrag.startY) < 4) return;
+      if (!chairDrag.moved) {
+        chairDrag.moved = true;
+        grabChair(chairDrag);
+        renderer.domElement.style.cursor = "grabbing";
+      }
+      turnChair(chairDrag, e.clientX, performance.now());
+      e.preventDefault();
+      return;
+    }
     }
     if (hatDrag) {
       if (e.pointerId !== hatDrag.pointerId) return;
@@ -9175,6 +9315,17 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const point = rayFromPointer(e).intersectPlane(lanyardPlane, lanyardPoint);
     return point ? lanyardAt(point, badgeHit) : null;
   }
+  // The gaming chair, turned on its post by a sideways drag
+  let chairDrag = null;
+  function finishChairDrag(pointerId = null) {
+    if (!chairDrag || (pointerId !== null && pointerId !== chairDrag.pointerId)) return null;
+    const drag = chairDrag;
+    chairDrag = null;
+    if (drag.moved) releaseChair(drag);
+    if (renderer.domElement.hasPointerCapture(drag.pointerId)) renderer.domElement.releasePointerCapture(drag.pointerId);
+    renderer.domElement.style.cursor = "grab";
+    return drag;
+  }
   let lanyardDrag = null;
   // The straw hat, held and pulled on its cord
   let hatDrag = null;
@@ -9198,7 +9349,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   }
   const onPointerDown = (e) => {
     responsiveUntil = performance.now() + 2000;
-    if (shelfDrag || stickyDrag || noteDrag || lanyardDrag || hatDrag || e.button !== 0) return;
+    if (shelfDrag || stickyDrag || noteDrag || lanyardDrag || hatDrag || chairDrag || e.button !== 0) return;
     downAt = { x: e.clientX, y: e.clientY };
     if (focus.name === "shelf") {
       shelfDrag = {
@@ -9223,6 +9374,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
       renderer.domElement.style.cursor = "grabbing";
       e.preventDefault();
       return;
+    if (stickyEntry?.grabTurn && !chairBusy) {
+      chairDrag = { entry: stickyEntry, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moved: false };
+      renderer.domElement.setPointerCapture(e.pointerId);
+      e.preventDefault();
+      return;
+    }
     }
     if (stickyEntry?.object === hatPeg) {
       const drag = { entry: stickyEntry, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moved: false };
@@ -9281,6 +9438,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     finishStickyDrag(e.pointerId);
     finishNoteDrag(e.pointerId);
     if (lanyardDrag?.pointerId === e.pointerId) finishLanyardDrag();
+    finishChairDrag(e.pointerId);
     finishHatDrag(e.pointerId);
   };
   const onWindowBlur = () => {
@@ -9289,6 +9447,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     finishStickyDrag();
     finishNoteDrag();
     finishLanyardDrag();
+    finishChairDrag();
     finishHatDrag();
   };
   const onPointerUp = (e) => {
@@ -9302,6 +9461,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
       const drag = finishStickyDrag(e.pointerId);
       if (!drag.moved) handleClick(drag.entry);
       return;
+    if (chairDrag && e.pointerId === chairDrag.pointerId) {
+      const drag = finishChairDrag(e.pointerId);
+      downAt = null;
+      if (!drag.moved) handleClick(drag.entry);
+      return;
+    }
     }
     if (hatDrag && e.pointerId === hatDrag.pointerId) {
       const drag = finishHatDrag(e.pointerId);
@@ -9341,7 +9506,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     else back();
   };
   const onPointerLeave = () => {
-    if (shelfDrag || noteDrag || stickyDrag) return;
+    if (shelfDrag || noteDrag || stickyDrag || chairDrag) return;
     setHover(null);
     parallax.tx = parallax.ty = 0;
   };

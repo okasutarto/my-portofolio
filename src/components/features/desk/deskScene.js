@@ -2944,7 +2944,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // Hung on the left wall beside the guitar from a nail by its cord, crown to the room, as if
   // tossed there after a session; it swings from the nail. In the hat's peg, x runs along the
   // wall, y up and z out into the room from the nail.
-  const HAT_NAIL = new THREE.Vector3(SIDE_X + 0.12, 8.0, 8.0);
+  const HAT_NAIL = new THREE.Vector3(SIDE_X + 0.12, 8.0, 8.6);
   const hatPeg = new THREE.Group();
   hatPeg.position.copy(HAT_NAIL);
   hatPeg.rotation.set(0, Math.PI / 2, -0.25);
@@ -4785,6 +4785,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
       };
     }
     const { scale, position, centre } = object.userData.rest;
+    // (anything it leaves lying about loose in the room goes with it)
+    object.userData.onCrumble?.(delay);
     const shrink = { k: 1 };
     const apply = () => {
       object.scale.copy(scale).multiplyScalar(Math.max(shrink.k, 0.001));
@@ -4887,6 +4889,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
           [[hatPeg], ["#f2c14e", "#d62828"]],
           [[katanaRack], ["#6b2fa8", "#b91c1c", "#fffdf5", "#d4a72c", "#181513"]],
           [[catModel], ["#ff9f45", "#d9741f", "#fffdf5"]],
+          [[bin], ["#00e0c6", "#008f80", "#ff7a1a", "#ffdd00", "#fffdf5"]],
         ];
         const doomed = everything
           .map((entry) => [Math.random(), entry])
@@ -5338,6 +5341,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   }
   let streak = 0;
   function shoot(from) {
+    if (binGone()) return;
     const hoopAt = hoopWorld();
     let paper = from;
     if (!paper) {
@@ -5389,26 +5393,32 @@ export function createDeskScene({ container, projects, experiences, dark = false
       streak = 0;
     } else binSay(streak === 1 ? "SWISH!" : `SWISH x${streak}`, "#00e0c6");
   }
+  // A ball on the floor shrinks away and goes back in the pool
+  function sweep(old, delay = 0) {
+    old.state = "leaving";
+    // The outline keeps its width in pixels, so a shrinking ball would end as a black dot
+    old.ball.children[0].visible = false;
+    gsap.to(old.ball.scale, {
+      x: 0.001, y: 0.001, z: 0.001, delay, duration: 0.3, ease: "back.in(2)",
+      onComplete: () => {
+        old.state = "idle";
+        old.ball.visible = false;
+        old.ball.position.copy(PARKED);
+      },
+    });
+  }
   // Settled on the floor: it stays there, and the oldest goes once there are too many
   function settle(paper) {
     paper.state = "litter";
     paper.born = performance.now();
     paper.vel.set(0, 0, 0);
     const strewn = litter().sort((a, b) => a.born - b.born);
-    strewn.slice(0, Math.max(0, strewn.length - MAX_LITTER)).forEach((old) => {
-      old.state = "leaving";
-      // The outline keeps its width in pixels, so a shrinking ball would end as a black dot
-      old.ball.children[0].visible = false;
-      gsap.to(old.ball.scale, {
-        x: 0.001, y: 0.001, z: 0.001, duration: 0.3, ease: "back.in(2)",
-        onComplete: () => {
-          old.state = "idle";
-          old.ball.visible = false;
-          old.ball.position.copy(PARKED);
-        },
-      });
-    });
+    strewn.slice(0, Math.max(0, strewn.length - MAX_LITTER)).forEach((old) => sweep(old));
   }
+  // Snapped away, the bin takes its litter with it: those balls don't come back when it does
+  bin.userData.onCrumble = (delay) => litter().forEach((paper) => sweep(paper, delay + 0.3 + Math.random() * 0.6));
+  // (and there's no hoop to shoot at while it's gone)
+  const binGone = () => bin.userData.rest && bin.scale.x < bin.userData.rest.scale.x * 0.99;
   const SHELF_BOX = {
     x0: shelf.position.x - SHELF_W / 2, x1: shelf.position.x + SHELF_W / 2,
     z0: shelf.position.z - SHELF_D / 2, z1: shelf.position.z + SHELF_D / 2, y1: shelf.position.y + SHELF_H,

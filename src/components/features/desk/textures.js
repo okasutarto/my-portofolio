@@ -3457,6 +3457,86 @@ export function drawBinLabel(c, w, h) {
   c.textBaseline = "alphabetic";
 }
 
+// A sheet that's been screwed up and thrown away, wrapped round a paper ball: a page torn from
+// a lined notebook (blue rules, a red margin, a few lines of pencil scrawl, a crossed-out bit) or
+// a printed page (grey type in blocks). Wrinkles are drawn in, a soft shadow along each crease
+// with a light edge beside it, so the ball reads as crushed paper even where it faces the light.
+export function drawCrumpledPaper(c, w, h, { lined = true, seed = 1 } = {}) {
+  let s = seed * 9301 + 49297;
+  const rand = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+  c.fillStyle = lined ? "#fffdf5" : "#fbf8f0";
+  c.fillRect(0, 0, w, h);
+  paperGrain(c, w, h, 700);
+  if (lined) {
+    c.strokeStyle = "rgba(90,140,220,.55)";
+    c.lineWidth = 2;
+    for (let y = 18; y < h; y += 22) {
+      c.beginPath();
+      c.moveTo(0, y);
+      c.lineTo(w, y);
+      c.stroke();
+    }
+    c.strokeStyle = "rgba(230,80,80,.6)";
+    c.beginPath();
+    c.moveTo(w * 0.16, 0);
+    c.lineTo(w * 0.16, h);
+    c.stroke();
+    // Pencil scrawl: wavy runs of "words" sitting on the rules
+    c.strokeStyle = "rgba(50,50,60,.65)";
+    c.lineWidth = 1.6;
+    for (let y = 40; y < h * 0.8; y += 22) {
+      let x = w * 0.19;
+      const end = w * (0.6 + rand() * 0.35);
+      while (x < end) {
+        const word = 14 + rand() * 30;
+        c.beginPath();
+        c.moveTo(x, y - 3);
+        for (let t = 0; t <= word; t += 3) c.lineTo(x + t, y - 3 - Math.abs(Math.sin((x + t) * 0.6)) * 5);
+        c.stroke();
+        x += word + 6;
+      }
+      if (rand() < 0.25) {
+        c.beginPath();
+        c.moveTo(w * 0.2, y - 6);
+        c.lineTo(end * 0.8, y - 4);
+        c.stroke();
+      }
+    }
+  } else {
+    c.fillStyle = "rgba(40,40,40,.4)";
+    for (let y = 22; y < h - 20; y += 14) {
+      if (rand() < 0.15) continue; // a paragraph break
+      let x = w * 0.1;
+      const end = w * (rand() < 0.2 ? 0.5 : 0.9);
+      while (x < end) {
+        const word = 8 + rand() * 26;
+        c.fillRect(x, y, Math.min(word, end - x), 5);
+        x += word + 5;
+      }
+    }
+  }
+  // Creases: long jagged folds right across the sheet, each a dark line with a lit edge
+  for (let i = 0; i < 16; i++) {
+    let x = rand() * w;
+    let y = rand() * h;
+    const a = rand() * Math.PI;
+    const len = 60 + rand() * 160;
+    const pts = [[x, y]];
+    for (let t = 0; t < len; t += 18) {
+      x += Math.cos(a) * 18 + (rand() - 0.5) * 10;
+      y += Math.sin(a) * 18 + (rand() - 0.5) * 10;
+      pts.push([x, y]);
+    }
+    [["rgba(120,100,70,.28)", 3, 0], ["rgba(255,255,255,.7)", 2, 2.5]].forEach(([stroke, width, off]) => {
+      c.strokeStyle = stroke;
+      c.lineWidth = width;
+      c.beginPath();
+      pts.forEach(([px, py], j) => (j ? c.lineTo(px + off, py + off) : c.moveTo(px + off, py + off)));
+      c.stroke();
+    });
+  }
+}
+
 // ---------- katana ----------
 // A little four-pointed glint, for light catching a blade's tip
 export function drawGlint(c, w, h) {

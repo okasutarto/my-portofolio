@@ -12,7 +12,7 @@ const leds = [];
 const handlers = [];
 let toggles = 0;
 const ctx = vm.createContext({
-  THREE, speakers, speakerLeds: leds, soundMuted: true, scene: new THREE.Group(),
+  THREE, speakers, speakerLeds: leds, soundMuted: true, scene: new THREE.Group(), RISER_TOP: 0.5,
   toon: (color) => new THREE.MeshToonMaterial({ color }), track: (value) => value,
   rbox: (w,h,d) => new THREE.BoxGeometry(w,h,d), mesh: (geometry, material) => new THREE.Mesh(geometry, material),
   noRaycast() {}, register: (obj, handler) => handlers.push(handler),

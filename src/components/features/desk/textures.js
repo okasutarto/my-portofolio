@@ -787,7 +787,22 @@ export function drawChatScreen(c, w, h, chat, { unread = false, caret = false, n
   c.fillRect(0, 156, w, 6);
   c.textBaseline = "middle";
   c.font = `700 24px ${BODY}`;
-  c.fillText(now.toTimeString().slice(0, 5), 30, 34);
+  c.fillText(now.toTimeString().slice(0, 5), 44, 36);
+  // Signal bars, wi-fi and battery on the right of the status bar
+  c.fillStyle = "#000";
+  [8, 12, 16, 20].forEach((bh, i) => c.fillRect(w - 182 + i * 9, 46 - bh, 6, bh));
+  c.beginPath();
+  c.moveTo(w - 128, 34);
+  c.arc(w - 128, 46, 14, -Math.PI * 0.75, -Math.PI * 0.25);
+  c.closePath();
+  c.fill();
+  c.lineWidth = 3;
+  c.strokeStyle = "#000";
+  c.beginPath();
+  c.roundRect(w - 100, 25, 46, 22, 6);
+  c.stroke();
+  c.fillRect(w - 96, 29, 32, 14);
+  c.fillRect(w - 52, 32, 4, 8);
   // Dynamic Island
   c.fillStyle = "#000";
   c.beginPath();
@@ -2322,14 +2337,29 @@ export function drawStickyNote(c, w, h, { text, color = "#ffdd00", tick = false 
 }
 
 // ---------- keycap labels (the shortcut keys) ----------
-export function drawKeyLabel(c, w, h, label, color = "#fff") {
+// Legends in the Halo75's manner: a clean, medium-weight sans, small and light on the cap.
+// `ink` is the legend's colour; `small` sets word legends (ENTER, F1) smaller than single
+// glyphs; `shift` stacks the shifted symbol above the key's own (! over 1); `homing` adds the
+// little bar the F and J keys carry
+export function drawKeyLabel(c, w, h, label, color = "#fff", { ink = "#000", small = false, shift = null, homing = null } = {}) {
   c.fillStyle = color;
   c.fillRect(0, 0, w, h);
-  c.fillStyle = "#000";
+  c.fillStyle = ink;
   c.textAlign = "center";
   c.textBaseline = "middle";
-  fitFont(c, label, 800, DISPLAY, Math.round(h * 0.55), w - 14);
-  c.fillText(label, w / 2, h / 2 + 3);
+  if (shift) {
+    fitFont(c, shift, 500, BODY, Math.round(h * 0.3), w - 18);
+    c.fillText(shift, w / 2, h * 0.3);
+    fitFont(c, label, 500, BODY, Math.round(h * 0.3), w - 18);
+    c.fillText(label, w / 2, h * 0.68);
+  } else {
+    fitFont(c, label, 500, BODY, Math.round(h * (small ? 0.24 : 0.4)), w - 20);
+    c.fillText(label, w / 2, h / 2 + 2);
+  }
+  if (homing) {
+    c.fillStyle = homing;
+    c.fillRect(w / 2 - w * 0.14, h * 0.82, w * 0.28, h * 0.05);
+  }
   c.textAlign = "left";
   c.textBaseline = "alphabetic";
 }

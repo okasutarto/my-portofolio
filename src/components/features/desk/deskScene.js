@@ -4189,9 +4189,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   webcamLens.position.set(0, 3.897, 0.088);
   const chin = mesh(rbox(4.5, 0.46, 0.02, 0.05), toon("#26282d"), { outline: 0, cast: false });
   chin.position.set(0, 1.06, 0.072);
-  const chinLogo = new THREE.Mesh(track(new THREE.CircleGeometry(0.09, 5)), track(new THREE.MeshBasicMaterial({ color: "#5c6169" })));
+  // a small, plain round mark (the pentagon read as clutter)
+  const chinLogo = new THREE.Mesh(track(new THREE.CircleGeometry(0.05, 24)), track(new THREE.MeshBasicMaterial({ color: "#5c6169" })));
   chinLogo.position.set(0, 1.06, 0.085);
-  chinLogo.rotation.z = Math.PI / 2;
   const powerLed = new THREE.Mesh(track(new THREE.CircleGeometry(0.025, 10)), track(new THREE.MeshBasicMaterial({ color: "#16a34a" })));
   powerLed.position.set(1.95, 0.95, 0.085);
   const cableHole = new THREE.Mesh(track(new THREE.CircleGeometry(0.12, 18)), track(new THREE.MeshBasicMaterial({ color: "#0e0f11" })));
@@ -7493,7 +7493,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
     // Square on the window in the left wall. A shallow clip: the desk's left end sits close to it.
     // The window, with its weather card on the wall to its left
     window: () => ({ target: [windowGroup.position.x + 0.1, windowGroup.position.y + 0.15, windowGroup.position.z + 1.55], dir: [1, 0.08, 0.04], fit: [8.6, 6.2], depth: 1.4 }),
-    monitor: () => ({ target: [-0.2, 2.63, -2.66], dir: [0.1, 0.32, 1], fit: [5.2, 3.4] }),
+    // Framed a little high, with room under the monitor's chin for the command chips and the
+    // hint (they'd sit over the chin otherwise)
+    monitor: () => ({ target: [-0.2, 2.25, -2.66], dir: [0.1, 0.32, 1], fit: [5.2, 4.6] }),
     keyboard: () => ({ target: [0.2, 0.3, 0.75], dir: [0.1, 1, 0.75], fit: [5.4, 2.6] }),
     // A higher angle pushes the plant above the frame and leaves room for the sip quote.
     mug: () => ({ target: [mug.position.x - 0.3, 0.95 + MUG_Y, mug.position.z - 0.45], dir: [-0.2, 1, 0.45], fit: [3.1, 4.1] }),

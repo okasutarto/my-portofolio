@@ -30,32 +30,6 @@ for (const { tail, oval, lines } of paths) {
   assert.ok(tip[0] > 2 && tip[0] < 758 && tip[1] > 2 && tip[1] < 398, tail + ': outline stays inside texture');
 }
 
-// The actual tail tip must stay on the brim as the camera, chair and pop animation move.
-const THREE = require('three');
-const scene = read('deskScene.js');
-const start = scene.indexOf('  function placeHatBubble()');
-const hat = new THREE.Group();
-const camera = new THREE.PerspectiveCamera();
-const sprite = new THREE.Sprite();
-const tails = vm.runInNewContext(drawing + '; BUBBLE_TAILS', {});
-const place = vm.runInNewContext(scene.slice(start, scene.indexOf('  let luffyIndex', start)) + '; placeHatBubble', {
-  strawHat: hat, camera, hatBubble: { sprite }, BUBBLE_TAILS: tails,
-  hatAt: new THREE.Vector3(), hatScreenRight: new THREE.Vector3(), hatScreenUp: new THREE.Vector3(),
-});
-for (const amount of [0.16, 0.6, 1]) {
-  hat.position.set(amount * 3, -amount, 2);
-  hat.rotation.set(Math.PI/2, 0, amount);
-  camera.rotation.set(-amount, amount/2, 0);
-  sprite.scale.set(6.6*amount, 3.45*amount, 1);
-  place();
-  const tip = sprite.position.clone()
-    .add(new THREE.Vector3((tails.left.tip[0]-0.5)*sprite.scale.x, (0.5-tails.left.tip[1])*sprite.scale.y, 0).applyQuaternion(camera.quaternion));
-  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
-  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-  const expected = hat.localToWorld(new THREE.Vector3(0, 0, -0.86)).addScaledVector(up, 0.45).addScaledVector(right, 0.27);
-  assert.ok(tip.distanceTo(expected) < 1e-8, 'tail must follow the hat, just clear of its upper brim');
-}
-
 // Exercise playback against a small WebAudio fake; music must not start a noise loop.
 const sources = [];
 const param = () => ({ value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} });

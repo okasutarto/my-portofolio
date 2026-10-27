@@ -18,7 +18,7 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import emailjs from "@emailjs/browser";
-import { sfx, GROOVE_BEAT, setRainLevel } from "@/composables/useSfx";
+import { sfx, GROOVE_BEAT, setRainLevel, startScrape } from "@/composables/useSfx";
 import { ABOUT_NOTES } from "@/data/about";
 import { FOLDER_COLORS } from "@/data/projectFiles";
 import { EMAILJS_CONFIG } from "@/config/emailjs";
@@ -2051,6 +2051,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
     if (Math.hypot(vx, vz) > 1e-4) butterfly.rotation.y = Math.atan2(-vx, -vz);
     const flap = Math.sin(now * 0.045) * 1.0;
     wings.forEach(({ hinge, side }) => (hinge.rotation.z = side * flap));
+    // A tiny flutter on each downstroke, fading in as it arrives and out as it leaves
+    if (flap < 0 && flight.lastFlap >= 0) sfx.wingFlap({ volume: arrive * (1 - Math.min(1, leave / 1.6)) });
+    flight.lastFlap = flap;
     if (leave > 1.6) {
       flight.active = false;
       butterfly.visible = false;
@@ -3824,7 +3827,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       .to(g.position, { y: restY, z: 0.2, duration: 0.55, ease: "power2.in" }, 0.55)
       .set(g.rotation, { z: 0 })
       .call(() => {
-        sfx.clank({ strength: 0.8 });
+        sfx.rackLand({ strength: 0.8 });
         kickTassels(sword.sayaGroup, 1);
         g.getWorldPosition(katanaWorld);
         drawShout(shoutTex.ctx, 640, 320, "THE CURSE LIKES ME!");
@@ -4118,7 +4121,16 @@ export function createDeskScene({ container, projects, experiences, dark = false
           gsap.fromTo(gold.emissive, { r: 0.55, g: 0.42, b: 0.1 }, { r: 0.12, g: 0.09, b: 0.02, duration: 0.6, ease: "power2.out", overwrite: true });
           sfx.tick({ pitch: 1.8 });
         } else gsap.to(gold.emissive, { r: 0, g: 0, b: 0, duration: 0.3, overwrite: true });
-        gsap.to(tierGroup.position, { y: on ? restY + 0.22 : restY, z: on ? 0.5 : 0.2, duration: on ? 0.3 : 0.35, ease: on ? "back.out(2)" : "power2.inOut", overwrite: true });
+        gsap.to(tierGroup.position, {
+          y: on ? restY + 0.22 : restY,
+          z: on ? 0.5 : 0.2,
+          duration: on ? 0.3 : 0.35,
+          ease: on ? "back.out(2)" : "power2.inOut",
+          overwrite: true,
+          // Settled back on its hooks: a soft knock of the saya on the wood (cut short, and
+          // silent, if it's hovered again on the way down)
+          onComplete: () => !on && !slashing && sfx.rackLand({ strength: 0.45 }),
+        });
         gsap.to(tierGroup.rotation, { z: on ? 0.035 : 0, duration: on ? 0.3 : 0.35, ease: "power2.out", overwrite: true });
         gsap.to(drawPivot.rotation, {
           z: on ? drawTurn(HOVER_BARE) : 0,
@@ -4535,7 +4547,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       .to(switchConsole.rotation, { x: 0, duration: 0.35, ease: "power2.out" }, "<")
       .to(switchConsole.position, { y: docked.y, duration: 0.22, ease: "power2.in" })
       .call(() => {
-        sfx.clank({ strength: 0.5 });
+        sfx.dock({ strength: 0.5 });
         sfx.blip({ delay: 0.15 });
         dockLed.material.color.set("#3fe36b");
         switchScreen.material.color.setScalar(0.22);
@@ -4903,7 +4915,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       sfx.click();
       timers.push(setTimeout(() => sfx.click(), 90));
     },
-    book: () => sfx.flop({ strength: 0.4 }),
+    book: () => sfx.bookDown({ strength: 0.4 }),
     case: () => sfx.tick({ pitch: 0.9 }),
     figure: () => sfx.pop({ pitch: 1.3 }),
     trophy: () => sfx.ping(),
@@ -5131,7 +5143,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       .to(db.position, { y, duration: 0.3, ease: "power2.in" }, 0.42)
       .to(db.rotation, { y: db.rotation.y, duration: 0.3, ease: "power2.in" }, 0.42)
       .call(() => {
-        sfx.clank();
+        sfx.dumbbell();
         reps++;
         if (reps >= 10) {
           showReps("NEW PR!", "#ff90e8");
@@ -5338,8 +5350,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     paper.state = "idle";
     paper.ball.visible = false;
     paper.ball.position.copy(PARKED);
-    sfx.paper();
-    sfx.pop({ pitch: 0.8 });
+    sfx.binLand();
     squashBin();
     if (binFill < binPile.length) {
       const ball = binPile[binFill++];
@@ -5393,7 +5404,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
         vel.x *= 0.12;
         vel.z *= 0.12;
         vel.y = Math.min(vel.y, -1.5);
-        sfx.rustle({ duration: 0.3 });
+        sfx.swish();
         gsap.fromTo(net.scale, { x: 0.8, y: 1.7, z: 0.8 }, { x: 1, y: 1, z: 1, duration: 0.8, ease: "elastic.out(1.1, 0.3)" });
       } else {
         // Off the rim: it kicks out sideways and a little toward the room, losing most of its
@@ -5401,7 +5412,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
         const out = tmpV.set(paper.side, 0, 0).applyQuaternion(bin.quaternion);
         vel.set(out.x * (0.6 + Math.random() * 0.9) + 0.2, 2 + Math.random(), 0.5 + Math.random() * 0.8);
         spin.multiplyScalar(-1.4);
-        sfx.clank({ strength: 0.5 });
+        sfx.rimHit({ strength: 0.5 });
         gsap.fromTo(hoop.rotation, { x: 0.18, z: paper.side * 0.12 }, { x: 0, z: 0, duration: 0.9, ease: "elastic.out(1, 0.25)" });
         gsap.fromTo(net.scale, { x: 1.15, y: 0.85 }, { x: 1, y: 1, duration: 0.6, ease: "elastic.out(1, 0.3)" });
         streak = 0;
@@ -5470,7 +5481,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       p.y = floor;
       grounded = true;
       if (vel.y < -1.2) {
-        sfx.flop({ strength: Math.min(0.5, -vel.y / 14) });
+        sfx.paperBounce({ strength: Math.min(0.5, -vel.y / 14) });
         vel.y *= -BOUNCE;
         vel.x *= 0.8;
         vel.z *= 0.8;
@@ -6201,6 +6212,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     } else {
       const p = rope[hold.index];
       ropeHold = { index: hold.index, x: p.x, y: p.y };
+      sfx.strap({ speed: 0.3 });
     }
   }
   function releaseLanyard(hold) {
@@ -6262,10 +6274,20 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const before = rope[ROPE_SEGMENTS - 2];
     badge.position.set(end.x, end.y, badgeZ);
     const target = Math.atan2(end.x - before.x, before.y - end.y);
+    const spinBefore = badgeSpin;
     badgeSpin += (90 * (target - badgeAngle) - 7 * badgeSpin) * dt;
     badgeAngle += badgeSpin * dt;
     badge.rotation.z = badgeAngle;
+    // Each time a real swing turns back, the holder knocks its clip; the breeze's little drift
+    // never builds enough to click
+    swingPeak = Math.max(swingPeak, Math.abs(badgeSpin));
+    if (Math.sign(badgeSpin) !== Math.sign(spinBefore) && spinBefore !== 0) {
+      if (swingPeak > BADGE_CLICK_SPIN) sfx.badgeClick({ strength: Math.min(1, swingPeak / 8) });
+      swingPeak = 0;
+    }
   }
+  let swingPeak = 0;
+  const BADGE_CLICK_SPIN = 1.5;
   // A sideways push on the lower part of the strap, strongest at the badge
   const swing = (amount) => {
     rope.forEach((p, i) => {
@@ -6960,7 +6982,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // ---------- Oyen, the cat ----------
   // A ginger cat curled up asleep: on the rug just under the desk's front edge by day, and at night up on the desk in the warm
   // pool of the lamp (she jumps across when the room switches). Click her and she wakes for a
-  // moment (a meow, a purr, a word in a bubble); every third time she gets up and walks right
+  // moment (a meow and a word in a bubble); every third time she gets up and walks right
   // across the keyboard instead, typing nonsense into the terminal on the way.
   const fur = toon("#ff9f45");
   const furDark = toon("#d9741f");
@@ -7208,7 +7230,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
         },
       })
       .to(cat.scale, { y: 0.85 * 0.82, duration: 0.1, ease: "power2.out" })
-      .call(() => sfx.thud({ strength: 0.35 }))
+      .call(() => sfx.catLand({ strength: 0.35 }))
       .to(cat.scale, { y: 0.85, duration: 0.35, ease: "elastic.out(1.2, 0.4)" });
   }
   // Out from under the desk first, when that's where she is
@@ -7552,7 +7574,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
   function catGroom(tl) {
     const ease = "sine.inOut";
     catSitPose(tl, true);
-    tl.call(() => sfx.purr({ duration: 3.5 }));
     // the paw comes up as her head bends to meet it
     moveLeg(tl, frontL, GROOM_SHOULDER, AT_MOUTH, 0.7);
     tl.to(catHead.rotation, { x: 0.35, y: 0.5, duration: 0.7, ease }, "<0.15")
@@ -7684,7 +7705,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
         .to(cat.position, { y: floorY + 0.75, duration: 0.22, ease: "power2.out" }, "<")
         .to(paws.children[0].position, { x: 1.35, y: 1.1, z: 0.45, duration: 0.14, yoyo: true, repeat: 1, ease: "power2.out" }, "<")
         .to(cat.position, { y: floorY, duration: 0.2, ease: "power2.in" })
-        .call(() => sfx.thud({ strength: 0.2 }))
+        .call(() => sfx.catLand({ strength: 0.2 }))
         .to({}, { duration: 0.45 + Math.random() * 0.3 });
     }
     // it's gone: back round and down to sleep
@@ -7774,7 +7795,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
       gsap.fromTo(catHead.position, { y: catHead.position.y }, { y: catHead.position.y + 0.25, duration: 0.25, yoyo: true, repeat: 1, ease: "power2.out" });
       gsap.fromTo(tailCurl.rotation, { y: 0 }, { y: 0.15, duration: 0.2, yoyo: true, repeat: 5, ease: "sine.inOut" });
       sfx.meow();
-      sfx.purr({ delay: 0.5, duration: 1.6 });
       catSay(CAT_LINES[catLine++ % CAT_LINES.length]);
       timers.push(setTimeout(() => {
         catEyes(false);
@@ -8210,9 +8230,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const wait = catBed === CAT_BEDS.desk ? 1.4 : 0;
     catSettle();
     gsap.to(entry.body.position, { y: 0, z: 0, duration: 0.2, overwrite: true });
-    sfx.slide({ duration: 0.35, delay: wait });
-    gsap.to(entry, { out: 1, duration: 1.0, delay: wait, ease: "power2.inOut", overwrite: true, onComplete: () => sfx.slap() });
-    gsap.to(entry.hinge.rotation, { z: Math.PI - OPEN_TILT, duration: 0.6, delay: wait + 1.0, ease: "power2.inOut", onStart: () => sfx.rustle({ duration: 0.4 }) });
+    sfx.folderSlide({ duration: 0.6, delay: wait });
+    gsap.to(entry, { out: 1, duration: 1.0, delay: wait, ease: "power2.inOut", overwrite: true, onComplete: () => sfx.flop({ strength: 0.5, recorded: false }) });
+    gsap.to(entry.hinge.rotation, { z: Math.PI - OPEN_TILT, duration: 0.6, delay: wait + 1.0, ease: "power2.inOut", onStart: () => sfx.coverOpen({ duration: 0.6 }), onComplete: () => sfx.flop({ strength: 0.3, recorded: false }) });
     applyShot(false, 1.2);
   }
   function closeProject() {
@@ -8491,7 +8511,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       .to(envelope.position, { z: ENVELOPE_SETTLE.z, y: ENVELOPE_SETTLE.y, duration: 0.8, ease: "sine.inOut" }, "out+=0.85")
       .to(envelope.rotation, { y: 0.02, duration: 0.8, ease: "sine.inOut" }, "out+=0.85")
       .to(postcard.scale, { keyframes: [{ x: 1.01, z: 0.98, duration: 0.12 }, { x: 1, z: 1, duration: 0.2 }] }, "out+=1.75")
-      .call(() => sfx.flop({ strength: 0.5 }), null, "out+=1.75")
+      .call(() => sfx.cardDown({ strength: 0.5 }), null, "out+=1.75")
       .set(postage, { visible: true })
       .fromTo(postage.scale, { x: 2.2, y: 2.2 }, { x: 1, y: 1, duration: 0.45, ease: "back.out(2)" })
       .call(() => sfx.stamp(), null, "<+0.08");
@@ -8671,7 +8691,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       .to(mug.position, { y: MUG_Y, duration: 0.35, ease: "bounce.out" }, 1.0);
     // The slurp starts as the rim reaches your lips; the mug is set down after the gulp
     sfx.slurp({ delay: 0.25 });
-    timers.push(setTimeout(() => sfx.thud({ strength: 0.35 }), 1200));
+    timers.push(setTimeout(() => sfx.mugDown({ strength: 0.35 }), 1200));
     sipsLeft--;
     timers.push(setTimeout(() => setCoffee(sipsLeft / SIPS, 0.4), 350));
     if (sipsLeft > 0) {
@@ -8973,6 +8993,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
       }
       const point = rayFromPointer(e).intersectPlane(lanyardPlane, lanyardPoint);
       if (point) moveLanyard(lanyardDrag, point);
+      if (e.timeStamp - (lanyardDrag.lastSound || 0) > 130) {
+        sfx.strap({ speed: Math.min(1, Math.hypot(e.movementX, e.movementY) / 14) });
+        lanyardDrag.lastSound = e.timeStamp;
+      }
       e.preventDefault();
       return;
     }
@@ -8988,10 +9012,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
       noteDrag.note.paper.position.y = position.y;
       noteDrag.note.shadow.position.x = position.x + 0.1;
       noteDrag.note.shadow.position.y = position.y - 0.1;
-      if (e.timeStamp - noteDrag.lastSound > 160) {
-        sfx.paper();
-        noteDrag.lastSound = e.timeStamp;
-      }
+      // One held scrape for the whole drag, swelling with the hand and fading when it stops
+      if (!noteDrag.scrape) noteDrag.scrape = startScrape();
+      noteDrag.scrape?.set(Math.min(1, Math.hypot(e.movementX, e.movementY) / 12));
       e.preventDefault();
       return;
     }
@@ -9112,6 +9135,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     if (!noteDrag || (pointerId !== null && pointerId !== noteDrag.pointerId)) return;
     const drag = noteDrag;
     noteDrag = null;
+    drag.scrape?.stop();
     downAt = null;
     const overlaps = drag.moved && boardNotes.some((other) => other !== drag.note && notesOverlap(drag.note, other));
     pinNote(drag.note, sound, overlaps ? { x: drag.homeX, y: drag.homeY } : drag.note.paper.position);

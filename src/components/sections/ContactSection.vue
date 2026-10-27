@@ -343,7 +343,7 @@ onMounted(() => {
       // Card comes down to rest on top of the envelope
       .to(card, { yPercent: 0, y: -6, duration: 0.75, ease: "power2.inOut" }, "out+=0.95")
       .to(card, { keyframes: { scaleY: [1, 0.98, 1], scaleX: [1, 1.01, 1] }, duration: 0.28, transformOrigin: "50% 100%" }, "out+=1.7")
-      .call(() => sfx.flop({ strength: 0.6 }), null, "out+=1.7")
+      .call(() => sfx.cardDown({ strength: 0.6 }), null, "out+=1.7")
       // 5. Stamp slapped on, then the side column
       .from(stampRef.value, { scale: 2.2, rotate: -20, opacity: 0, duration: 0.45, ease: "back.out(2)" })
       .call(() => sfx.stamp(), null, "<+0.08")

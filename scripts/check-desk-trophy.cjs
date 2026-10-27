@@ -38,11 +38,11 @@ let bubbles = 0;
 const trophyHalo = new THREE.Sprite();
 const trophyGold = new THREE.MeshToonMaterial();
 const celebration = vm.createContext({
-  trophyCelebrating: false, trophyCelebration: null, trophy, trophyHalo, trophyGold, shelfBubble,
+  SECRETS: Array.from({ length: 20 }), trophyCelebrating: false, trophyCelebration: null, trophy, trophyHalo, trophyGold, shelfBubble,
   camera, shelf: { position: { z: -3.75 } }, SHELF_D: 1.5,
   shelfBubbleAt: new THREE.Vector3(), ledPartyUntil: 0, performance: { now: () => 0 }, THREE,
   burst: (x, y, z, festive) => { assert.equal(festive, true); burstOrigins.push(new THREE.Vector3(x, y, z)); bursts++; },
-  shelfSay: (_, text) => { assert.ok(text.includes('19/19')); bubbles++; }, sfx: { sparkle() {}, cheer() {}, applause() {} },
+  shelfSay: (_, text) => { assert.ok(text.includes('20/20')); bubbles++; }, sfx: { sparkle() {}, cheer() {}, applause() {} },
   gsap: { killTweensOf: gsap.killTweensOf, fromTo: (object, from, to) => gsap.fromTo(object, from, { ...to, paused: true }), timeline: (options) => gsap.timeline({ ...options, paused: true }) },
 });
 const cheer = vm.runInContext(section('  function cheerTrophy()', '  const PALETTE') + '; cheerTrophy', celebration);

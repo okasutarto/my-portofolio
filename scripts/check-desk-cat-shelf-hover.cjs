@@ -81,7 +81,7 @@ const gymContext = vm.createContext({
   register: (object, handler) => gymHandlers.set(object, handler),
   gsap: { to(target, values) { target.y = values.y; } },
 });
-vm.runInContext(section('  dumbbells.forEach((db) => register(db, {', '  // ---------- monitor'), gymContext);
+vm.runInContext(section('  dumbbells.forEach((db) => register(db, {', '  // ---------- wastebasket'), gymContext);
 for (const db of dumbbells) {
   const handler = gymHandlers.get(db);
   handler.onHover(true); assert.ok(db.position.y > db.userData.restY);

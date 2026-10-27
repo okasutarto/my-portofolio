@@ -52,6 +52,8 @@ const THREE = require('three');
   assert.deepEqual(items.slice(0, 3).map(({sound}) => sound), ['console','controller','controller'], 'console and controllers keep their interactions');
   const trophyModel = vm.runInNewContext(source.slice(source.indexOf('  const trophyGold ='), source.indexOf('  const handheld =')) + '; ({ trophy, cup })', {
     THREE, toon, at, group, black: toon('#171717'),
+    track: value => value, canvasTexture: () => ({ texture: new THREE.Texture(), ctx: {} }),
+    drawTrophyMetal() {}, drawTrophyStone() {}, drawSatinFinish() {},
     neonLight: (color, intensity) => new THREE.PointLight(color, intensity),
     mesh: (geometry, material) => new THREE.Mesh(geometry, material),
     rbox: (w,h,d) => new THREE.BoxGeometry(w,h,d),

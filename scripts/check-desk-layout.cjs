@@ -25,6 +25,8 @@ for (const name of ['tickets', 'folders', 'aboutBoard']) {
   const turn = source.match(new RegExp(name + '\\.rotation\\.y = ([^;]+);'));
   if (turn) vm.runInNewContext(turn[0], context);
 }
+context.SHELF_H = num('SHELF_H');
+context.SHELF_TOP_EXTRA = num('SHELF_TOP_EXTRA');
 const shotStart = source.indexOf('  const SHOTS =');
 const shots = vm.runInNewContext(source.slice(shotStart, source.indexOf('  const cam =', shotStart)) + '; SHOTS', context);
 assert.ok(Math.abs(shots.shelf().target[0] - context.shelf.position.x) < 0.5, 'shelf should sit near the centre of its close-up');
@@ -52,6 +54,30 @@ assert.ok(shots.shelf().target[1] > portraitShelf.target[1], 'upper collection s
 context.shelfLook = 1.7;
 context.container.clientWidth = 1200;
 context.container.clientHeight = 800;
+
+// Clicking the top board centres the gauntlet/Switch display, including portrait screens.
+Object.assign(context, {
+  focus: { name: 'overview' }, byFocus: new Map(), arriveTimer: null,
+  setHover() {}, stopTyping() {}, clearTimeout() {}, catSettle() {}, applyShot() {},
+  sfx: { whoosh() {} }, onEvent() {},
+});
+const lookStart = source.indexOf('  function shelfLookAt(');
+vm.runInNewContext(source.slice(lookStart, source.indexOf('  let arriveTimer', lookStart)), context);
+const focusStart = source.indexOf('  function setFocus(');
+const setFocus = vm.runInNewContext(source.slice(focusStart, source.indexOf('  function back()', focusStart)) + '; setFocus', context);
+for (const [w, h] of [[1360, 960], [1440, 700], [390, 844]]) {
+  context.container.clientWidth = w;
+  context.container.clientHeight = h;
+  context.focus.name = 'overview';
+  setFocus('shelf', { point: new THREE.Vector3(10.5, context.shelf.position.y + context.SHELF_H, -3.75) });
+  const target = shots.shelf().target;
+  assert.ok(Math.abs(target[1] - (context.shelf.position.y + context.SHELF_H + 1.25)) < 1e-8,
+    'top-board click frames the display centre rather than the shelf below');
+  assert.ok(Math.abs(target[0] - (context.shelf.position.x + 0.1)) < 1e-8);
+}
+context.container.clientWidth = 1200;
+context.container.clientHeight = 800;
+context.shelfLook = 1.7;
 
 // Framing must follow props if they move, rather than retaining the old coordinates.
 context.tickets.position.x += 1;
@@ -87,6 +113,8 @@ const resumeContext = {
   stickyDrag: null,
   noteDrag: null,
   lanyardDrag: null,
+  chairDrag: null,
+  hatDrag: null,
   finishNoteDrag() { const drag = resumeContext.noteDrag; resumeContext.noteDrag = null; return drag; },
   runHotspot: ({ href }) => opens.push(href),
 };

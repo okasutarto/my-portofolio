@@ -66,6 +66,7 @@ import {
   drawWadoBlade,
   drawKitetsuBlade,
   drawTsukaWrap,
+  drawSayaLacquer,
   drawSakuraPetal,
   drawSakuraBlossom,
   drawBookSpine,
@@ -85,6 +86,8 @@ import {
   drawCarbonWeave,
   drawLeatherGrain,
   drawBrushedMetal,
+  drawTrophyMetal,
+  drawTrophyStone,
   drawSatinFinish,
   drawConeRibs,
   drawPlantLeaf,
@@ -2853,17 +2856,32 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // neck that turns, blinking eyes, an antenna light, and arms on shoulder pivots). It glances
   // toward the pointer and blinks now and then, dances while Spotifree plays, says hi when
   // clicked, and five quick pokes glitch it into giving up a secret.
-  const teal = toon("#00e0c6");
+  // Brushed metal with real light-dependent specular highlights, shared by moving parts.
+  const botMetal = canvasTexture(256, 256);
+  track(botMetal.texture);
+  drawBrushedMetal(botMetal.ctx, 256, 256);
+  const botGrain = canvasTexture(128, 128);
+  track(botGrain.texture);
+  drawSatinFinish(botGrain.ctx, 128, 128, { grain: 0.045 });
+  botGrain.texture.colorSpace = THREE.NoColorSpace;
+  const botMetalMat = (color, shininess = 75) => track(new THREE.MeshPhongMaterial({
+    color, map: botMetal.texture, bumpMap: botGrain.texture, bumpScale: 0.0012,
+    specular: "#d7f5ff", shininess, emissive: color, emissiveIntensity: 0.13,
+  }));
+  const teal = botMetalMat("#35edda");
+  const botSilver = botMetalMat("#f7fbff", 95);
+  const botSteel = botMetalMat("#8197a7", 65);
   const robot = new THREE.Group();
   const bot = new THREE.Group();
   robot.add(bot);
   bot.add(
     at(mesh(rbox(0.52, 0.55, 0.42, 0.08), teal, { outline: 0.03 }), 0, 0.28, 0),
-    // a chest panel with buttons and a little speaker slot
-    at(mesh(rbox(0.3, 0.24, 0.03, 0.03), white, { outline: 0.01 }), 0, 0.3, 0.215),
-    at(mesh(new THREE.SphereGeometry(0.04, 10, 8), toon("#ff6b6b"), { outline: 0 }), -0.07, 0.33, 0.235),
-    at(mesh(new THREE.SphereGeometry(0.04, 10, 8), toon("#ffdd00"), { outline: 0 }), 0.07, 0.33, 0.235),
-    at(mesh(rbox(0.16, 0.03, 0.02, 0.005), black, { outline: 0 }), 0, 0.24, 0.235),
+    // Inset steel bezel around a brushed-aluminium service panel.
+    at(mesh(rbox(0.36, 0.29, 0.018, 0.035), botSteel, { outline: 0.004 }), 0, 0.3, 0.215),
+    at(mesh(rbox(0.3, 0.24, 0.018, 0.025), botSilver, { outline: 0 }), 0, 0.3, 0.232),
+    at(mesh(new THREE.SphereGeometry(0.04, 10, 8), toon("#ff6b6b"), { outline: 0 }), -0.07, 0.33, 0.25),
+    at(mesh(new THREE.SphereGeometry(0.04, 10, 8), toon("#ffdd00"), { outline: 0 }), 0.07, 0.33, 0.25),
+    at(mesh(rbox(0.16, 0.03, 0.02, 0.005), black, { outline: 0 }), 0, 0.24, 0.25),
   );
   const botHead = new THREE.Group();
   botHead.position.y = 0.57;
@@ -2872,18 +2890,52 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const botEyes = [-0.1, 0.1].map((x) => at(mesh(rbox(0.08, 0.1, 0.02, 0.01), eyeMat, { outline: 0 }), x, 0.21, 0.19));
   const antennaMat = track(new THREE.MeshBasicMaterial({ color: "#ff6b6b" }));
   botHead.add(
-    at(mesh(rbox(0.44, 0.38, 0.38, 0.08), white, { outline: 0.03 }), 0, 0.19, 0),
+    at(mesh(rbox(0.44, 0.38, 0.38, 0.08), botSilver, { outline: 0.018 }), 0, 0.19, 0),
     ...botEyes,
     at(mesh(rbox(0.18, 0.04, 0.02, 0.01), black, { outline: 0 }), 0, 0.09, 0.195),
     rod(new THREE.Vector3(0, 0.38, 0), new THREE.Vector3(0, 0.63, 0), 0.025, black, 0),
     at(mesh(new THREE.SphereGeometry(0.07, 10, 8), antennaMat, { outline: 0.015 }), 0, 0.67, 0),
   );
+  // Riveted service panels, cooling slots and machined ear caps follow their own pivots.
+  const botScrewGeo = track(new THREE.SphereGeometry(0.009, 8, 6));
+  for (const side of [-1, 1]) {
+    for (const y of [0.205, 0.395]) {
+      const screw = new THREE.Mesh(botScrewGeo, botSteel);
+      screw.scale.z = 0.45;
+      bot.add(at(screw, side * 0.125, y, 0.245));
+    }
+    const ear = mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.045, 20), botSteel, { outline: 0.004 });
+    ear.rotation.z = Math.PI / 2;
+    botHead.add(at(ear, side * 0.23, 0.21, 0));
+    const earCap = mesh(new THREE.CylinderGeometry(0.041, 0.041, 0.048, 20), botSilver, { outline: 0 });
+    earCap.rotation.z = Math.PI / 2;
+    botHead.add(at(earCap, side * 0.245, 0.21, 0));
+    botHead.add(at(mesh(rbox(0.018, 0.22, 0.012, 0.004), botSteel, { outline: 0 }), side * 0.186, 0.2, 0.171));
+    bot.add(at(mesh(rbox(0.2, 0.065, 0.47, 0.025), botSteel, { outline: 0.005 }), side * 0.145, 0.038, 0.025));
+    for (let i = 0; i < 3; i++) {
+      bot.add(at(mesh(rbox(0.004, 0.012, 0.13, 0.002), botSteel, { outline: 0, cast: false }), side * 0.26, 0.24 + i * 0.045, 0));
+    }
+  }
+  for (let i = 0; i < 4; i++) {
+    bot.add(at(mesh(rbox(0.015, 0.022, 0.006, 0.003), botSteel, { outline: 0 }), -0.045 + i * 0.03, 0.24, 0.263));
+  }
+  const antennaBase = mesh(new THREE.CylinderGeometry(0.045, 0.055, 0.035, 16), botSteel, { outline: 0.004 });
+  botHead.add(at(antennaBase, 0, 0.39, 0));
+  botHead.add(rod(new THREE.Vector3(0, 0.405, 0), new THREE.Vector3(0, 0.605, 0), 0.013, botSilver, 0));
   // arms hang from shoulder pivots, so they can wave and pump
   const botArms = [-1, 1].map((side) => {
     const shoulder = new THREE.Group();
     shoulder.position.set(side * 0.33, 0.5, 0);
     shoulder.rotation.z = side * -0.12;
-    shoulder.add(at(mesh(rbox(0.12, 0.42, 0.14, 0.05), teal, { outline: 0.02 }), 0, -0.2, 0));
+    const joint = mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.12, 20), botSteel, { outline: 0.005 });
+    joint.rotation.z = Math.PI / 2;
+    shoulder.add(joint);
+    shoulder.add(at(mesh(rbox(0.12, 0.15, 0.14, 0.035), teal, { outline: 0.008 }), 0, -0.105, 0));
+    shoulder.add(at(mesh(new THREE.SphereGeometry(0.055, 16, 10), botSteel, { outline: 0.003 }), 0, -0.215, 0));
+    shoulder.add(at(mesh(rbox(0.13, 0.14, 0.15, 0.025), botSilver, { outline: 0.008 }), 0, -0.31, 0));
+    [-1, 1].forEach((finger) => {
+      shoulder.add(at(mesh(rbox(0.035, 0.06, 0.1, 0.012), botSteel, { outline: 0.003 }), finger * 0.035, -0.405, 0.018));
+    });
     bot.add(shoulder);
     return shoulder;
   });
@@ -3064,7 +3116,27 @@ export function createDeskScene({ container, projects, experiences, dark = false
   trophyHalo.raycast = noRaycast;
   trophyHalo.visible = false;
   scene.add(trophyHalo);
-  const trophyGold = toon("#e8b640");
+  const trophyGold = toon("#ffdb58");
+  // Lift the shadow band locally so the gold stays bright inside the shelf recess.
+  const trophyGradient = track(new THREE.DataTexture(new Uint8Array([140, 210, 255]), 3, 1, THREE.RedFormat));
+  trophyGradient.minFilter = trophyGradient.magFilter = THREE.NearestFilter;
+  trophyGradient.needsUpdate = true;
+  trophyGold.gradientMap = trophyGradient;
+  const trophyMetal = canvasTexture(256, 256);
+  track(trophyMetal.texture);
+  drawTrophyMetal(trophyMetal.ctx, 256, 256);
+  trophyGold.map = trophyMetal.texture;
+  const trophyGrain = canvasTexture(128, 128);
+  track(trophyGrain.texture);
+  drawSatinFinish(trophyGrain.ctx, 128, 128, { grain: 0.08 });
+  trophyGrain.texture.colorSpace = THREE.NoColorSpace;
+  trophyGold.bumpMap = trophyGrain.texture;
+  trophyGold.bumpScale = 0.0015;
+  const trophyStone = canvasTexture(256, 256);
+  track(trophyStone.texture);
+  drawTrophyStone(trophyStone.ctx, 256, 256);
+  const trophyBaseMat = toon("#ffffff");
+  trophyBaseMat.map = trophyStone.texture;
   const trophyProfile = [[0, 0.52], [0.12, 0.53], [0.24, 0.65], [0.34, 0.87], [0.37, 1.12], [0.32, 1.12], [0.3, 0.9], [0.2, 0.71], [0.08, 0.65], [0, 0.65]].map(([r, y]) => new THREE.Vector2(r, y));
   // A hollow bowl, rounded rim and continuous loop handles sit on a separate stem.
   const cup = mesh(new THREE.LatheGeometry(trophyProfile, 40), trophyGold, { outline: 0.012 });
@@ -3074,7 +3146,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   cup.add(trophyLight);
   // The plate on its plinth keeps score of the room's secrets found so far
   const trophyPlate = printed(0.4, 0.13, 700, (c, w, h) => {
-    c.fillStyle = "#ffd34d";
+    drawBrushedMetal(c, w, h);
+    c.fillStyle = "rgba(255,193,40,.6)";
     c.fillRect(0, 0, w, h);
     c.strokeStyle = "#8a6416";
     c.lineWidth = h * 0.08;
@@ -3087,10 +3160,29 @@ export function createDeskScene({ container, projects, experiences, dark = false
   });
   trophyPlate.position.set(0, 0.11, 0.252);
   const trophy = group(
-    at(mesh(rbox(0.62, 0.22, 0.5, 0.035), black, { outline: 0.016 }), 0, 0.11, 0), trophyPlate, cup,
+    at(mesh(rbox(0.62, 0.22, 0.5, 0.035), trophyBaseMat, { outline: 0.016 }), 0, 0.11, 0), trophyPlate, cup,
     at(mesh(rbox(0.53, 0.04, 0.42, 0.02), trophyGold, { outline: 0.008 }), 0, 0.24, 0),
-    at(mesh(new THREE.CylinderGeometry(0.065, 0.085, 0.28, 24), trophyGold, { outline: 0.008 }), 0, 0.4, 0),
+    mesh(new THREE.LatheGeometry([[0, 0.26], [0.14, 0.26], [0.15, 0.28],
+      [0.1, 0.31], [0.063, 0.36], [0.052, 0.43], [0.075, 0.5], [0.12, 0.53]]
+      .map(([r, y]) => new THREE.Vector2(r, y)), 32), trophyGold, { outline: 0.008 }),
   );
+  // Turned collars and a stepped foot give the stem a machined silhouette.
+  [[0.28, 0.145, 0.012], [0.32, 0.092, 0.009], [0.49, 0.082, 0.009],
+    [0.59, 0.19, 0.01], [1.07, 0.365, 0.009]].forEach(([y, radius, thickness]) => {
+    const collar = mesh(new THREE.TorusGeometry(radius, thickness, 6, 40), trophyGold, { outline: 0 });
+    collar.rotation.x = Math.PI / 2;
+    collar.position.y = y;
+    trophy.add(collar);
+  });
+  trophy.add(at(mesh(rbox(0.65, 0.035, 0.53, 0.012), trophyBaseMat, { outline: 0.006 }), 0, 0.02, 0));
+  // Four small recessed plaque fasteners sit clear of the live score.
+  const trophyScrewGeo = track(new THREE.SphereGeometry(0.009, 8, 6));
+  [-1, 1].forEach((x) => [-1, 1].forEach((y) => {
+    const screw = new THREE.Mesh(trophyScrewGeo, trophyGold);
+    screw.scale.z = 0.4;
+    screw.position.set(x * 0.177, 0.11 + y * 0.043, 0.257);
+    trophy.add(screw);
+  }));
   const trophyRim = mesh(new THREE.TorusGeometry(0.345, 0.025, 10, 40), trophyGold, { outline: 0 });
   trophyRim.rotation.x = Math.PI / 2;
   trophyRim.position.y = 1.12;
@@ -3099,13 +3191,31 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const path = new THREE.CatmullRomCurve3([[0.34, 1.04], [0.49, 1.02], [0.51, 0.85], [0.42, 0.71], [0.29, 0.74]].map(([x, y]) => new THREE.Vector3(side * x, y, 0)));
     trophy.add(mesh(new THREE.TubeGeometry(path, 24, 0.027, 10, false), trophyGold, { outline: 0.008 }));
   });
-  const trophyStar = printed(0.16, 0.16, 700, (c, w, h) => {
-    c.fillStyle = "#89601f"; c.font = `900 ${w}px sans-serif`;
-    c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("★", w / 2, h * 0.54);
+  // A raised medallion with an engraved laurel wreath around the original star.
+  const trophyMedal = mesh(new THREE.CylinderGeometry(0.125, 0.125, 0.014, 32), trophyGold, { outline: 0.005 });
+  trophyMedal.rotation.x = Math.PI / 2;
+  trophyMedal.position.set(0, 0.9, 0.346);
+  trophy.add(trophyMedal);
+  const trophyStar = printed(0.23, 0.23, 700, (c, w, h) => {
+    c.strokeStyle = "#89601f";
+    c.lineWidth = w * 0.018;
+    c.beginPath();
+    c.arc(w / 2, h / 2, w * 0.46, 0, Math.PI * 2);
+    c.stroke();
+    c.fillStyle = "#89601f";
+    for (const side of [-1, 1]) for (let i = 0; i < 6; i++) {
+      const angle = side * (0.35 + i * 0.38);
+      c.beginPath();
+      c.ellipse(w * 0.5 + Math.sin(angle) * w * 0.33, h * 0.5 + Math.cos(angle) * h * 0.33,
+        w * 0.035, h * 0.075, -angle + side * 0.55, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.font = `900 ${w * 0.52}px sans-serif`;
+    c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("★", w / 2, h * 0.5);
   });
   trophyStar.material.transparent = true;
   trophyStar.material.alphaTest = 0.1;
-  trophyStar.position.set(0, 0.9, 0.35);
+  trophyStar.position.set(0, 0.9, 0.356);
   trophy.add(trophyStar);
   addItem(at(trophy, 0.45, standOn(3), 0.15), "trophy");
   const handheld = group(
@@ -3213,6 +3323,16 @@ export function createDeskScene({ container, projects, experiences, dark = false
     cordHang.scale.y = stretch.s;
     hung.position.y = CORD_TOP - CORD_LEN * stretch.s - TIE_UP * HAT_SCALE;
   };
+  const hatGuitarBounds = new THREE.Box3();
+  function constrainHat() {
+    // Reserve the guitar's side of the wall, including its swing and the stretched brim.
+    guitarSwing.updateWorldMatrix(true, false);
+    hatGuitarBounds.setFromObject(guitarSwing);
+    const radius = 0.8 * Math.max(hung.scale.x, hung.scale.y, hung.scale.z);
+    const clearance = HAT_NAIL.z - hatGuitarBounds.max.z - radius - 0.12;
+    const maxAngle = Math.asin(THREE.MathUtils.clamp(clearance / -hung.position.y, -1, 1));
+    hatPeg.rotation.z = Math.min(hatPeg.rotation.z, maxAngle);
+  }
   const stopHat = () => gsap.killTweensOf([stretch, hung.scale, hung.rotation, hatPeg.rotation]);
   // Let go from a stretch `from`, swung out to `angle`: the further it was pulled, the harder
   // it snaps, squashes and bounces
@@ -3389,9 +3509,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
 
   // Blade textures for each of the 3 swords
   const createBladeMat = (drawFn) => {
-    const tex = canvasTexture(1024, 128);
+    const tex = canvasTexture(2048, 256);
     track(tex.texture);
-    drawFn(tex.ctx, 1024, 128, { bow, length: BLADE_L, width: BLADE_SPAN, yMin: Y_MIN, yMax: Y_MAX });
+    drawFn(tex.ctx, 2048, 256, { bow, length: BLADE_L, width: BLADE_SPAN, yMin: Y_MIN, yMax: Y_MAX });
     tex.texture.repeat.set(1 / BLADE_SPAN, 1 / (Y_MAX - Y_MIN));
     tex.texture.offset.set(0, -Y_MIN / (Y_MAX - Y_MIN));
     const mat = toon("#ffffff");
@@ -3404,7 +3524,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const enmaBladeMat = createBladeMat(drawEnmaBlade);
 
   // Enma crest decals
-  const enmaPurple = toon("#6b2fa8");
   const cord = toon("#e11d48");
   // Enma's tassels hang from pivots on the saya and swing like little pendulums: each frame they
   // lean toward gravity as the saya feels it (its own acceleration subtracted), so a drawn,
@@ -4229,6 +4348,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
     mat.map = tex.texture;
     return mat;
   };
+  const lacquerMat = (color) => {
+    const tex = canvasTexture(1024, 128);
+    track(tex.texture);
+    drawSayaLacquer(tex.ctx, 1024, 128, { color });
+    const mat = toon("#ffffff");
+    mat.map = tex.texture;
+    return mat;
+  };
   // Swords sit in the hooks centred on the rack: handle on the right, saya to the left. Each
   // is built handle-left and turned round, so its front details are on its local -z.
   const TSUKA_L = 0.95;
@@ -4388,7 +4515,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       text: "Zoro's most treasured sword. It belonged to his childhood friend Kuina, and was forged by the legendary swordsmith Shimotsuki Kozaburo.",
     },
     bladeMat: wadoBladeMat,
-    sayaMat: wadoWhite,
+    sayaMat: lacquerMat("#fbfaf6"),
     tsukaMat: tsukaMat("#f8f7f2", "#1a1714"),
     tsubaMaker: (gold) => {
       const tsuba = new THREE.Group();
@@ -4437,7 +4564,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
   });
 
   // Middle: Sandai Kitetsu
-  const kitetsuRed = toon("#c81e1e");
   buildKatana(RACK_TIERS[1], {
     style: "kitetsu",
     info: {
@@ -4445,7 +4571,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       text: "A cursed blade (yōtō): every owner before is said to have met a tragic end. Zoro staked his life on his luck to test it in Loguetown, and the sword chose him.",
     },
     bladeMat: kitetsuBladeMat,
-    sayaMat: kitetsuRed,
+    sayaMat: lacquerMat("#c81e1e"),
     tsukaMat: tsukaMat("#a3161c", "#1a1714"),
     tsubaMaker: (gold) => {
       const tsuba = new THREE.Group();
@@ -4476,8 +4602,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
       text: "Ranked with Wado Ichimonji. Once Kozuki Oden's, the only sword to scar Kaido; it pulls its wielder's Haki out of them, so only the strong can tame it.",
     },
     bladeMat: enmaBladeMat,
-    sayaMat: enmaPurple,
-    tsukaMat: enmaPurple,
+    sayaMat: lacquerMat("#6b2fa8"),
+    tsukaMat: tsukaMat("#6b2fa8", "#6b2fa8"),
     tsubaMaker: (gold) => {
       const tsuba = new THREE.Group();
       [[0, 0.085], [0, -0.085], [0.085, 0], [-0.085, 0]].forEach(([y, z]) => {
@@ -4522,23 +4648,80 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // (Switch-style, with an original logo and no product name on its screen)
   // Handheld mode: the black tablet between a neon-blue and a neon-red Joy-Con, leaning back
   // on a little black stand. Click it for a hop and a word from it.
+  // Clean matte plastic; the bevels and scene lighting provide the surface detail.
+  const switchRubber = toon("#303238");
+  const switchShell = (color) => {
+    const material = toon(color);
+    material.emissive.set(color);
+    material.emissiveIntensity = 0.06;
+    return material;
+  };
+  const switchGraphite = switchShell("#303238");
   const joyCon = (color, side) => {
     const con = new THREE.Group();
-    con.add(mesh(rbox(0.25, 0.62, 0.1, 0.1), toon(color), { outline: 0.016 }));
-    const stickY = side < 0 ? 0.13 : -0.04;
-    const padY = side < 0 ? -0.04 : 0.13;
-    const stick = mesh(new THREE.CylinderGeometry(0.055, 0.06, 0.05, 16), black, { outline: 0.01 });
-    stick.rotation.x = Math.PI / 2;
-    con.add(at(stick, 0, stickY, 0.065));
-    // four face buttons (or arrow buttons) in a diamond
-    [[0, 0.055], [0, -0.055], [0.055, 0], [-0.055, 0]].forEach(([dx, dy]) => {
-      const b = mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.025, 10), black, { outline: 0.004 });
-      b.rotation.x = Math.PI / 2;
-      con.add(at(b, dx, padY + dy, 0.058));
+    // Flat attachment edge, broad rounded outer corners and a softly bevelled front.
+    const shape = new THREE.Shape();
+    shape.moveTo(side * -0.107, -0.342);
+    shape.lineTo(side * -0.005, -0.342);
+    shape.quadraticCurveTo(side * 0.107, -0.342, side * 0.107, -0.23);
+    shape.lineTo(side * 0.107, 0.23);
+    shape.quadraticCurveTo(side * 0.107, 0.342, side * -0.005, 0.342);
+    shape.lineTo(side * -0.107, 0.342);
+    shape.closePath();
+    const shellGeo = new THREE.ExtrudeGeometry(shape, {
+      depth: 0.074, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008,
+      bevelSegments: 3, curveSegments: 12,
     });
-    // minus / plus
-    con.add(at(mesh(rbox(0.05, 0.014, 0.02, 0.006), black, { outline: 0 }), side * 0.02, 0.26, 0.055));
-    if (side > 0) con.add(at(mesh(rbox(0.014, 0.05, 0.02, 0.006), black, { outline: 0 }), side * 0.02, 0.26, 0.055));
+    shellGeo.translate(0, 0, -0.037);
+    const shell = mesh(shellGeo, switchShell(color), { outline: 0.009 });
+    con.add(shell);
+    // Rear shell seam and the dark sliding rail remain visible when the controllers pop off.
+    con.add(at(mesh(phoneSlab(0.215, 0.676, 0.012, 0.075), switchGraphite, { outline: 0.003 }), 0, 0, -0.042));
+    con.add(at(mesh(rbox(0.012, 0.63, 0.077, 0.004), switchGraphite, { outline: 0 }), -side * 0.112, 0, -0.002));
+    const stickY = side < 0 ? 0.17 : -0.065;
+    const padY = side < 0 ? -0.055 : 0.17;
+    const stickX = -side * 0.012;
+    const socket = mesh(new THREE.CylinderGeometry(0.059, 0.061, 0.012, 24), switchGraphite, { outline: 0.003 });
+    socket.rotation.x = Math.PI / 2;
+    con.add(at(socket, stickX, stickY, 0.051));
+    const stick = mesh(new THREE.CylinderGeometry(0.047, 0.051, 0.028, 24), switchRubber, { outline: 0.004 });
+    stick.rotation.x = Math.PI / 2;
+    con.add(at(stick, stickX, stickY, 0.075));
+    const thumbRim = mesh(new THREE.TorusGeometry(0.04, 0.0035, 6, 24), switchGraphite, { outline: 0 });
+    con.add(at(thumbRim, stickX, stickY, 0.091));
+    // Separate direction buttons on the left; ABXY on the right, in their reference positions.
+    [[0, 0.052], [0, -0.052], [0.052, 0], [-0.052, 0]].forEach(([dx, dy]) => {
+      const button = mesh(new THREE.CylinderGeometry(0.021, 0.023, 0.018, 16), switchRubber, { outline: 0.003 });
+      button.rotation.x = Math.PI / 2;
+      con.add(at(button, stickX + dx, padY + dy, 0.057));
+    });
+    const legends = printed(0.16, 0.16, 1200, (c, w, h) => {
+      c.clearRect(0, 0, w, h);
+      c.fillStyle = side < 0 ? "#121418" : "#d9dde1";
+      c.font = `600 ${Math.round(h * 0.13)}px sans-serif`;
+      c.textAlign = "center";
+      c.textBaseline = "middle";
+      const labels = side < 0 ? ["▴", "▾", "▸", "◂"] : ["X", "B", "A", "Y"];
+      [[0, 0.052], [0, -0.052], [0.052, 0], [-0.052, 0]].forEach(([x, y], i) => {
+        c.fillText(labels[i], w * (0.5 + x / 0.16), h * (0.5 - y / 0.16));
+      });
+    });
+    legends.material.transparent = true;
+    legends.material.depthWrite = false;
+    con.add(at(legends, stickX, padY, 0.068));
+    // Minus/plus sit toward the tablet; capture and home sit below the main controls.
+    con.add(at(mesh(rbox(0.036, 0.011, 0.012, 0.003), switchGraphite, { outline: 0 }), -side * 0.058, 0.278, 0.052));
+    if (side > 0) con.add(at(mesh(rbox(0.011, 0.036, 0.012, 0.003), switchGraphite, { outline: 0 }), -side * 0.058, 0.278, 0.052));
+    const utility = side < 0
+      ? mesh(rbox(0.037, 0.037, 0.012, 0.004), switchGraphite, { outline: 0.002 })
+      : mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.012, 20), switchGraphite, { outline: 0.002 });
+    if (side > 0) utility.rotation.x = Math.PI / 2;
+    con.add(at(utility, -side * 0.035, -0.235, 0.052));
+    const utilityRing = mesh(new THREE.TorusGeometry(side < 0 ? 0.009 : 0.016, 0.002, 5, 16), switchRubber, { outline: 0 });
+    con.add(at(utilityRing, -side * 0.035, -0.235, 0.06));
+    // Shoulder buttons and rear release catch follow the shell, including during animations.
+    con.add(at(mesh(phoneSlab(0.16, 0.024, 0.055, 0.01), switchGraphite, { outline: 0.003 }), side * 0.015, 0.337, -0.015));
+    con.add(at(mesh(rbox(0.025, 0.045, 0.012, 0.004), switchGraphite, { outline: 0 }), -side * 0.07, 0.263, -0.055));
     return con;
   };
   // The screen: its boot logo at rest. Played (`at`, seconds since it was switched on), it
@@ -4693,11 +4876,23 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const leftCon = at(joyCon("#00b4e6", -1), -0.68, 0, 0);
   const rightCon = at(joyCon("#ff4554", 1), 0.68, 0, 0);
   const switchConsole = group(
-    mesh(rbox(1.08, 0.62, 0.08, 0.04), toon("#24262b"), { outline: 0.016 }),
-    at(switchScreen, 0, 0, 0.041),
+    mesh(phoneSlab(1.12, 0.7, 0.08, 0.024), switchGraphite, { outline: 0.009 }),
+    at(mesh(phoneSlab(1.085, 0.665, 0.006, 0.018), toon("#101216"), { outline: 0 }), 0, 0, 0.043),
+    at(switchScreen, 0, 0, 0.048),
     leftCon,
     rightCon,
   );
+  // Edge controls, cooling vents and front speaker slots stay outside the existing display.
+  switchConsole.add(at(mesh(rbox(0.045, 0.009, 0.025, 0.003), switchRubber, { outline: 0 }), -0.45, 0.353, -0.005));
+  switchConsole.add(at(mesh(rbox(0.085, 0.009, 0.025, 0.003), switchRubber, { outline: 0 }), -0.34, 0.353, -0.005));
+  for (let i = 0; i < 7; i++) {
+    switchConsole.add(at(mesh(rbox(0.022, 0.004, 0.033, 0.001), black, { outline: 0, cast: false }), -0.04 + i * 0.035, 0.352, -0.002));
+  }
+  [-1, 1].forEach((side) => {
+    switchConsole.add(at(mesh(rbox(0.065, 0.007, 0.003, 0.002), switchRubber, { outline: 0, cast: false }), side * 0.39, -0.309, 0.048));
+    // Rail seams meet the controllers without a floating gap.
+    switchConsole.add(at(mesh(rbox(0.008, 0.65, 0.065, 0.002), switchRubber, { outline: 0 }), side * 0.561, 0, -0.002));
+  });
   // The dock it leans on: a base with a lip at the front for the console's foot and, behind,
   // the dock itself, hollow, so the console can drop in. A small LED on its front lights green
   // when it's docked.
@@ -4705,12 +4900,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const DOCK_FRONT = -0.18;
   const DOCK_BACK = -0.38;
   const switchStand = group(
-    at(mesh(rbox(1.26, 0.06, 0.7, 0.02), black, { outline: 0.014 }), 0, 0.03, -0.08),
-    at(mesh(rbox(1.0, 0.08, 0.08, 0.02), black, { outline: 0.012 }), 0, 0.1, 0.13),
-    at(mesh(rbox(1.26, 0.38, 0.05, 0.03), black, { outline: 0.014 }), 0, 0.23, DOCK_FRONT),
-    at(mesh(rbox(1.26, 0.56, 0.05, 0.03), black, { outline: 0.014 }), 0, 0.32, DOCK_BACK),
-    at(mesh(rbox(0.05, 0.38, 0.25, 0.02), black, { outline: 0.012 }), -0.605, 0.23, (DOCK_FRONT + DOCK_BACK) / 2),
-    at(mesh(rbox(0.05, 0.38, 0.25, 0.02), black, { outline: 0.012 }), 0.605, 0.23, (DOCK_FRONT + DOCK_BACK) / 2),
+    at(mesh(rbox(1.26, 0.06, 0.7, 0.02), switchGraphite, { outline: 0.014 }), 0, 0.03, -0.08),
+    at(mesh(rbox(1.0, 0.08, 0.08, 0.02), switchGraphite, { outline: 0.012 }), 0, 0.1, 0.13),
+    at(mesh(rbox(1.26, 0.38, 0.05, 0.03), switchGraphite, { outline: 0.014 }), 0, 0.23, DOCK_FRONT),
+    at(mesh(rbox(1.26, 0.56, 0.05, 0.03), switchGraphite, { outline: 0.014 }), 0, 0.32, DOCK_BACK),
+    at(mesh(rbox(0.05, 0.38, 0.25, 0.02), switchGraphite, { outline: 0.012 }), -0.605, 0.23, (DOCK_FRONT + DOCK_BACK) / 2),
+    at(mesh(rbox(0.05, 0.38, 0.25, 0.02), switchGraphite, { outline: 0.012 }), 0.605, 0.23, (DOCK_FRONT + DOCK_BACK) / 2),
     at(dockLed, 0.5, 0.1, DOCK_FRONT + 0.027),
   );
   const SWITCH_REST = { y: 0.46, z: 0.04, tilt: -0.28 };
@@ -4792,17 +4987,32 @@ export function createDeskScene({ container, projects, experiences, dark = false
   gauntlet.rotation.y = 0.15;
   shelf.add(gauntlet);
   // Antique gold in three tones (with the outlines, it stays flat and graphic)
-  const glove = toon("#d4a234");
-  const gloveDark = toon("#8a6416");
-  const gloveLight = toon("#f1c95b");
-  const gauntletMetal = canvasTexture(128, 128);
+  const glove = toon("#c29a54");
+  const gloveDark = toon("#66502b");
+  const gloveLight = toon("#e1bd72");
+  const gauntletMetal = canvasTexture(256, 256);
   track(gauntletMetal.texture);
-  drawBrushedMetal(gauntletMetal.ctx, 128, 128);
+  drawBrushedMetal(gauntletMetal.ctx, 256, 256);
+  // Fine tooling marks and aged speckles, rather than a perfectly uniform gold coating.
+  let metalSeed = 7129;
+  const metalRand = () => ((metalSeed = metalSeed * 16807 % 2147483647) / 2147483647);
+  for (let i = 0; i < 180; i++) {
+    gauntletMetal.ctx.fillStyle = i % 3 ? "rgba(55,35,12,.12)" : "rgba(255,244,205,.2)";
+    gauntletMetal.ctx.fillRect(metalRand() * 256, metalRand() * 256, 1 + metalRand() * 8, 0.7);
+  }
   gauntletMetal.texture.wrapS = gauntletMetal.texture.wrapT = THREE.RepeatWrapping;
   gauntletMetal.texture.repeat.set(2, 3);
   const gauntletGrain = canvasTexture(128, 128);
   track(gauntletGrain.texture);
   drawSatinFinish(gauntletGrain.ctx, 128, 128, { grain: 0.12 });
+  // Short recessed tooling scratches, shared by the cuff, palm and finger armour.
+  for (let i = 0; i < 95; i++) {
+    const x = metalRand() * 128;
+    const y = metalRand() * 128;
+    gauntletGrain.ctx.fillStyle = "rgba(30,30,30,.32)";
+    gauntletGrain.ctx.fillRect(x, y, 2 + metalRand() * 8, 0.6);
+  }
+  gauntletGrain.texture.colorSpace = THREE.NoColorSpace;
   gauntletGrain.texture.wrapS = gauntletGrain.texture.wrapT = THREE.RepeatWrapping;
   gauntletGrain.texture.repeat.set(3, 3);
   [glove, gloveDark, gloveLight].forEach((material) => {
@@ -4818,43 +5028,92 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // Everything above the plinth: it floats up off the stand for the snap
   const glovePart = new THREE.Group();
   gauntlet.add(glovePart);
-  // Forearm: a tapered oval shell with raised bands and a ridged plate down the middle
-  const forearm = mesh(new THREE.CylinderGeometry(0.23, 0.3, 0.62, 24), glove, { outline: 0.02 });
-  forearm.position.y = 0.51;
+  // The reference's flared cuff narrows into an articulated wrist.
+  const cuffProfile = [[0, 0.2], [0.31, 0.2], [0.335, 0.24], [0.31, 0.31],
+    [0.275, 0.53], [0.235, 0.75], [0.245, 0.8], [0, 0.8]].map(([r, y]) => new THREE.Vector2(r, y));
+  const forearm = mesh(new THREE.LatheGeometry(cuffProfile, 40), glove, { outline: 0.018 });
   forearm.scale.z = 0.8;
   glovePart.add(forearm);
-  [[0.3, 0.29], [0.52, 0.265], [0.74, 0.24]].forEach(([y, r]) => {
-    const band = mesh(new THREE.CylinderGeometry(r + 0.012, r + 0.012, 0.04, 24), gloveDark, { outline: 0.01 });
+  [[0.235, 0.335], [0.77, 0.245]].forEach(([y, r]) => {
+    const band = mesh(new THREE.CylinderGeometry(r + 0.008, r + 0.008, 0.022, 40), gloveDark, { outline: 0.006 });
     band.position.y = y;
     band.scale.z = 0.8;
     glovePart.add(band);
   });
-  const ridge = at(mesh(rbox(0.14, 0.52, 0.05, 0.02), gloveDark, { outline: 0.012 }), 0, 0.5, 0.215);
-  ridge.rotation.x = -0.1;
-  glovePart.add(ridge);
-  // Raised side armour leaves dark seams around the central engraved ridge.
+  const engrave = (points, material = gloveDark, radius = 0.004, parent = glovePart) => {
+    const curve = new THREE.CatmullRomCurve3(points.map(([x, y, z]) => new THREE.Vector3(x, y, z)));
+    const line = mesh(new THREE.TubeGeometry(curve, points.length * 4, radius, 5, false), material, { outline: 0, cast: false });
+    parent.add(line);
+    return line;
+  };
+  // A shield-shaped centre inlay, inset bronze border and raised branching motif.
+  const shield = new THREE.Shape();
+  shield.moveTo(0, -0.255);
+  shield.lineTo(-0.14, -0.205);
+  shield.lineTo(-0.115, -0.13);
+  shield.lineTo(-0.075, 0.18);
+  shield.lineTo(0, 0.235);
+  shield.lineTo(0.075, 0.18);
+  shield.lineTo(0.115, -0.13);
+  shield.lineTo(0.14, -0.205);
+  shield.closePath();
+  const shieldGeo = new THREE.ExtrudeGeometry(shield, { depth: 0.012, bevelEnabled: true, bevelSize: 0.008, bevelThickness: 0.004, bevelSegments: 2, steps: 1 });
+  const shieldPlate = mesh(shieldGeo, gloveDark, { outline: 0.006 });
+  shieldPlate.position.set(0, 0.515, 0.235);
+  shieldPlate.rotation.x = -0.16;
+  glovePart.add(shieldPlate);
+  const shieldTrim = [[0, -0.235, 0.019], [-0.118, -0.195, 0.019], [-0.093, -0.12, 0.019],
+    [-0.058, 0.168, 0.019], [0, 0.212, 0.019], [0.058, 0.168, 0.019],
+    [0.093, -0.12, 0.019], [0.118, -0.195, 0.019], [0, -0.235, 0.019]];
+  engrave(shieldTrim, gloveLight, 0.004, shieldPlate);
+  engrave([[0, -0.18, 0.021], [0, 0, 0.021], [0, 0.16, 0.021]], gloveLight, 0.005, shieldPlate);
+  for (let i = 0; i < 6; i++) for (const side of [-1, 1]) {
+    const y = -0.15 + i * 0.05;
+    engrave([[0, y, 0.022], [side * 0.032, y + 0.018, 0.022], [side * (0.068 - i * 0.005), y + 0.036, 0.022]], gloveLight, 0.0035, shieldPlate);
+  }
   const rivetGeo = track(new THREE.SphereGeometry(0.012, 10, 8));
   [-1, 1].forEach((side) => {
-    const panel = at(mesh(rbox(0.09, 0.44, 0.025, 0.012), gloveLight, { outline: 0.006 }), side * 0.14, 0.51, 0.193);
-    panel.rotation.x = -0.1;
-    panel.rotation.z = side * 0.09;
-    glovePart.add(panel);
+    engrave([[side * 0.17, 0.3, 0.225], [side * 0.14, 0.48, 0.208], [side * 0.12, 0.68, 0.173]], gloveDark, 0.008);
+    engrave([[side * 0.195, 0.3, 0.213], [side * 0.17, 0.48, 0.19], [side * 0.145, 0.68, 0.15]], gloveLight, 0.004);
     [0.33, 0.69].forEach((y) => {
       const rivet = new THREE.Mesh(rivetGeo, gloveDark);
       rivet.position.set(side * 0.14, y, 0.22 - (y - 0.5) * 0.1);
       glovePart.add(rivet);
     });
   });
-  [0.34, 0.46, 0.58, 0.7].forEach((y) => [-1, 1].forEach((side) => {
-    const chevron = at(mesh(rbox(0.075, 0.018, 0.02, 0.005), gloveLight, { outline: 0, cast: false }), side * 0.03, y, 0.243 - (y - 0.5) * 0.1, side * 0.55);
-    glovePart.add(chevron);
-  }));
   // Wrist, the back of the hand, and the knuckle bar
   const wrist = mesh(new THREE.CylinderGeometry(0.245, 0.245, 0.07, 24), gloveDark, { outline: 0.012 });
   wrist.position.y = 0.84;
   wrist.scale.z = 0.8;
   glovePart.add(wrist, at(mesh(rbox(0.5, 0.46, 0.22, 0.07), glove, { outline: 0.02 }), 0, 1.1, 0));
   glovePart.add(at(mesh(rbox(0.53, 0.09, 0.25, 0.03), gloveDark, { outline: 0.012 }), 0, 1.34, 0));
+  // Swept cheek guards follow the round centre setting instead of rectangular appliqués.
+  [-1, 1].forEach((side) => {
+    const cheek = new THREE.Shape();
+    cheek.moveTo(side * 0.095, 1.29);
+    cheek.quadraticCurveTo(side * 0.18, 1.26, side * 0.235, 1.31);
+    cheek.quadraticCurveTo(side * 0.25, 1.13, side * 0.285, 0.925);
+    cheek.lineTo(side * 0.12, 0.98);
+    cheek.quadraticCurveTo(side * 0.07, 1.025, side * 0.095, 1.08);
+    cheek.quadraticCurveTo(side * 0.155, 1.17, side * 0.095, 1.29);
+    const plate = mesh(new THREE.ExtrudeGeometry(cheek, { depth: 0.014, bevelEnabled: true, bevelSize: 0.006, bevelThickness: 0.003, bevelSegments: 2, steps: 1, curveSegments: 12 }), glove, { outline: 0.008 });
+    plate.position.z = 0.113;
+    glovePart.add(plate);
+    engrave([[side * 0.225, 1.28, 0.137], [side * 0.244, 1.1, 0.137], [side * 0.266, 0.949, 0.137], [side * 0.13, 0.996, 0.137]], gloveLight, 0.004);
+    engrave([[side * 0.11, 1.26, 0.137], [side * 0.147, 1.18, 0.137], [side * 0.116, 1.07, 0.137]], gloveDark, 0.005);
+    // Layered wrist lames link the palm armour to the flared cuff.
+    engrave([[side * 0.035, 0.935, 0.127], [side * 0.11, 0.925, 0.145], [side * 0.195, 0.85, 0.155], [side * 0.21, 0.79, 0.145]], gloveDark, 0.012);
+    engrave([[side * 0.035, 0.916, 0.14], [side * 0.1, 0.903, 0.159], [side * 0.174, 0.845, 0.173]], gloveLight, 0.006);
+  });
+  const mindSurround = mesh(new THREE.TorusGeometry(0.111, 0.008, 6, 48), gloveDark, { outline: 0 });
+  mindSurround.scale.y = 1.12;
+  mindSurround.position.set(0, 1.1, 0.132);
+  glovePart.add(mindSurround);
+  for (let i = 0; i < 16; i++) {
+    const angle = i * Math.PI / 8;
+    const tick = at(mesh(rbox(0.007, 0.019, 0.005, 0.002), gloveLight, { outline: 0, cast: false }), Math.sin(angle) * 0.11, 1.1 + Math.cos(angle) * 0.124, 0.14, -angle);
+    glovePart.add(tick);
+  }
   // Filigree lines fanning out from the centre stone's setting
   [-0.55, -0.2, 0.2, 0.55].forEach((angle) => {
     const line = at(mesh(rbox(0.02, 0.2, 0.01, 0.005), gloveDark, { outline: 0, cast: false }), Math.sin(angle) * 0.13, 1.1 + Math.cos(angle) * 0.13, 0.112, -angle);
@@ -4868,8 +5127,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
     body.scale.z = 0.88;
     body.position.y = length / 2;
     part.add(body);
-    const armour = at(mesh(rbox(radius * 1.25, length * 0.48, 0.015, 0.008), gloveLight, { outline: 0 }), 0, length * 0.58, radius * 0.88);
-    part.add(armour);
+    const channel = mesh(new THREE.CapsuleGeometry(radius * 0.34, Math.max(0.005, length * 0.4 - radius * 0.68), 4, 12), gloveDark, { outline: 0 });
+    channel.scale.z = 0.2;
+    channel.position.set(0, length * 0.58, radius * 0.89);
+    part.add(channel);
+    for (let i = 0; i < 3; i++) {
+      const notch = at(mesh(rbox(radius * 0.42, 0.004, 0.003, 0.001), gloveLight, { outline: 0, cast: false }), 0, length * (0.45 + i * 0.12), radius * 0.98);
+      part.add(notch);
+    }
     if (ring) {
       const band = mesh(new THREE.CylinderGeometry(radius * 1.12, radius * 1.12, 0.026, 18), gloveDark, { outline: 0.008 });
       band.scale.z = 0.9;
@@ -4931,7 +5196,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     setting.position.set(x, y, z - 0.01);
     const gemMat = toon(color);
     gemMat.emissive.set(color);
-    gemMat.emissiveIntensity = 0.45;
+    gemMat.emissiveIntensity = 0.22;
     gemMat.flatShading = true;
     const gem = new THREE.Mesh(stoneGeo, gemMat);
     gem.scale.set(r, r * tall, r * 0.6);
@@ -4943,7 +5208,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const glint = new THREE.Mesh(track(new THREE.OctahedronGeometry(0.12)), track(new THREE.MeshBasicMaterial({ color: "#fff8d8" })));
     glint.position.set(-0.25, 0.3, 0.95);
     gem.add(glint);
-    const halo = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: flashTex.texture, color, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })));
+    const halo = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: flashTex.texture, color, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false })));
     halo.position.set(x, y, z + 0.03);
     halo.scale.setScalar(r * 5);
     halo.raycast = noRaycast;
@@ -4958,7 +5223,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     stone("#e11d48", glovePart, -0.06, 1.34, 0.13, 0.042),
     stone("#3b82f6", glovePart, 0.06, 1.34, 0.13, 0.042),
     stone("#a855f7", glovePart, 0.18, 1.34, 0.13, 0.042),
-    stone("#ffdd00", glovePart, 0, 1.1, 0.112, 0.07, 1.35),
+    stone("#ded33d", glovePart, 0, 1.1, 0.13, 0.076, 1.12),
     stone("#22c55e", thumb, 0, 0.09, 0.07, 0.036),
   ];
   // One glow on the glove for all six: the colour of whichever stone burns brightest, faint at
@@ -4979,7 +5244,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const { size, halo, r } = gem.userData;
     gsap.fromTo(gem.scale, { x: size.x * (1 + 0.6 * strength), y: size.y * (1 + 0.6 * strength) }, { x: size.x, y: size.y, duration: 0.6, delay, ease: "power2.out" });
     gsap.fromTo(halo.scale, { x: r * (5 + 9 * strength), y: r * (5 + 9 * strength) }, { x: r * 5, y: r * 5, duration: 0.9, delay, ease: "power2.out" });
-    gsap.fromTo(halo.material, { opacity: 1 }, { opacity: 0.35, duration: 0.9, delay, ease: "power2.out" });
+    gsap.fromTo(halo.material, { opacity: 1 }, { opacity: 0.22, duration: 0.9, delay, ease: "power2.out" });
   };
   // A white flash for the snap
   const flash = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: flashTex.texture, color: "#fff4c2", transparent: true, depthTest: false, depthWrite: false })));
@@ -9811,9 +10076,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
       const visibleH = Math.max(fit[1], fit[0] * container.clientHeight / container.clientWidth);
       const bottom = visibleH / 2 - (container.clientWidth < 600 ? 1.2 : 0.5);
       const shelfTop = (FLOOR_Y + SHELF_H + SHELF_TOP_EXTRA);
-      const top = Math.max(bottom, shelfTop - FLOOR_Y + 1.5 - visibleH / 2);
+      const top = Math.max(bottom, SHELF_H + 1.25, shelfTop - FLOOR_Y + 1.5 - visibleH / 2);
       const y = bottom + (shelfLook - 1.7) / 7.3 * (top - bottom);
-      return { target: [shelf.position.x + 0.35, FLOOR_Y + y, shelf.position.z], dir: [0.24, 0.1, 1], fit, depth: 1.6 };
+      const xOffset = FLOOR_Y + y >= shelf.position.y + SHELF_H + 0.4 ? 0.1 : 0.35;
+      return { target: [shelf.position.x + xOffset, FLOOR_Y + y, shelf.position.z], dir: [0.24, 0.1, 1], fit, depth: 1.6 };
     },
     // Clip only what's well in front of the wall (the monitor), not the board behind the badge
     hero: () => ({ target: [badgePin.x, badgePin.y - (BADGE_PIN.y - BADGE_CLIP.y) - 0.74, BADGE_CLIP.z], dir: [0.06, 0.14, 1], fit: [1.5, 2.1], depth: 0.9 }),
@@ -9918,7 +10184,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const visibleH = Math.max(fit[1], fit[0] * container.clientHeight / container.clientWidth);
     const bottom = visibleH / 2 - (container.clientWidth < 600 ? 1.2 : 0.5);
     const shelfTop = (FLOOR_Y + SHELF_H + SHELF_TOP_EXTRA);
-    const top = Math.max(bottom, shelfTop - FLOOR_Y + 1.5 - visibleH / 2);
+    const top = Math.max(bottom, SHELF_H + 1.25, shelfTop - FLOOR_Y + 1.5 - visibleH / 2);
     const norm = top > bottom ? (worldY - FLOOR_Y - bottom) / (top - bottom) : 0;
     return THREE.MathUtils.clamp(1.7 + norm * 7.3, 1.7, 9);
   }
@@ -9933,7 +10199,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     focus.name = name;
     if (name === "shelf") {
       if (hit?.point) {
-        shelfLook = shelfLookAt(hit.point.y);
+        // A click on the top board frames its two display props, rather than the board edge.
+        const topBoardY = shelf.position.y + SHELF_H;
+        const lookY = hit.point.y >= topBoardY - 0.2 ? topBoardY + 1.25 : hit.point.y;
+        shelfLook = shelfLookAt(lookY);
       } else {
         shelfLook = 1.7;
       }
@@ -10164,6 +10433,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       });
     }
     updateNeonLights(now, moving);
+    constrainHat();
     updateToonBatch();
     renderFrame();
     if (firstFrame) {

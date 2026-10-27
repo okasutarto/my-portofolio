@@ -3873,6 +3873,44 @@ export function drawCrumpledPaper(c, w, h, { lined = true, seed = 1 } = {}) {
   }
 }
 
+// Trophy metal: shallow chased flutes, soft polish and sparse tooling marks.
+export function drawTrophyMetal(c, w, h) {
+  c.fillStyle = "#fffdf0";
+  c.fillRect(0, 0, w, h);
+  const flute = w / 16;
+  for (let i = 0; i < 16; i++) {
+    const sheen = c.createLinearGradient(i * flute, 0, (i + 1) * flute, 0);
+    sheen.addColorStop(0, "rgba(73,48,15,.08)");
+    sheen.addColorStop(0.35, "rgba(255,255,255,.28)");
+    sheen.addColorStop(1, "rgba(73,48,15,.08)");
+    c.fillStyle = sheen;
+    c.fillRect(i * flute, 0, flute, h);
+  }
+  let seed = 8317;
+  const rand = () => ((seed = seed * 16807 % 2147483647) / 2147483647);
+  for (let i = 0; i < 500; i++) {
+    c.fillStyle = i % 3 ? "rgba(69,45,16,.045)" : "rgba(255,255,255,.22)";
+    c.fillRect(rand() * w, rand() * h, 0.5 + rand() * 9, 0.6);
+  }
+}
+
+// A restrained charcoal stone plinth with fine pale mineral veins.
+export function drawTrophyStone(c, w, h) {
+  c.fillStyle = "#292a2d";
+  c.fillRect(0, 0, w, h);
+  for (let i = 0; i < 6; i++) {
+    c.strokeStyle = i % 2 ? "rgba(189,194,201,.16)" : "rgba(7,9,13,.35)";
+    c.lineWidth = i % 2 ? 0.8 : 2;
+    c.beginPath();
+    for (let x = 0; x <= w; x += 4) {
+      const y = h * (i + 0.5) / 6 + Math.sin(x * 0.035 + i * 2) * 8 + x * 0.12;
+      if (!x) c.moveTo(x, y);
+      else c.lineTo(x, y);
+    }
+    c.stroke();
+  }
+}
+
 // ---------- katana ----------
 // A little four-pointed glint, for light catching a blade's tip
 export function drawGlint(c, w, h) {
@@ -3989,6 +4027,7 @@ export function drawEnmaBlade(c, w, h, { bow, length, width, yMin, yMax }) {
       c.fillRect(px, at(to), 1.5, at(from) - at(to) + 1);
     });
   }
+  drawBladePolish(c, w, h, { bow, length, width, yMin, yMax });
 }
 
 // A little five-petalled yellow flower, the crest on Enma's scabbard and handle
@@ -4028,6 +4067,7 @@ export function drawWadoBlade(c, w, h, { bow, length, width, yMin, yMax }) {
       c.fillRect(px, at(to), 1.5, at(from) - at(to) + 1);
     });
   }
+  drawBladePolish(c, w, h, { bow, length, width, yMin, yMax });
 }
 
 // Sandai Kitetsu: a black back, a white body and a jagged violet hamon along the edge
@@ -4047,6 +4087,48 @@ export function drawKitetsuBlade(c, w, h, { bow, length, width, yMin, yMax }) {
       c.fillRect(px, at(to), 1.5, at(from) - at(to) + 1);
     });
   }
+  drawBladePolish(c, w, h, { bow, length, width, yMin, yMax });
+}
+
+// TubeGeometry uses u along the saya, v around it. Highlights wrap seamlessly.
+export function drawSayaLacquer(c, w, h, { color }) {
+  c.fillStyle = color;
+  c.fillRect(0, 0, w, h);
+  const sheen = c.createLinearGradient(0, 0, 0, h);
+  [[0, "rgba(0,0,0,.08)"], [0.2, "rgba(0,0,0,.22)"],
+    [0.43, "rgba(255,255,255,.04)"], [0.5, "rgba(255,255,255,.3)"],
+    [0.57, "rgba(255,255,255,.04)"], [0.8, "rgba(0,0,0,.22)"],
+    [1, "rgba(0,0,0,.08)"]].forEach(([at, tone]) => sheen.addColorStop(at, tone));
+  c.fillStyle = sheen;
+  c.fillRect(0, 0, w, h);
+  // Restrained lengthwise lacquer grain and small handling marks.
+  let seed = 9413;
+  const rand = () => ((seed = seed * 16807 % 2147483647) / 2147483647);
+  for (let i = 0; i < 240; i++) {
+    c.fillStyle = i % 3 ? "rgba(0,0,0,.045)" : "rgba(255,255,255,.12)";
+    c.fillRect(rand() * w, rand() * h, 2 + rand() * w * 0.14, 0.5);
+  }
+}
+
+// Fine longitudinal polishing lines follow the blade's curve and remain inside its edge.
+function drawBladePolish(c, w, h, { bow, length, width, yMin, yMax }) {
+  c.save();
+  c.lineWidth = 0.6;
+  for (let i = 1; i < 14; i++) {
+    c.strokeStyle = i % 3 ? "rgba(255,255,255,.16)" : "rgba(0,0,0,.12)";
+    c.beginPath();
+    for (let px = 0; px <= w; px += 3) {
+      const x = px / w * width;
+      if (x > length) break;
+      const edge = bow(x) - 0.055 * (1 - 0.3 * x / length);
+      const y = edge + (bow(x) + 0.05 - edge) * i / 15;
+      const row = (1 - (y - yMin) / (yMax - yMin)) * h;
+      if (px === 0) c.moveTo(px, row);
+      else c.lineTo(px, row);
+    }
+    c.stroke();
+  }
+  c.restore();
 }
 
 // A katana's handle wrap (tsuka-ito), for a cylinder laid along the handle: v runs along it,
@@ -4055,6 +4137,17 @@ export function drawKitetsuBlade(c, w, h, { bow, length, width, yMin, yMax }) {
 export function drawTsukaWrap(c, w, h, { cord, skin, diamonds = 7 }) {
   c.fillStyle = cord;
   c.fillRect(0, 0, w, h);
+  // Diagonal silk fibres across the wrap, with alternating light and dark threads.
+  c.save();
+  c.lineWidth = 0.8;
+  for (let y = -w; y < h + w; y += 3) {
+    c.strokeStyle = y % 2 ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.2)";
+    c.beginPath();
+    c.moveTo(0, y);
+    c.lineTo(w, y + w * 0.6);
+    c.stroke();
+  }
+  c.restore();
   const step = h / diamonds;
   c.lineWidth = Math.max(2, w * 0.012);
   c.strokeStyle = "rgba(0,0,0,0.35)";
@@ -4069,6 +4162,25 @@ export function drawTsukaWrap(c, w, h, { cord, skin, diamonds = 7 }) {
       c.closePath();
       c.fillStyle = skin;
       c.fill();
+      // Pebbled ray skin stays clipped to each diamond opening.
+      c.save();
+      c.clip();
+      for (let py = cy - step * 0.42; py < cy + step * 0.42; py += 5) {
+        for (let px = cx - w * 0.11; px < cx + w * 0.11; px += 5) {
+          c.fillStyle = "rgba(255,255,255,.28)";
+          c.beginPath();
+          c.arc(px + (Math.round(py / 5) % 2) * 2.5, py, 1.2, 0, Math.PI * 2);
+          c.fill();
+        }
+      }
+      c.restore();
+      // Restore the diamond path after drawing the skin's individual nodules.
+      c.beginPath();
+      c.moveTo(cx, cy - step * 0.42);
+      c.lineTo(cx + w * 0.11, cy);
+      c.lineTo(cx, cy + step * 0.42);
+      c.lineTo(cx - w * 0.11, cy);
+      c.closePath();
       c.stroke();
       // the cord's crossing line between diamonds
       c.beginPath();

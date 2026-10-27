@@ -8275,7 +8275,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
       phoneScreen.updateWorldMatrix(true, false);
       phoneScreen.getWorldDirection(screenNormal);
       phoneScreen.getWorldPosition(screenPos);
-      return { target: screenPos.toArray(), dir: screenNormal.toArray(), fit: [1.3, 2.1] };
+      // Room above the phone for the back button and below it for the hint, so neither
+      // covers the screen (the phone itself is 1.95 tall)
+      return { target: screenPos.toArray(), dir: screenNormal.toArray(), fit: [1.3, 2.6] };
     },
     // Square over the postcard where it lands once it slides out of the envelope
     contact: () => {

@@ -41,7 +41,7 @@ for (const hz of [60, 90, 120, 144, 165]) {
       sun: light(), windowLight: light(), lampLight: light(), refreshMs: 1000 / 60,
       responsiveUntil: active ? Infinity : 0, gsap: { isTweening: () => false }, cam: {}, catIdleTl: null,
       benchmark: null, createToonBatch: () => () => {}, scene: {}, renderer: {}, track: (x) => x,
-      mouseRunning: false, lampHopping: false, trophyCelebrating: false, lanyardDrag: null, noteDrag: null, shelfDrag: null, stickyDrag: null,
+      mouseRunning: false, lampHopping: false, trophyCelebrating: false, lanyardDrag: null, hatDrag: null, noteDrag: null, shelfDrag: null, stickyDrag: null,
       perfReadout: null, requestAnimationFrame() {}, frame: null, accepted: [] });
     vm.runInContext(source.slice(start, end) + 'accepted.push(now); lastTick = now; }', scheduler);
     const tick = vm.runInContext('tick', scheduler);

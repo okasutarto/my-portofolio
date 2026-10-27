@@ -441,6 +441,18 @@ const SOUNDS = {
     tone(t, { type: "sawtooth", freq: 440, to: 55, attack: 0.01, peak: 0.16, decay: 0.45 });
     tone(t + 0.45, { freq: 90, to: 40, peak: 0.4, decay: 0.12 });
   },
+  // Rubber pulled taut: a low reedy creak rising in pitch as it stretches
+  rubber(t, { duration = 0.4 } = {}) {
+    tone(t, { type: "sawtooth", freq: vary(85, 0.05), to: 230, attack: duration * 0.6, peak: 0.07, decay: duration * 0.5 });
+    tone(t, { type: "triangle", freq: vary(170, 0.05), to: 460, attack: duration * 0.6, peak: 0.05, decay: duration * 0.5 });
+  },
+  // Rubber snapping back: a springy "boyoyoing", up, down and up again, dying away
+  boing(t) {
+    tone(t, { freq: vary(150, 0.04), to: 560, attack: 0.01, peak: 0.32, decay: 0.12 });
+    tone(t + 0.1, { freq: 540, to: 210, peak: 0.26, decay: 0.14 });
+    tone(t + 0.22, { freq: 230, to: 430, peak: 0.18, decay: 0.12 });
+    tone(t + 0.33, { freq: 420, to: 260, peak: 0.1, decay: 0.14 });
+  },
   // A cartoon mouse: two high squeaks
   squeak(t) {
     tone(t, { freq: vary(2400, 0.05), to: 3300, attack: 0.01, peak: 0.13, decay: 0.07 });
@@ -661,7 +673,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { cheer: 2, applause: 3, meow: 0.3, purr: 1.5, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, shing: 0.5, slash: 0.15, sheathe: 0.4, whooshAway: 0.4, power: 1.4, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
+const MIN_GAP = { cheer: 2, applause: 3, meow: 0.3, purr: 1.5, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, rubber: 0.15, boing: 0.3, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, shing: 0.5, slash: 0.15, sheathe: 0.4, whooshAway: 0.4, power: 1.4, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || (ctx.state !== "running" && !resuming) || document.hidden) return;

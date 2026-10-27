@@ -2019,82 +2019,57 @@ export function drawStraw(c, w, h) {
   }
 }
 
-// The chair back's diamond quilting, stitched in maroon thread
-export function drawChairQuilt(c, w, h, { accent = "#00c2ad" } = {}) {
-  c.clearRect(0, 0, w, h);
-  // A grid of padded diamonds: each one lighter in the middle and shaded toward its seams,
-  // stitched round in the accent colour
-  const dw = w / 5;
-  const dh = dw * 1.3;
-  const diamond = (cx, cy) => {
-    c.beginPath();
-    c.moveTo(cx, cy - dh / 2);
-    c.lineTo(cx + dw / 2, cy);
-    c.lineTo(cx, cy + dh / 2);
-    c.lineTo(cx - dw / 2, cy);
-    c.closePath();
-  };
-  for (let row = -1; row * (dh / 2) < h + dh; row++) {
-    for (let col = -1; col * dw < w + dw; col++) {
-      const cx = col * dw + (row % 2 ? dw / 2 : 0);
-      const cy = row * (dh / 2);
-      const pad = c.createRadialGradient(cx, cy - dh * 0.08, 0, cx, cy, dw * 0.55);
-      pad.addColorStop(0, "rgba(255,255,255,.10)");
-      pad.addColorStop(1, "rgba(0,0,0,.16)");
-      diamond(cx, cy);
-      c.fillStyle = pad;
-      c.fill();
+// The chair's carbon-weave edging: a fine, low-contrast twill of small tiles of alternating
+// sheen that repeat seamlessly
+export function drawCarbonWeave(c, w, h) {
+  c.fillStyle = "#2a2725";
+  c.fillRect(0, 0, w, h);
+  const n = 4;
+  const s = w / n;
+  for (let row = 0; row < n; row++) {
+    for (let col = 0; col < n; col++) {
+      // each tile's strands run across or down, alternating like a twill
+      const across = (row + col) % 2 === 0;
+      const sheen = c.createLinearGradient(col * s, row * s, across ? col * s : (col + 1) * s, across ? (row + 1) * s : row * s);
+      sheen.addColorStop(0, "#322e2c");
+      sheen.addColorStop(0.5, "#423d3a");
+      sheen.addColorStop(1, "#322e2c");
+      c.fillStyle = sheen;
+      c.fillRect(col * s + 1, row * s + 1, s - 2, s - 2);
     }
   }
-  c.strokeStyle = accent;
-  c.globalAlpha = 0.75;
-  c.lineWidth = Math.max(2, w * 0.006);
-  c.setLineDash([w * 0.014, w * 0.01]);
-  for (let row = -1; row * (dh / 2) < h + dh; row++) {
-    for (let col = -1; col * dw < w + dw; col++) {
-      diamond(col * dw + (row % 2 ? dw / 2 : 0), row * (dh / 2));
-      c.stroke();
-    }
-  }
-  c.setLineDash([]);
-  c.globalAlpha = 1;
-  // Fade it out toward the panel's edges, so it sits in the padding with no hard border
-  c.globalCompositeOperation = "destination-in";
-  [[0, 0, w, 0], [0, 0, 0, h]].forEach(([x0, y0, x1, y1]) => {
-    const fade = c.createLinearGradient(x0, y0, x1, y1);
-    fade.addColorStop(0, "rgba(0,0,0,0)");
-    fade.addColorStop(0.14, "rgba(0,0,0,1)");
-    fade.addColorStop(0.86, "rgba(0,0,0,1)");
-    fade.addColorStop(1, "rgba(0,0,0,0)");
-    c.fillStyle = fade;
-    c.fillRect(0, 0, w, h);
-  });
-  c.globalCompositeOperation = "source-over";
 }
 
-// The embroidered emblem on the chair's back: a controller in a roundel of the accent colour
-export function drawChairEmblem(c, w, h, { accent = "#00c2ad" } = {}) {
+// The chair's small embroidered badge: a gold-rimmed hexagon with a four-pointed star in it,
+// edged in dark so it reads on black leather
+export function drawChairCrest(c, w, h, { gold = "#d4a72c" } = {}) {
   c.clearRect(0, 0, w, h);
+  const hex = (r) => {
+    c.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI / 6 + (i * Math.PI) / 3;
+      c.lineTo(w / 2 + Math.cos(a) * r, h / 2 + Math.sin(a) * r);
+    }
+    c.closePath();
+  };
+  hex(w * 0.46);
   c.fillStyle = "#1a1714";
-  c.beginPath();
-  c.arc(w / 2, h / 2, w * 0.48, 0, Math.PI * 2);
   c.fill();
-  c.fillStyle = accent;
-  c.beginPath();
-  c.arc(w / 2, h / 2, w * 0.42, 0, Math.PI * 2);
+  hex(w * 0.4);
+  c.fillStyle = gold;
   c.fill();
-  c.strokeStyle = "#1a1714";
-  c.lineWidth = w * 0.05;
-  c.lineJoin = "round";
+  hex(w * 0.32);
+  c.fillStyle = "#1f1d1c";
+  c.fill();
+  const r = w * 0.22;
   c.beginPath();
-  c.roundRect(w * 0.24, h * 0.36, w * 0.52, h * 0.3, h * 0.14);
-  c.stroke();
-  c.fillStyle = "#1a1714";
-  c.fillRect(w * 0.33, h * 0.48, w * 0.1, w * 0.035);
-  c.fillRect(w * 0.363, h * 0.445, w * 0.035, w * 0.1);
-  c.beginPath();
-  c.arc(w * 0.62, h * 0.47, w * 0.03, 0, Math.PI * 2);
-  c.arc(w * 0.67, h * 0.54, w * 0.03, 0, Math.PI * 2);
+  for (let i = 0; i < 8; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 4;
+    const k = i % 2 ? 0.3 : 1;
+    c.lineTo(w / 2 + Math.cos(a) * r * k, h / 2 + Math.sin(a) * r * k);
+  }
+  c.closePath();
+  c.fillStyle = gold;
   c.fill();
 }
 
@@ -2389,17 +2364,6 @@ export function drawKeyLabel(c, w, h, label, color = "#fff", { ink = "#000", sma
 }
 
 // ---------- speech bubble over the mug: a quote per sip ----------
-// Said by the straw hat on the shelf
-export const LUFFY_QUOTES = [
-  { text: "I'm gonna be King of the Pirates!", by: "Monkey D. Luffy" },
-  { text: "If you don't take risks, you can't create a future!", by: "Monkey D. Luffy" },
-  { text: "Power isn't determined by your size, but the size of your heart and dreams!", by: "Monkey D. Luffy" },
-  { text: "I don't care if I die trying. I'll never give up!", by: "Monkey D. Luffy" },
-  { text: "When do you think people die? When they are forgotten.", by: "Dr. Hiriluk" },
-  { text: "Meat!!! Shishishi!", by: "Monkey D. Luffy" },
-  { text: "I know I need help from others to survive!", by: "Monkey D. Luffy" },
-];
-
 export const SIP_QUOTES = [
   { text: "First, solve the problem. Then, write the code.", by: "John Johnson" },
   { text: "Simplicity is prerequisite for reliability.", by: "Edsger W. Dijkstra" },

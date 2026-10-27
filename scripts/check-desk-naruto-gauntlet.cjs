@@ -4,6 +4,28 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const THREE = require('three');
 const source = fs.readFileSync(`${__dirname}/../src/components/features/desk/deskScene.js`, 'utf8');
+// Build the reference-inspired armour with real Three.js geometry, without a renderer.
+const armour = vm.runInNewContext(
+  source.slice(source.indexOf('  const glove = toon('), source.indexOf('  const stoneTint =')) + '; ({ glovePart, forearm, fingers, thumb, stones })', {
+    THREE, gauntlet: new THREE.Group(), track: (value) => value,
+    toon: (color) => new THREE.MeshToonMaterial({ color }),
+    mesh: (geometry, material) => new THREE.Mesh(geometry, material),
+    rbox: (w, h, d) => new THREE.BoxGeometry(w, h, d),
+    at: (object, x, y, z = 0, angle = 0) => { object.position.set(x, y, z); object.rotation.z = angle; return object; },
+    canvasTexture: () => ({ texture: new THREE.Texture(), ctx: { fillRect() {}, createRadialGradient: () => ({ addColorStop() {} }) } }),
+    drawBrushedMetal() {}, drawSatinFinish() {}, noRaycast() {},
+  });
+assert.equal(armour.forearm.geometry.type, 'LatheGeometry', 'cuff has a flared circular profile');
+assert.equal(armour.stones.length, 6, 'all six articulated stones remain present');
+assert.ok(armour.stones[5].parent === armour.thumb, 'thumb stone follows its articulated thumb');
+for (const finger of armour.fingers) {
+  assert.equal(finger.userData.pieces.length, 3);
+  finger.userData.pieces.forEach((piece) => { piece.rotation.x = -0.8; });
+}
+armour.glovePart.updateMatrixWorld(true);
+const armourBounds = new THREE.Box3().setFromObject(armour.glovePart, true);
+assert.ok(armourBounds.min.toArray().every(Number.isFinite) && armourBounds.max.toArray().every(Number.isFinite),
+  'curved armour and engraved geometry stay finite while the fingers bend');
 let handler;
 const glovePart = new THREE.Group();
 const targets = [];

@@ -3944,7 +3944,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // the strike sweeps through (high above it for the wind-up, low under it for the finish: so
   // taller than it is wide), drawn after the room but before the cards, plates and the cut's
   // effects, which stay bright.
-  const SPOT_REACH = { x: 3.6, y: 4.0 };
+  const SPOT_REACH = { x: 3.0, y: 4.0 };
   const spotUniforms = {
     center: { value: new THREE.Vector2() },
     radius: { value: new THREE.Vector2(1, 1) },
@@ -3970,7 +3970,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       varying vec2 vNdc;
       void main() {
         float d = length((vNdc - center) / radius);
-        gl_FragColor = vec4(ink, strength * 0.55 * smoothstep(0.8, 1.3, d));
+        gl_FragColor = vec4(ink, strength * 0.7 * smoothstep(0.75, 1.15, d));
       }`,
   })));
   spotlight.frustumCulled = false;
@@ -4863,8 +4863,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
       .call(() => sfx.knock({ strength: 0.6 }), null, 5.35)
       .call(() => {
         sfx.dust();
-        // Perfectly balanced: a random half of everything in the room (bar the gauntlet and the
-        // shelf it stands on), each with the colours its dust takes
+        // Perfectly balanced: a random half of everything in the room (bar the gauntlet, the
+        // shelf it stands on and the window, a hole in the wall), each with the colours its
+        // dust takes
         const everything = [
           [[mug, coaster], ["#fffdf5", "#6f4e37", "#a8743f"]],
           [[mail], ["#e2cb9c", "#fffdf5", "#3b82f6"]],
@@ -4885,7 +4886,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
           [[gym], ["#8b9099", "#6b7079", "#9ca3af"]],
           [[hatPeg], ["#f2c14e", "#d62828"]],
           [[katanaRack], ["#6b2fa8", "#b91c1c", "#fffdf5", "#d4a72c", "#181513"]],
-          [[windowGroup], ["#ffffff", "#7fdfff", "#8fd694"]],
           [[catModel], ["#ff9f45", "#d9741f", "#fffdf5"]],
         ];
         const doomed = everything
@@ -5213,23 +5213,37 @@ export function createDeskScene({ container, projects, experiences, dark = false
   binLabel.position.y = (LABEL_Y[0] + LABEL_Y[1]) / 2;
   binLabel.raycast = noRaycast;
   binBody.add(binLabel);
-  // A crumpled paper ball: a lumpy icosahedron, each one squashed a little differently
-  const paperMat = toon("#fffdf5");
+  // A crumpled paper ball: a lumpy, flat-faceted icosahedron (each facet a crushed plane of
+  // paper catching the light its own way), squashed a little differently each time and wrapped
+  // in a screwed-up sheet: lined notebook paper with pencil scrawl, or a printed page
+  const paperMats = [true, false, true, false].map((lined, i) => {
+    const sheet = canvasTexture(512, 256);
+    track(sheet.texture);
+    drawCrumpledPaper(sheet.ctx, 512, 256, { lined, seed: i + 1 });
+    return track(new THREE.MeshToonMaterial({ map: sheet.texture, gradientMap: gradient, flatShading: true }));
+  });
+  // Every copy of a corner (the icosahedron's faces don't share vertices) must move the same
+  // way or the ball cracks, so the dent comes from a hash of where the corner points
+  const dent = (x, y, z, seed) => {
+    const v = Math.sin(Math.round(x * 997) * 12.9898 + Math.round(y * 997) * 78.233 + Math.round(z * 997) * 37.719 + seed) * 43758.5453;
+    return v - Math.floor(v);
+  };
+  let crumpled = 0;
   const crumple = (r) => {
-    const raw = new THREE.IcosahedronGeometry(r, 1);
-    raw.deleteAttribute("normal");
-    raw.deleteAttribute("uv");
-    const geo = mergeVertices(raw, 1e-4);
-    raw.dispose();
+    const geo = new THREE.IcosahedronGeometry(r, 2);
+    const seed = Math.random() * 100;
+    const squash = new THREE.Vector3(0.82 + Math.random() * 0.18, 0.82 + Math.random() * 0.18, 0.82 + Math.random() * 0.18);
     const p = geo.attributes.position;
     for (let i = 0; i < p.count; i++) {
-      const k = 0.78 + Math.random() * 0.34;
-      p.setXYZ(i, p.getX(i) * k, p.getY(i) * k, p.getZ(i) * k);
+      tmpV.set(p.getX(i), p.getY(i), p.getZ(i)).divideScalar(r);
+      const k = 0.8 + dent(tmpV.x, tmpV.y, tmpV.z, seed) * 0.3;
+      p.setXYZ(i, tmpV.x * r * k * squash.x, tmpV.y * r * k * squash.y, tmpV.z * r * k * squash.z);
     }
     geo.computeVertexNormals();
-    return mesh(geo, paperMat, { outline: 0.018 });
+    return mesh(geo, paperMats[crumpled++ % paperMats.length], { outline: 0.018 });
   };
   // What's already in it, peeking over the rim; a swish adds to the pile (up to full)
+  const tmpV = new THREE.Vector3();
   const binPile = [[-0.15, 0.1], [0.18, -0.05], [0.02, 0.2], [-0.05, -0.2], [0.22, 0.18]].map(([x, z], i) => {
     const ball = crumple(0.17);
     ball.position.set(x, BIN_H - 0.22 + (i % 2) * 0.06, z);
@@ -5311,7 +5325,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
     return { ball, state: "idle", vel: new THREE.Vector3(), spin: new THREE.Vector3(), t: 0, at: 0, swish: false, side: 1, born: 0 };
   });
   const litter = () => papers.filter((p) => p.state === "litter");
-  const tmpV = new THREE.Vector3();
   const tmpQ = new THREE.Quaternion();
   const binTop = () => bin.position.y + (BIN_H + 0.08) * bin.scale.y;
   // Where a throw from the viewer starts: a little below the screen's bottom edge, under the
@@ -5336,6 +5349,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     gsap.killTweensOf(ball.scale);
     ball.scale.setScalar(1);
     ball.visible = true;
+    ball.children[0].visible = true;
     if (!from) ball.position.copy(throwOrigin(hoopAt));
     paper.swish = Math.random() < 0.65;
     paper.side = Math.random() < 0.5 ? -1 : 1;
@@ -5363,7 +5377,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     if (binFill < binPile.length) {
       const ball = binPile[binFill++];
       ball.visible = true;
-      gsap.fromTo(ball.scale, { x: 0.3, y: 0.3, z: 0.3 }, { x: 1, y: 1, z: 1, duration: 0.4, ease: "back.out(3)" });
+      gsap.fromTo(ball.scale, { x: 0.6, y: 0.6, z: 0.6 }, { x: 1, y: 1, z: 1, duration: 0.4, ease: "back.out(3)" });
     }
     streak++;
     if (streak >= 3) {
@@ -5383,6 +5397,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const strewn = litter().sort((a, b) => a.born - b.born);
     strewn.slice(0, Math.max(0, strewn.length - MAX_LITTER)).forEach((old) => {
       old.state = "leaving";
+      // The outline keeps its width in pixels, so a shrinking ball would end as a black dot
+      old.ball.children[0].visible = false;
       gsap.to(old.ball.scale, {
         x: 0.001, y: 0.001, z: 0.001, duration: 0.3, ease: "back.in(2)",
         onComplete: () => {
@@ -5398,7 +5414,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
     z0: shelf.position.z - SHELF_D / 2, z1: shelf.position.z + SHELF_D / 2, y1: shelf.position.y + SHELF_H,
   };
   const BOUNCE = 0.42;
-  const LITTER_FRONT = bin.position.z + 0.95;
+  // The shelf's close-up (its shot's dir and depth) clips everything more than 1.6 in front of
+  // the shelf, and that cut is angled: it comes nearer the further right you go. A ball across
+  // it is sliced open (a black disc, the inside of its outline) or gone, so the litter is
+  // fenced in behind it, with a margin, and kept from rolling off the right of the screen.
+  const CUT_N = new THREE.Vector3(0.24, 0.1, 1).normalize();
+  const CUT_FLAT = new THREE.Vector3(CUT_N.x, 0, CUT_N.z).normalize();
+  const CUT_AT = new THREE.Vector3(shelf.position.x + 0.35, 0, shelf.position.z);
+  const CUT_REACH = (1.6 - PAPER_R - 0.12) / Math.hypot(CUT_N.x, CUT_N.z);
+  const LITTER_RIGHT = bin.position.x + 1.1;
   function stepPaper(paper, dt) {
     const { ball, vel, spin } = paper;
     const p = ball.position;
@@ -5462,11 +5486,20 @@ export function createDeskScene({ container, projects, experiences, dark = false
       p.z = wallFace;
       if (vel.z < 0) vel.z *= -BOUNCE;
     }
-    // Kept close to the bin: any further into the room and the shelf close-up's near plane
-    // would slice it open (it'd show as a black disc)
-    if (p.z > LITTER_FRONT) {
-      p.z = LITTER_FRONT;
-      if (vel.z > 0) vel.z *= -BOUNCE;
+    // Behind the close-up's cut (the floor is below the shot's target, which only helps, so
+    // height is left out) and no further right than the screen shows
+    const over = (p.x - CUT_AT.x) * CUT_FLAT.x + (p.z - CUT_AT.z) * CUT_FLAT.z - CUT_REACH;
+    if (over > 0) {
+      p.addScaledVector(CUT_FLAT, -over);
+      const into = vel.x * CUT_FLAT.x + vel.z * CUT_FLAT.z;
+      if (into > 0) {
+        vel.x -= (1 + BOUNCE) * into * CUT_FLAT.x;
+        vel.z -= (1 + BOUNCE) * into * CUT_FLAT.z;
+      }
+    }
+    if (p.x > LITTER_RIGHT) {
+      p.x = LITTER_RIGHT;
+      if (vel.x > 0) vel.x *= -BOUNCE;
     }
     // Balls already on the floor are bumped, not passed through, so they spread out
     papers.forEach((other) => {

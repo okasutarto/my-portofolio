@@ -93,9 +93,10 @@ import { createDesktop, SCREEN_W, SCREEN_H } from "./desktop";
 import { createLofi, TRACKS } from "./lofi";
 
 const PALETTES = {
-  light: { desk: "#ffffff", shadow: "#000000" },
+  // The shelf's oak tone, so the desk, the riser, the shelf and the window frame read as one set
+  light: { desk: "#f3d3b0", shadow: "#000000" },
   // Night: the same wood, dimmed, so it still reads against the dark page
-  dark: { desk: "#c4b9dc", shadow: "#000000" },
+  dark: { desk: "#bb9998", shadow: "#000000" },
 };
 // Props that stand for a section of the 2D site
 export const SECTIONS = ["hero", "about", "experience", "projects", "contact"];
@@ -227,6 +228,30 @@ export function createDeskScene({ container, projects, experiences, dark = false
   }
   const UP = new THREE.Vector3(0, 1, 0);
   const rbox = (w, h, d, r = 0.08) => new RoundedBoxGeometry(w, h, d, 2, Math.min(r, Math.min(w, h, d) / 2 - 1e-3));
+  // A rounded rectangle in the xy plane, centred on the origin
+  const roundedRectShape = (w, h, r) => {
+    const shape = new THREE.Shape();
+    shape.moveTo(-w / 2 + r, -h / 2);
+    shape.lineTo(w / 2 - r, -h / 2);
+    shape.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + r);
+    shape.lineTo(w / 2, h / 2 - r);
+    shape.quadraticCurveTo(w / 2, h / 2, w / 2 - r, h / 2);
+    shape.lineTo(-w / 2 + r, h / 2);
+    shape.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - r);
+    shape.lineTo(-w / 2, -h / 2 + r);
+    shape.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + r, -h / 2);
+    return shape;
+  };
+  // A thin slab with big rounded corners in its face (rbox caps its radius at half the
+  // thinnest side, so a phone-thin box would come out nearly square), its edges softly bevelled
+  const phoneSlab = (w, h, d, r) => {
+    const b = Math.min(0.015, d / 3);
+    const geo = new THREE.ExtrudeGeometry(roundedRectShape(w - 2 * b, h - 2 * b, r - b), {
+      depth: d - 2 * b, bevelEnabled: true, bevelThickness: b, bevelSize: b, bevelSegments: 3, curveSegments: 10,
+    });
+    geo.translate(0, 0, -(d - 2 * b) / 2);
+    return geo;
+  };
   // Places an object (and tips it about z), for building props out of parts
   const at = (obj, x, y, z = 0, rz = 0) => {
     obj.position.set(x, y, z);
@@ -507,20 +532,24 @@ export function createDeskScene({ container, projects, experiences, dark = false
   deskGlowGradient.addColorStop(1, "rgba(255,255,255,0)");
   deskGlow.ctx.fillStyle = deskGlowGradient;
   deskGlow.ctx.fillRect(0, 0, 256, 128);
+  const DESK_WASH = 0.45;
   const deskNeons = ["#00e0c6", "#ff90e8"].map((color, i) => {
     const x = i === 0 ? -3.5 : 3.5;
     const strip = new THREE.Mesh(
       track(new THREE.BoxGeometry(7, 0.045, 0.06)),
       track(new THREE.MeshBasicMaterial({ color })),
     );
-    strip.position.set(x, 0.025, -4.23);
+    // tucked just under the top's back edge, so only its light shows, never the strip itself
+    strip.position.set(x, -0.3, -4.23);
     strip.raycast = noRaycast;
     const washMat = track(new THREE.MeshBasicMaterial({
       map: deskGlow.texture, color, transparent: true, depthWrite: false,
       blending: THREE.AdditiveBlending, opacity: 0,
     }));
-    const wash = new THREE.Mesh(track(new THREE.PlaneGeometry(10, 2.8)), washMat);
-    wash.position.set(x, 1.4, WALL_Z + 0.15);
+    // A broad, faint wash: the two colours meet softly behind the monitor instead of each
+    // lighting a flat band of wall
+    const wash = new THREE.Mesh(track(new THREE.PlaneGeometry(11, 3.6)), washMat);
+    wash.position.set(x, 1.8, WALL_Z + 0.15);
     wash.raycast = noRaycast;
     scene.add(strip, wash);
     return { strip, washMat };
@@ -4013,10 +4042,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
         const everything = [
           [[mug, coaster], ["#fffdf5", "#6f4e37", "#a8743f"]],
           [[mail], ["#e2cb9c", "#fffdf5", "#3b82f6"]],
-          [[phoneStand], ["#f47b20", "#1a1714", "#ffdd00"]],
+          [[phoneStand], ["#7a2635", "#1a1714", "#ffdd00"]],
           [[plant], ["#16a34a", "#8fd694", "#ff7a1a"]],
           [[mouse], ["#ffffff", "#e11d48"]],
-          [[keyboard], ["#1f1f1f", "#e8e4dc", "#ff90e8", "#00e0c6"]],
+          [[keyboard], ["#1b1c1f", "#43464d", "#f5c22b", "#f2603c"]],
           [[monitor], ["#c2c6cc", "#1a1714", "#8fd694"]],
           [[speakers[0].group], ["#1a1714", "#7fb2ff", "#ffdd00"]],
           [[speakers[1].group], ["#1a1714", "#7fb2ff", "#ffdd00"]],
@@ -4675,51 +4704,118 @@ export function createDeskScene({ container, projects, experiences, dark = false
     onClick: () => shoot(),
   });
 
+  // ---------- monitor riser: a wooden shelf the monitor and speakers stand on ----------
+  // One board of the desk's own grain on two slab legs, the same wood as the top so it reads as
+  // part of the desk, deep enough for the speakers and the monitor's foot
+  const RISER_TOP = 0.5;
+  const RISER_BOARD = 0.14;
+  const RISER_LEG_SHADE = 0.62;
+  const riserWood = deskWood.texture.clone();
+  riserWood.wrapS = riserWood.wrapT = THREE.RepeatWrapping;
+  // the grain at the desk's scale: half its length, and one of its five boards
+  riserWood.repeat.set(0.5, 0.2);
+  riserWood.offset.set(0.2, 0.4);
+  riserWood.needsUpdate = true;
+  track(riserWood);
+  const riserMat = toon(PALETTES.light.desk);
+  riserMat.map = riserWood;
+  const riser = new THREE.Group();
+  riser.position.set(-0.25, 0, -3.1);
+  scene.add(riser);
+  const riserTop = mesh(rbox(7.0, RISER_BOARD, 2.0, 0.05), riserMat, { outline: 0.045 });
+  riserTop.position.y = RISER_TOP - RISER_BOARD / 2;
+  riser.add(riserTop);
+  // The legs in a deeper shade of the same grain, set in from the ends under an overhang, so
+  // they stand apart from the desk top they rest on
+  const riserLegMat = toon(PALETTES.light.desk);
+  riserLegMat.color.multiplyScalar(RISER_LEG_SHADE);
+  riserLegMat.map = riserWood;
+  [-3.0, 3.0].forEach((x) => {
+    const leg = mesh(rbox(0.36, RISER_TOP - RISER_BOARD, 1.7, 0.04), riserLegMat, { outline: 0.04 });
+    leg.position.set(x, (RISER_TOP - RISER_BOARD) / 2, 0);
+    riser.add(leg);
+  });
+
   // ---------- monitor + terminal ----------
   const monitor = new THREE.Group();
-  monitor.position.set(-0.2, 0, -2.75);
+  monitor.position.set(-0.2, RISER_TOP, -2.75);
   scene.add(monitor);
-  // iMac-style, in black: a thin slab with a black bezel around the screen, a dark chin below
-  // it, on a flat foot with a slanted plate for a stand (a few near-blacks, so it keeps its shape)
+  // Nearly bezelless, in black: a thin slab that stops just short of the screen's edges, a
+  // slim chin below it, on a flat foot with a slanted plate for a stand (a few near-blacks, so
+  // it keeps its shape)
   const aluminium = toon("#2b2d31");
   const base = mesh(rbox(1.75, 0.07, 1.3, 0.03), aluminium, { outline: 0.03 });
   base.position.set(0, 0.035, -0.15);
   const neck = mesh(rbox(1.3, 1.75, 0.09, 0.03), aluminium, { outline: 0.03 });
   neck.position.set(0, 0.9, -0.42);
   neck.rotation.x = 0.16;
-  const body = mesh(rbox(4.6, 3.2, 0.14, 0.1), toon("#1f2125"), { outline: 0.06 });
-  body.position.set(0, 2.4, 0);
-  const bezel = mesh(rbox(4.46, 2.62, 0.02, 0.06), toon("#141518"), { outline: 0, cast: false });
+  // The screen runs from x -2.0 to 2.0 and y 1.43 to 3.83; the body is only 0.11 wider each
+  // side and 0.09 taller, with the chin below from 1.0
+  const body = mesh(rbox(4.22, 2.92, 0.14, 0.08), toon("#1f2125"), { outline: 0.06 });
+  body.position.set(0, 2.46, 0);
+  const bezel = mesh(rbox(4.16, 2.5, 0.02, 0.05), toon("#141518"), { outline: 0, cast: false });
   bezel.position.set(0, 2.63, 0.075);
   monitor.add(base, neck, body, bezel);
-  // The details: a thin black border round the panel, a webcam in the top bezel, a dark chin
-  // with a little logo and a power light, and the cable hole through the stand
+  // The details: a thin black border round the panel, a webcam in the top bezel, a little
+  // logo and a power light on the chin (the body's own face below the bezel, 1.0 to 1.38),
+  // and the cable hole through the stand
   // between the bezel's face (z 0.085) and the screen (z 0.09)
   const panelEdge = mesh(rbox(4.08, 2.44, 0.006, 0.002), toon("#1a1714"), { outline: 0, cast: false });
   panelEdge.position.set(0, 2.63, 0.084);
-  // in the strip of bezel above the panel (3.85 to 3.94)
-  const webcam = new THREE.Mesh(track(new THREE.CircleGeometry(0.03, 16)), track(new THREE.MeshBasicMaterial({ color: "#2a2d33" })));
-  webcam.position.set(0, 3.897, 0.087);
-  const webcamLens = new THREE.Mesh(track(new THREE.CircleGeometry(0.012, 12)), track(new THREE.MeshBasicMaterial({ color: "#5a7bb0" })));
-  webcamLens.position.set(0, 3.897, 0.088);
-  const chin = mesh(rbox(4.5, 0.46, 0.02, 0.05), toon("#26282d"), { outline: 0, cast: false });
-  chin.position.set(0, 1.06, 0.072);
+  // in the strip of bezel above the panel (3.85 to 3.88)
+  const webcam = new THREE.Mesh(track(new THREE.CircleGeometry(0.016, 16)), track(new THREE.MeshBasicMaterial({ color: "#2a2d33" })));
+  webcam.position.set(0, 3.866, 0.087);
+  const webcamLens = new THREE.Mesh(track(new THREE.CircleGeometry(0.007, 12)), track(new THREE.MeshBasicMaterial({ color: "#5a7bb0" })));
+  webcamLens.position.set(0, 3.866, 0.088);
   // a small, plain round mark (the pentagon read as clutter)
-  const chinLogo = new THREE.Mesh(track(new THREE.CircleGeometry(0.05, 24)), track(new THREE.MeshBasicMaterial({ color: "#5c6169" })));
-  chinLogo.position.set(0, 1.06, 0.085);
-  const powerLed = new THREE.Mesh(track(new THREE.CircleGeometry(0.025, 10)), track(new THREE.MeshBasicMaterial({ color: "#16a34a" })));
-  powerLed.position.set(1.95, 0.95, 0.085);
+  const chinLogo = new THREE.Mesh(track(new THREE.CircleGeometry(0.045, 24)), track(new THREE.MeshBasicMaterial({ color: "#5c6169" })));
+  chinLogo.position.set(0, 1.19, 0.085);
+  const powerLed = new THREE.Mesh(track(new THREE.CircleGeometry(0.022, 10)), track(new THREE.MeshBasicMaterial({ color: "#16a34a" })));
+  powerLed.position.set(1.8, 1.19, 0.085);
   const cableHole = new THREE.Mesh(track(new THREE.CircleGeometry(0.12, 18)), track(new THREE.MeshBasicMaterial({ color: "#0e0f11" })));
   cableHole.position.set(0, 0.25, 0.05);
   neck.add(cableHole);
-  [panelEdge, webcam, webcamLens, chin, chinLogo, powerLed].forEach((part) => (part.raycast = noRaycast));
-  monitor.add(panelEdge, webcam, webcamLens, chin, chinLogo, powerLed);
+  [panelEdge, webcam, webcamLens, chinLogo, powerLed].forEach((part) => (part.raycast = noRaycast));
+  monitor.add(panelEdge, webcam, webcamLens, chinLogo, powerLed);
+  // Bias lighting: a strip on the monitor's back throws a cyan-to-pink glow on the wall behind
+  // it, at night. Drawn as the blurred shadow of a rounded rect (the shape itself stays off the
+  // canvas), so it fades out evenly on every side.
+  const monitorGlowTex = canvasTexture(640, 480);
+  track(monitorGlowTex.texture);
+  {
+    const c = monitorGlowTex.ctx;
+    const glowFill = c.createLinearGradient(0, 0, 640, 0);
+    glowFill.addColorStop(0, "#00e0c6");
+    glowFill.addColorStop(0.5, "#8b7bff");
+    glowFill.addColorStop(1, "#ff90e8");
+    // The shadow takes its colour from shadowColor only, so lay the gradient over it
+    c.shadowColor = "#ffffff";
+    c.shadowBlur = 60;
+    c.shadowOffsetX = 2000;
+    c.fillStyle = "#ffffff";
+    c.beginPath();
+    c.roundRect(120 - 2000, 110, 400, 260, 50);
+    c.fill();
+    c.shadowColor = "transparent";
+    c.globalCompositeOperation = "source-in";
+    c.fillStyle = glowFill;
+    c.fillRect(0, 0, 640, 480);
+  }
+  const monitorGlowMat = track(new THREE.MeshBasicMaterial({
+    map: monitorGlowTex.texture, transparent: true, depthWrite: false,
+    blending: THREE.AdditiveBlending, opacity: 0,
+  }));
+  const monitorGlow = new THREE.Mesh(track(new THREE.PlaneGeometry(10.4, 7.8)), monitorGlowMat);
+  // On the wall, centred behind the screen
+  monitorGlow.position.set(monitor.position.x, RISER_TOP + 2.7, WALL_Z + 0.16);
+  monitorGlow.raycast = noRaycast;
+  scene.add(monitorGlow);
   // Sticky notes on the right of the bezel, each with a hard little shadow behind it
   const noteShadowMat = track(new THREE.MeshBasicMaterial({ color: "#000000" }));
   [
-    // Stuck to the right edge of the bezel, half hanging off it, clear of the screen
-    { text: "ship it", color: "#ffdd00", tick: true, x: 2.36, y: 3.4, rz: -0.12 },
-    { text: "drink water!", color: "#ff90e8", x: 2.4, y: 2.15, rz: 0.18 },
+    // Stuck to the right edge of the body, half hanging off it, clear of the screen
+    { text: "ship it", color: "#ffdd00", tick: true, x: 2.18, y: 3.4, rz: -0.12 },
+    { text: "drink water!", color: "#ff90e8", x: 2.22, y: 2.15, rz: 0.18 },
   ].forEach((n) => {
     const note = printed(0.62, 0.62, 500, (c, w, h) => drawStickyNote(c, w, h, n));
     const shadow = new THREE.Mesh(track(new THREE.PlaneGeometry(0.62, 0.62)), noteShadowMat);
@@ -4795,7 +4891,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   }
   [-3.05, 2.55].forEach((x) => {
     const speaker = new THREE.Group();
-    speaker.position.set(x, 0, -3.55);
+    speaker.position.set(x, RISER_TOP, -3.55);
     scene.add(speaker);
     const cabinet = mesh(rbox(0.95, 1.75, 0.85, 0.065), toon("#252a31"), { outline: 0.028 });
     cabinet.position.y = 0.875;
@@ -5062,7 +5158,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     if (focus.name === "monitor") return;
     termAlert = true;
     redrawTerminal();
-    gsap.fromTo(monitor.position, { y: 0 }, { keyframes: [{ y: 0.3, duration: 0.15, ease: "power2.out" }, { y: 0, duration: 0.4, ease: "bounce.out" }] });
+    gsap.fromTo(monitor.position, { y: RISER_TOP }, { keyframes: [{ y: RISER_TOP + 0.3, duration: 0.15, ease: "power2.out" }, { y: RISER_TOP, duration: 0.4, ease: "bounce.out" }] });
     sfx.ping();
   };
   timers.push(setTimeout(welcome, 1500));
@@ -5535,7 +5631,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     onLeave: () => finishNoteDrag(),
   });
 
-  // ---------- keyboard: a standard 60% layout ----------
+  // ---------- keyboard: a 75% board after the NuPhy Halo75 ----------
   // Every key is its own cap with its legend printed on top, keyed by KeyboardEvent.code, so the
   // key you press on your own keyboard presses the very same key on the desk.
   // A felt desk mat under the keyboard and the mouse, wide enough for the mouse's run
@@ -5552,22 +5648,42 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const keyboard = new THREE.Group();
   keyboard.position.set(0.2, MAT_TOP, 0.75);
   scene.add(keyboard);
-  const keyBase = mesh(rbox(4.6, 0.25, 1.7), toon("#1f1f1f"));
-  keyBase.position.y = 0.125;
-  keyboard.add(keyBase);
-  const KEY_UNIT = 0.292;
-  const KEY_GAP = 0.036;
+  // A black aluminium case on a smoky see-through bottom, with the Halo's light bar glowing along
+  // its left end
+  const KEY_UNIT = 0.28;
+  const KEY_GAP = 0.034;
+  const KEYS_W = 16 * KEY_UNIT;
+  const KEYS_D = 6 * KEY_UNIT;
+  const CASE_W = KEYS_W + 0.22;
+  const CASE_D = KEYS_D + 0.24;
+  const keyBottom = mesh(rbox(CASE_W, 0.12, CASE_D, 0.06), toon("#3a3d44"), { outline: 0.03 });
+  keyBottom.position.y = 0.06;
+  const keyBase = mesh(rbox(CASE_W - 0.02, 0.15, CASE_D - 0.02, 0.06), toon("#1b1c1f"), { outline: 0.03 });
+  keyBase.position.y = 0.19;
+  keyboard.add(keyBottom, keyBase);
+  const haloMat = track(new THREE.MeshBasicMaterial({ color: "#38bdf8" }));
+  const haloBar = new THREE.Mesh(track(new THREE.BoxGeometry(0.03, 0.012, KEY_UNIT * 1.6)), haloMat);
+  haloBar.position.set(-CASE_W / 2 + 0.05, 0.27, -KEYS_D / 2 + KEY_UNIT * 0.9);
+  haloBar.raycast = noRaycast;
+  keyboard.add(haloBar);
   const KEY_Y = 0.34;
   const letters = (row) => row.split("").map((ch) => [`Key${ch}`, ch]);
+  const fKeys = Array.from({ length: 12 }, (_, i) => [`F${i + 1}`, `F${i + 1}`]);
   const KEY_ROWS = [
-    [["Escape", "ESC"], ...Array.from({ length: 10 }, (_, i) => [`Digit${(i + 1) % 10}`, String((i + 1) % 10)]), ["Minus", "-"], ["Equal", "="], ["Backspace", "⌫", 2]],
-    [["Tab", "TAB", 1.5], ...letters("QWERTYUIOP"), ["BracketLeft", "["], ["BracketRight", "]"], ["Backslash", "\\", 1.5]],
-    [["CapsLock", "CAPS", 1.75], ...letters("ASDFGHJKL"), ["Semicolon", ";"], ["Quote", "'"], ["Enter", "ENTER", 2.25]],
-    [["ShiftLeft", "SHIFT", 2.25], ...letters("ZXCVBNM"), ["Comma", ","], ["Period", "."], ["Slash", "/"], ["ShiftRight", "SHIFT", 2.75]],
-    [["ControlLeft", "CTRL", 1.25], ["MetaLeft", "⌘", 1.25], ["AltLeft", "ALT", 1.25], ["Space", "", 6.25], ["AltRight", "ALT", 1.25], ["MetaRight", "⌘", 1.25], ["ContextMenu", "FN", 1.25], ["ControlRight", "CTRL", 1.25]],
+    [["Escape", "ESC"], ...fKeys, ["PrintScreen", "PRT"], ["Insert", "INS"], ["Delete", "DEL"]],
+    [["Backquote", "`"], ...Array.from({ length: 10 }, (_, i) => [`Digit${(i + 1) % 10}`, String((i + 1) % 10)]), ["Minus", "-"], ["Equal", "="], ["Backspace", "BACKSPACE", 2], ["Home", "HOME"]],
+    [["Tab", "TAB", 1.5], ...letters("QWERTYUIOP"), ["BracketLeft", "["], ["BracketRight", "]"], ["Backslash", "\\", 1.5], ["End", "END"]],
+    [["CapsLock", "CAPS", 1.75], ...letters("ASDFGHJKL"), ["Semicolon", ";"], ["Quote", "'"], ["Enter", "ENTER", 2.25], ["PageUp", "PGUP"]],
+    [["ShiftLeft", "SHIFT", 2.25], ...letters("ZXCVBNM"), ["Comma", ","], ["Period", "."], ["Slash", "/"], ["ShiftRight", "SHIFT", 1.75], ["ArrowUp", "↑"], ["PageDown", "PGDN"]],
+    // Apple's bottom row: fn, control, option, command, the space bar, command, option
+    [["Fn", "fn"], ["ControlLeft", "control"], ["AltLeft", "option"], ["MetaLeft", "command", 1.25], ["Space", "", 6.25], ["MetaRight", "command", 1.25], ["AltRight", "option", 1.25], ["ArrowLeft", "←"], ["ArrowDown", "↓"], ["ArrowRight", "→"]],
   ];
-  // Shortcut keys, printed in colour: digits fly to the sections, T to the terminal, C to the
-  // chat. They work from your own keyboard too.
+  // Apple prints each modifier's symbol over its name
+  const MOD_SYMBOLS = { ControlLeft: "⌃", AltLeft: "⌥", AltRight: "⌥", MetaLeft: "⌘", MetaRight: "⌘" };
+  // Pressed on their own, so they show even though they never type anything
+  const MODIFIER_CODES = new Set(["ShiftLeft", "ShiftRight", "ControlLeft", "ControlRight", "AltLeft", "AltRight", "MetaLeft", "MetaRight"]);
+  // Shortcut keys, their legends printed in colour: digits fly to the sections, T to the
+  // terminal, C to the chat. They work from your own keyboard too.
   const SHORTCUTS = {
     1: { shot: "hero", code: "Digit1", color: "#ffdd00" },
     2: { shot: "about", code: "Digit2", color: "#ff90e8" },
@@ -5578,23 +5694,33 @@ export function createDeskScene({ container, projects, experiences, dark = false
     c: { shot: "chat", code: "KeyC", color: "#7fb2ff" },
   };
   const shortcutByCode = new Map(Object.values(SHORTCUTS).map((sc) => [sc.code, sc]));
-  const MODIFIERS = new Set(["Tab", "CapsLock", "ShiftLeft", "ShiftRight", "ControlLeft", "ControlRight", "MetaLeft", "MetaRight", "AltLeft", "AltRight", "ContextMenu", "Backspace"]);
-  const keyColor = (code) => shortcutByCode.get(code)?.color || (code === "Escape" ? "#ff6b6b" : code === "Enter" ? "#00e0c6" : MODIFIERS.has(code) ? "#d9d4c7" : "#fffdf5");
+  // The Halo75's colourway: near-black alphas, grey modifiers, a mint Esc, a coral Enter and a
+  // yellow space bar
+  const ACCENTS = { Escape: "#5ec4a2", Enter: "#f2603c", Space: "#f5c22b" };
+  const ALPHA = /^(Key|Digit)|^(Minus|Equal|BracketLeft|BracketRight|Backslash|Semicolon|Quote|Comma|Period|Slash|Backquote)$/;
+  const keyColor = (code) => ACCENTS[code] || (ALPHA.test(code) ? "#2a2c31" : "#43464d");
+  const keyInk = (code) => shortcutByCode.get(code)?.color || (ACCENTS[code] ? "#1a1714" : "#c3c6cc");
+  // The shifted symbols printed above the digits and punctuation
+  const SHIFTED = {
+    Backquote: "~", Digit1: "!", Digit2: "@", Digit3: "#", Digit4: "$", Digit5: "%", Digit6: "^", Digit7: "&", Digit8: "*", Digit9: "(", Digit0: ")",
+    Minus: "_", Equal: "+", BracketLeft: "{", BracketRight: "}", Backslash: "|", Semicolon: ":", Quote: "\"", Comma: "<", Period: ">", Slash: "?",
+  };
   const keyMats = new Map();
   const keyMat = (color) => keyMats.get(color) || keyMats.set(color, toon(color)).get(color);
   const keyByCode = new Map();
   KEY_ROWS.forEach((row, r) => {
-    let cursor = -7.5; // the rows are 15 units wide
+    let cursor = -8; // the rows are 16 units wide
     row.forEach(([code, label, width = 1]) => {
       const w = width * KEY_UNIT - KEY_GAP;
       const d = KEY_UNIT - KEY_GAP;
       const color = keyColor(code);
       const key = new THREE.Group();
-      key.position.set((cursor + width / 2) * KEY_UNIT, KEY_Y, (r - 2) * KEY_UNIT);
+      key.position.set((cursor + width / 2) * KEY_UNIT, KEY_Y, (r - 2.5) * KEY_UNIT);
       key.userData.code = code;
       key.add(mesh(rbox(w, 0.18, d, 0.05), keyMat(color), { outline: 0.03 }));
       if (label) {
-        const legend = printed(w - 0.05, d - 0.05, 340, (c, cw, ch) => drawKeyLabel(c, cw, ch, label, color));
+        const homing = code === "KeyF" || code === "KeyJ" ? "#38bdf8" : null;
+        const legend = printed(w - 0.05, d - 0.05, 340, (c, cw, ch) => drawKeyLabel(c, cw, ch, label, color, { ink: keyInk(code), small: label.length > 1, shift: SHIFTED[code] || MOD_SYMBOLS[code], homing }));
         legend.rotation.x = -Math.PI / 2;
         legend.position.y = 0.092;
         key.add(legend);
@@ -5604,7 +5730,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
       cursor += width;
     });
   });
-  keyByCode.set("Backquote", keyByCode.get("Escape")); // 60% boards put Esc where ` sits
 
   let keysPressed = 0;
   function pressKey(code, { sound = true } = {}) {
@@ -5638,6 +5763,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
     onPointer: hoverKey,
   });
   const onKeyDown = (e) => {
+    // A modifier's own keydown already carries its flag (Cmd sets metaKey), so it's pressed
+    // here, before combinations are ignored below
+    if (MODIFIER_CODES.has(e.code)) {
+      if (!e.repeat) pressKey(e.code);
+      return;
+    }
     if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest?.("input, textarea, [contenteditable]")) return;
     if (e.key === "Escape") {
       pressKey("Escape");
@@ -6761,32 +6892,72 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const chat = { messages: [], input: "", active: false, waiting: false, scroll: 0, maxScroll: 0 };
   let chatDirty = false;
   let chatTypingAt = 0;
-  // A cosmic orange iPhone 17 Pro Max: tall aluminium body behind a thin black bezel, with the
-  // full-width camera plateau across the top of the back (three lenses and a flash)
-  const phoneOrange = toon("#f47b20");
-  const phoneScreen = printed(0.84, 1.82, 700, (c, w, h) => drawChatScreen(c, w, h, chat, { unread, caret: caretOn && chat.active }));
+  // A burgundy iPhone 17 Pro Max: a tall aluminium unibody with a thin, even black border
+  // round a screen whose corners follow the body's, the Dynamic Island printed at its top
+  // (drawChatScreen), the buttons down both sides, and on the back the full-width camera
+  // plateau: three big lenses in a triangle, the flash and LiDAR beside them, and the logo
+  const phoneFinish = toon("#7a2635");
+  const phoneTrim = toon("#5e1a27");
+  const PHONE_W = 0.95;
+  const PHONE_H = 1.95;
+  const phoneScreen = printed(0.87, 1.87, 700, (c, w, h) => drawChatScreen(c, w, h, chat, { unread, caret: caretOn && chat.active }));
+  // A rounded screen, its UVs spread over the whole print so the chat's hotspots line up
+  {
+    const sw = 0.87, sh = 1.87;
+    const geo = new THREE.ShapeGeometry(roundedRectShape(sw, sh, 0.11), 10);
+    const pos = geo.attributes.position;
+    const uv = geo.attributes.uv;
+    for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / sw + 0.5, pos.getY(i) / sh + 0.5);
+    phoneScreen.geometry.dispose();
+    phoneScreen.geometry = track(geo);
+  }
   phoneScreen.position.z = 0.059;
-  const phoneBezel = mesh(rbox(0.89, 1.87, 0.02, 0.1), toon("#111111"), { outline: 0, cast: false });
+  const phoneBezel = mesh(phoneSlab(0.91, 1.91, 0.02, 0.13), toon("#0d0d0f"), { outline: 0, cast: false });
   phoneBezel.position.z = 0.047;
-  const plateau = mesh(rbox(0.93, 0.5, 0.05, 0.08), phoneOrange, { outline: 0.025 });
-  plateau.position.set(0, 0.7, -0.065);
-  const lensMat = toon("#1a1a1a");
-  [[-0.27, 0.8], [-0.27, 0.6], [-0.1, 0.7]].forEach(([x, y]) => {
-    const lens = mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.04, 20), lensMat, { outline: 0.015 });
-    lens.rotation.x = Math.PI / 2;
-    lens.position.set(-x, y, -0.1);
-    phone.add(lens);
+  const phoneBody = mesh(phoneSlab(PHONE_W, PHONE_H, 0.09, 0.16), phoneFinish, { outline: 0.035 });
+  // Side buttons: the action button and volume rocker on the left, the side button and Camera
+  // Control on the right
+  const sideButton = (x, y, h) => {
+    const b = mesh(rbox(0.025, h, 0.04, 0.012), phoneTrim, { outline: 0.012 });
+    b.position.set(x, y, 0);
+    phone.add(b);
+  };
+  sideButton(-PHONE_W / 2 - 0.008, 0.62, 0.1);
+  sideButton(-PHONE_W / 2 - 0.008, 0.42, 0.18);
+  sideButton(-PHONE_W / 2 - 0.008, 0.18, 0.18);
+  sideButton(PHONE_W / 2 + 0.008, 0.45, 0.26);
+  sideButton(PHONE_W / 2 + 0.008, -0.25, 0.16);
+  // The plateau runs edge to edge across the top of the back, a shade deeper than the body
+  const plateau = mesh(phoneSlab(PHONE_W - 0.03, 0.56, 0.05, 0.13), phoneTrim, { outline: 0.025 });
+  plateau.position.set(0, 0.66, -0.065);
+  // Seen from the back the lenses sit on the left, which is +x here (the screen faces +z)
+  const lensRing = toon("#4a131e");
+  const lensGlass = toon("#16181d");
+  [[0.25, 0.79], [0.25, 0.53], [0.05, 0.66]].forEach(([x, y]) => {
+    const ring = mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.035, 28), lensRing, { outline: 0.015 });
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(x, y, -0.1);
+    const glass = mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.02, 24), lensGlass, { outline: 0 });
+    glass.rotation.x = Math.PI / 2;
+    glass.position.set(x, y, -0.112);
+    const glint = new THREE.Mesh(track(new THREE.CircleGeometry(0.018, 12)), track(new THREE.MeshBasicMaterial({ color: "#5a6b8c" })));
+    glint.rotation.y = Math.PI;
+    glint.position.set(x - 0.02, y + 0.02, -0.123);
+    glint.raycast = noRaycast;
+    phone.add(ring, glass, glint);
   });
-  const camFlash = mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.02, 12), toon("#fff3d6"), { outline: 0 });
+  const camFlash = mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.02, 16), toon("#fff3d6"), { outline: 0.006 });
   camFlash.rotation.x = Math.PI / 2;
-  camFlash.position.set(-0.3, 0.7, -0.092);
-  phone.add(
-    mesh(rbox(0.95, 1.95, 0.09, 0.13), phoneOrange, { outline: 0.035 }),
-    phoneBezel,
-    phoneScreen,
-    plateau,
-    camFlash,
-  );
+  camFlash.position.set(-0.3, 0.79, -0.095);
+  const lidar = mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.02, 16), lensGlass, { outline: 0.006 });
+  lidar.rotation.x = Math.PI / 2;
+  lidar.position.set(-0.3, 0.53, -0.095);
+  // the logo, a plain round mark like the monitor's
+  const backLogo = new THREE.Mesh(track(new THREE.CircleGeometry(0.07, 24)), phoneTrim);
+  backLogo.rotation.y = Math.PI;
+  backLogo.position.set(0, -0.1, -0.047);
+  backLogo.raycast = noRaycast;
+  phone.add(phoneBody, phoneBezel, phoneScreen, plateau, camFlash, lidar, backLogo);
   phoneStand.add(standBase, standBack, phone);
   const redrawChat = () => phoneScreen.userData.tex.redraw();
   function editChat() {
@@ -7655,7 +7826,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   contactShadow(mug, 1.55, 1.55);
   contactShadow(plant, 1.9, 1.9);
   contactShadow(mouse, 0.85, 1.2, MAT_TOP);
-  contactShadow(monitor, 2.2, 1.5);
+  contactShadow(monitor, 2.2, 1.5, RISER_TOP);
+  contactShadow(riser, 7.4, 2.4, 0, 0.7);
   contactShadow(keyboard, 5.8, 2.5, MAT_TOP, 0.8);
   contactShadow(phoneStand, 1.7, 1.5);
   contactShadow(tickets, 3.4, 1.8, 0, 0.6);
@@ -7692,8 +7864,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
     darkNow = isDark;
     deskNeons.forEach(({ strip, washMat }) => {
       strip.visible = isDark;
-      washMat.opacity = isDark ? 1 : 0;
+      washMat.opacity = isDark ? DESK_WASH : 0;
     });
+    monitorGlowMat.opacity = isDark ? 1 : 0;
     ambient.intensity = isDark ? 1.0 : 0.65;
     skyFill.intensity = isDark ? 0 : 1.45;
     readabilityFill.intensity = isDark ? 0.55 : 0.35;
@@ -7717,6 +7890,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     setLamp(isDark);
     const p = isDark ? PALETTES.dark : PALETTES.light;
     deskMat.color.set(p.desk);
+    riserMat.color.set(p.desk);
+    riserLegMat.color.set(p.desk).multiplyScalar(RISER_LEG_SHADE);
     shadowFill.color.set(p.shadow);
   }
   setTheme(dark);
@@ -7832,8 +8007,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
       if (!point) return;
       stickyDrag.moved = true;
       // Keep a little overhang around the bezel, as in the original placements.
-      stickyDrag.sticky.position.x = THREE.MathUtils.clamp(point.x - stickyDrag.offsetX, -2.5, 2.5);
-      stickyDrag.sticky.position.y = THREE.MathUtils.clamp(point.y - stickyDrag.offsetY, 1.1, 3.7);
+      stickyDrag.sticky.position.x = THREE.MathUtils.clamp(point.x - stickyDrag.offsetX, -2.3, 2.3);
+      stickyDrag.sticky.position.y = THREE.MathUtils.clamp(point.y - stickyDrag.offsetY, 1.3, 3.7);
       renderer.domElement.style.cursor = "grabbing";
       e.preventDefault();
       return;
@@ -8124,7 +8299,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     window: () => ({ target: [windowGroup.position.x + 0.1, windowGroup.position.y + 0.15, windowGroup.position.z + 1.55], dir: [1, 0.08, 0.04], fit: [8.6, 6.2], depth: 1.4 }),
     // Framed a little high, with room under the monitor's chin for the command chips and the
     // hint (they'd sit over the chin otherwise)
-    monitor: () => ({ target: [-0.2, 2.25, -2.66], dir: [0.1, 0.32, 1], fit: [5.2, 4.6] }),
+    monitor: () => ({ target: [-0.2, 2.25 + RISER_TOP, -2.66], dir: [0.1, 0.32, 1], fit: [5.2, 4.6] }),
     keyboard: () => ({ target: [0.2, 0.3, 0.75], dir: [0.1, 1, 0.75], fit: [5.4, 2.6] }),
     // A higher angle pushes the plant above the frame and leaves room for the sip quote.
     mug: () => ({ target: [mug.position.x - 0.3, 0.95 + MUG_Y, mug.position.z - 0.45], dir: [-0.2, 1, 0.45], fit: [3.1, 4.1] }),

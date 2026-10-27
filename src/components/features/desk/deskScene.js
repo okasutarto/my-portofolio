@@ -57,6 +57,7 @@ import {
   drawGameCover,
   drawRepBadge,
   drawBinLabel,
+  drawCrumpledPaper,
   drawGlint,
   drawHakiAura,
   drawShout,
@@ -3265,6 +3266,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   drawHakiAura(auraTex.ctx, 256, 128);
   const haki = new THREE.Mesh(track(new THREE.PlaneGeometry(1, 1)), track(new THREE.MeshBasicMaterial({ map: auraTex.texture, transparent: true, depthWrite: false, side: THREE.DoubleSide, opacity: 0 })));
   haki.raycast = noRaycast;
+  haki.renderOrder = 11;
   haki.visible = false;
   // Hovered, Enma leaks a little of its Haki: a faint aura breathing round the bare steel
   // between the guard and the saya's mouth as it slides part way out, gone again when the
@@ -3303,6 +3305,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const petals = Array.from({ length: 12 }, (_, i) => {
     const petal = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: i % 4 === 3 ? blossomTex.texture : petalTex.texture, transparent: true, depthWrite: false })));
     petal.userData.blossom = i % 4 === 3;
+    // over the close-up's spotlight shadow (see spotlight), as the cut's other effects are
+    petal.renderOrder = 11;
     petal.visible = false;
     petal.raycast = noRaycast;
     scene.add(petal);
@@ -3934,6 +3938,73 @@ export function createDeskScene({ container, projects, experiences, dark = false
   function hideSwordCard() {
     gsap.to(swordCard.scale, { x: 0.001, y: 0.001, duration: 0.15, ease: "power2.in", overwrite: true });
   }
+  // The rack's close-up has a spotlight on it: everything round the strike's space (the cork
+  // board, the gauntlet, the desk) sinks into shadow as the camera comes in, so the eye stays on
+  // the swords. One screen-filling layer of ink with a soft oval hole over the rack and the air
+  // the strike sweeps through (high above it for the wind-up, low under it for the finish: so
+  // taller than it is wide), drawn after the room but before the cards, plates and the cut's
+  // effects, which stay bright.
+  const SPOT_REACH = { x: 3.6, y: 4.0 };
+  const spotUniforms = {
+    center: { value: new THREE.Vector2() },
+    radius: { value: new THREE.Vector2(1, 1) },
+    strength: { value: 0 },
+    ink: { value: new THREE.Color("#1a1714") },
+  };
+  const spotlight = new THREE.Mesh(track(new THREE.PlaneGeometry(2, 2)), track(new THREE.ShaderMaterial({
+    uniforms: spotUniforms,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    vertexShader: `
+      varying vec2 vNdc;
+      void main() {
+        vNdc = position.xy;
+        gl_Position = vec4(position.xy, 0.0, 1.0);
+      }`,
+    fragmentShader: `
+      uniform vec2 center;
+      uniform vec2 radius;
+      uniform float strength;
+      uniform vec3 ink;
+      varying vec2 vNdc;
+      void main() {
+        float d = length((vNdc - center) / radius);
+        gl_FragColor = vec4(ink, strength * 0.55 * smoothstep(0.8, 1.3, d));
+      }`,
+  })));
+  spotlight.frustumCulled = false;
+  spotlight.raycast = noRaycast;
+  spotlight.renderOrder = 10;
+  spotlight.visible = false;
+  scene.add(spotlight);
+  // (kept out of the ambient-occlusion pass, which would read it as a wall across the screen)
+  const aoOverride = aoPass.overrideVisibility.bind(aoPass);
+  aoPass.overrideVisibility = () => {
+    aoOverride();
+    spotlight.visible = false;
+  };
+  const spotAt = new THREE.Vector3();
+  const spotEdge = new THREE.Vector3();
+  // Each frame: easing in or out with the close-up, and kept centred on the rack wherever the
+  // camera is. The gauntlet below the rack is put away for the close-up altogether.
+  function updateSpotlight(dt) {
+    gauntlet.visible = focus.name !== "swords";
+    const strength = spotUniforms.strength;
+    strength.value += ((focus.name === "swords" ? 1 : 0) - strength.value) * (1 - Math.pow(0.02, dt));
+    spotlight.visible = strength.value > 0.005;
+    if (!spotlight.visible) return;
+    katanaRack.getWorldPosition(spotAt);
+    spotEdge.copy(spotAt).project(camera);
+    spotUniforms.center.value.set(spotEdge.x, spotEdge.y);
+    const cx = spotEdge.x;
+    const cy = spotEdge.y;
+    spotUniforms.radius.value.set(
+      Math.abs(spotEdge.copy(spotAt).add(screenAxis.set(SPOT_REACH.x, 0, 0)).project(camera).x - cx),
+      Math.abs(spotEdge.copy(spotAt).add(screenAxis.set(0, SPOT_REACH.y, 0)).project(camera).y - cy),
+    );
+  }
+
   // The rack's own close-up: clicking a bracket (or a sword, from further out) comes in to it
   register(katanaRack, {
     focus: "swords",
@@ -8858,8 +8929,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // Close-ups clip whatever is in front of the prop (camera.near). Those props aren't drawn, so
   // they mustn't catch the pointer either: the monitor sits right in front of the badge.
   const viewPoint = new THREE.Vector3();
+  // (nor the gauntlet while it's put away for the swords' close-up: hidden, it's still there
+  // for the ray)
+  const inGauntlet = (object) => {
+    for (let o = object; o; o = o.parent) if (o === gauntlet) return true;
+    return false;
+  };
   const visibleHits = () => raycaster.intersectObjects(pickables, true)
-    .filter((h) => -viewPoint.copy(h.point).applyMatrix4(camera.matrixWorldInverse).z >= camera.near);
+    .filter((h) => -viewPoint.copy(h.point).applyMatrix4(camera.matrixWorldInverse).z >= camera.near)
+    .filter((h) => gauntlet.visible || !inGauntlet(h.object));
   const pick = (e) => {
     rayFromPointer(e);
     const hit = visibleHits()[0];
@@ -9462,6 +9540,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     updateTassels(dt);
     updateFx(dt);
     updateTrail(dt);
+    updateSpotlight(dt);
     poseFolders();
     const pointerBlend = 1 - Math.pow(0.94, dt * 60);
     parallax.x += (parallax.tx - parallax.x) * pointerBlend;

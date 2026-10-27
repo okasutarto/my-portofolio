@@ -139,14 +139,16 @@ export function initializeAudio() {
 // One of a group's recordings, picked at random and nudged in pitch so repeats don't sound
 // identical. False when none is loaded, so the caller can fall back to pure synth.
 // `duration` fades it out early to fit a shorter motion; `send` feeds some of it to the hall.
-function sample(t, group, { peak = 0.5, rate = 1, duration, send = 0 } = {}) {
+// `steady` plays the first recording exactly as it is, for a sound repeated often enough that
+// it should be the same every time.
+function sample(t, group, { peak = 0.5, rate = 1, duration, send = 0, steady = false } = {}) {
   const list = samples[group];
   if (!list || !list.length) return false;
   const src = ctx.createBufferSource();
-  src.buffer = list[Math.floor(Math.random() * list.length)];
-  src.playbackRate.value = vary(rate, 0.06);
+  src.buffer = steady ? list[0] : list[Math.floor(Math.random() * list.length)];
+  src.playbackRate.value = steady ? rate : vary(rate, 0.06);
   const gain = ctx.createGain();
-  const level = vary(peak, 0.1);
+  const level = steady ? peak : vary(peak, 0.1);
   gain.gain.setValueAtTime(level, t);
   if (duration) {
     gain.gain.setValueAtTime(level, t + duration * 0.6);
@@ -604,7 +606,7 @@ const SOUNDS = {
   },
   // A sheathed sword dropping back into its wooden rack
   rackLand(t, { strength = 0.8 } = {}) {
-    if (!sample(t, "rack", { peak: 0.5 * strength })) SOUNDS.clank(t, { strength });
+    if (!sample(t, "rack", { peak: 0.25 * strength })) SOUNDS.clank(t, { strength: strength * 0.5 });
   },
   // The Switch seating in its dock: a hard plastic click
   dock(t, { strength = 0.5 } = {}) {
@@ -680,15 +682,17 @@ const SOUNDS = {
     noise(t + 0.02, { filter: "highpass", freq: 2500, to: 5200, q: 0.7, attack: 0.04, peak: 0.07 * layer, decay: 0.3 });
     tone(t + 0.3, { type: "triangle", freq: 620, to: 590, attack: 0.01, peak: 0.05, decay: 0.35 });
   },
-  // Koiguchi: the thumb pushing the guard to break the saya's seal, a small dry click, then a
-  // short hush of steel easing a hand's width out. Synth only and the same every time (a hover
-  // is made over and over, so it mustn't wander), and opening and shutting are separate sounds
-  // so moving from one sword to the next (shut, then open, at once) never drops the open.
+  // Koiguchi: the blade eased a hand's width out on hover. The same sound as the full draw
+  // (shing: the recorded scrape over a thin layer of air), cut short to the shorter slide and
+  // a little quieter, without the freed blade's hum; and the same every time (the first
+  // recording, unvaried), since a hover is made over and over. Opening and shutting are
+  // separate sounds, so moving from one sword to the next (shut, then open, at once) never
+  // drops the open.
   koiguchi(t) {
-    noise(t, { filter: "bandpass", freq: 2400, q: 4, attack: 0.001, peak: 0.16, decay: 0.03 });
-    tone(t, { type: "triangle", freq: 1250, to: 1100, attack: 0.001, peak: 0.05, decay: 0.05 });
-    noise(t + 0.1, { filter: "bandpass", freq: 1400, to: 3000, q: 2.4, attack: 0.05, peak: 0.12, decay: 0.24 });
-    noise(t + 0.12, { filter: "highpass", freq: 3200, to: 5200, q: 0.7, attack: 0.04, peak: 0.035, decay: 0.2 });
+    const real = sample(t, "draw", { peak: 0.32, duration: 0.42, steady: true });
+    const layer = real ? 0.35 : 0.8;
+    noise(t, { filter: "bandpass", freq: 900, to: 3800, q: 2.2, attack: 0.05, peak: 0.18 * layer, decay: 0.3 });
+    noise(t + 0.02, { filter: "highpass", freq: 2500, to: 5200, q: 0.7, attack: 0.04, peak: 0.06 * layer, decay: 0.28 });
   },
   // Shut again: the hush shorter and falling, ending on the guard's soft "tak" against the mouth
   koiguchiShut(t) {

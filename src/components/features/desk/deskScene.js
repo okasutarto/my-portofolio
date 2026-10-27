@@ -813,15 +813,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
     return m;
   };
   const soundHole = flat(new THREE.CircleGeometry(0.3, 40), "#1a1714", 0, 1.15, 0.195);
-  const bridge = mesh(rbox(0.7, 0.14, 0.05, 0.02), toon("#ff6b6b"), { outline: 0.02 });
+  const bridge = mesh(rbox(0.7, 0.14, 0.05, 0.02), toon("#4a2f1f"), { outline: 0.02 });
   bridge.position.set(0, -0.15, 0.21);
   const guitarNeck = mesh(rbox(0.26, 2.3, 0.14, 0.04), toon("#1a1714"), { outline: 0.03 });
   guitarNeck.position.set(0, 2.85, 0.06);
   const fretboard = flat(new THREE.PlaneGeometry(0.24, 2.3), "#2b2b2b", 0, 2.85, 0.135);
   const fretY = (k) => 3.95 - k * 0.24 * (1 - k * 0.03);
   const frets = Array.from({ length: 9 }, (_, k) => flat(new THREE.PlaneGeometry(0.24, 0.02), "#d9d4c7", 0, fretY(k), 0.137));
-  // Inlay dots in the room's pink, on the 3rd, 5th and 7th frets
-  const inlays = [2, 4, 6].map((k) => flat(new THREE.CircleGeometry(0.035, 16), "#ff90e8", 0, (fretY(k) + fretY(k + 1)) / 2, 0.138));
+  // Cream inlay dots on the 3rd, 5th and 7th frets
+  const inlays = [2, 4, 6].map((k) => flat(new THREE.CircleGeometry(0.035, 16), "#f1e6cf", 0, (fretY(k) + fretY(k + 1)) / 2, 0.138));
   // The headstock: flared from the nut to a crowned top with a dip in the middle, a cream nut,
   // a black truss-rod cover, a star sticker, three tuners a side (gear housings and cream keys
   // out the edges, string posts through the face) and the strings running from the nut to them
@@ -835,7 +835,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   headShape.lineTo(0.15, 0);
   headShape.closePath();
   const headGeo = new THREE.ExtrudeGeometry(headShape, { depth: 0.08, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 2 });
-  const headstock = mesh(headGeo, toon("#00e0c6"), { outline: 0.03 });
+  const headstock = mesh(headGeo, toon("#6b4428"), { outline: 0.03 });
   headstock.position.set(0, 3.98, 0);
   const HEAD_FACE = 0.092;
   const nut = mesh(rbox(0.27, 0.035, 0.05, 0.01), toon("#fffdf5"), { outline: 0.01 });
@@ -4051,7 +4051,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
           [[speakers[1].group], ["#1a1714", "#7fb2ff", "#ffdd00"]],
           [[lamp], ["#ffdd00", "#1a1714"]],
           [[chair], ["#45474d", "#1a1714"]],
-          [[guitar], ["#ffdd00", "#00e0c6", "#1a1714"]],
+          [[guitar], ["#e6c38f", "#6b4428", "#1a1714"]],
           [[paintingHang], ["#ff90e8", "#ffdd00", "#00e0c6", "#1a1714"]],
           [[clock], ["#7fb2ff", "#fffdf5", "#1a1714"]],
           [[tickets], ["#fffdf5", "#00e0c6", "#ffdd00"]],
@@ -4801,9 +4801,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     c.fillStyle = glowFill;
     c.fillRect(0, 0, 640, 480);
   }
+  // Normal blending, not additive: the night wall is already pale, so added light only washed
+  // the colours out to white; laid over it instead, the glow keeps its cyan, violet and pink
   const monitorGlowMat = track(new THREE.MeshBasicMaterial({
-    map: monitorGlowTex.texture, transparent: true, depthWrite: false,
-    blending: THREE.AdditiveBlending, opacity: 0,
+    map: monitorGlowTex.texture, transparent: true, depthWrite: false, opacity: 0,
   }));
   const monitorGlow = new THREE.Mesh(track(new THREE.PlaneGeometry(10.4, 7.8)), monitorGlowMat);
   // On the wall, centred behind the screen
@@ -7866,7 +7867,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       strip.visible = isDark;
       washMat.opacity = isDark ? DESK_WASH : 0;
     });
-    monitorGlowMat.opacity = isDark ? 1 : 0;
+    monitorGlowMat.opacity = isDark ? 0.7 : 0;
     ambient.intensity = isDark ? 1.0 : 0.65;
     skyFill.intensity = isDark ? 0 : 1.45;
     readabilityFill.intensity = isDark ? 0.55 : 0.35;

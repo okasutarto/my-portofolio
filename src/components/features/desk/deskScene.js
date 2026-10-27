@@ -57,11 +57,9 @@ import {
   drawGameCover,
   drawRepBadge,
   drawBinLabel,
-  drawSlash,
+  drawCrumpledPaper,
   drawGlint,
   drawHakiAura,
-  drawTornado,
-  drawSpeedLines,
   drawShout,
   drawEnmaBlade,
   drawEnmaFlower,
@@ -2946,7 +2944,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // Hung on the left wall beside the guitar from a nail by its cord, crown to the room, as if
   // tossed there after a session; it swings from the nail. In the hat's peg, x runs along the
   // wall, y up and z out into the room from the nail.
-  const HAT_NAIL = new THREE.Vector3(SIDE_X + 0.12, 8.0, 8.0);
+  const HAT_NAIL = new THREE.Vector3(SIDE_X + 0.12, 8.0, 8.6);
   const hatPeg = new THREE.Group();
   hatPeg.position.copy(HAT_NAIL);
   hatPeg.rotation.set(0, Math.PI / 2, -0.25);
@@ -3148,7 +3146,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     });
   });
 
-  const SORI = 0.1;
+  // How far the curve rises over the blade. Its sori (the most the back stands off the straight
+  // line from the hilt to the tip) is a quarter of this: 2.3% of the blade, as on a real katana
+  // (1.6 cm over 70 cm)
+  const SORI = 0.2;
   const BLADE_L = 2.2;
   const bow = (x) => SORI * (x / BLADE_L) ** 2;
   // That curve is (to well under a hair) an arc of this radius about a point straight above the
@@ -3163,7 +3164,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
       const x = (i / steps) * BLADE_L;
       shape.lineTo(x, bow(x) - 0.055 * (1 - 0.3 * (x / BLADE_L)) + inset);
     }
-    shape.lineTo(BLADE_L + 0.14, bow(BLADE_L) + 0.03);
+    // the kissaki: the edge sweeps up to the point in a convex curve (the fukura), carrying on
+    // from the edge's own line before it turns, with the point near the back as the curve goes
+    const edgeEnd = bow(BLADE_L) - 0.055 * 0.7 + inset;
+    shape.quadraticCurveTo(BLADE_L + 0.11, edgeEnd + 0.11 * (2 * SORI / BLADE_L), BLADE_L + 0.14, bow(BLADE_L + 0.14) + 0.03);
     for (let i = steps; i >= 0; i--) {
       const x = (i / steps) * BLADE_L;
       shape.lineTo(x, bow(x) + 0.05 - (inset ? 0.05 : 0));
@@ -3175,7 +3179,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   };
   const BLADE_SPAN = BLADE_L + 0.14;
   const Y_MIN = -0.06;
-  const Y_MAX = 0.16;
+  const Y_MAX = SORI + 0.08;
 
   // Blade textures for each of the 3 swords
   const createBladeMat = (drawFn) => {
@@ -3246,87 +3250,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     parent.add(decal);
   });
 
-  const slashTex = canvasTexture(512, 256);
-  track(slashTex.texture);
-  drawSlash(slashTex.ctx, 512, 256);
-  const slash = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: slashTex.texture, depthTest: false, transparent: true })));
-  // More cuts for the techniques that throw several at once (sharing the trail's art)
-  const cuts = [slash, ...[0, 1, 2].map(() => {
-    const extra = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: slashTex.texture, depthTest: false, transparent: true })));
-    extra.renderOrder = 11;
-    extra.raycast = noRaycast;
-    extra.visible = false;
-    scene.add(extra);
-    return extra;
-  })];
-  const tornadoTex = canvasTexture(256, 384);
-  track(tornadoTex.texture);
-  const tornado = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: tornadoTex.texture, depthTest: false, transparent: true })));
-  tornado.renderOrder = 11;
-  tornado.raycast = noRaycast;
-  tornado.visible = false;
-  scene.add(tornado);
-  const speedTex = canvasTexture(512, 128);
-  track(speedTex.texture);
-  drawSpeedLines(speedTex.ctx, 512, 128);
-  const speedLines = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: speedTex.texture, depthTest: false, transparent: true })));
-  speedLines.renderOrder = 11;
-  speedLines.raycast = noRaycast;
-  speedLines.visible = false;
-  scene.add(speedLines);
-  const cutAt = new THREE.Vector3();
-  // One crescent: grows out from where the blade cut, then fades (or, flying, sails off left)
-  function showCut(sprite, { dx = 0, dy = 0, rot = 0.35, delay = 0, size = 1, fly = 0, opacity = 1 } = {}) {
-    gsap.killTweensOf([sprite.scale, sprite.material, sprite.position]);
-    sprite.visible = false;
-    gsap.delayedCall(delay, () => {
-      sprite.position.set(cutAt.x + dx, cutAt.y + dy, cutAt.z);
-      sprite.material.rotation = rot;
-      sprite.material.opacity = opacity;
-      sprite.visible = true;
-      gsap.fromTo(sprite.scale, { x: size, y: size * 0.5 }, { x: 4.6 * size, y: 2.3 * size, duration: 0.25, ease: "power3.out" });
-      if (fly) gsap.to(sprite.position, { x: sprite.position.x - fly, y: sprite.position.y + 0.3, duration: 0.9, ease: "power1.in" });
-      gsap.to(sprite.material, { opacity: 0, delay: fly ? 0.6 : 0.25, duration: fly ? 0.3 : 0.45, onComplete: () => (sprite.visible = false) });
-    });
-  }
-  // Each technique's own shape, after the anime: Oni Giri's crossing cuts, the Tatsu Maki
-  // whirlwinds, the flying "cannon" cuts, the already-cut flash of Shishi Sonson and the
-  // Sanzen Sekai, and Asura's afterimages; anything else is a single crescent
-  function playTechnique(name, style) {
-    if (name.includes("ONI GIRI")) {
-      showCut(cuts[0], { rot: -0.55 });
-      showCut(cuts[1], { rot: 0.55, delay: 0.05 });
-      showCut(cuts[2], { rot: 1.57, delay: 0.1, size: 0.85 });
-    } else if (name.includes("TATSU")) {
-      showCut(cuts[0]);
-      drawTornado(tornadoTex.ctx, 256, 384, { style });
-      tornadoTex.texture.needsUpdate = true;
-      gsap.killTweensOf([tornado.scale, tornado.position, tornado.material]);
-      tornado.position.set(cutAt.x, cutAt.y + 0.4, cutAt.z);
-      tornado.material.opacity = 1;
-      tornado.visible = true;
-      gsap.fromTo(tornado.scale, { x: 0.4, y: 0.6 }, { x: 2.4, y: 3.6, duration: 0.45, ease: "back.out(1.6)" });
-      gsap.to(tornado.position, { y: cutAt.y + 1.1, duration: 1.3, ease: "power1.in" });
-      gsap.fromTo(tornado.material, { rotation: -0.08 }, { rotation: 0.08, duration: 0.12, yoyo: true, repeat: 9, ease: "sine.inOut" });
-      gsap.to(tornado.material, { opacity: 0, delay: 1, duration: 0.35, onComplete: () => (tornado.visible = false) });
-    } else if (FLYING.has(name)) {
-      showCut(cuts[0], { size: 0.8, fly: 7 });
-    } else if (name.includes("SONSON") || name.includes("SANZEN")) {
-      // a flash of speed lines first, then the cut "arrives" a beat late
-      gsap.killTweensOf([speedLines.scale, speedLines.material]);
-      speedLines.position.set(cutAt.x - 0.4, cutAt.y + 0.1, cutAt.z);
-      speedLines.material.rotation = -0.12;
-      speedLines.material.opacity = 1;
-      speedLines.visible = true;
-      gsap.fromTo(speedLines.scale, { x: 1, y: 0.5 }, { x: 7.5, y: 1.4, duration: 0.12, ease: "power4.out" });
-      gsap.to(speedLines.material, { opacity: 0, delay: 0.18, duration: 0.25, onComplete: () => (speedLines.visible = false) });
-      showCut(cuts[0], { delay: 0.35, size: 1.2, rot: -0.1 });
-    } else if (name.includes("ASURA")) {
-      [0, 1, 2].forEach((k) => showCut(cuts[k], { dx: -k * 0.75, dy: k * 0.12, delay: k * 0.06, opacity: 1 - k * 0.32 }));
-    } else {
-      showCut(cuts[0]);
-    }
-  }
+
   // Wado's glint on its tip as it cuts
   const glintTex = canvasTexture(128, 128);
   track(glintTex.texture);
@@ -3342,6 +3266,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   drawHakiAura(auraTex.ctx, 256, 128);
   const haki = new THREE.Mesh(track(new THREE.PlaneGeometry(1, 1)), track(new THREE.MeshBasicMaterial({ map: auraTex.texture, transparent: true, depthWrite: false, side: THREE.DoubleSide, opacity: 0 })));
   haki.raycast = noRaycast;
+  haki.renderOrder = 11;
   haki.visible = false;
   // Hovered, Enma leaks a little of its Haki: a faint aura breathing round the bare steel
   // between the guard and the saya's mouth as it slides part way out, gone again when the
@@ -3361,13 +3286,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     gsap.fromTo(haki.material, { opacity: 0 }, { opacity: 0.9, duration: 0.4, delay: 0.3, ease: "sine.out" });
     gsap.to(haki.scale, { y: 0.78, duration: 0.8, yoyo: true, repeat: -1, ease: "sine.inOut", delay: 0.3 });
   }
-  // Techniques that fly: the cut leaves the blade and travels, so its sound goes with it
-  const FLYING = new Set(["36 POUND CANNON!", "HYAKUHACHI POUND HO!", "YAKKODORI!"]);
   const tipAt = new THREE.Vector3();
-  slash.renderOrder = 11;
-  slash.raycast = noRaycast;
-  slash.visible = false;
-  scene.add(slash);
   const shoutTex = canvasTexture(640, 320);
   track(shoutTex.texture);
   const shout = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: shoutTex.texture, depthTest: false, transparent: true })));
@@ -3383,9 +3302,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const blossomTex = canvasTexture(160, 160);
   track(blossomTex.texture);
   drawSakuraBlossom(blossomTex.ctx, 160, 160);
-  const petals = Array.from({ length: 20 }, (_, i) => {
+  const petals = Array.from({ length: 12 }, (_, i) => {
     const petal = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: i % 4 === 3 ? blossomTex.texture : petalTex.texture, transparent: true, depthWrite: false })));
     petal.userData.blossom = i % 4 === 3;
+    // over the close-up's spotlight shadow (see spotlight), as the cut's other effects are
+    petal.renderOrder = 11;
     petal.visible = false;
     petal.raycast = noRaycast;
     scene.add(petal);
@@ -3393,124 +3314,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   });
 
   // Each sword leaves its own mark: Wado its sakura (above); Sandai Kitetsu, the cursed blade,
-  // sets its cut ablaze in crimson and throws sparks; Enma's purple hellfire roars up along the
-  // cut, with black lightning cracking round it.
-  // The fire is one sheet standing on the arc the blade cut, done the way stylised game fire
-  // is: rising noise, shaped thick at the base and thin at the tips, with an "erosion" level
-  // cut away from it. Erosion first clears along the cut (the fire catching, end to end), then
-  // climbs back, so the sheet breaks into tongues and loose licks that burn off on their own.
-  // Cut at hard steps (ink, outer, middle, heart) it reads as cel-drawn fire, and its time is
-  // held for two frames at a time, so it boils on twos like hand-drawn fire in anime.
-  const FIRE_COLORS = {
-    kitetsu: { outer: "#e11d48", mid: "#ff7a1a", core: "#ffdd00", spark: "#e11d48", sparkCore: "#ffdd00" },
-    enma: { outer: "#7e22ce", mid: "#c084fc", core: "#f5e8ff", spark: "#a855f7", sparkCore: "#f5e8ff" },
-  };
-  const FIRE_SEGMENTS = 64;
-  const fireGeo = track(new THREE.PlaneGeometry(1, 1, FIRE_SEGMENTS, 1));
-  const fireUniforms = {
-    time: { value: 0 },
-    life: { value: 1 },
-    span: { value: 6 },
-    seed: { value: 0 },
-    outer: { value: new THREE.Color() },
-    mid: { value: new THREE.Color() },
-    core: { value: new THREE.Color() },
-    ink: { value: new THREE.Color("#1a1714") },
-  };
-  const fire = new THREE.Mesh(fireGeo, track(new THREE.ShaderMaterial({
-    uniforms: fireUniforms,
-    // over the crescent of the cut it stands on (transparent, so it's drawn after it)
-    transparent: true,
-    depthTest: false,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-    vertexShader: `
-      varying vec2 vUv;
-      void main() {
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }`,
-    fragmentShader: `
-      uniform float time;
-      uniform float life;
-      uniform float span;
-      uniform float seed;
-      uniform vec3 outer;
-      uniform vec3 mid;
-      uniform vec3 core;
-      uniform vec3 ink;
-      varying vec2 vUv;
-      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-      float noise(vec2 p) {
-        vec2 i = floor(p);
-        vec2 f = fract(p);
-        vec2 u = f * f * (3.0 - 2.0 * f);
-        return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
-      }
-      float fbm(vec2 p) {
-        float v = 0.0;
-        float a = 0.55;
-        for (int i = 0; i < 4; i++) {
-          v += a * noise(p);
-          p = p * 2.07 + 13.1;
-          a *= 0.5;
-        }
-        return v;
-      }
-      void main() {
-        // on twos: twelve drawings a second
-        float t = floor(time * 12.0) / 12.0;
-        // x along the cut and y up from it, in the sheet's own height; licks lean into the swing
-        vec2 p = vec2(vUv.x * span + vUv.y * vUv.y * 0.5, vUv.y);
-        // the cut carries about eight tongues, how high each reaches jumping as it boils:
-        // ridged noise, so its crests come to sharp points, the tips of the flames
-        float ridge = 1.0 - abs(noise(vec2(vUv.x * 8.0 + vUv.y * vUv.y * 0.5 + seed, t * 1.6)) * 2.0 - 1.0);
-        float reach = (0.18 + 0.82 * pow(ridge, 2.2)) * (0.35 + 0.65 * smoothstep(0.0, 0.14, vUv.x) * smoothstep(1.0, 0.86, vUv.x));
-        // rising noise bites C-shapes into the sides and tears licks off the tips, more so
-        // the higher up
-        float bites = fbm(vec2(p.x * 2.6 - seed, p.y * 2.2 - t * 3.2)) - 0.5;
-        float v = reach - vUv.y + bites * (0.15 + 0.6 * vUv.y);
-        // catches along the cut first, then burns itself out from the tips down
-        float caught = smoothstep(vUv.x * 0.3, vUv.x * 0.3 + 0.12, life);
-        v -= (1.0 - caught) + smoothstep(0.6, 1.0, life) * 0.85;
-        // inked along its base too, where it stands on the cut
-        v = min(v, vUv.y * 4.0);
-        if (v < 0.0) discard;
-        vec3 color = v < 0.035 ? ink : v < 0.17 ? outer : v < 0.36 ? mid : core;
-        gl_FragColor = vec4(color, 1.0);
-      }`,
-  })));
-  fire.raycast = noRaycast;
-  fire.frustumCulled = false;
-  fire.renderOrder = 12;
-  fire.visible = false;
-  scene.add(fire);
-  // Light it along the arc just cut: its base a little under the arc, standing up in the
-  // camera's plane, `height` tall
-  function igniteCut(style, { height, duration }) {
-    const colors = FIRE_COLORS[style];
-    fireUniforms.outer.value.set(colors.outer);
-    fireUniforms.mid.value.set(colors.mid);
-    fireUniforms.core.value.set(colors.core);
-    fireUniforms.seed.value = Math.random() * 50;
-    const pos = fireGeo.attributes.position;
-    let length = 0;
-    const last = new THREE.Vector3();
-    for (let ix = 0; ix <= FIRE_SEGMENTS; ix++) {
-      const base = alongCut(ix / FIRE_SEGMENTS).addScaledVector(camUp, -height * 0.12);
-      if (ix) length += base.distanceTo(last);
-      last.copy(base);
-      // PlaneGeometry's first row is its top (uv.y = 1), the second its bottom
-      pos.setXYZ(ix, base.x + camUp.x * height, base.y + camUp.y * height, base.z + camUp.z * height);
-      pos.setXYZ(FIRE_SEGMENTS + 1 + ix, base.x, base.y, base.z);
-    }
-    pos.needsUpdate = true;
-    fireUniforms.span.value = length / height;
-    fire.visible = true;
-    gsap.killTweensOf(fireUniforms.life);
-    gsap.fromTo(fireUniforms.life, { value: 0 }, { value: 1, duration, ease: "none", onComplete: () => (fire.visible = false) });
-  }
-  const sparkTex = Object.fromEntries(Object.entries(FIRE_COLORS).map(([style, { spark, sparkCore }]) => {
+  // throws a few crimson sparks off the cut; Enma cracks black lightning.
+  const SPARK_COLORS = { kitetsu: { spark: "#e11d48", sparkCore: "#ffdd00" } };
+  const sparkTex = Object.fromEntries(Object.entries(SPARK_COLORS).map(([style, { spark, sparkCore }]) => {
     const tex = canvasTexture(128, 32);
     track(tex.texture);
     drawSparkStreak(tex.ctx, 128, 32, { color: spark, core: sparkCore });
@@ -3524,7 +3330,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   function spawnFx({ map, life, delay = 0, order = 13, step }) {
     let sprite = fxPool.pop();
     if (!sprite) {
-      sprite = new THREE.Sprite(track(new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false })));
+      sprite = new THREE.Sprite(track(new THREE.SpriteMaterial({ map, transparent: true, depthTest: false, depthWrite: false })));
       sprite.raycast = noRaycast;
       scene.add(sprite);
     }
@@ -3536,7 +3342,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
     liveFx.push({ sprite, life, age: -delay, step });
   }
   function updateFx(dt) {
-    if (fire.visible) fireUniforms.time.value += dt;
     for (let i = liveFx.length - 1; i >= 0; i--) {
       const fx = liveFx[i];
       fx.age += dt;
@@ -3551,21 +3356,27 @@ export function createDeskScene({ container, projects, experiences, dark = false
       fx.step(fx, fx.age / fx.life);
     }
   }
-  // A point on the arc the blade cut through, t running from one end to the other: the
-  // crescent drawSlash paints, as big and as turned as showCut leaves it, in the camera's plane
+  // The arc the blade really cut through, kept from the smear as it lands (see markCut): where
+  // its tip and the inner end of the smear were, from the wind-up to the hit, with how far
+  // along the tip's path each was. A point on it: t runs from the wind-up end to the hit,
+  // `inset` from the inner end (0) to the tip (1).
   const camRight = new THREE.Vector3();
   const camUp = new THREE.Vector3();
+  const cutPath = [];
   function alongCut(t, inset = 0.9) {
-    const a = Math.PI * (1.08 + t * 0.84);
-    const lx = Math.cos(a) * 0.46 * 4.6 * inset;
-    const ly = (-0.45 - 0.85 * Math.sin(a) * inset) * 2.3;
-    const turn = 0.35;
     camRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
     camUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
-    return cutAt.clone()
-      .addScaledVector(camRight, lx * Math.cos(turn) - ly * Math.sin(turn))
-      .addScaledVector(camUp, lx * Math.sin(turn) + ly * Math.cos(turn));
+    if (!cutPath.length) return new THREE.Vector3();
+    const want = t * cutPath[cutPath.length - 1].at;
+    let i = 1;
+    while (i < cutPath.length - 1 && cutPath[i].at < want) i++;
+    const a = cutPath[i - 1] || cutPath[0];
+    const b = cutPath[i] || a;
+    const k = b.at > a.at ? (want - a.at) / (b.at - a.at) : 0;
+    const base = a.base.clone().lerp(b.base, k);
+    return a.tip.clone().lerp(b.tip, k).sub(base).multiplyScalar(inset).add(base);
   }
+
   // Sparks flung out and up from a point, slowing in the air and falling: each a streak
   // pointing the way it flies, stretched by its speed
   const SPARK_DRAG = 2.4;
@@ -3573,13 +3384,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
   function sparkBurst(style, at, count, { delay = 0 } = {}) {
     for (let i = 0; i < count; i++) {
       const angle = Math.PI * (0.08 + Math.random() * 0.84);
-      const speed = 3.5 + Math.random() * 3.5;
+      const speed = 4.5 + Math.random() * 4.5;
       const vx = Math.cos(angle) * speed;
       const vy0 = Math.sin(angle) * speed;
       const terminal = SPARK_G / SPARK_DRAG;
       spawnFx({
         map: sparkTex[style],
-        life: 0.4 + Math.random() * 0.35,
+        life: 0.5 + Math.random() * 0.4,
         delay: delay + Math.random() * 0.06,
         step: (fx, t) => {
           // in closed form, so a slow frame never throws one off course
@@ -3589,7 +3400,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
           const vyNow = terminal + (vy0 - terminal) * fade;
           const shrink = t > 0.7 ? 1 - (t - 0.7) / 0.3 : 1;
           fx.sprite.center.set(0.85, 0.5);
-          fx.sprite.scale.set((0.12 + Math.hypot(vxNow, vyNow) * 0.045) * shrink, 0.075 * shrink, 1);
+          fx.sprite.scale.set((0.25 + Math.hypot(vxNow, vyNow) * 0.08) * shrink, 0.15 * shrink, 1);
           fx.sprite.position.copy(at).addScaledVector(camRight, vx * k).addScaledVector(camUp, terminal * fx.age + (vy0 - terminal) * k);
           fx.sprite.material.rotation = Math.atan2(vyNow, vxNow);
         },
@@ -3599,10 +3410,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const boltTex = canvasTexture(128, 256);
   track(boltTex.texture);
   drawBlackBolt(boltTex.ctx, 128, 256);
-  const bolts = Array.from({ length: 2 }, () => {
-    const bolt = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: boltTex.texture, transparent: true, depthWrite: false })));
+  const bolts = Array.from({ length: 3 }, () => {
+    const bolt = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: boltTex.texture, transparent: true, depthTest: false, depthWrite: false })));
     bolt.visible = false;
     bolt.raycast = noRaycast;
+    bolt.renderOrder = 13;
     scene.add(bolt);
     return bolt;
   });
@@ -3625,31 +3437,30 @@ export function createDeskScene({ container, projects, experiences, dark = false
       gsap.to(petal.material, { opacity: 0, delay: fall - 0.4 + i * 0.03, duration: 0.4, onComplete: () => (petal.visible = false) });
     });
   }
-  // Sandai Kitetsu: crimson fire catching along the cut, and sparks thrown off it
-  function cursedFire() {
-    igniteCut("kitetsu", { height: 1.3, duration: 1.4 });
-    [0.25, 0.5, 0.75].forEach((t, i) => sparkBurst("kitetsu", alongCut(t), 6, { delay: i * 0.05 }));
+  // Sandai Kitetsu: sparks thrown off the cut, from two points along it
+  function cursedSparks() {
+    sparkBurst("kitetsu", alongCut(0.6), 7);
+    sparkBurst("kitetsu", alongCut(0.95), 7, { delay: 0.04 });
   }
-  // Enma: a tall wall of purple hellfire along the cut, a few sparks off it, and black lightning
-  function hellfire() {
-    igniteCut("enma", { height: 2.1, duration: 1.9 });
-    [0.3, 0.7].forEach((t, i) => sparkBurst("enma", alongCut(t), 4, { delay: 0.1 + i * 0.08 }));
-    // black lightning: two bolts cracking round the blade, a quick flash each
+  // Enma: black lightning cracking down off the cut in three places, one after another, each
+  // flickering (on, off, on again) the way lightning does
+  function enmaLightning() {
     bolts.forEach((bolt, i) => {
       gsap.killTweensOf(bolt.material);
-      const at = 0.08 + i * 0.22;
-      bolt.position.set(katanaWorld.x - 2.2 + Math.random() * 3.2, katanaWorld.y + 0.5 + Math.random() * 0.6, katanaWorld.z + 0.3);
-      const size = 0.7 + Math.random() * 0.5;
+      // hanging from the arc the tip swept, down past it
+      const size = 1.8 + Math.random() * 0.6;
+      bolt.position.copy(alongCut(0.35 + i * 0.3, 1)).addScaledVector(camUp, -size * 0.3);
       bolt.scale.set(size * 0.5, size, 1);
-      bolt.material.rotation = (Math.random() - 0.5) * 0.9;
+      bolt.material.rotation = (Math.random() - 0.5) * 0.7;
       bolt.material.opacity = 0;
       bolt.visible = true;
-      gsap.timeline({ delay: at, onComplete: () => (bolt.visible = false) })
+      gsap.timeline({ delay: i * 0.05, onComplete: () => (bolt.visible = false) })
         .set(bolt.material, { opacity: 1 })
-        .set(bolt.material, { opacity: 0 }, 0.09);
-      if (i === 0) sfx.thunder({ delay: at });
+        .set(bolt.material, { opacity: 0 }, 0.05)
+        .set(bolt.material, { opacity: 1 }, 0.09)
+        .set(bolt.material, { opacity: 0 }, 0.22);
     });
-    sfx.roar();
+    sfx.thunder();
   }
 
   const TECHNIQUES = [
@@ -3658,10 +3469,32 @@ export function createDeskScene({ container, projects, experiences, dark = false
     "ICHIDAI SANZEN DAISEN SEKAI!", "HYAKUHACHI POUND HO!", "ENMA: KING OF HELL!",
   ];
   let techniqueIndex = Math.floor(Math.random() * TECHNIQUES.length);
-  const SHOUT_W = 3.8;
-  const SHOUT_H = 1.9;
+  const SHOUT_W = 4.5;
+  const SHOUT_H = 2.25;
   const katanaWorld = new THREE.Vector3();
   let slashing = false;
+  // the strike under way, and whether it's past the cut and only going home
+  let activeSlash = null;
+  let activeSword = null;
+  let recovering = false;
+  // The impact frame: for two or three frames as the blade bites, the picture inverts, the
+  // way anime punctuates a hit. Left out for anyone who's asked for reduced motion.
+  const impactFlash = document.createElement("div");
+  Object.assign(impactFlash.style, {
+    position: "absolute",
+    inset: "0",
+    background: "#fff",
+    mixBlendMode: "difference",
+    pointerEvents: "none",
+    opacity: "0",
+  });
+  container.appendChild(impactFlash);
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  function impactFrame() {
+    if (reducedMotion.matches) return;
+    impactFlash.style.opacity = "0.9";
+    gsap.delayedCall(0.045, () => (impactFlash.style.opacity = "0"));
+  }
   let shoutTimer = null;
 
   // Nudges a sprite of the given world size back inside the screen, below the page's top bar
@@ -3685,15 +3518,20 @@ export function createDeskScene({ container, projects, experiences, dark = false
     sprite.position.addScaledVector(upW, (dy * (h / 2)) / halfY).addScaledVector(rightW, (dx * (w / 2)) / halfX);
   }
 
-  // The smear a cut leaves, as anime draws it: the strip of air the blade swept through in the
-  // last instant, solid at the front and thinning away behind, white along its cutting edge
-  const TRAIL_SAMPLES = 48;
-  const TRAIL_LIFE = 0.14;
+  // The cut itself, as anime draws it: one smear, the strip of air the blade swept through,
+  // locked to the blade at its front and tapering away behind to a hairline at the tip's edge.
+  // It holds its whole body for a few frames, then is eaten away fast from the inside, raggedly,
+  // rather than fading. Bold and flat: white over its outer half (the side the tip swept), the
+  // sword's colour inside that, ink along the tip's edge and wherever it's eaten.
+  const TRAIL_SAMPLES = 96;
+  const TRAIL_LIFE = 0.2;
   const TRAIL_COLORS = { wado: "#bfe9ff", kitetsu: "#e11d48", enma: "#7e22ce" };
   const trailGeo = track(new THREE.BufferGeometry());
   trailGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(TRAIL_SAMPLES * 6), 3));
   trailGeo.setAttribute("age", new THREE.BufferAttribute(new Float32Array(TRAIL_SAMPLES * 2), 1));
   trailGeo.setAttribute("side", new THREE.BufferAttribute(new Float32Array(TRAIL_SAMPLES * 2), 1));
+  trailGeo.setAttribute("born", new THREE.BufferAttribute(new Float32Array(TRAIL_SAMPLES * 2), 1));
+  trailGeo.setAttribute("lead", new THREE.BufferAttribute(new Float32Array(TRAIL_SAMPLES * 2), 1));
   trailGeo.setIndex(Array.from({ length: TRAIL_SAMPLES - 1 }, (_, i) => [2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 1, 2 * i + 3, 2 * i + 2]).flat());
   const trailColor = { value: new THREE.Color() };
   const trail = new THREE.Mesh(trailGeo, track(new THREE.ShaderMaterial({
@@ -3705,11 +3543,17 @@ export function createDeskScene({ container, projects, experiences, dark = false
     vertexShader: `
       attribute float age;
       attribute float side;
+      attribute float born;
+      attribute float lead;
       varying float vAge;
       varying float vSide;
+      varying float vBorn;
+      varying float vLead;
       void main() {
         vAge = age;
         vSide = side;
+        vBorn = born;
+        vLead = lead;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }`,
     fragmentShader: `
@@ -3717,11 +3561,26 @@ export function createDeskScene({ container, projects, experiences, dark = false
       uniform vec3 ink;
       varying float vAge;
       varying float vSide;
+      varying float vBorn;
+      varying float vLead;
+      float hash(float n) { return fract(sin(n) * 43758.5453); }
+      float noise(float x) {
+        float i = floor(x);
+        float f = fract(x);
+        return mix(hash(i), hash(i + 1.0), f * f * (3.0 - 2.0 * f));
+      }
       void main() {
-        // older stretches thin away toward the tip's edge
-        float inner = vAge * 0.85;
+        // eaten from the inside as it ages, slow then fast; the ragged edge is keyed to when
+        // each stretch was laid down, so it stays put on the stroke rather than crawling
+        float ragged = noise(vBorn * 90.0) - 0.5;
+        float inner = smoothstep(0.3, 1.0, vAge) * 1.05 + ragged * 0.2 * vAge;
+        // the stretch carried on past the blade narrows to a point on the tip's edge
+        inner = max(inner, pow(vLead, 1.4));
         if (vSide < inner) discard;
-        vec3 c = vSide > 0.86 ? vec3(1.0) : vSide < inner + 0.05 ? ink : color;
+        vec3 c = color;
+        if (vSide > 0.965) c = ink;
+        else if (vSide > 0.5) c = vec3(1.0);
+        else if (vSide < inner + 0.045) c = ink;
         gl_FragColor = vec4(c, 1.0);
       }`,
   })));
@@ -3744,6 +3603,55 @@ export function createDeskScene({ container, projects, experiences, dark = false
   }
   function stopTrail() {
     trailSword = null;
+  }
+  // As the blade lands the smear stops following it and carries on round a little way past it,
+  // along the circle the tip was swinging through, about the hand, narrowing to a point: the
+  // way anime draws a cut, its arc running out just ahead of the blade.
+  const CUT_CARRY = 0.3;
+  const CARRY_STEPS = 6;
+  const carryAxis = new THREE.Vector3();
+  const carryTurn = new THREE.Quaternion();
+  const carryArm = new THREE.Vector3();
+  function extendCut() {
+    const sword = trailSword;
+    stopTrail();
+    if (!sword || !trailSamples.length) return;
+    const blade = sword.bladeGroup;
+    blade.localToWorld(trailNow.hand.set(-TSUKA_L / 2, 0, 0));
+    blade.localToWorld(trailNow.base.set(BLADE_L * 0.3, bow(BLADE_L * 0.3), 0));
+    blade.localToWorld(trailNow.tip.set(BLADE_L + 0.12, bow(BLADE_L + 0.12) + 0.02, 0));
+    // the plane of the swing: round the hand, from where the tip was a little way back to now
+    const back = trailSamples.find((sample) => sample.tip.distanceTo(trailNow.tip) > 0.3);
+    if (!back) return;
+    carryAxis.subVectors(back.tip, trailNow.hand).cross(carryArm.subVectors(trailNow.tip, trailNow.hand)).normalize();
+    for (let step = 0; step <= CARRY_STEPS; step++) {
+      const k = step / CARRY_STEPS;
+      carryTurn.setFromAxisAngle(carryAxis, CUT_CARRY * k);
+      const sample = {
+        base: carryArm.subVectors(trailNow.base, trailNow.hand).applyQuaternion(carryTurn).add(trailNow.hand).clone(),
+        tip: carryArm.subVectors(trailNow.tip, trailNow.hand).applyQuaternion(carryTurn).add(trailNow.hand).clone(),
+        at: trailClock,
+        lead: k,
+      };
+      trailSamples.unshift(sample);
+      if (trailSamples.length > TRAIL_SAMPLES) trailSamples.pop();
+    }
+  }
+  // As the blade lands: keep the arc it cut (the smear so far, oldest first, the held wind-up
+  // folded into one point) for the sparks thrown off it (alongCut)
+  function markCut() {
+    cutPath.length = 0;
+    let at = 0;
+    for (let i = trailSamples.length - 1; i >= 0; i--) {
+      const sample = trailSamples[i];
+      const last = cutPath[cutPath.length - 1];
+      if (last) {
+        const step = sample.tip.distanceTo(last.tip);
+        if (step < 1e-4) continue;
+        at += step;
+      }
+      cutPath.push({ base: sample.base.clone(), tip: sample.tip.clone(), at });
+    }
   }
   const armFrom = new THREE.Vector3();
   const armTo = new THREE.Vector3();
@@ -3773,8 +3681,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     if (trailSword) {
       const blade = trailSword.bladeGroup;
       blade.localToWorld(trailNow.hand.set(-TSUKA_L / 2, 0, 0));
-      blade.localToWorld(trailNow.base.set(BLADE_L * 0.5, bow(BLADE_L * 0.5), 0));
-      blade.localToWorld(trailNow.tip.set(BLADE_L + 0.12, bow(BLADE_L) + 0.02, 0));
+      blade.localToWorld(trailNow.base.set(BLADE_L * 0.3, bow(BLADE_L * 0.3), 0));
+      blade.localToWorld(trailNow.tip.set(BLADE_L + 0.12, bow(BLADE_L + 0.12) + 0.02, 0));
       for (let step = trailLast.set ? 1 : TRAIL_STEPS; step <= TRAIL_STEPS; step++) {
         const k = step / TRAIL_STEPS;
         const sample = trailSamples.length >= TRAIL_SAMPLES ? trailSamples.pop() : { base: new THREE.Vector3(), tip: new THREE.Vector3() };
@@ -3786,6 +3694,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
           sample.tip.copy(trailNow.tip);
         }
         sample.at = before + dt * k;
+        sample.lead = 0;
         trailSamples.unshift(sample);
       }
       trailLast.hand.copy(trailNow.hand);
@@ -3799,6 +3708,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const pos = trailGeo.attributes.position;
     const age = trailGeo.attributes.age;
     const side = trailGeo.attributes.side;
+    const born = trailGeo.attributes.born;
+    const lead = trailGeo.attributes.lead;
     for (let i = 0; i < TRAIL_SAMPLES; i++) {
       // past the samples there are, repeat the oldest: those triangles are empty
       const s = trailSamples[Math.min(i, trailSamples.length - 1)];
@@ -3809,10 +3720,16 @@ export function createDeskScene({ container, projects, experiences, dark = false
       age.setX(2 * i + 1, a);
       side.setX(2 * i, 0);
       side.setX(2 * i + 1, 1);
+      born.setX(2 * i, s.at);
+      born.setX(2 * i + 1, s.at);
+      lead.setX(2 * i, s.lead);
+      lead.setX(2 * i + 1, s.lead);
     }
     pos.needsUpdate = true;
     age.needsUpdate = true;
     side.needsUpdate = true;
+    born.needsUpdate = true;
+    lead.needsUpdate = true;
   }
 
   function tossKitetsu(sword, restY) {
@@ -3830,9 +3747,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
         sfx.rackLand({ strength: 0.8 });
         kickTassels(sword.sayaGroup, 1);
         g.getWorldPosition(katanaWorld);
-        drawShout(shoutTex.ctx, 640, 320, "THE CURSE LIKES ME!");
+        drawShout(shoutTex.ctx, 640, 320, "THE CURSE LIKES ME!", { style: "kitetsu" });
         shoutTex.texture.needsUpdate = true;
-        shout.position.set(katanaWorld.x - 4.2, katanaWorld.y + 1.2, katanaWorld.z + 0.25);
+        shout.position.set(katanaWorld.x - 2.4, katanaWorld.y + 1.6, katanaWorld.z + 0.25);
         keepOnScreen(shout, SHOUT_W, SHOUT_H);
         gsap.fromTo(shout.scale, { x: 1, y: 0.5 }, { x: SHOUT_W, y: SHOUT_H, duration: 0.3, ease: "back.out(3)", overwrite: true });
         clearTimeout(shoutTimer);
@@ -3841,17 +3758,24 @@ export function createDeskScene({ container, projects, experiences, dark = false
       .fromTo(g.position, { y: restY + 0.06 }, { y: restY, duration: 0.3, ease: "bounce.out" });
   }
   function slashSword(sword) {
-    if (slashing) return;
+    if (slashing) {
+      // Clicked again while the last blade is only going home: it hurries back, and this one
+      // goes as soon as it's in
+      if (recovering) {
+        activeSlash.timeScale(3);
+        activeSword.afterSlash = () => slashSword(sword);
+      }
+      return;
+    }
     slashing = true;
     discover("katana");
     const technique = TECHNIQUES[techniqueIndex++ % TECHNIQUES.length];
     const out = drawTurn(BLADE_L + 0.25);
     const home = -SORI_R;
-    // high enough to clear the top sword whichever tier this one hangs on
-    const aboveRack = RACK_TIERS[0] + 1.0 - sword.yRack;
+    // the hand just high enough that the blade, swung down to level and a little past it, still
+    // clears the top sword whichever tier this one hangs on (and the raised tip stays in frame)
+    const aboveRack = RACK_TIERS[0] + 0.62 - sword.yRack;
     gsap.killTweensOf([sword.drawPivot.rotation, sword.bladeGroup.position, sword.bladeGroup.rotation]);
-    drawSlash(slashTex.ctx, 512, 256, { style: sword.style });
-    slashTex.texture.needsUpdate = true;
     if (sword.style === "enma") {
       // the aura rises off the blade as it's drawn, flickering, and fades as it's sheathed
       sword.bladeGroup.add(haki);
@@ -3868,12 +3792,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const tl = gsap.timeline({
       onComplete: () => {
         slashing = false;
+        recovering = false;
         // a toss asked for mid-strike goes once the blade is home
         const next = sword.afterSlash;
         sword.afterSlash = null;
         if (next) next();
       },
     });
+    activeSlash = tl;
+    activeSword = sword;
     if (sword.style === "kitetsu") {
       // the cursed blade stirs first: it shudders in the rack and growls, wanting to cut
       const x = sword.tierGroup.position.x;
@@ -3892,68 +3819,62 @@ export function createDeskScene({ container, projects, experiences, dark = false
       // it's slow to move over), never passing across a saya
       .to(sword.bladeGroup.position, { y: home + aboveRack, duration: 0.38, ease: "power3.out" })
       .to(sword.bladeGroup.position, { z: -0.7, duration: 0.2, ease: "power2.out" }, "<")
-      .to(sword.bladeGroup.position, { x: 1.9, duration: 0.38, ease: "power2.in" }, "<")
-      .to(sword.bladeGroup.rotation, { z: 0.35, duration: 0.3, ease: "power2.inOut" }, "<0.08")
-      // Wind-up: cocked back, easing into a held beat
-      .to(sword.bladeGroup.rotation, { z: 1.15, duration: 0.24, ease: "power2.out" })
-      .to(sword.bladeGroup.position, { x: 1.55, duration: 0.24, ease: "power2.out" }, "<")
+      .to(sword.bladeGroup.position, { x: 2.1, duration: 0.38, ease: "power2.in" }, "<")
+      .to(sword.bladeGroup.rotation, { z: 0.55, duration: 0.3, ease: "power2.inOut" }, "<0.08")
+      // Wind-up: cocked back over the rack (not so high the tip leaves the frame), settling
+      // into a held beat long enough to read
+      .to(sword.bladeGroup.rotation, { z: 0.95, duration: 0.28, ease: "power3.out" })
+      .to(sword.bladeGroup.position, { x: 1.8, duration: 0.28, ease: "power3.out" }, "<")
       .call(() => startTrail(sword))
-      .to({}, { duration: 0.06 })
-      // The cut: down through an arc, fast
-      .to(sword.bladeGroup.rotation, { z: -0.45, duration: 0.13, ease: "power4.in" })
-      .to(sword.bladeGroup.position, { x: 2.35, duration: 0.13, ease: "power3.in" }, "<")
-      .to(sword.bladeGroup.position, { y: "-=0.25", duration: 0.13, ease: "sine.in" }, "<")
+      .to({}, { duration: 0.1 })
+      // The cut: all at once, seven frames or so, one sweep from high over the rack right down
+      // past level to low in front of it (passing in front of the other swords), the hand
+      // carried along with it on the same curve
+      .to(sword.bladeGroup.rotation, { z: -0.8, duration: 0.12, ease: "power3.in" })
+      .to(sword.bladeGroup.position, { x: 2.75, y: "-=0.12", duration: 0.12, ease: "power3.in" }, "<")
+      // The hit, staggered as anime times it: the impact frame and the jolt on the hit itself,
+      // the sword's own mark a few frames on, then the technique's name
+      .addLabel("hit")
       .call(() => {
         sword.bladeGroup.getWorldPosition(katanaWorld);
-        // Effects stay in the sword's own plane: the close-up clips anything well in front of
-        // the rack, which hid them
-        cutAt.set(katanaWorld.x - 0.9, katanaWorld.y + 0.5, katanaWorld.z + 0.2);
-        playTechnique(technique, sword.style);
+        extendCut();
+        markCut();
+        impactFrame();
         sfx.slash();
-        if (FLYING.has(technique)) sfx.whooshAway({ delay: 0.1 });
         if (sword.style === "wado") {
           // light catching the tip as it cuts
-          sword.bladeGroup.localToWorld(tipAt.set(BLADE_L + 0.08, bow(BLADE_L) + 0.02, 0));
+          sword.bladeGroup.localToWorld(tipAt.set(BLADE_L + 0.12, bow(BLADE_L + 0.12) + 0.02, 0));
           glint.position.copy(tipAt);
           glint.visible = true;
           gsap.fromTo(glint.scale, { x: 0.1, y: 0.1 }, { x: 0.9, y: 0.9, duration: 0.14, yoyo: true, repeat: 1, ease: "power2.out", onComplete: () => (glint.visible = false) });
           gsap.fromTo(glint.material, { rotation: 0 }, { rotation: 0.8, duration: 0.28 });
         }
-        // The hit jolts the camera; Enma's Haki shakes it a good while
+        // The hit jolts the camera, hard at first and settling fast; Enma's Haki a little harder
         const tx = cam.tx;
         const ty = cam.ty;
-        const enma = sword.style === "enma";
-        gsap.timeline()
-          .to(cam, { tx: tx + (enma ? 0.07 : 0.03), ty: ty - (enma ? 0.04 : 0.02), duration: 0.035, yoyo: true, repeat: enma ? 9 : 3, ease: "none" })
-          .set(cam, { tx, ty });
-        drawShout(shoutTex.ctx, 640, 320, technique);
-        shoutTex.texture.needsUpdate = true;
-        // Well clear of the blade: up and out to its left, beyond its tip
-        shout.position.set(katanaWorld.x - 5.3, katanaWorld.y + 1.35, katanaWorld.z + 0.25);
-        keepOnScreen(shout, SHOUT_W, SHOUT_H);
-        gsap.fromTo(shout.scale, { x: 1, y: 0.5 }, { x: SHOUT_W, y: SHOUT_H, duration: 0.3, ease: "back.out(3)", overwrite: true });
-        gsap.fromTo(shout.material, { rotation: 0.15 }, { rotation: 0, duration: 0.5, ease: "elastic.out(1.2, 0.4)" });
-        clearTimeout(shoutTimer);
-        shoutTimer = setTimeout(() => gsap.to(shout.scale, { x: 0.001, y: 0.001, duration: 0.2, ease: "power2.in", overwrite: true }), 2200);
-        if (sword.style === "wado") sakuraFall();
-        else if (sword.style === "kitetsu") cursedFire();
-        else hellfire();
+        const kick = sword.style === "enma" ? 0.08 : 0.05;
+        const shake = gsap.timeline();
+        [1, -0.6, 0.3, -0.12].forEach((k) => shake.to(cam, { tx: tx + kick * k, ty: ty - kick * 0.6 * k, duration: 0.04, ease: "sine.inOut" }));
+        shake.to(cam, { tx, ty, duration: 0.05, ease: "sine.out" });
       })
-      // Hit-stop: the blade holds dead still a beat as it bites, then follows through
-      .to({}, { duration: 0.07 })
-      .to(sword.bladeGroup.rotation, { z: -0.75, duration: 0.2, ease: "power2.out" })
-      .to(sword.bladeGroup.position, { x: 2.55, y: "-=0.1", duration: 0.2, ease: "power2.out" }, "<")
-      .call(stopTrail)
-      // Chiburi: a held beat, then a sharp flick to throw the blade clean
-      .to(sword.bladeGroup.rotation, { z: -0.35, duration: 0.18, ease: "power2.inOut" }, "+=0.25")
-      .to(sword.bladeGroup.rotation, { z: -0.95, duration: 0.09, ease: "power3.in" })
+      // Hit-stop: the blade holds dead still a beat as it bites, then settles the last of the way
+      .to({}, { duration: 0.1 })
+      .to(sword.bladeGroup.rotation, { z: -0.86, duration: 0.14, ease: "power3.out" })
+      // Zanshin: held there, low, a long breath
+      .to({}, { duration: 0.45 })
+      // Chiburi: the blade lifted a little, then flicked down sharp to throw it clean
+      .to(sword.bladeGroup.rotation, { z: -0.6, duration: 0.25, ease: "power2.inOut" })
+      .to(sword.bladeGroup.rotation, { z: -0.92, duration: 0.08, ease: "power3.in" })
       .call(() => sfx.whoosh({ duration: 0.15, up: false }))
-      .to(sword.bladeGroup.rotation, { z: -0.8, duration: 0.15, ease: "power2.out" })
-      // Back the way it came: level out and over to the handle end, dropping only once it's
-      // clear of the other swords, then in to the rack
-      .to(sword.bladeGroup.rotation, { z: 0, duration: 0.4, ease: "power2.inOut" }, "+=0.1")
-      .to(sword.bladeGroup.position, { x: 0, duration: 0.4, ease: "power2.inOut" }, "<")
-      .to(sword.bladeGroup.position, { y: home, duration: 0.3, ease: "power2.in" }, "<0.2")
+      .to(sword.bladeGroup.rotation, { z: -0.84, duration: 0.18, ease: "power2.out" })
+      .to({}, { duration: 0.25 })
+      // from here it's only going home, and a click hurries it (see the top)
+      .call(() => (recovering = true))
+      // Back the way it came, unhurried: raised level as it goes over to the handle end (in front
+      // of the other swords), dropping once it's there, then in to the rack
+      .to(sword.bladeGroup.rotation, { z: 0, duration: 0.75, ease: "power2.inOut" })
+      .to(sword.bladeGroup.position, { x: 0, duration: 0.75, ease: "power2.inOut" }, "<")
+      .to(sword.bladeGroup.position, { y: home, duration: 0.45, ease: "power2.in" }, "<0.4")
       .to(sword.bladeGroup.position, { z: 0, duration: 0.15, ease: "power2.in" })
       // Noto: slid home slowly most of the way, then the last of it snaps in with a click
       .to(sword.drawPivot.rotation, { z: out * 0.12, duration: 0.5, ease: "sine.inOut" })
@@ -3964,7 +3885,24 @@ export function createDeskScene({ container, projects, experiences, dark = false
         sword.steel.visible = false;
         if (sword.style === "enma") gsap.to(haki.material, { opacity: 0, duration: 0.5, ease: "sine.in", onComplete: () => (haki.visible = false) });
       })
-      .fromTo(katanaRack.scale, { y: KATANA_SCALE * 0.94 }, { y: KATANA_SCALE, duration: 0.3, ease: "back.out(3)" });
+      .fromTo(katanaRack.scale, { y: KATANA_SCALE * 0.94 }, { y: KATANA_SCALE, duration: 0.3, ease: "back.out(3)" })
+      // (placed at the hit, after the rest is laid down, so they don't push it along)
+      .call(() => {
+        if (sword.style === "wado") sakuraFall();
+        else if (sword.style === "kitetsu") cursedSparks();
+        else enmaLightning();
+      }, null, "hit+=0.05")
+      .call(() => {
+        drawShout(shoutTex.ctx, 640, 320, technique, { style: sword.style });
+        shoutTex.texture.needsUpdate = true;
+        // Close by the cut: up and a little to the left of the hand, over the top of the arc
+        shout.position.set(katanaWorld.x - 2.4, katanaWorld.y + 2.1, katanaWorld.z + 0.25);
+        keepOnScreen(shout, SHOUT_W, SHOUT_H);
+        gsap.fromTo(shout.scale, { x: 1, y: 0.5 }, { x: SHOUT_W, y: SHOUT_H, duration: 0.3, ease: "back.out(3)", overwrite: true });
+        gsap.fromTo(shout.material, { rotation: 0.15 }, { rotation: 0, duration: 0.5, ease: "elastic.out(1.2, 0.4)" });
+        clearTimeout(shoutTimer);
+        shoutTimer = setTimeout(() => gsap.to(shout.scale, { x: 0.001, y: 0.001, duration: 0.2, ease: "power2.in", overwrite: true }), 1600);
+      }, null, "hit+=0.1");
   }
 
   // Common scabbard curve
@@ -3977,7 +3915,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // The sword under the pointer, and a timer for its card once the camera has come in
   let swordZoomTimer = null;
   // The sword's card: a sprite beside the rack, level with the sword, always facing the camera
-  const SWORD_CARD = { w: 3.2, h: 3.2 * (480 / 760) };
+  const SWORD_CARD = { w: 3.7, h: 3.7 * (480 / 760) };
   const swordCardTex = canvasTexture(760, 480);
   track(swordCardTex.texture);
   const swordCard = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: swordCardTex.texture, depthTest: false, transparent: true })));
@@ -4000,6 +3938,73 @@ export function createDeskScene({ container, projects, experiences, dark = false
   function hideSwordCard() {
     gsap.to(swordCard.scale, { x: 0.001, y: 0.001, duration: 0.15, ease: "power2.in", overwrite: true });
   }
+  // The rack's close-up has a spotlight on it: everything round the strike's space (the cork
+  // board, the gauntlet, the desk) sinks into shadow as the camera comes in, so the eye stays on
+  // the swords. One screen-filling layer of ink with a soft oval hole over the rack and the air
+  // the strike sweeps through (high above it for the wind-up, low under it for the finish: so
+  // taller than it is wide), drawn after the room but before the cards, plates and the cut's
+  // effects, which stay bright.
+  const SPOT_REACH = { x: 3.0, y: 4.0 };
+  const spotUniforms = {
+    center: { value: new THREE.Vector2() },
+    radius: { value: new THREE.Vector2(1, 1) },
+    strength: { value: 0 },
+    ink: { value: new THREE.Color("#1a1714") },
+  };
+  const spotlight = new THREE.Mesh(track(new THREE.PlaneGeometry(2, 2)), track(new THREE.ShaderMaterial({
+    uniforms: spotUniforms,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    vertexShader: `
+      varying vec2 vNdc;
+      void main() {
+        vNdc = position.xy;
+        gl_Position = vec4(position.xy, 0.0, 1.0);
+      }`,
+    fragmentShader: `
+      uniform vec2 center;
+      uniform vec2 radius;
+      uniform float strength;
+      uniform vec3 ink;
+      varying vec2 vNdc;
+      void main() {
+        float d = length((vNdc - center) / radius);
+        gl_FragColor = vec4(ink, strength * 0.7 * smoothstep(0.75, 1.15, d));
+      }`,
+  })));
+  spotlight.frustumCulled = false;
+  spotlight.raycast = noRaycast;
+  spotlight.renderOrder = 10;
+  spotlight.visible = false;
+  scene.add(spotlight);
+  // (kept out of the ambient-occlusion pass, which would read it as a wall across the screen)
+  const aoOverride = aoPass.overrideVisibility.bind(aoPass);
+  aoPass.overrideVisibility = () => {
+    aoOverride();
+    spotlight.visible = false;
+  };
+  const spotAt = new THREE.Vector3();
+  const spotEdge = new THREE.Vector3();
+  // Each frame: easing in or out with the close-up, and kept centred on the rack wherever the
+  // camera is. The gauntlet below the rack is put away for the close-up altogether.
+  function updateSpotlight(dt) {
+    gauntlet.visible = focus.name !== "swords";
+    const strength = spotUniforms.strength;
+    strength.value += ((focus.name === "swords" ? 1 : 0) - strength.value) * (1 - Math.pow(0.02, dt));
+    spotlight.visible = strength.value > 0.005;
+    if (!spotlight.visible) return;
+    katanaRack.getWorldPosition(spotAt);
+    spotEdge.copy(spotAt).project(camera);
+    spotUniforms.center.value.set(spotEdge.x, spotEdge.y);
+    const cx = spotEdge.x;
+    const cy = spotEdge.y;
+    spotUniforms.radius.value.set(
+      Math.abs(spotEdge.copy(spotAt).add(screenAxis.set(SPOT_REACH.x, 0, 0)).project(camera).x - cx),
+      Math.abs(spotEdge.copy(spotAt).add(screenAxis.set(0, SPOT_REACH.y, 0)).project(camera).y - cy),
+    );
+  }
+
   // The rack's own close-up: clicking a bracket (or a sword, from further out) comes in to it
   register(katanaRack, {
     focus: "swords",
@@ -4119,8 +4124,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
         if (on) {
           steel.visible = true;
           gsap.fromTo(gold.emissive, { r: 0.55, g: 0.42, b: 0.1 }, { r: 0.12, g: 0.09, b: 0.02, duration: 0.6, ease: "power2.out", overwrite: true });
-          sfx.tick({ pitch: 1.8 });
-        } else gsap.to(gold.emissive, { r: 0, g: 0, b: 0, duration: 0.3, overwrite: true });
+          sfx.koiguchi();
+        } else {
+          gsap.to(gold.emissive, { r: 0, g: 0, b: 0, duration: 0.3, overwrite: true });
+          sfx.koiguchiShut();
+        }
         gsap.to(tierGroup.position, {
           y: on ? restY + 0.22 : restY,
           z: on ? 0.5 : 0.2,
@@ -4777,6 +4785,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
       };
     }
     const { scale, position, centre } = object.userData.rest;
+    // (anything it leaves lying about loose in the room goes with it)
+    object.userData.onCrumble?.(delay);
     const shrink = { k: 1 };
     const apply = () => {
       object.scale.copy(scale).multiplyScalar(Math.max(shrink.k, 0.001));
@@ -4855,8 +4865,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
       .call(() => sfx.knock({ strength: 0.6 }), null, 5.35)
       .call(() => {
         sfx.dust();
-        // Perfectly balanced: a random half of everything in the room (bar the gauntlet and the
-        // shelf it stands on), each with the colours its dust takes
+        // Perfectly balanced: a random half of everything in the room (bar the gauntlet, the
+        // shelf it stands on and the window, a hole in the wall), each with the colours its
+        // dust takes
         const everything = [
           [[mug, coaster], ["#fffdf5", "#6f4e37", "#a8743f"]],
           [[mail], ["#e2cb9c", "#fffdf5", "#3b82f6"]],
@@ -4877,8 +4888,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
           [[gym], ["#8b9099", "#6b7079", "#9ca3af"]],
           [[hatPeg], ["#f2c14e", "#d62828"]],
           [[katanaRack], ["#6b2fa8", "#b91c1c", "#fffdf5", "#d4a72c", "#181513"]],
-          [[windowGroup], ["#ffffff", "#7fdfff", "#8fd694"]],
           [[catModel], ["#ff9f45", "#d9741f", "#fffdf5"]],
+          [[bin], ["#00e0c6", "#008f80", "#ff7a1a", "#ffdd00", "#fffdf5"]],
         ];
         const doomed = everything
           .map((entry) => [Math.random(), entry])
@@ -5205,23 +5216,37 @@ export function createDeskScene({ container, projects, experiences, dark = false
   binLabel.position.y = (LABEL_Y[0] + LABEL_Y[1]) / 2;
   binLabel.raycast = noRaycast;
   binBody.add(binLabel);
-  // A crumpled paper ball: a lumpy icosahedron, each one squashed a little differently
-  const paperMat = toon("#fffdf5");
+  // A crumpled paper ball: a lumpy, flat-faceted icosahedron (each facet a crushed plane of
+  // paper catching the light its own way), squashed a little differently each time and wrapped
+  // in a screwed-up sheet: lined notebook paper with pencil scrawl, or a printed page
+  const paperMats = [true, false, true, false].map((lined, i) => {
+    const sheet = canvasTexture(512, 256);
+    track(sheet.texture);
+    drawCrumpledPaper(sheet.ctx, 512, 256, { lined, seed: i + 1 });
+    return track(new THREE.MeshToonMaterial({ map: sheet.texture, gradientMap: gradient, flatShading: true }));
+  });
+  // Every copy of a corner (the icosahedron's faces don't share vertices) must move the same
+  // way or the ball cracks, so the dent comes from a hash of where the corner points
+  const dent = (x, y, z, seed) => {
+    const v = Math.sin(Math.round(x * 997) * 12.9898 + Math.round(y * 997) * 78.233 + Math.round(z * 997) * 37.719 + seed) * 43758.5453;
+    return v - Math.floor(v);
+  };
+  let crumpled = 0;
   const crumple = (r) => {
-    const raw = new THREE.IcosahedronGeometry(r, 1);
-    raw.deleteAttribute("normal");
-    raw.deleteAttribute("uv");
-    const geo = mergeVertices(raw, 1e-4);
-    raw.dispose();
+    const geo = new THREE.IcosahedronGeometry(r, 2);
+    const seed = Math.random() * 100;
+    const squash = new THREE.Vector3(0.82 + Math.random() * 0.18, 0.82 + Math.random() * 0.18, 0.82 + Math.random() * 0.18);
     const p = geo.attributes.position;
     for (let i = 0; i < p.count; i++) {
-      const k = 0.78 + Math.random() * 0.34;
-      p.setXYZ(i, p.getX(i) * k, p.getY(i) * k, p.getZ(i) * k);
+      tmpV.set(p.getX(i), p.getY(i), p.getZ(i)).divideScalar(r);
+      const k = 0.8 + dent(tmpV.x, tmpV.y, tmpV.z, seed) * 0.3;
+      p.setXYZ(i, tmpV.x * r * k * squash.x, tmpV.y * r * k * squash.y, tmpV.z * r * k * squash.z);
     }
     geo.computeVertexNormals();
-    return mesh(geo, paperMat, { outline: 0.018 });
+    return mesh(geo, paperMats[crumpled++ % paperMats.length], { outline: 0.018 });
   };
   // What's already in it, peeking over the rim; a swish adds to the pile (up to full)
+  const tmpV = new THREE.Vector3();
   const binPile = [[-0.15, 0.1], [0.18, -0.05], [0.02, 0.2], [-0.05, -0.2], [0.22, 0.18]].map(([x, z], i) => {
     const ball = crumple(0.17);
     ball.position.set(x, BIN_H - 0.22 + (i % 2) * 0.06, z);
@@ -5303,7 +5328,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
     return { ball, state: "idle", vel: new THREE.Vector3(), spin: new THREE.Vector3(), t: 0, at: 0, swish: false, side: 1, born: 0 };
   });
   const litter = () => papers.filter((p) => p.state === "litter");
-  const tmpV = new THREE.Vector3();
   const tmpQ = new THREE.Quaternion();
   const binTop = () => bin.position.y + (BIN_H + 0.08) * bin.scale.y;
   // Where a throw from the viewer starts: a little below the screen's bottom edge, under the
@@ -5317,6 +5341,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   }
   let streak = 0;
   function shoot(from) {
+    if (binGone()) return;
     const hoopAt = hoopWorld();
     let paper = from;
     if (!paper) {
@@ -5328,6 +5353,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     gsap.killTweensOf(ball.scale);
     ball.scale.setScalar(1);
     ball.visible = true;
+    ball.children[0].visible = true;
     if (!from) ball.position.copy(throwOrigin(hoopAt));
     paper.swish = Math.random() < 0.65;
     paper.side = Math.random() < 0.5 ? -1 : 1;
@@ -5355,7 +5381,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     if (binFill < binPile.length) {
       const ball = binPile[binFill++];
       ball.visible = true;
-      gsap.fromTo(ball.scale, { x: 0.3, y: 0.3, z: 0.3 }, { x: 1, y: 1, z: 1, duration: 0.4, ease: "back.out(3)" });
+      gsap.fromTo(ball.scale, { x: 0.6, y: 0.6, z: 0.6 }, { x: 1, y: 1, z: 1, duration: 0.4, ease: "back.out(3)" });
     }
     streak++;
     if (streak >= 3) {
@@ -5367,30 +5393,46 @@ export function createDeskScene({ container, projects, experiences, dark = false
       streak = 0;
     } else binSay(streak === 1 ? "SWISH!" : `SWISH x${streak}`, "#00e0c6");
   }
+  // A ball on the floor shrinks away and goes back in the pool
+  function sweep(old, delay = 0) {
+    old.state = "leaving";
+    // The outline keeps its width in pixels, so a shrinking ball would end as a black dot
+    old.ball.children[0].visible = false;
+    gsap.to(old.ball.scale, {
+      x: 0.001, y: 0.001, z: 0.001, delay, duration: 0.3, ease: "back.in(2)",
+      onComplete: () => {
+        old.state = "idle";
+        old.ball.visible = false;
+        old.ball.position.copy(PARKED);
+      },
+    });
+  }
   // Settled on the floor: it stays there, and the oldest goes once there are too many
   function settle(paper) {
     paper.state = "litter";
     paper.born = performance.now();
     paper.vel.set(0, 0, 0);
     const strewn = litter().sort((a, b) => a.born - b.born);
-    strewn.slice(0, Math.max(0, strewn.length - MAX_LITTER)).forEach((old) => {
-      old.state = "leaving";
-      gsap.to(old.ball.scale, {
-        x: 0.001, y: 0.001, z: 0.001, duration: 0.3, ease: "back.in(2)",
-        onComplete: () => {
-          old.state = "idle";
-          old.ball.visible = false;
-          old.ball.position.copy(PARKED);
-        },
-      });
-    });
+    strewn.slice(0, Math.max(0, strewn.length - MAX_LITTER)).forEach((old) => sweep(old));
   }
+  // Snapped away, the bin takes its litter with it: those balls don't come back when it does
+  bin.userData.onCrumble = (delay) => litter().forEach((paper) => sweep(paper, delay + 0.3 + Math.random() * 0.6));
+  // (and there's no hoop to shoot at while it's gone)
+  const binGone = () => bin.userData.rest && bin.scale.x < bin.userData.rest.scale.x * 0.99;
   const SHELF_BOX = {
     x0: shelf.position.x - SHELF_W / 2, x1: shelf.position.x + SHELF_W / 2,
     z0: shelf.position.z - SHELF_D / 2, z1: shelf.position.z + SHELF_D / 2, y1: shelf.position.y + SHELF_H,
   };
   const BOUNCE = 0.42;
-  const LITTER_FRONT = bin.position.z + 0.95;
+  // The shelf's close-up (its shot's dir and depth) clips everything more than 1.6 in front of
+  // the shelf, and that cut is angled: it comes nearer the further right you go. A ball across
+  // it is sliced open (a black disc, the inside of its outline) or gone, so the litter is
+  // fenced in behind it, with a margin, and kept from rolling off the right of the screen.
+  const CUT_N = new THREE.Vector3(0.24, 0.1, 1).normalize();
+  const CUT_FLAT = new THREE.Vector3(CUT_N.x, 0, CUT_N.z).normalize();
+  const CUT_AT = new THREE.Vector3(shelf.position.x + 0.35, 0, shelf.position.z);
+  const CUT_REACH = (1.6 - PAPER_R - 0.12) / Math.hypot(CUT_N.x, CUT_N.z);
+  const LITTER_RIGHT = bin.position.x + 1.1;
   function stepPaper(paper, dt) {
     const { ball, vel, spin } = paper;
     const p = ball.position;
@@ -5454,11 +5496,20 @@ export function createDeskScene({ container, projects, experiences, dark = false
       p.z = wallFace;
       if (vel.z < 0) vel.z *= -BOUNCE;
     }
-    // Kept close to the bin: any further into the room and the shelf close-up's near plane
-    // would slice it open (it'd show as a black disc)
-    if (p.z > LITTER_FRONT) {
-      p.z = LITTER_FRONT;
-      if (vel.z > 0) vel.z *= -BOUNCE;
+    // Behind the close-up's cut (the floor is below the shot's target, which only helps, so
+    // height is left out) and no further right than the screen shows
+    const over = (p.x - CUT_AT.x) * CUT_FLAT.x + (p.z - CUT_AT.z) * CUT_FLAT.z - CUT_REACH;
+    if (over > 0) {
+      p.addScaledVector(CUT_FLAT, -over);
+      const into = vel.x * CUT_FLAT.x + vel.z * CUT_FLAT.z;
+      if (into > 0) {
+        vel.x -= (1 + BOUNCE) * into * CUT_FLAT.x;
+        vel.z -= (1 + BOUNCE) * into * CUT_FLAT.z;
+      }
+    }
+    if (p.x > LITTER_RIGHT) {
+      p.x = LITTER_RIGHT;
+      if (vel.x > 0) vel.x *= -BOUNCE;
     }
     // Balls already on the floor are bumped, not passed through, so they spread out
     papers.forEach((other) => {
@@ -6639,6 +6690,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const keyMats = new Map();
   const keyMat = (color) => keyMats.get(color) || keyMats.set(color, toon(color)).get(color);
   const keyByCode = new Map();
+  const legendMat = (map) => track(new THREE.MeshToonMaterial({
+    map, gradientMap: gradient, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1,
+  }));
   KEY_ROWS.forEach((row, r) => {
     let cursor = -8; // the rows are 16 units wide
     row.forEach(([code, label, width = 1]) => {
@@ -6652,9 +6706,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
       key.add(mesh(rbox(w, 0.18, d, 0.05), keyMat(color), { outline: 0.03, cast: false }));
       if (label) {
         const homing = code === "KeyF" || code === "KeyJ" ? "#38bdf8" : null;
-        const legend = printed(w - 0.05, d - 0.05, 340, (c, cw, ch) => drawKeyLabel(c, cw, ch, label, color, { ink: keyInk(code), small: label.length > 1, shift: SHIFTED[code] || MOD_SYMBOLS[code], homing }));
+        const legend = printed(w - 0.05, d - 0.05, 340, (c, cw, ch) => drawKeyLabel(c, cw, ch, label, null, { ink: keyInk(code), small: label.length > 1, shift: SHIFTED[code] || MOD_SYMBOLS[code], homing }));
+        // Ink on the cap, not a sticker over it: a clear decal under the cap's own toon light
+        legend.material = legendMat(legend.userData.tex.texture);
         legend.rotation.x = -Math.PI / 2;
-        legend.position.y = 0.092;
+        legend.position.y = 0.091;
         key.add(legend);
       }
       keyboard.add(key);
@@ -7199,6 +7255,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
   cat.position.copy(catBed.position);
   cat.rotation.y = catBed.yaw;
   let catBusy = false;
+  // The timeline carrying her from one place to another, and the timer that ends a fidget in
+  // place (spotting the mouse, a click): both cut short when the case files need the desk
+  let catTravel = null;
+  let catFidget = null;
   const worldYaw = (object) => {
     const q = new THREE.Quaternion();
     object.getWorldQuaternion(q);
@@ -7264,9 +7324,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const go = () => {
       catInterrupt();
       if (catBusy) return timers.push(setTimeout(go, 300));
-      if (bedFor(darkNow && !openFolder) !== bed) return;
+      if (bedFor(darkNow && !openFolder) !== bed || bed === catBed) return;
       catBusy = true;
-      const tl = gsap.timeline({ delay: shooed ? 0 : 0.6, onComplete: () => (catBusy = false) });
+      const tl = gsap.timeline({ delay: shooed ? 0 : 0.6, onComplete: () => (catBusy = false, catTravel = null) });
+      catTravel = tl;
       tl.call(() => {
         catPose(true);
         sfx.meow({ short: true });
@@ -7277,6 +7338,31 @@ export function createDeskScene({ container, projects, experiences, dark = false
       catToBed(tl, bed);
     };
     go();
+  }
+  // Off the desk before a case file comes out, whatever she's doing: a move or a fidget is cut
+  // short, she jumps down to the rug under the desk, and `then` runs as she leaves the desk.
+  // Already off it and staying off, `then` runs straight away.
+  function catShoo(then) {
+    if (!catTravel && catBed !== CAT_BEDS.desk) return then();
+    catInterrupt();
+    catTravel?.kill();
+    clearTimeout(catFidget);
+    gsap.killTweensOf([cat.position, cat.rotation, cat.scale, catHead.position, catHead.rotation, catBody.position, tailCurl.rotation]);
+    catLegs.forEach((leg) => (leg.rotation.z = 0));
+    catWatchUntil = 0;
+    catBusy = true;
+    const tl = gsap.timeline({ onComplete: () => (catBusy = false, catTravel = null) });
+    catTravel = tl;
+    tl.call(() => {
+      catPose(true, 0.2);
+      gsap.to(cat.scale, { y: 0.85, duration: 0.2 });
+      sfx.meow({ short: true });
+      catSay("hmph!");
+    });
+    tl.to({}, { duration: 0.3 });
+    // the file starts out of the drawer as she springs, and lands once she's clear
+    tl.call(then, null, tl.duration() + 0.15);
+    catToBed(tl, CAT_BEDS.floor);
   }
 
   // The mouse on the desk turns into a real one and runs: she wakes with a start, follows it
@@ -7300,7 +7386,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     gsap.to(catHead.rotation, { x: 0, z: 0, duration: 0.35, ease: "power2.out", overwrite: true });
     gsap.to(catBody.position, { y: 0.08, duration: 0.35, ease: "power2.out", overwrite: true });
     gsap.fromTo(tailCurl.rotation, { y: -0.12 }, { y: 0.12, duration: 0.3, yoyo: true, repeat: 13, ease: "sine.inOut", onComplete: () => (tailCurl.rotation.y = 0) });
-    timers.push(setTimeout(() => {
+    timers.push(catFidget = setTimeout(() => {
       // ...and settles back down onto her paws
       gsap.to(catHead.position, { ...HEAD_CURLED, duration: 0.7, ease: "power2.inOut" });
       gsap.to(catHead.rotation, { x: 0.15, y: 0.35, z: 0.1, duration: 0.7, ease: "power2.inOut" });
@@ -7608,11 +7694,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const tl = gsap.timeline({
       onComplete: () => {
         catIdleTl = null;
-        if (moving) catBusy = false;
+        if (moving) catBusy = false, catTravel = null;
         catLife.wakeAt = performance.now() + napLength();
       },
     });
-    if (moving) catBusy = true;
+    if (moving) catBusy = true, catTravel = tl;
     else catIdleTl = tl;
     catYawn(tl);
     catStretch(tl);
@@ -7749,7 +7835,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     catBusy = true;
     const top = keyboard.position.y + KEY_Y + 0.09;
     const z = keyboard.position.z + 0.05;
-    const tl = gsap.timeline({ onComplete: () => (catBusy = false) });
+    const tl = gsap.timeline({ onComplete: () => (catBusy = false, catTravel = null) });
+    catTravel = tl;
     tl.call(() => {
       catPose(true);
       showTerminal();
@@ -7796,7 +7883,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       gsap.fromTo(tailCurl.rotation, { y: 0 }, { y: 0.15, duration: 0.2, yoyo: true, repeat: 5, ease: "sine.inOut" });
       sfx.meow();
       catSay(CAT_LINES[catLine++ % CAT_LINES.length]);
-      timers.push(setTimeout(() => {
+      timers.push(catFidget = setTimeout(() => {
         catEyes(false);
         catBusy = false;
       }, 2000));
@@ -8226,14 +8313,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
     if (openFolder) return;
     openFolder = entry;
     onEvent("projectOpen", { open: true });
-    // The cat asleep on the desk at night is shooed off first; the file waits for her to go
-    const wait = catBed === CAT_BEDS.desk ? 1.4 : 0;
-    catSettle();
     gsap.to(entry.body.position, { y: 0, z: 0, duration: 0.2, overwrite: true });
-    sfx.folderSlide({ duration: 0.6, delay: wait });
-    gsap.to(entry, { out: 1, duration: 1.0, delay: wait, ease: "power2.inOut", overwrite: true, onComplete: () => sfx.flop({ strength: 0.5, recorded: false }) });
-    gsap.to(entry.hinge.rotation, { z: Math.PI - OPEN_TILT, duration: 0.6, delay: wait + 1.0, ease: "power2.inOut", onStart: () => sfx.coverOpen({ duration: 0.6 }), onComplete: () => sfx.flop({ strength: 0.3, recorded: false }) });
     applyShot(false, 1.2);
+    // The cat gets off the desk first, whatever she's up to; the file waits for her to go
+    catShoo(() => {
+      if (openFolder !== entry) return;
+      sfx.folderSlide({ duration: 0.6 });
+      gsap.to(entry, { out: 1, duration: 1.0, ease: "power2.inOut", overwrite: true, onComplete: () => sfx.flop({ strength: 0.5, recorded: false }) });
+      gsap.to(entry.hinge.rotation, { z: Math.PI - OPEN_TILT, duration: 0.6, delay: 1.0, ease: "power2.inOut", onStart: () => sfx.coverOpen({ duration: 0.6 }), onComplete: () => sfx.flop({ strength: 0.3, recorded: false }) });
+    });
   }
   function closeProject() {
     if (!openFolder) return;
@@ -8884,8 +8972,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // Close-ups clip whatever is in front of the prop (camera.near). Those props aren't drawn, so
   // they mustn't catch the pointer either: the monitor sits right in front of the badge.
   const viewPoint = new THREE.Vector3();
+  // (nor the gauntlet while it's put away for the swords' close-up: hidden, it's still there
+  // for the ray)
+  const inGauntlet = (object) => {
+    for (let o = object; o; o = o.parent) if (o === gauntlet) return true;
+    return false;
+  };
   const visibleHits = () => raycaster.intersectObjects(pickables, true)
-    .filter((h) => -viewPoint.copy(h.point).applyMatrix4(camera.matrixWorldInverse).z >= camera.near);
+    .filter((h) => -viewPoint.copy(h.point).applyMatrix4(camera.matrixWorldInverse).z >= camera.near)
+    .filter((h) => gauntlet.visible || !inGauntlet(h.object));
   const pick = (e) => {
     rayFromPointer(e);
     const hit = visibleHits()[0];
@@ -9294,7 +9389,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     // The sword rack, with room on its left for a sword's card and above it for a slash
     swords: () => {
       katanaRack.getWorldPosition(screenPos);
-      return { target: [screenPos.x - 1.6, screenPos.y + 0.7, screenPos.z], dir: [0.12, 0.08, 1], fit: [10.2, 6.0], depth: 3.5 };
+      return { target: [screenPos.x - 1.6, screenPos.y + 1.1, screenPos.z], dir: [0.12, 0.08, 1], fit: [10.4, 6.8], depth: 3.5 };
     },
     // Close on the gauntlet for the snap, from a little to its right and above
     gauntlet: () => {
@@ -9488,6 +9583,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     updateTassels(dt);
     updateFx(dt);
     updateTrail(dt);
+    updateSpotlight(dt);
     poseFolders();
     const pointerBlend = 1 - Math.pow(0.94, dt * 60);
     parallax.x += (parallax.tx - parallax.x) * pointerBlend;
@@ -9666,6 +9762,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       typer.removeEventListener("input", onTyperInput);
       typer.removeEventListener("keydown", onTyperKey);
       typer.remove();
+      impactFlash.remove();
       renderer.domElement.removeEventListener("wheel", onWheel);
       renderer.domElement.removeEventListener("pointermove", onPointerMove);
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);

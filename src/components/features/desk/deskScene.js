@@ -5811,7 +5811,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const k = { t: 0 };
     const s = new THREE.Vector3();
     const p = new THREE.Vector3();
-    tl.fromTo(k, { t: 0 }, {
+    // (a plain `to` from 0: `fromTo` would render at once, snapping the leg before its turn)
+    tl.to(k, {
       t: 1,
       duration,
       ease: "sine.inOut",
@@ -5828,6 +5829,25 @@ export function createDeskScene({ container, projects, experiences, dark = false
   function catSitPose(tl, on) {
     const d = 0.7;
     const ease = "sine.inOut";
+    const k = { t: on ? 0 : 1 };
+    const pose = { ...STAND_POSE };
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const pawFrom = [new THREE.Vector3(), new THREE.Vector3()];
+    // the body tips, draws in and settles; her shoulders ride on it and her paws slide from
+    // where they stood to under her chest, so nothing ever leaves her body mid-way
+    const apply = () => {
+      pose.rz = lerp(STAND_POSE.rz, SIT_POSE.rz, k.t);
+      pose.py = lerp(STAND_POSE.py, SIT_POSE.py, k.t);
+      pose.sx = lerp(STAND_POSE.sx, SIT_POSE.sx, k.t);
+      catBody.rotation.z = pose.rz;
+      catBody.position.y = pose.py;
+      catBody.scale.x = pose.sx;
+      [[frontL, 1], [frontR, -1]].forEach(([leg, side], i) => {
+        const shoulder = bodyPoint(...SHOULDER, side * (0.32 - 0.02 * k.t), pose);
+        const sitPaw = SIT_PAW(side);
+        aimLeg(leg, shoulder, on ? pawFrom[i].clone().lerp(sitPaw, k.t) : sitPaw.clone().lerp(pawFrom[i], 1 - k.t));
+      });
+    };
     tl.call(() => {
       frontL.visible = frontR.visible = true;
       rearL.visible = rearR.visible = !on;
@@ -5836,18 +5856,18 @@ export function createDeskScene({ container, projects, experiences, dark = false
       tailCurl.visible = on;
       tailUp.visible = !on;
       catEyes(true);
+      catBody.scale.y = 0.85;
+      // where the paws start from (sitting: as they stand; standing up: as they'll stand)
+      [frontL, frontR].forEach((leg, i) => pawFrom[i].copy(on ? leg.userData.paw || legRest(leg).paw : legRest(leg).paw));
+      k.t = on ? 0 : 1;
     })
-      .to(catBody.rotation, { z: on ? SIT_POSE.rz : 0, duration: d, ease })
-      .to(catBody.scale, { x: on ? SIT_POSE.sx : 1, y: 0.85, duration: d, ease }, "<")
-      .to(catBody.position, { y: on ? SIT_POSE.py : 0.5, duration: d, ease }, "<")
+      .to(k, { t: on ? 1 : 0, duration: d, ease, onUpdate: apply })
       .to(tailCurl.position, { x: on ? 0.45 : 0, y: on ? -0.1 : 0, duration: d, ease }, "<")
       .to(tailCurl.scale, { x: on ? 0.85 : 1, z: on ? 0.85 : 1, duration: d, ease }, "<")
       .to(catHead.position, { ...(on ? SIT_HEAD : HEAD_UP), duration: d, ease }, "<")
       .to(catHead.rotation, { x: 0, y: 0.5, z: 0, duration: d, ease }, "<");
-    [[frontL, 1], [frontR, -1]].forEach(([leg, side]) => {
-      const rest = legRest(leg);
-      moveLeg(tl, leg, on ? SIT_SHOULDER(side) : rest.shoulder, on ? SIT_PAW(side) : rest.paw, d, "<");
-    });
+    // standing back up, the back legs come back under her hips
+    if (!on) tl.call(() => [rearL, rearR].forEach(resetLeg));
   }
   // A wash, slow and soft: her near front paw drawn up in front of her muzzle and licked
   // (tongue out), wiped up over her cheek and back, then down to the ground while she licks
@@ -5856,9 +5876,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     .to(catTongue.scale, { x: 1, y: 0.9, z: 1.3, duration: 0.2, yoyo: true, repeat: times * 2 - 1, ease: "sine.inOut" })
     .to(catHead.rotation, { x: "+=0.12", duration: 0.2, yoyo: true, repeat: times * 2 - 1, ease: "sine.inOut" }, "<")
     .set(catTongue.scale, { x: 0.001, y: 0.001, z: 0.001 });
-  const GROOM_SHOULDER = new THREE.Vector3(0.2, 1.05, 0.3);
+  const GROOM_SHOULDER = SIT_SHOULDER(1);
   const AT_MOUTH = new THREE.Vector3(0.55, 1.35, 0.72);
-  const AT_CHEEK = new THREE.Vector3(0.4, 1.85, 0.66);
+  // a short stroke up from her mouth over her cheek
+  const AT_CHEEK = new THREE.Vector3(0.46, 1.62, 0.7);
   function catGroom(tl) {
     const ease = "sine.inOut";
     catSitPose(tl, true);

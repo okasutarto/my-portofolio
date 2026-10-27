@@ -2339,10 +2339,14 @@ export function drawStickyNote(c, w, h, { text, color = "#ffdd00", tick = false 
 // Legends in the Halo75's manner: a clean, medium-weight sans, small and light on the cap.
 // `ink` is the legend's colour; `small` sets word legends (ENTER, F1) smaller than single
 // glyphs; `shift` stacks the shifted symbol above the key's own (! over 1); `homing` adds the
-// little bar the F and J keys carry
+// little bar the F and J keys carry. A null `color` draws the legend alone on a clear canvas
 export function drawKeyLabel(c, w, h, label, color = "#fff", { ink = "#000", small = false, shift = null, homing = null } = {}) {
-  c.fillStyle = color;
-  c.fillRect(0, 0, w, h);
+  // No `color` leaves the canvas clear, so the legend prints straight onto the cap below it
+  c.clearRect(0, 0, w, h);
+  if (color) {
+    c.fillStyle = color;
+    c.fillRect(0, 0, w, h);
+  }
   c.fillStyle = ink;
   c.textAlign = "center";
   c.textBaseline = "middle";

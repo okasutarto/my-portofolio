@@ -6639,6 +6639,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const keyMats = new Map();
   const keyMat = (color) => keyMats.get(color) || keyMats.set(color, toon(color)).get(color);
   const keyByCode = new Map();
+  const legendMat = (map) => track(new THREE.MeshToonMaterial({
+    map, gradientMap: gradient, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1,
+  }));
   KEY_ROWS.forEach((row, r) => {
     let cursor = -8; // the rows are 16 units wide
     row.forEach(([code, label, width = 1]) => {
@@ -6652,9 +6655,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
       key.add(mesh(rbox(w, 0.18, d, 0.05), keyMat(color), { outline: 0.03, cast: false }));
       if (label) {
         const homing = code === "KeyF" || code === "KeyJ" ? "#38bdf8" : null;
-        const legend = printed(w - 0.05, d - 0.05, 340, (c, cw, ch) => drawKeyLabel(c, cw, ch, label, color, { ink: keyInk(code), small: label.length > 1, shift: SHIFTED[code] || MOD_SYMBOLS[code], homing }));
+        const legend = printed(w - 0.05, d - 0.05, 340, (c, cw, ch) => drawKeyLabel(c, cw, ch, label, null, { ink: keyInk(code), small: label.length > 1, shift: SHIFTED[code] || MOD_SYMBOLS[code], homing }));
+        // Ink on the cap, not a sticker over it: a clear decal under the cap's own toon light
+        legend.material = legendMat(legend.userData.tex.texture);
         legend.rotation.x = -Math.PI / 2;
-        legend.position.y = 0.092;
+        legend.position.y = 0.091;
         key.add(legend);
       }
       keyboard.add(key);
@@ -7199,6 +7204,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
   cat.position.copy(catBed.position);
   cat.rotation.y = catBed.yaw;
   let catBusy = false;
+  // The timeline carrying her from one place to another, and the timer that ends a fidget in
+  // place (spotting the mouse, a click): both cut short when the case files need the desk
+  let catTravel = null;
+  let catFidget = null;
   const worldYaw = (object) => {
     const q = new THREE.Quaternion();
     object.getWorldQuaternion(q);
@@ -7264,9 +7273,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const go = () => {
       catInterrupt();
       if (catBusy) return timers.push(setTimeout(go, 300));
-      if (bedFor(darkNow && !openFolder) !== bed) return;
+      if (bedFor(darkNow && !openFolder) !== bed || bed === catBed) return;
       catBusy = true;
-      const tl = gsap.timeline({ delay: shooed ? 0 : 0.6, onComplete: () => (catBusy = false) });
+      const tl = gsap.timeline({ delay: shooed ? 0 : 0.6, onComplete: () => (catBusy = false, catTravel = null) });
+      catTravel = tl;
       tl.call(() => {
         catPose(true);
         sfx.meow({ short: true });
@@ -7277,6 +7287,31 @@ export function createDeskScene({ container, projects, experiences, dark = false
       catToBed(tl, bed);
     };
     go();
+  }
+  // Off the desk before a case file comes out, whatever she's doing: a move or a fidget is cut
+  // short, she jumps down to the rug under the desk, and `then` runs as she leaves the desk.
+  // Already off it and staying off, `then` runs straight away.
+  function catShoo(then) {
+    if (!catTravel && catBed !== CAT_BEDS.desk) return then();
+    catInterrupt();
+    catTravel?.kill();
+    clearTimeout(catFidget);
+    gsap.killTweensOf([cat.position, cat.rotation, cat.scale, catHead.position, catHead.rotation, catBody.position, tailCurl.rotation]);
+    catLegs.forEach((leg) => (leg.rotation.z = 0));
+    catWatchUntil = 0;
+    catBusy = true;
+    const tl = gsap.timeline({ onComplete: () => (catBusy = false, catTravel = null) });
+    catTravel = tl;
+    tl.call(() => {
+      catPose(true, 0.2);
+      gsap.to(cat.scale, { y: 0.85, duration: 0.2 });
+      sfx.meow({ short: true });
+      catSay("hmph!");
+    });
+    tl.to({}, { duration: 0.3 });
+    // the file starts out of the drawer as she springs, and lands once she's clear
+    tl.call(then, null, tl.duration() + 0.15);
+    catToBed(tl, CAT_BEDS.floor);
   }
 
   // The mouse on the desk turns into a real one and runs: she wakes with a start, follows it
@@ -7300,7 +7335,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     gsap.to(catHead.rotation, { x: 0, z: 0, duration: 0.35, ease: "power2.out", overwrite: true });
     gsap.to(catBody.position, { y: 0.08, duration: 0.35, ease: "power2.out", overwrite: true });
     gsap.fromTo(tailCurl.rotation, { y: -0.12 }, { y: 0.12, duration: 0.3, yoyo: true, repeat: 13, ease: "sine.inOut", onComplete: () => (tailCurl.rotation.y = 0) });
-    timers.push(setTimeout(() => {
+    timers.push(catFidget = setTimeout(() => {
       // ...and settles back down onto her paws
       gsap.to(catHead.position, { ...HEAD_CURLED, duration: 0.7, ease: "power2.inOut" });
       gsap.to(catHead.rotation, { x: 0.15, y: 0.35, z: 0.1, duration: 0.7, ease: "power2.inOut" });
@@ -7608,11 +7643,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const tl = gsap.timeline({
       onComplete: () => {
         catIdleTl = null;
-        if (moving) catBusy = false;
+        if (moving) catBusy = false, catTravel = null;
         catLife.wakeAt = performance.now() + napLength();
       },
     });
-    if (moving) catBusy = true;
+    if (moving) catBusy = true, catTravel = tl;
     else catIdleTl = tl;
     catYawn(tl);
     catStretch(tl);
@@ -7749,7 +7784,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     catBusy = true;
     const top = keyboard.position.y + KEY_Y + 0.09;
     const z = keyboard.position.z + 0.05;
-    const tl = gsap.timeline({ onComplete: () => (catBusy = false) });
+    const tl = gsap.timeline({ onComplete: () => (catBusy = false, catTravel = null) });
+    catTravel = tl;
     tl.call(() => {
       catPose(true);
       showTerminal();
@@ -7796,7 +7832,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       gsap.fromTo(tailCurl.rotation, { y: 0 }, { y: 0.15, duration: 0.2, yoyo: true, repeat: 5, ease: "sine.inOut" });
       sfx.meow();
       catSay(CAT_LINES[catLine++ % CAT_LINES.length]);
-      timers.push(setTimeout(() => {
+      timers.push(catFidget = setTimeout(() => {
         catEyes(false);
         catBusy = false;
       }, 2000));
@@ -8226,14 +8262,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
     if (openFolder) return;
     openFolder = entry;
     onEvent("projectOpen", { open: true });
-    // The cat asleep on the desk at night is shooed off first; the file waits for her to go
-    const wait = catBed === CAT_BEDS.desk ? 1.4 : 0;
-    catSettle();
     gsap.to(entry.body.position, { y: 0, z: 0, duration: 0.2, overwrite: true });
-    sfx.folderSlide({ duration: 0.6, delay: wait });
-    gsap.to(entry, { out: 1, duration: 1.0, delay: wait, ease: "power2.inOut", overwrite: true, onComplete: () => sfx.flop({ strength: 0.5, recorded: false }) });
-    gsap.to(entry.hinge.rotation, { z: Math.PI - OPEN_TILT, duration: 0.6, delay: wait + 1.0, ease: "power2.inOut", onStart: () => sfx.coverOpen({ duration: 0.6 }), onComplete: () => sfx.flop({ strength: 0.3, recorded: false }) });
     applyShot(false, 1.2);
+    // The cat gets off the desk first, whatever she's up to; the file waits for her to go
+    catShoo(() => {
+      if (openFolder !== entry) return;
+      sfx.folderSlide({ duration: 0.6 });
+      gsap.to(entry, { out: 1, duration: 1.0, ease: "power2.inOut", overwrite: true, onComplete: () => sfx.flop({ strength: 0.5, recorded: false }) });
+      gsap.to(entry.hinge.rotation, { z: Math.PI - OPEN_TILT, duration: 0.6, delay: 1.0, ease: "power2.inOut", onStart: () => sfx.coverOpen({ duration: 0.6 }), onComplete: () => sfx.flop({ strength: 0.3, recorded: false }) });
+    });
   }
   function closeProject() {
     if (!openFolder) return;

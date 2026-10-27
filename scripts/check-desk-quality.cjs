@@ -5,111 +5,115 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const source = fs.readFileSync(path.join(__dirname, '../src/components/features/desk/deskScene.js'), 'utf8');
-const code = source.slice(source.indexOf('  const QUALITY_LEVELS ='), source.indexOf('  let frame = null;'));
+const sizing = source.slice(source.indexOf('  const refreshMs ='), source.indexOf('  // `?perf` in the address'));
+let density = 2;
+let postRatio = 0;
+let postWidth = 0;
+let postHeight = 0;
+const resolution = vm.createContext({
+  renderer: { getPixelRatio: () => density },
+  container: { clientWidth: 1200, clientHeight: 800 },
+  composer: { setPixelRatio: (value) => { postRatio = value; }, setSize: (w, h) => { postWidth = w; postHeight = h; } },
+});
+vm.runInContext(sizing, resolution);
+const resize = vm.runInContext('sizeComposer', resolution);
+for (const dpr of [0.8, 1, 1.5, 2, 2.5, 3]) {
+  density = dpr;
+  resize();
+  assert.equal(postRatio, dpr, 'postprocessing must match the canvas, including Retina and browser zoom');
+  assert.equal(postWidth, 1200);
+  assert.equal(postHeight, 800);
+  // Exercise the actual frame-statistics update with sustained overload and hitches.
+  const timingStart = source.indexOf('    if (lastTick) frameMs +=');
+  const timingEnd = source.indexOf('    updateTicketHover(dt)', timingStart);
+  const stats = vm.runInContext('(now) => { let lastTick = 1; ' + source.slice(timingStart, timingEnd) + ' }', resolution);
+  for (let i = 0; i < 1200; i++) stats(1 + (i % 2 ? 50 : 250));
+  assert.equal(vm.runInContext('postDensity()', resolution), dpr, 'slow frames must never reduce render density');
+}
 
-function simulate(dpr = 2, hz = 60, loading = false) {
-  let now = 0;
-  let readoutTick;
-  const readout = { style: {} };
-  const document = { hidden: false, createElement: () => readout };
-  const context = vm.createContext({
-    performance: { now: () => now }, document, URLSearchParams,
-    window: { location: { search: '?perf' } }, timers: [],
-    setInterval: (fn) => { readoutTick = fn; return 1; },
-    renderer: { getPixelRatio: () => dpr }, aoPass: {},
-    shadowedNeons: [{ castShadow: true }, { castShadow: true }],
-    container: { clientWidth: 1200, clientHeight: 800, appendChild() {} },
-    composer: { setPixelRatio() {}, setSize() {} },
-  });
-  vm.runInContext(code, context);
-  const frame = vm.runInContext('(now, ms) => adaptQuality(now, ms)', context);
-  const get = vm.runInContext('() => ({ level: qualityLevel, density: postDensity(), refreshMs, ao: aoPass.enabled, shadows: shadowedNeons[0].castShadow, retryAt: [...retryAt] })', context);
-  function run(seconds, ms = 1000 / hz) {
-    const end = now + seconds * 1000;
-    while (now < end) {
-      now += ms;
-      frame(now, ms);
+// Execute the real scheduler, stopping immediately before scene updates.
+const start = source.indexOf('  let lastTick = 0;');
+const end = source.indexOf('    // Step size for the springs', start);
+for (const hz of [60, 90, 120, 144, 165]) {
+  for (const active of [false, true]) {
+    const light = () => ({ shadow: {} });
+    const scheduler = vm.createContext({ document: { hidden: false },
+      sun: light(), windowLight: light(), lampLight: light(), refreshMs: 1000 / 60,
+      responsiveUntil: active ? Infinity : 0, gsap: { isTweening: () => false }, cam: {}, catIdleTl: null,
+      benchmark: null, createToonBatch: () => () => {}, scene: {}, renderer: {}, track: (x) => x,
+      mouseRunning: false, lampHopping: false, trophyCelebrating: false, lanyardDrag: null, noteDrag: null, shelfDrag: null, stickyDrag: null,
+      perfReadout: null, requestAnimationFrame() {}, frame: null, accepted: [] });
+    vm.runInContext(source.slice(start, end) + 'accepted.push(now); lastTick = now; }', scheduler);
+    const tick = vm.runInContext('tick', scheduler);
+    for (let i = 0; i < hz * 10; i++) tick(1 + i * 1000 / hz + Math.sin(i * 1.7) * 1.5);
+    const frames = scheduler.accepted;
+    const gaps = frames.slice(1).map((now, i) => now - frames[i]);
+    if (active) {
+      assert.equal(frames.length, hz * 10, 'interaction must not skip browser frames, including under jitter');
+      assert.ok(Math.max(...gaps) <= 1000 / hz + 3.01, 'interaction must not introduce long/short frame pairs');
+    } else {
+      assert.ok(frames.length >= 480 && frames.length <= 730, 'idle retains a bounded render budget');
+      if (hz === 60 || hz === 120) assert.ok(Math.max(...gaps) < 20, 'idle pacing stays even on 60/120Hz displays');
     }
-    return get();
+    scheduler.document.hidden = true;
+    const before = frames.length;
+    tick(20000);
+    assert.equal(frames.length, before, 'hidden tabs do not render');
+    scheduler.document.hidden = false;
+    tick(21000);
+    assert.equal(frames.length, before + 1, 'visible tab renders immediately');
   }
-  vm.runInContext('applyQuality()', context);
-  if (loading) run(3, 50);
-  run(loading ? 4 : 7);
-  return {
-    run, get, document,
-    reset(density) { dpr = density; vm.runInContext('resetQuality()', context); },
-    readout() { readoutTick(); return readout.textContent; },
-  };
 }
-
-// Loading, ordinary frames and isolated spikes cannot permanently reduce quality.
-const normal = simulate();
-assert.equal(simulate(2, 60, true).run(15).level, 0, 'initial loading must not ratchet quality down');
-assert.equal(normal.run(30).level, 0);
-normal.run(0.2, 50);
-assert.equal(normal.run(4).level, 0);
-normal.run(1, 1500);
-assert.equal(normal.run(4).level, 0);
-
-// Sustained load removes effects before sacrificing pixels, then recovers every step.
-const load = simulate();
-let state = load.run(5, 1000 / 30);
-assert.equal(state.level, 1);
-assert.equal(state.ao, false);
-assert.equal(state.shadows, true);
-assert.equal(state.density, 2);
-state = load.run(6, 1000 / 30);
-assert.equal(state.level, 2);
-assert.equal(state.shadows, false);
-assert.equal(state.density, 2);
-state = load.run(30, 1000 / 30);
-assert.equal(state.level, 6);
-assert.equal(state.density, 1, 'Retina can reach the exact 1x floor');
-assert.match(load.readout(), /step 6\npost 1.00× · AO off · neon shadows off/);
-assert.equal(load.run(8).level, 6, 'recovery waits for ten smooth seconds');
-assert.equal(load.run(7).level, 5, 'first recovery takes one step');
-assert.equal(load.run(75).level, 0, 'all quality returns after load disappears');
-assert.match(load.readout(), /step 0\npost 2.00× · AO on · neon shadows on/);
-
-// A failed recovery backs off the level just attempted, without blocking other levels.
-const retry = simulate();
-retry.run(5, 1000 / 30);
-assert.equal(retry.run(12).level, 0);
-state = retry.run(5, 1000 / 30);
-assert.equal(state.level, 1);
-assert.ok(state.retryAt[0] > 0, 'cooldown belongs to failed step 0');
-assert.equal(state.retryAt[1], undefined);
-assert.equal(retry.run(15).level, 1, 'cannot immediately retry an expensive effect');
-assert.equal(retry.run(25).level, 0, 'can retry after cooldown expires');
-
-// Medium performance and hidden-tab pauses break consecutive smooth time.
-const streak = simulate();
-streak.run(5, 1000 / 30);
-streak.run(8);
-streak.run(3, 1000 / 55);
-assert.equal(streak.run(6).level, 1);
-streak.document.hidden = true;
-streak.run(20);
-streak.document.hidden = false;
-assert.equal(streak.run(6).level, 1);
-assert.equal(streak.run(8).level, 0);
-
-for (const [dpr, level] of [[1, 2], [1.5, 5], [2, 6]]) {
-  const screen = simulate(dpr);
-  state = screen.run(45, 1000 / 30);
-  assert.equal(state.level, level);
-  assert.equal(state.density, 1, 'never render post passes below CSS pixel resolution');
-  screen.reset(2);
-  state = screen.get();
-  assert.equal(state.level, 0);
-  assert.equal(state.ao, true);
-  assert.equal(state.shadows, true);
-  assert.equal(state.density, 2);
-  assert.equal(screen.run(15).level, 0);
+const lights = Array.from({ length: 4 }, () => ({ castShadow: true, intensity: 1, shadow: { needsUpdate: false } }));
+const shadows = vm.createContext({ shadowedNeons: lights, neonLights: lights.map((light) => ({ light, max: 1, level: () => 1 })) });
+const shadowStart = source.indexOf('  let neonShadowTurn =');
+vm.runInContext(source.slice(shadowStart, source.indexOf('  const deskNeons =', shadowStart)), shadows);
+const refresh = vm.runInContext('updateNeonLights', shadows);
+const updates = [0, 0, 0, 0];
+for (let frame = 0; frame < 240; frame++) {
+  refresh(frame * 1000 / 60);
+  lights.forEach((light, i) => {
+    if (light.shadow.needsUpdate) updates[i]++;
+    light.shadow.needsUpdate = false;
+    assert.equal(light.castShadow, true, 'budgeting must retain existing shadow maps');
+  });
 }
+assert.ok(updates.every((count) => count >= 15 && count <= 21), 'each decorative shadow refreshes at most 5Hz');
+updates.fill(0);
+for (let frame = 0; frame < 240; frame++) {
+  refresh(5000 + frame * 1000 / 120, true);
+  lights.forEach((light, i) => {
+    if (light.shadow.needsUpdate) updates[i]++;
+    light.shadow.needsUpdate = false;
+  });
+}
+assert.ok(updates.every((count) => count === 60), 'moving decorative shadows refresh every four frames, without the idle 200ms delay');
 
-const promotion = simulate(2, 120);
-assert.ok(Math.abs(promotion.get().refreshMs - 1000 / 120) < 0.01);
-assert.equal(promotion.run(8, 1000 / 60).level, 2, '120Hz target must not drift down to measured 60fps');
-assert.equal(promotion.run(35).level, 0);
-console.log('Adaptive quality: spikes, ladder, full recovery, cooldown, visibility, DPR and 120Hz checks passed.');
+// Overlay meshes share one render while retaining their parent transforms and picking layer.
+const THREE = require('three');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#fff');
+const background = scene.background;
+const camera = new THREE.OrthographicCamera();
+const overlay = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial({ depthTest: false }));
+scene.add(overlay, overlay.clone());
+let overlayRenders = 0;
+const renderContext = vm.createContext({ scene, camera, noRaycast() {},
+  performance: { now: () => 10 }, perfParams: { has: () => true },
+  renderer: { autoClear: true, info: { reset() {}, render: { calls: 2, triangles: 24 } }, render(root, cam) {
+    assert.equal(root, scene);
+    assert.equal(root.background, null, 'overlay pass must not clear the composed scene');
+    assert.equal(cam.layers.mask, 2);
+    overlayRenders++;
+  } },
+  composer: { render() { assert.ok(scene.children.every((o) => !o.visible)); } },
+  useFrameDepth() {}, gpuQuery: null, gpuTimer: null, renderMs: 0, drawCalls: 0, triangles: 0,
+});
+const renderStart = source.indexOf('  const overlays =');
+vm.runInContext(source.slice(renderStart, source.indexOf('  // Daylight enters', renderStart)), renderContext);
+vm.runInContext('renderFrame()', renderContext);
+assert.equal(overlayRenders, 1);
+assert.equal(camera.layers.mask, 1);
+assert.equal(scene.background, background);
+assert.ok(scene.children.every((o) => o.visible && o.layers.isEnabled(0)));
+console.log('Locked resolution: Retina/zoom, sustained overload, jitter-aware pacing, visibility and shadow budgets passed.');

@@ -162,73 +162,96 @@ const BODY = "'Space Grotesk', sans-serif";
 
 // ---------- ID badge (hero) ----------
 export function drawBadge(c, w, h, { back = false, now = new Date() } = {}) {
-  c.fillStyle = "#fff";
+  // One print layout at any texture density; hotspot coordinates follow the same scale.
+  const sx = w / 480;
+  const sy = h / 780;
+  c.save();
+  c.scale(sx, sy);
+  w = 480;
+  h = 780;
+  c.fillStyle = "#fffdf5";
   c.fillRect(0, 0, w, h);
-  c.textAlign = "center";
+  c.fillStyle = "#ffdd00";
+  c.fillRect(0, 0, w, 112);
+  c.fillStyle = "#17243b";
+  c.fillRect(0, 108, w, 6);
+  c.textAlign = "left";
   c.textBaseline = "middle";
+  c.font = `800 20px ${DISPLAY}`;
+  c.fillText("THE DESK", 30, 46);
+  c.font = `700 15px ${BODY}`;
+  c.fillText(back ? "RETURN TO OWNER" : "DEVELOPER ACCESS PASS", 30, 80);
+  c.textAlign = "right";
+  c.font = `800 32px ${BODY}`;
+  c.fillText("{ }", w - 30, 50);
+  c.textAlign = "center";
   const hotspots = [];
   if (back) {
-    // White card, black print: the same stock as the front
-    c.fillStyle = "#000";
-    c.font = `800 40px ${DISPLAY}`;
-    c.fillText("IF FOUND,", w / 2, 120);
-    c.fillText("PLEASE HIRE.", w / 2, 172);
+    c.fillStyle = "#17243b";
+    c.font = `800 32px ${DISPLAY}`;
+    c.fillText("IF FOUND,", w / 2, 174);
+    c.fillText("PLEASE HIRE.", w / 2, 220);
+    c.font = `500 20px ${BODY}`;
+    c.fillText("Good things start with a conversation.", w / 2, 270);
     // Links, printed as buttons
     [
       { label: "GITHUB ↗", color: "#ffdd00", href: "https://github.com/okasutarto" },
       { label: "LINKEDIN ↗", color: "#00e0c6", href: "https://linkedin.com/in/okasutarto" },
       { label: "EMAIL ME ↗", color: "#ff90e8", href: "mailto:okasputra@gmail.com" },
     ].forEach((link, i) => {
-      const box = { x: 60, y: 250 + i * 110, w: w - 120, h: 76 };
-      brutalBox(c, box.x, box.y, box.w, box.h, link.color, { shadow: 8, line: 6 });
-      c.fillStyle = "#000";
-      c.font = `800 28px ${DISPLAY}`;
+      const box = { x: 38, y: 326 + i * 100, w: w - 76, h: 72 };
+      brutalBox(c, box.x, box.y, box.w, box.h, link.color, { shadow: 6, line: 4 });
+      c.fillStyle = "#17243b";
+      c.font = `800 24px ${DISPLAY}`;
       c.fillText(link.label, w / 2, box.y + box.h / 2 + 2);
       hotspots.push({ ...box, href: link.href });
     });
-    c.fillStyle = "#000";
-    c.font = `700 22px ${BODY}`;
-    c.fillText("property of okasp", w / 2, h - 60);
+    c.fillStyle = "#245bd7";
+    c.font = `800 18px ${BODY}`;
+    c.fillText("BUILD · BREAK · LEARN · REPEAT", w / 2, 676);
+    c.fillStyle = "#526075";
+    c.font = `500 18px ${BODY}`;
+    c.fillText("property of okasp / Pontianak, ID", w / 2, 712);
   } else {
-    // clip slot + header band
-    c.fillStyle = "#ffdd00";
-    c.fillRect(0, 0, w, 120);
-    c.fillStyle = "#000";
-    c.fillRect(0, 116, w, 8);
-    c.fillRect(w / 2 - 60, 30, 120, 22);
-    c.font = `800 26px ${DISPLAY}`;
-    c.fillText("STAFF · DEV", w / 2, 90);
-    // photo
-    c.fillStyle = "#000";
-    c.fillRect(w / 2 - 80, 156, 180, 242);
-    drawPortrait(c, w / 2 - 90, 146, 180, 242, "#00e0c6");
-    c.fillStyle = "#000";
+    // Framed portrait with a small staff tab, set off the warm PVC stock.
+    c.fillStyle = "#17243b";
+    c.fillRect(140, 150, 216, 264);
+    drawPortrait(c, 132, 142, 216, 264, "#00e0c6");
+    c.fillStyle = "#245bd7";
+    c.fillRect(310, 370, 112, 36);
+    c.fillStyle = "#fff";
+    c.font = `800 16px ${BODY}`;
+    c.fillText("STAFF / 01", 366, 389);
+    c.fillStyle = "#17243b";
     // name + role
-    c.font = `800 40px ${DISPLAY}`;
-    c.fillText("OKA S.", w / 2, 430);
-    c.fillText("PUTRA", w / 2, 476);
-    c.font = `700 24px ${BODY}`;
-    c.fillText("FULL STACK DEVELOPER", w / 2, 522);
+    c.font = `800 38px ${DISPLAY}`;
+    c.fillText("OKA S.", w / 2, 455);
+    c.fillText("PUTRA", w / 2, 503);
+    c.font = `700 22px ${BODY}`;
+    c.fillText("FULL STACK DEVELOPER", w / 2, 549);
     // live status pill: green during working hours (WIB), orange otherwise
     const hour = (now.getUTCHours() + 7) % 24;
     const onDuty = hour >= 9 && hour < 19;
-    brutalBox(c, 60, 556, w - 120, 56, onDuty ? "#8fd694" : "#ff7a1a", { shadow: 6, line: 5 });
-    c.fillStyle = "#000";
-    c.font = `800 22px ${DISPLAY}`;
-    c.fillText(onDuty ? "● ON DUTY" : "● OFF DUTY", w / 2, 585);
+    brutalBox(c, 62, 585, w - 124, 52, onDuty ? "#8fd694" : "#ffb36b", { shadow: 5, line: 4 });
+    c.fillStyle = "#17243b";
+    c.font = `800 20px ${DISPLAY}`;
+    c.fillText(onDuty ? "● ON DUTY" : "● OFF DUTY", w / 2, 612);
     // barcode
-    for (let x = 60, i = 0; x < w - 60; i++) {
+    c.fillStyle = "#17243b";
+    for (let x = 90, i = 0; x < w - 90; i++) {
       const bw = [3, 6, 2, 8, 4][i % 5];
-      c.fillRect(x, 640, bw, 46);
+      c.fillRect(x, 679, bw, 34);
       x += bw + [4, 3, 6, 2, 5][(i * 3) % 5];
     }
+    c.font = `600 14px ${BODY}`;
+    c.fillStyle = "#526075";
+    c.fillText("OKASP — DEV / 001", w / 2, 737);
   }
-  c.lineWidth = 16;
-  c.strokeStyle = "#000";
-  c.strokeRect(8, 8, w - 16, h - 16);
-  c.textAlign = "left";
-  c.textBaseline = "alphabetic";
-  return hotspots;
+  c.lineWidth = 6;
+  c.strokeStyle = "#17243b";
+  c.strokeRect(3, 3, w - 6, h - 6);
+  c.restore();
+  return hotspots.map((box) => ({ ...box, x: box.x * sx, y: box.y * sy, w: box.w * sx, h: box.h * sy }));
 }
 
 // ---------- boarding pass (experience) ----------
@@ -4405,55 +4428,28 @@ function paintPetal(c, cx, cy, len, wid, line) {
   c.quadraticCurveTo(cx + wid * 0.12, cy - len * 0.5, cx, cy - len * 0.78);
   c.stroke();
 }
-// Sandai Kitetsu's embers: a little diamond spark, black-edged so it shows on the white wall,
-// crimson with a hot yellow heart
-export function drawEmber(c, w, h) {
+// A spark thrown off Sandai Kitetsu: a streak pointing along +x, a round hot head and a tail
+// thinning behind it, black-edged so it shows on the white wall
+export function drawSparkStreak(c, w, h, { color = "#e11d48", core = "#ffdd00" } = {}) {
   c.clearRect(0, 0, w, h);
-  const spark = (k) => {
+  const streak = (k) => {
+    const r = h * 0.36 * k;
+    const head = w - h * 0.5;
     c.beginPath();
-    c.moveTo(w / 2, h * (0.5 - 0.42 * k));
-    c.lineTo(w * (0.5 + 0.26 * k), h / 2);
-    c.lineTo(w / 2, h * (0.5 + 0.42 * k));
-    c.lineTo(w * (0.5 - 0.26 * k), h / 2);
+    c.moveTo(w * (1 - k) + h * 0.1, h / 2);
+    c.quadraticCurveTo(head - r * 2, h / 2 - r, head, h / 2 - r);
+    c.arc(head, h / 2, r, -Math.PI / 2, Math.PI / 2);
+    c.quadraticCurveTo(head - r * 2, h / 2 + r, w * (1 - k) + h * 0.1, h / 2);
     c.closePath();
   };
-  spark(1);
-  c.fillStyle = "#e11d48";
+  streak(0.95);
+  c.fillStyle = color;
   c.fill();
-  c.lineWidth = w * 0.07;
+  c.lineWidth = h * 0.12;
   c.strokeStyle = "#1a1714";
   c.stroke();
-  spark(0.45);
-  c.fillStyle = "#ffdd00";
-  c.fill();
-}
-// Enma's hellfire: a licking flame, black-edged like everything in the room, purple outside,
-// violet-pink within and a pale heart
-export function drawHellFlame(c, w, h) {
-  c.clearRect(0, 0, w, h);
-  const flame = (k) => {
-    const fw = w * 0.42 * k;
-    const base = h * 0.94;
-    const top = h * (1 - 0.9 * k);
-    c.beginPath();
-    c.moveTo(w / 2, top);
-    c.bezierCurveTo(w / 2 + fw * 0.35, top + h * 0.2 * k, w / 2 + fw * 1.1, base - h * 0.32 * k, w / 2 + fw * 0.7, base - h * 0.08 * k);
-    c.quadraticCurveTo(w / 2, base + h * 0.03, w / 2 - fw * 0.7, base - h * 0.08 * k);
-    c.bezierCurveTo(w / 2 - fw * 1.05, base - h * 0.36 * k, w / 2 - fw * 0.1, top + h * 0.34 * k, w / 2 - fw * 0.15, top + h * 0.16 * k);
-    c.quadraticCurveTo(w / 2 - fw * 0.05, top + h * 0.06 * k, w / 2, top);
-    c.closePath();
-  };
-  flame(1);
-  c.fillStyle = "#6b21a8";
-  c.fill();
-  c.lineWidth = w * 0.045;
-  c.strokeStyle = "#1a1714";
-  c.stroke();
-  flame(0.68);
-  c.fillStyle = "#c084fc";
-  c.fill();
-  flame(0.36);
-  c.fillStyle = "#f5e8ff";
+  streak(0.5);
+  c.fillStyle = core;
   c.fill();
 }
 // Black lightning (Haki crackling off Enma): a jagged bolt in black with a red-violet rim

@@ -14,6 +14,7 @@ const captured = new Set();
 let clicks = 0;
 let point = new THREE.Vector3(2.4, 3.5, 0.1);
 const sandbox = vm.createContext({
+  performance, responsiveUntil: 0,
   THREE, monitor, shelfDrag: null, noteDrag: null, lanyardDrag: null, downAt: null, focus: { name: "monitor" },
   renderer: { domElement: { style: {}, setPointerCapture: (id) => captured.add(id), hasPointerCapture: (id) => captured.has(id), releasePointerCapture: (id) => captured.delete(id) } },
   pick: () => ({ entry }),

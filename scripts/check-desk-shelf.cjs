@@ -10,6 +10,7 @@ let clicks = 0;
 let moves = 0;
 let hidden = 0;
 const ctx = vm.createContext({
+  performance, responsiveUntil: 0,
   THREE, shelfLook: 1.7, focus: { name: 'shelf' }, viewH: 12, cam: { zoom: 2 }, container: { clientHeight: 600 },
   shelfBubble: { hide() { hidden++; } }, applyShot() { moves++; },
   downAt: null, stickyDrag: null, noteDrag: null, lanyardDrag: null,

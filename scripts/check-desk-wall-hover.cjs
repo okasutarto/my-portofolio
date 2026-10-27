@@ -12,10 +12,12 @@ const apply = (target, values) => {
 let tweening = false;
 const gsap = { to: apply, fromTo: (target, from, to) => { apply(target, from); apply(target, to); }, killTweensOf() {}, isTweening: () => tweening };
 const handlers = new Map();
+const focus = { name: 'about' };
+let boardContext;
 const board = vm.runInNewContext(
   fs.readFileSync(`${__dirname}/../src/data/about.js`, 'utf8').replace(/export /g, '') +
-  section('  const aboutBoard =', '  // ---------- keyboard:') + '; ({ aboutBoard, boardNotes, liftNote, pinNote })', {
-    THREE, gsap, scene: new THREE.Group(), renderer: { domElement: { style: {} } },
+  section('  const aboutBoard =', '  // ---------- keyboard:') + '; ({ aboutBoard, boardNotes, liftNote, pinNote })', boardContext = {
+    THREE, gsap, focus, badgeClearance: null, scene: new THREE.Group(), renderer: { domElement: { style: {} } },
     track: (value) => value, noRaycast() {},
     printed: (w, h) => new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial()),
     mesh: (geometry, material) => new THREE.Mesh(geometry, material), rbox: (w, h, d) => new THREE.BoxGeometry(w, h, d),
@@ -40,9 +42,25 @@ for (const note of board.boardNotes) {
   assert.equal(note.shadow.material.opacity, 0.32);
 }
 const boardPosition = board.aboutBoard.position.clone();
-handlers.get(board.aboutBoard).onHover(true);
-handlers.get(board.aboutBoard).onHover(false);
+for (const name of ['about', 'room']) {
+  focus.name = name;
+  handlers.get(board.aboutBoard).onHover(true);
+  assert.ok(board.boardNotes.every((note) => note.sheet.rotation.x === 0), `${name}: the cork leaves the papers alone`);
+  handlers.get(board.aboutBoard).onHover(false);
+}
+focus.name = 'about';
 assert.ok(board.aboutBoard.position.equals(boardPosition), 'board stays mounted');
+
+// The badge swinging over a paper hangs clear of it, and further out when the paper tips forward
+const clearance = boardContext.badgeClearance;
+const who = board.boardNotes[0];
+const overWho = [board.aboutBoard.position.x + who.paper.position.x, board.aboutBoard.position.y + who.paper.position.y + 0.74];
+const restClear = clearance(...overWho, 0);
+assert.ok(restClear > board.aboutBoard.position.z + who.paper.position.z + 0.2, 'badge clears a resting paper and its pin');
+who.sheet.rotation.x = -0.24;
+assert.ok(clearance(...overWho, 0) > restClear + 0.2, 'badge clears a paper tipped out by hover');
+who.sheet.rotation.x = 0;
+assert.equal(clearance(-20, 0, 0), -Infinity, 'off the board the badge keeps its own depth');
 
 const stringGeo = new THREE.BoxGeometry(0.008, 4.15, 0.008, 1, 16, 1);
 const stringMat = new THREE.MeshBasicMaterial({ color: '#f4f2ee' });

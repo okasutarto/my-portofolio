@@ -5,6 +5,46 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const source = fs.readFileSync(path.join(__dirname, '../src/components/features/desk/deskScene.js'), 'utf8');
+const moodCode = source.slice(source.indexOf('  const daylightParts ='), source.indexOf('  const windowView ='));
+for (const [random, expected] of [[0, 'morning'], [0.5, 'day'], [0.999, 'evening']]) {
+  let draws = 0;
+  const mood = vm.runInNewContext(moodCode + '; ({ dayPart, outside })', {
+    dark: false, outside: { night: false }, Math: { floor: Math.floor, random: () => { draws++; return random; } },
+  });
+  assert.equal(mood.dayPart(), expected);
+  mood.outside.night = true;
+  assert.equal(mood.dayPart(), 'night');
+  mood.outside.night = false;
+  assert.equal(mood.dayPart(), expected, 'returning to light mode restores the selected mood');
+  assert.equal(draws, 1, 'redraws and theme changes must not reroll the sky');
+}
+{
+  let updates = 0;
+  let redraws = 0;
+  const lamps = [];
+  const events = [];
+  const cycle = vm.createContext({
+    dark: false, outside: { night: false }, darkNow: false, performance: { now: () => 0 },
+    Math: { floor: Math.floor, random: () => 0.5 },
+    setTheme: (isDark) => { cycle.darkNow = isDark; updates++; },
+    lampSwitch: (on) => lamps.push(on), onEvent: (name, payload) => events.push([name, payload.dark]),
+    setNeon() {}, catSettle() {}, desktop: { setTheme() {} }, redrawScreen() {},
+    windowView: { userData: { tex: { redraw: () => redraws++ } } },
+  });
+  const start = source.indexOf('  let nextDaylightAt =');
+  vm.runInContext(moodCode + source.slice(start, source.indexOf('  // ---------- pointer', start)), cycle);
+  assert.equal(vm.runInContext('nextDaylightAt', cycle), 90000);
+  vm.runInContext('updateDaylight(89999)', cycle);
+  assert.equal(updates, 0, 'wait until the selected interval has elapsed');
+  for (const [now, expected] of [[90000, 'evening'], [180000, 'night'], [270000, 'morning'], [360000, 'day']]) {
+    vm.runInContext(`updateDaylight(${now})`, cycle);
+    assert.equal(vm.runInContext('dayPart()', cycle), expected);
+  }
+  assert.deepEqual(lamps, [false, true, false, false], 'lamps turn on at night and off in the morning');
+  assert.deepEqual(events, [['nightShift', true], ['nightShift', false]], 'keep the page theme in sync');
+  assert.equal(updates, 4);
+  assert.equal(redraws, updates, 'sky and room lighting must update together');
+}
 const lampCode = source.slice(source.indexOf('  const setLamp ='), source.indexOf('  // Switched on, the bulb'));
 const themeCode = source.slice(source.indexOf('  function setTheme('), source.indexOf('  setTheme(dark);'));
 const color = () => ({ set(value) { this.value = value; return this; }, multiplyScalar() { return this; } });
@@ -17,7 +57,7 @@ const readabilityFill = {};
 const skyFill = { color: color() };
 const context = vm.createContext({
   deskNeons: [{ strip: {}, washMat: {} }, { strip: {}, washMat: {} }],
-  DESK_WASH: 0.45, monitorGlowMat: {}, updateLampGlow() {}, clockPart: () => 'day',
+  DESK_WASH: 0.45, monitorGlowMat: {}, updateLampGlow() {}, daylightPart: 'day',
   riserMat: material(), riserLegMat: material(), RISER_LEG_SHADE: 0.8,
   darkNow: false, roomDark: false, sun, windowLight, lampLight, ambient, readabilityFill, skyFill,
   chairFrameMat: material(), jointMat: material(),

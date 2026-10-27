@@ -2374,23 +2374,77 @@ export function drawWoodFloor(c, w, h) {
 // The painting is a little gallery: `art` picks the picture (0 sunset, 1 night city, 2 the wave)
 export const PAINTING_COUNT = 3;
 export function drawPainting(c, w, h, { art = 0 } = {}) {
+  c.save();
+  c.lineJoin = "round";
+  c.lineCap = "round";
+  let seed = 9173 + art * 137;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   const ink = (path, fill) => {
     c.fillStyle = fill;
     c.fill(path);
-    c.lineWidth = Math.max(5, w / 110);
-    c.strokeStyle = "#000";
+    c.save();
+    c.clip(path);
+    const pigment = c.createLinearGradient(0, 0, w * 0.3, h);
+    pigment.addColorStop(0, "rgba(255,248,222,.18)");
+    pigment.addColorStop(0.45, "rgba(255,248,222,0)");
+    pigment.addColorStop(1, "rgba(35,24,45,.13)");
+    c.fillStyle = pigment;
+    c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 24; i++) {
+      const x = rand() * w;
+      const y = rand() * h;
+      c.fillStyle = rand() < 0.5 ? "rgba(255,248,222,.16)" : "rgba(35,24,45,.08)";
+      c.fillRect(x, y, w * (0.008 + rand() * 0.045), h * (0.001 + rand() * 0.004));
+    }
+    c.restore();
+    c.lineWidth = Math.max(4, w / 150);
+    c.strokeStyle = "#30283a";
     c.stroke(path);
   };
   if (art === 1) drawNightCity(c, w, h, ink);
   else if (art === 2) drawWave(c, w, h, ink);
   else drawSunset(c, w, h, ink);
-  // white mat and black frame line
+  // Broken brush marks and fine canvas fibres, stable whenever the artwork is redrawn.
+  for (let i = 0; i < 320; i++) {
+    const x = rand() * w;
+    const y = rand() * h;
+    const length = w * (0.006 + rand() * 0.035);
+    c.strokeStyle = rand() < 0.5 ? "rgba(255,253,240,.12)" : "rgba(30,25,40,.055)";
+    c.lineWidth = h * (0.001 + rand() * 0.003);
+    c.beginPath();
+    c.moveTo(x, y);
+    c.quadraticCurveTo(x + length * 0.5, y - h * 0.003, x + length, y + h * 0.002);
+    c.stroke();
+  }
+  for (let i = 0; i < (w * h) / 280; i++) {
+    c.fillStyle = rand() < 0.5 ? "rgba(255,253,240,.09)" : "rgba(30,25,40,.06)";
+    c.fillRect(rand() * w, rand() * h, Math.max(1, w * 0.0008), h * (0.001 + rand() * 0.003));
+  }
+  // Woven canvas catches the light between the broken paint marks.
+  c.lineWidth = Math.max(0.5, w / 1400);
+  c.strokeStyle = "rgba(255,248,222,.09)";
+  c.beginPath();
+  for (let x = 0; x < w; x += w / 190) { c.moveTo(x, 0); c.lineTo(x, h); }
+  c.stroke();
+  c.strokeStyle = "rgba(35,24,45,.045)";
+  c.beginPath();
+  for (let y = 0; y < h; y += h / 140) { c.moveTo(0, y); c.lineTo(w, y); }
+  c.stroke();
+  // Warm cotton mount, with a recessed inner edge and a slightly worn paper surface.
   c.lineWidth = w * 0.05;
-  c.strokeStyle = "#fffdf5";
+  c.strokeStyle = "#eee5d4";
   c.strokeRect(0, 0, w, h);
-  c.lineWidth = Math.max(6, w / 90);
-  c.strokeStyle = "#000";
+  for (let i = 0; i < 700; i++) {
+    const x = rand() * w;
+    const y = rand() * h;
+    if (x > w * 0.025 && x < w * 0.975 && y > w * 0.025 && y < h - w * 0.025) continue;
+    c.fillStyle = rand() < 0.5 ? "rgba(255,255,255,.3)" : "rgba(83,65,44,.13)";
+    c.fillRect(x, y, w * 0.001, h * 0.003);
+  }
+  c.lineWidth = Math.max(2, w / 320);
+  c.strokeStyle = "#78664e";
   c.strokeRect(w * 0.025, h * 0.035, w * 0.95, h * 0.93);
+  c.restore();
 }
 
 // A city at night: moon, stars, a skyline with lit windows over the river
@@ -2514,13 +2568,23 @@ function drawSunset(c, w, h, ink) {
   const sun = new Path2D();
   sun.arc(w * 0.42, h * 0.6, h * 0.26, 0, Math.PI * 2);
   ink(sun, "#ff6b6b");
+  c.save();
+  c.clip(sun);
   c.fillStyle = "rgba(0,0,0,.14)";
   for (let i = 0; i < 4; i++) c.fillRect(w * 0.42 - h * 0.26, h * (0.52 + i * 0.05), h * 0.52, h * 0.015);
+  c.restore();
   // hills, back to front
   const hill = (points, fill) => {
     const path = new Path2D();
     path.moveTo(0, h);
-    points.forEach(([x, y]) => path.lineTo(w * x, h * y));
+    path.lineTo(w * points[0][0], h * points[0][1]);
+    for (let i = 1; i < points.length - 1; i++) {
+      const [x, y] = points[i];
+      const [nextX, nextY] = points[i + 1];
+      path.quadraticCurveTo(w * x, h * y, w * (x + nextX) / 2, h * (y + nextY) / 2);
+    }
+    const [lastX, lastY] = points[points.length - 1];
+    path.lineTo(w * lastX, h * lastY);
     path.lineTo(w, h);
     path.closePath();
     ink(path, fill);

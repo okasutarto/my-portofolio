@@ -16,7 +16,8 @@ const ctx = vm.createContext({
   toon: (color) => new THREE.MeshToonMaterial({ color }), track: (value) => value,
   rbox: (w,h,d) => new THREE.BoxGeometry(w,h,d), mesh: (geometry, material) => new THREE.Mesh(geometry, material),
   noRaycast() {}, register: (obj, handler) => handlers.push(handler),
-  gsap: { fromTo: (obj, from, to) => { Object.keys(from).forEach((key) => { obj[key] = to[key]; }); } },
+  floatNote() {},
+  gsap: { to: (obj, values) => { for (const axis of ['x', 'y', 'z']) if (axis in values) obj[axis] = values[axis]; }, fromTo: (obj, from, to) => { Object.keys(from).forEach((key) => { obj[key] = to[key]; }); } },
   onEvent: (name) => { assert.equal(name, 'toggleSound'); toggles++; }, sfx: { powerDown() {} },
 });
 vm.runInContext(source.slice(start, end), ctx);
@@ -39,6 +40,13 @@ for (const speaker of speakers) {
   assert.equal(speaker.group.scale.y, 1);
 }
 assert.ok(leds.every((led) => led.color.getHexString() === 'e11d48'), 'initial LEDs respect mute');
-handlers.forEach((handler) => handler.onClick());
+handlers.forEach((handler, i) => {
+  handler.onHover(true);
+  assert.ok(speakers[i].group.rotation.x < 0);
+  handler.onHover(false);
+  assert.equal(speakers[i].group.rotation.x, 0, 'speaker settles back on its base');
+  assert.equal(toggles, i, 'hover never toggles sound');
+  handler.onClick();
+});
 assert.equal(toggles, 2, 'both speakers still toggle sound');
 console.log('Speaker cone orientation, fitted caps, beat reset, muted LEDs and click checks passed.');

@@ -14,7 +14,7 @@ const family = vm.runInNewContext(source.slice(source.indexOf('  // Family keeps
   drawFamilyPortrait() {}, windowWood: { texture: new THREE.Texture() },
   toon: (color) => new THREE.MeshToonMaterial({ color }), track: (value) => value,
   rbox: (w,h,d) => new THREE.BoxGeometry(w,h,d), mesh: (geometry, material) => new THREE.Mesh(geometry, material),
-  hoverScale() {}, register: (object, handlers) => { entry = { object, ...handlers }; },
+  gsap: { to(target, values) { for (const axis of ['x','y','z']) if (axis in values) target[axis] = values[axis]; } }, register: (object, handlers) => { entry = { object, ...handlers }; },
 });
 const { width, height } = family.familyPhoto.geometry.parameters;
 assert.ok(Math.abs(width / height - 0.88 / 1.65) < 0.005, 'portrait keeps its aspect ratio');
@@ -29,14 +29,11 @@ const shot = vm.runInNewContext('({' + source.slice(shotStart, source.indexOf(' 
 });
 assert.ok(new THREE.Vector3(...shot.target).distanceTo(family.familyFrame.localToWorld(new THREE.Vector3(0,1.1,0.1))) < 1e-8);
 assert.ok(shot.fit[0] >= 1.24 && shot.fit[1] >= 1.95, 'close-up fits entire frame');
-// Hover must preserve the smaller resting scale after the pointer leaves.
-const hoverStart = source.indexOf('  const hoverScale =');
-const hover = vm.runInNewContext(source.slice(hoverStart, source.indexOf('  const shadowFill', hoverStart)) + '; hoverScale', {
-  gsap: { to: (scale, values) => { for (const axis of ['x','y','z']) scale[axis] = values[axis]; } },
-});
-hover(family.familyFrame, 0.82, 0.8)(true);
-hover(family.familyFrame, 0.82, 0.8)(false);
-assert.equal(family.familyFrame.scale.x, 0.8);
-assert.equal(family.familyFrame.scale.y, 0.8);
-assert.equal(family.familyFrame.scale.z, 0.8);
+// Rock from the easel base and return exactly, without inflating the portrait.
+entry.onHover(true);
+assert.ok(family.familyFrame.rotation.x > -0.08);
+entry.onHover(false);
+assert.equal(family.familyFrame.rotation.x, -0.08);
+assert.equal(family.familyFrame.rotation.y, 0.08);
+assert.deepEqual(family.familyFrame.scale.toArray(), [0.8, 0.8, 0.8]);
 console.log('Family frame, aspect ratio, placement, click registration and camera checks passed.');

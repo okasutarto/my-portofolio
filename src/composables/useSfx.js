@@ -454,8 +454,8 @@ const SOUNDS = {
     lfo.connect(depth).connect(pulse.gain);
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.9, t + 0.25);
-    gain.gain.setValueAtTime(0.9, t + duration - 0.4);
+    gain.gain.exponentialRampToValueAtTime(0.5, t + 0.25);
+    gain.gain.setValueAtTime(0.5, t + duration - 0.4);
     gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
     src.connect(low).connect(pulse).connect(gain).connect(out);
     src.start(t);
@@ -570,6 +570,42 @@ const SOUNDS = {
     noise(t + 0.06, { filter: "lowpass", freq: 220, to: 70, attack: 0.04, peak: 0.45, decay: 1.1 });
     tone(t + 0.02, { freq: 70, to: 32, attack: 0.01, peak: 0.4, decay: 0.8 });
   },
+  // Three overlapping cartoon voices shape an ee-to-ah "yeah!", through the normal mute bus.
+  cheer(t) {
+    [165, 205, 250].forEach((pitch, i) => {
+      const at = t + i * 0.07;
+      const voice = ctx.createOscillator();
+      voice.type = "sawtooth";
+      voice.frequency.setValueAtTime(pitch, at);
+      voice.frequency.linearRampToValueAtTime(pitch * 1.3, at + 0.22);
+      voice.frequency.linearRampToValueAtTime(pitch * 1.08, at + 1.05);
+      [[320, 780, 0.12], [2300, 1550, 0.07]].forEach(([start, end, level]) => {
+        const vowel = ctx.createBiquadFilter();
+        vowel.type = "bandpass";
+        vowel.Q.value = 5;
+        vowel.frequency.setValueAtTime(start, at);
+        vowel.frequency.exponentialRampToValueAtTime(end, at + 0.22);
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.0001, at);
+        gain.gain.exponentialRampToValueAtTime(level, at + 0.07);
+        gain.gain.setValueAtTime(level, at + 0.65);
+        gain.gain.exponentialRampToValueAtTime(0.0001, at + 1.1);
+        voice.connect(vowel).connect(gain).connect(out);
+      });
+      voice.start(at);
+      voice.stop(at + 1.15);
+    });
+  },
+  // Loose, overlapping palm transients, with a short room reflection and a gentle fade.
+  applause(t) {
+    for (let i = 0; i < 28; i++) {
+      const at = t + i * 0.085 + Math.random() * 0.04;
+      const level = 0.12 * Math.min(1, (i + 2) / 5, (30 - i) / 8);
+      noise(at, { filter: "bandpass", freq: vary(1250, 0.3), q: 0.7, attack: 0.001, peak: level, decay: 0.07 });
+      noise(at + 0.012, { filter: "highpass", freq: 1700, attack: 0.001, peak: level * 0.5, decay: 0.045 });
+      noise(at + 0.055, { freq: 900, q: 0.6, attack: 0.004, peak: level * 0.2, decay: 0.1 });
+    }
+  },
   // Plain UI click
   click(t) {
     tone(t, { freq: 900, to: 550, peak: 0.2, decay: 0.03 });
@@ -577,7 +613,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { meow: 0.3, purr: 1.5, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, shing: 0.5, sheathe: 0.4, whooshAway: 0.4, power: 1.4, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
+const MIN_GAP = { cheer: 2, applause: 3, meow: 0.3, purr: 1.5, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, shing: 0.5, sheathe: 0.4, whooshAway: 0.4, power: 1.4, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || (ctx.state !== "running" && !resuming) || document.hidden) return;

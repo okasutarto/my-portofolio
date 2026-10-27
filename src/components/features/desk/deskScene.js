@@ -5708,36 +5708,62 @@ export function createDeskScene({ container, projects, experiences, dark = false
       .to(catHead.rotation, { z: 0.12, duration: 0.07, yoyo: true, repeat: 3, ease: "sine.inOut" })
       .set(catHead.rotation, { z: 0 });
   }
-  // The big stretch: up on her feet, then front legs reaching out ahead, chest right down,
-  // rear end up in the air on straightened back legs, held, and back to level with a shiver
+  // Where a point on her body is, in her own space, for a given pose of the body: the belly's
+  // local point, scaled (catBody.scale), turned (catBody.rotation.z) and lifted
+  // (catBody.position.y). Her legs hang from these, so they always join her body.
+  const bodyPoint = (lx, ly, lz, { rz = 0, py = 0.5, sx = 1, sy = 0.85 } = {}) => {
+    const x = lx * sx;
+    const y = ly * sy;
+    return new THREE.Vector3(x * Math.cos(rz) - y * Math.sin(rz), x * Math.sin(rz) + y * Math.cos(rz) + py, lz);
+  };
+  // shoulder and hip, inside the belly (its ellipsoid is 1.15 × 0.55 × 0.85 about (0, 0.55))
+  const SHOULDER = [0.75, 0.3];
+  const HIP = [-0.75, 0.3];
+  // A paw's centre sits its own radius up, so the paw rests on the ground instead of in it
+  const PAW_Y = 0.14;
+  const STAND_POSE = { rz: 0, py: 0.5, sx: 1, sy: 0.85 };
+  const STRETCH_POSE = { rz: -0.45, py: 0.42, sx: 1, sy: 0.85 };
+  // Every leg from its shoulder or hip on the body as it is posed, to its paw on the ground
+  // (front paws `reach` further forward)
+  function legsOnBody(pose, reach = 0) {
+    [[frontL, 1, SHOULDER], [frontR, -1, SHOULDER], [rearL, 1, HIP], [rearR, -1, HIP]].forEach(([leg, side, [lx, ly]]) => {
+      const root = bodyPoint(lx, ly, side * 0.32, pose);
+      const front = lx > 0;
+      aimLeg(leg, root, new THREE.Vector3(root.x + (front ? reach : 0), PAW_Y, side * 0.32));
+    });
+  }
+  // The big stretch: front legs reaching out ahead, chest right down, rear end up in the air
+  // on straightened back legs, held, and back to level with a shiver. One tween drives the
+  // body's tilt and re-hangs every leg from it each frame.
   const [frontL, frontR, rearL, rearR] = catLegs;
   function catStretch(tl) {
-    const legs = { front: [frontL, frontR], rear: [rearL, rearR] };
+    const k = { t: 0 };
+    const pose = { ...STAND_POSE };
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const apply = () => {
+      pose.rz = lerp(STAND_POSE.rz, STRETCH_POSE.rz, k.t);
+      pose.py = lerp(STAND_POSE.py, STRETCH_POSE.py, k.t);
+      catBody.rotation.z = pose.rz;
+      catBody.position.y = pose.py;
+      legsOnBody(pose, 0.75 * k.t);
+    };
     tl.call(() => catPose(true, 0.3, "auto"))
       .to({}, { duration: 0.35 })
-      .to(catBody.rotation, { z: -0.45, duration: 0.7, ease: "sine.inOut" }, "stretch")
-      .to(catBody.position, { y: 0.42, duration: 0.7, ease: "sine.inOut" }, "stretch")
-      .to(legs.front.map((l) => l.rotation), { z: 1.27, duration: 0.7, ease: "sine.inOut" }, "stretch")
-      .to(legs.front.map((l) => l.scale), { y: 1.65, duration: 0.7, ease: "sine.inOut" }, "stretch")
-      .to(legs.front.map((l) => l.position), { x: 0.92, y: 0.36, duration: 0.7, ease: "sine.inOut" }, "stretch")
-      .to(legs.rear.map((l) => l.position), { y: 0.98, duration: 0.7, ease: "sine.inOut" }, "stretch")
-      .to(legs.rear.map((l) => l.scale), { y: 1.55, duration: 0.7, ease: "sine.inOut" }, "stretch")
-      .to(catHead.position, { x: 1.25, y: 1.0, duration: 0.7, ease: "sine.inOut" }, "stretch")
-      .to(catHead.rotation, { x: -0.2, duration: 0.7, ease: "sine.inOut" }, "stretch")
+      .call(() => {
+        k.t = 0;
+        apply();
+      })
+      .to(k, { t: 1, duration: 0.8, ease: "sine.inOut", onUpdate: apply }, "stretch")
+      .to(catHead.position, { x: 1.25, y: 1.0, duration: 0.8, ease: "sine.inOut" }, "stretch")
+      .to(catHead.rotation, { x: -0.2, duration: 0.8, ease: "sine.inOut" }, "stretch")
       // the tail rides up with her rear end (it hangs from her origin, so it's moved, not
       // turned: turning it there would swing its root away from her body)
-      .to(tailUp.position, { x: 0.2, y: 0.6, duration: 0.7, ease: "sine.inOut" }, "stretch")
+      .to(tailUp.position, { x: 0.2, y: 0.6, duration: 0.8, ease: "sine.inOut" }, "stretch")
       // held a moment, then back up level
-      .to(catBody.rotation, { z: 0, duration: 0.5, ease: "sine.inOut" }, "stretch+=1.3")
-      .to(catBody.position, { y: 0.5, duration: 0.5, ease: "sine.inOut" }, "stretch+=1.3")
-      .to(legs.front.map((l) => l.rotation), { z: 0, duration: 0.5, ease: "sine.inOut" }, "stretch+=1.3")
-      .to(legs.front.map((l) => l.scale), { y: 1, duration: 0.5, ease: "sine.inOut" }, "stretch+=1.3")
-      .to(legs.front.map((l) => l.position), { x: 0.62, y: 0.62, duration: 0.5, ease: "sine.inOut" }, "stretch+=1.3")
-      .to(legs.rear.map((l) => l.position), { y: 0.62, duration: 0.5, ease: "sine.inOut" }, "stretch+=1.3")
-      .to(legs.rear.map((l) => l.scale), { y: 1, duration: 0.5, ease: "sine.inOut" }, "stretch+=1.3")
-      .to(catHead.position, { ...HEAD_UP, duration: 0.5, ease: "sine.inOut" }, "stretch+=1.3")
-      .to(catHead.rotation, { x: 0, duration: 0.5, ease: "sine.inOut" }, "stretch+=1.3")
-      .to(tailUp.position, { x: 0, y: 0, duration: 0.5, ease: "sine.inOut" }, "stretch+=1.3")
+      .to(k, { t: 0, duration: 0.6, ease: "sine.inOut", onUpdate: apply }, "stretch+=1.4")
+      .to(catHead.position, { ...HEAD_UP, duration: 0.6, ease: "sine.inOut" }, "stretch+=1.4")
+      .to(catHead.rotation, { x: 0, duration: 0.6, ease: "sine.inOut" }, "stretch+=1.4")
+      .to(tailUp.position, { x: 0, y: 0, duration: 0.6, ease: "sine.inOut" }, "stretch+=1.4")
       .to(catModel.rotation, { x: 0.05, duration: 0.05, yoyo: true, repeat: 5, ease: "sine.inOut" })
       .set(catModel.rotation, { x: 0 });
   }
@@ -5763,9 +5789,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
   }
   // standing, as built: straight down from the hip/shoulder
   const legRest = (leg) => {
-    const side = Math.sign(leg.position.z) || 1;
-    const x = leg === frontL || leg === frontR ? 0.62 : -0.62;
-    return { shoulder: new THREE.Vector3(x, 0.62, side * 0.32), paw: new THREE.Vector3(x, 0.02, side * 0.32) };
+    const side = leg === frontL || leg === rearL ? 1 : -1;
+    const [lx, ly] = leg === frontL || leg === frontR ? SHOULDER : HIP;
+    const root = bodyPoint(lx, ly, side * 0.32, STAND_POSE);
+    return { shoulder: root, paw: new THREE.Vector3(root.x, PAW_Y, side * 0.32) };
   };
   function resetLeg(leg) {
     const { shoulder, paw } = legRest(leg);
@@ -5795,8 +5822,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
       onUpdate: () => aimLeg(leg, s.lerpVectors(from.s, shoulder, k.t), p.lerpVectors(from.p, paw, k.t)),
     }, at);
   }
-  const SIT_SHOULDER = (side) => new THREE.Vector3(0.15, 1.0, side * 0.3);
-  const SIT_PAW = (side) => new THREE.Vector3(0.3, 0.04, side * 0.3);
+  const SIT_POSE = { rz: 0.9, py: 0.45, sx: 0.75, sy: 0.85 };
+  const SIT_SHOULDER = (side) => bodyPoint(...SHOULDER, side * 0.3, SIT_POSE);
+  const SIT_PAW = (side) => new THREE.Vector3(0.3, PAW_Y, side * 0.3);
   function catSitPose(tl, on) {
     const d = 0.7;
     const ease = "sine.inOut";
@@ -5809,9 +5837,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
       tailUp.visible = !on;
       catEyes(true);
     })
-      .to(catBody.rotation, { z: on ? 0.9 : 0, duration: d, ease })
-      .to(catBody.scale, { x: on ? 0.75 : 1, y: 0.85, duration: d, ease }, "<")
-      .to(catBody.position, { y: on ? 0.4 : 0.5, duration: d, ease }, "<")
+      .to(catBody.rotation, { z: on ? SIT_POSE.rz : 0, duration: d, ease })
+      .to(catBody.scale, { x: on ? SIT_POSE.sx : 1, y: 0.85, duration: d, ease }, "<")
+      .to(catBody.position, { y: on ? SIT_POSE.py : 0.5, duration: d, ease }, "<")
       .to(tailCurl.position, { x: on ? 0.45 : 0, y: on ? -0.1 : 0, duration: d, ease }, "<")
       .to(tailCurl.scale, { x: on ? 0.85 : 1, z: on ? 0.85 : 1, duration: d, ease }, "<")
       .to(catHead.position, { ...(on ? SIT_HEAD : HEAD_UP), duration: d, ease }, "<")
@@ -5901,9 +5929,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
         gsap.to(cat.rotation, { y, duration: 0.6, ease: "power2.inOut" });
       });
       tl.to({}, { duration: 0.6 });
-      // up on her toes, head raised toward the glass
-      tl.to(catBody.position, { y: 0.62, duration: 0.3, ease: "power2.out" })
-        .to(catHead.position, { y: HEAD_UP.y + 0.2, duration: 0.3, ease: "power2.out" }, "<");
+      // head raised toward the glass
+      tl.to(catHead.position, { y: HEAD_UP.y + 0.2, duration: 0.35, ease: "power2.out" });
       catWatch(tl, windowPoint, 6, tailUp);
       tl.call(() => sfx.meow({ short: true }), null, "-=3");
       tl.to(cat.rotation, { y: restYaw, duration: 0.6, ease: "power2.inOut" });

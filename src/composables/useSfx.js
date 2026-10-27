@@ -550,6 +550,26 @@ const SOUNDS = {
       noise(at, { filter: "highpass", freq: vary(6000, 0.3), attack: 0.002, peak: 0.02 + Math.random() * 0.03, decay: 0.02 });
     }
   },
+  // Sandai Kitetsu stirring: a low, uneasy growl that wavers, as if the blade wants to cut
+  growl(t, { duration = 0.7 } = {}) {
+    for (let i = 0; i < 6; i++) {
+      const at = t + (i / 6) * duration;
+      tone(at, { type: "sawtooth", freq: vary(62 + (i % 2) * 9, 0.05), to: 55, attack: 0.03, peak: 0.09, decay: duration / 5 });
+    }
+    noise(t, { filter: "lowpass", freq: 320, to: 180, attack: duration * 0.4, peak: 0.12, decay: duration * 0.6 });
+  },
+  // Enma's hellfire: a low roar of flame billowing up and dying away
+  roar(t, { duration = 0.9 } = {}) {
+    noise(t, { filter: "lowpass", freq: 180, to: 900, attack: 0.12, peak: 0.32, decay: duration });
+    noise(t + 0.05, { filter: "bandpass", freq: 600, to: 1500, q: 0.7, attack: 0.1, peak: 0.12, decay: duration * 0.8 });
+  },
+  // Black lightning: a sharp crack and a rumble rolling off under it
+  thunder(t) {
+    noise(t, { filter: "highpass", freq: 1800, attack: 0.001, peak: 0.5, decay: 0.05 });
+    noise(t + 0.03, { freq: 900, q: 1.2, attack: 0.002, peak: 0.3, decay: 0.12 });
+    noise(t + 0.06, { filter: "lowpass", freq: 220, to: 70, attack: 0.04, peak: 0.45, decay: 1.1 });
+    tone(t + 0.02, { freq: 70, to: 32, attack: 0.01, peak: 0.4, decay: 0.8 });
+  },
   // Plain UI click
   click(t) {
     tone(t, { freq: 900, to: 550, peak: 0.2, decay: 0.03 });
@@ -557,7 +577,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { meow: 0.3, purr: 1.5, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, shing: 0.5, sheathe: 0.4, whooshAway: 0.4, power: 1.4, snap: 0.2, dust: 1, riser: 0.5 };
+const MIN_GAP = { meow: 0.3, purr: 1.5, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, shing: 0.5, sheathe: 0.4, whooshAway: 0.4, power: 1.4, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || (ctx.state !== "running" && !resuming) || document.hidden) return;

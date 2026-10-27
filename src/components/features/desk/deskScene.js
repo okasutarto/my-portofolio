@@ -5685,16 +5685,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     catPose(false, 0.2);
     catLife.wakeAt = performance.now() + napLength();
   }
-  // Sat up on her paws, head raised: how she watches things
-  function catLoaf(tl) {
-    tl.call(() => {
-      catPose(false, 0.35, "auto");
-      catEyes(true);
-    })
-      .to(catHead.position, { y: HEAD_CURLED.y + 0.38, z: HEAD_CURLED.z - 0.08, duration: 0.35, ease: "power2.out" })
-      .to(catHead.rotation, { x: 0, z: 0, duration: 0.35, ease: "power2.out" }, "<")
-      .to(catBody.position, { y: 0.08, duration: 0.35, ease: "power2.out" }, "<");
-  }
+  // Watching something: her head follows it (see updateCatWatch) and her tail sways;
   // `tail`: the curled tail when she's sat, the raised one when she's standing
   function catWatch(tl, at, seconds, tail = tailCurl) {
     tl.call(() => {
@@ -5866,9 +5857,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
   }
   const catSpots = () => Object.values(CAT_BEDS).filter((bed) => bed !== catBed && !(bed === CAT_BEDS.desk && openFolder));
   function catWakeUp() {
-    // Moving spot is a trip she can't be stopped mid-way through; the rest can be interrupted
+    // Every time: a yawn, a stretch and, straight on from it, a wash sat up. Then, maybe, one
+    // more thing: back to sleep, watching the pointer still sat, up to look out of the window
+    // (only from the desk, the one spot it's in view from), swatting at the butterfly, or a
+    // move to another spot. A move can't be stopped mid-way; the rest can be interrupted.
     const moving = Math.random() < 0.4;
-    const what = moving ? "move" : flight.active ? "butterfly" : ["groom", "pointer", "window"][Math.floor(Math.random() * 3)];
+    const onDesk = catBed === CAT_BEDS.desk;
+    const choices = onDesk ? ["rest", "pointer", "window"] : ["rest", "pointer"];
+    const after = flight.active ? "butterfly" : choices[Math.floor(Math.random() * choices.length)];
+    const what = moving ? "move" : after;
     const tl = gsap.timeline({
       onComplete: () => {
         catIdleTl = null;
@@ -5880,20 +5877,20 @@ export function createDeskScene({ container, projects, experiences, dark = false
     else catIdleTl = tl;
     catYawn(tl);
     catStretch(tl);
+    catGroom(tl);
     if (what === "move") {
       const spots = catSpots();
       // the chair's her favourite: half the time she goes there if she isn't on it already
       const pick = spots.includes(CAT_BEDS.chair) && Math.random() < 0.5 ? CAT_BEDS.chair : spots[Math.floor(Math.random() * spots.length)];
+      catSitPose(tl, false);
       catLeave(tl);
       catToBed(tl, pick);
       return;
     }
-    // the window she looks out of on her feet, the wash sat up properly; the rest in a loaf
-    if (what === "groom") catGroom(tl);
-    else if (what !== "window") catLoaf(tl);
-    if (what === "pointer") catWatch(tl, pointerPoint, 6);
+    if (what === "pointer") catWatch(tl, pointerPoint, 5);
     else if (what === "window") {
-      // turned round to face it (the window's behind her from most spots), then back after
+      // up off her haunches, turned round to face it (it's behind her on the desk), then back
+      catSitPose(tl, false);
       const restYaw = cat.rotation.y;
       tl.call(() => {
         const at = cat.parent.worldToLocal(windowPoint(new THREE.Vector3()));
@@ -5910,10 +5907,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
       catWatch(tl, windowPoint, 6, tailUp);
       tl.call(() => sfx.meow({ short: true }), null, "-=3");
       tl.to(cat.rotation, { y: restYaw, duration: 0.6, ease: "power2.inOut" });
-    } else {
-      // the butterfly: she follows it, and swats at it twice
+    } else if (what === "butterfly") {
+      // still sat: she follows it, and swats at it twice with her near paw
+      tl.addLabel("watch");
       catWatch(tl, butterflyPoint, 5);
-      [1.2, 3].forEach((at) => tl.to(paws.children[0].position, { x: 1.35, y: 1.1, z: 0.45, duration: 0.14, yoyo: true, repeat: 1, ease: "power2.out" }, `-=${5 - at}`));
+      const reach = AT_CHEEK.clone().add(new THREE.Vector3(0.35, 0.3, 0.2));
+      [1.2, 3].forEach((at) => {
+        moveLeg(tl, frontL, GROOM_SHOULDER, reach, 0.18, `watch+=${at}`);
+        moveLeg(tl, frontL, SIT_SHOULDER(1), SIT_PAW(1), 0.25, `watch+=${at + 0.18}`);
+      });
     }
     // and back down to sleep
     tl.call(() => {

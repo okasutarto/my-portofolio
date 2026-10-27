@@ -1827,20 +1827,21 @@ export function drawGuitarTop(c, w, h) {
   const toY = (y) => (1 - (y + 0.95) / 2.87) * h;
   const ux = w / 2;
   const line = w * 0.018;
-  c.fillStyle = "#ffdd00";
+  // A natural spruce top, warm but quiet next to the room's brights
+  c.fillStyle = "#e6c38f";
   c.fillRect(0, 0, w, h);
   // halftone dots, heavier toward the lower edge
   for (let y = 0; y < h; y += w * 0.035) {
     for (let x = (Math.round(y / (w * 0.035)) % 2) * w * 0.0175; x < w; x += w * 0.035) {
       const k = Math.max(0, (y / h - 0.55) / 0.45);
       if (!k) continue;
-      c.fillStyle = "rgba(230,140,0,.55)";
+      c.fillStyle = "rgba(150,95,40,.3)";
       c.beginPath();
       c.arc(x, y, w * 0.007 * k, 0, Math.PI * 2);
       c.fill();
     }
   }
-  // the pickguard: a teal crescent tucked against the rosette's lower right, its inner edge
+  // the pickguard: a dark tortoise crescent tucked against the rosette's lower right, its inner edge
   // following the ring and its outer edge sweeping round toward the waist
   const cx = toX(0);
   const cy = toY(1.15);
@@ -1850,7 +1851,7 @@ export function drawGuitarTop(c, w, h) {
   c.bezierCurveTo(toX(0.78), toY(1.12), toX(0.86), toY(0.78), toX(0.6), toY(0.6));
   c.bezierCurveTo(toX(0.4), toY(0.48), toX(0.02), toY(0.52), cx + Math.cos(1.9) * ringR, cy + Math.sin(1.9) * ringR);
   c.closePath();
-  c.fillStyle = "#00e0c6";
+  c.fillStyle = "#4a2f1f";
   c.fill();
   c.lineWidth = line * 0.8;
   c.strokeStyle = "#000";

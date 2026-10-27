@@ -7826,7 +7826,16 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const CAT_LINES = ["mrrp?", "meow~", "purrr…", "zzz…", "feed me 🐟", "5 more minutes"];
   let catLine = 0;
   let catClicks = 0;
-  const catBubble = speechBubble(3.0, 1.6, { size: 46, tail: "left", style: "manga" });
+  // Her bubble keeps the same size on screen however far out the camera is (from the whole
+  // room on a phone to a close-up), so what she says, and her name nearly as large under it,
+  // stay readable. Built at 1 world unit per CAT_BUBBLE_PX; a holder scales it to fit.
+  const CAT_BUBBLE_W = 3.6;
+  const CAT_BUBBLE_H = 1.92;
+  const CAT_BUBBLE_PX = 300;
+  const catBubble = speechBubble(CAT_BUBBLE_W, CAT_BUBBLE_H, { size: 72, by: 0.9, tail: "left", style: "manga" });
+  const catBubbleHolder = new THREE.Group();
+  scene.add(catBubbleHolder);
+  catBubbleHolder.add(catBubble.sprite);
   const catBubbleAt = new THREE.Vector3();
   const catBubbleTip = new THREE.Vector3();
   const catBubbleRight = new THREE.Vector3();
@@ -7836,14 +7845,19 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // the keyboard), its tail pointing down at her with a clear gap above her ears. `blend`: 1
   // jumps straight there; less eases it after her head, so a quick bob doesn't jiggle it.
   const placeCatBubble = (blend = 1) => {
+    // world units per screen pixel, then the scale that makes it CAT_BUBBLE_PX wide (at most
+    // about half a narrow screen, so it doesn't run off the side of a phone)
+    const unitsPerPixel = viewH / camera.zoom / container.clientHeight;
+    const k = Math.min(CAT_BUBBLE_PX, container.clientWidth * 0.55) * unitsPerPixel / CAT_BUBBLE_W;
+    catBubbleHolder.scale.setScalar(k);
     catHead.getWorldPosition(catBubbleAt);
     catBubbleRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
     catBubbleUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
     catBubbleAt.addScaledVector(catBubbleUp, 1.0).addScaledVector(catBubbleRight, 0.15);
     catBubbleTip.lerp(catBubbleAt, blend);
-    catBubble.sprite.position.copy(catBubbleTip)
-      .addScaledVector(catBubbleRight, (0.5 - CAT_TIP_X) * 3.0)
-      .addScaledVector(catBubbleUp, (CAT_TIP_Y - 0.5) * 1.6);
+    catBubbleHolder.position.copy(catBubbleTip)
+      .addScaledVector(catBubbleRight, (0.5 - CAT_TIP_X) * CAT_BUBBLE_W * k)
+      .addScaledVector(catBubbleUp, (CAT_TIP_Y - 0.5) * CAT_BUBBLE_H * k);
   };
   function catSay(text) {
     placeCatBubble();

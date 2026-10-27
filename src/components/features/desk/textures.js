@@ -2392,7 +2392,8 @@ export const BUBBLE_TAILS = {
   "side-left": { oval: [0.56, 0.5, 0.4, 0.42], angle: Math.PI, tip: [0.03, 0.5] },
   "side-right": { oval: [0.44, 0.5, 0.4, 0.42], angle: 0, tip: [0.97, 0.5] },
 };
-function drawMangaBubble(c, w, h, quote, size, tailSide) {
+// `by`: the attribution's size as a share of the quote's
+function drawMangaBubble(c, w, h, quote, size, tailSide, by = 0.75) {
   const shape = BUBBLE_TAILS[tailSide] || BUBBLE_TAILS.right;
   const cx = w * shape.oval[0];
   const cy = h * shape.oval[1];
@@ -2416,23 +2417,23 @@ function drawMangaBubble(c, w, h, quote, size, tailSide) {
   const lead = size * 1.2;
   c.font = `italic 700 ${size}px ${BODY}`;
   const lines = wrap(c, quote.text.toUpperCase(), rx * 1.45, 4);
-  const byH = size * 0.9;
+  const byH = size * by * 1.2;
   const top = cy - (lines.length * lead + byH) / 2 + lead / 2;
   c.fillStyle = "#000";
   c.textAlign = "center";
   c.textBaseline = "middle";
   lines.forEach((line, i) => c.fillText(line, cx, top + i * lead));
-  c.font = `600 ${Math.round(size * 0.75)}px 'Caveat', cursive`;
+  c.font = `600 ${Math.round(size * by)}px 'Caveat', cursive`;
   c.fillStyle = "rgba(0,0,0,.6)";
   c.fillText(`— ${quote.by}`, cx, top + lines.length * lead + byH * 0.2);
   c.textAlign = "left";
   c.textBaseline = "alphabetic";
 }
 
-export function drawQuoteBubble(c, w, h, quote, { size = 32, tail: tailSide = "right", style } = {}) {
+export function drawQuoteBubble(c, w, h, quote, { size = 32, tail: tailSide = "right", style, by } = {}) {
   c.clearRect(0, 0, w, h);
   if (!quote) return;
-  if (style === "manga") return drawMangaBubble(c, w, h, quote, size, tailSide);
+  if (style === "manga") return drawMangaBubble(c, w, h, quote, size, tailSide, by);
   const tail = 46;
   const box = { x: 14, y: 14, w: w - 40, h: h - tail - 40 };
   // hard shadow, then the bubble with its tail pointing down to the speaker: from the lower

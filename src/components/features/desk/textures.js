@@ -3458,92 +3458,6 @@ export function drawBinLabel(c, w, h) {
 }
 
 // ---------- katana ----------
-// The slash: a thick white crescent with a black outline, tapering at both ends
-// Each sword cuts its own trail:
-// "wado"    a clean, thin white crescent with a crisp ink edge and a pale blue sheen
-// "kitetsu" a ragged crescent, jagged along its outer edge, bleeding from red to purple
-// "enma"    a heavy crescent of dark purple Haki with a violet glow and red sparks of lightning
-export function drawSlash(c, w, h, { style = "wado" } = {}) {
-  c.clearRect(0, 0, w, h);
-  const cx = w / 2;
-  const arc = (r1, r2, jag = 0) => {
-    c.beginPath();
-    const steps = 48;
-    for (let i = 0; i <= steps; i++) {
-      const a = Math.PI * (1.08 + (i / steps) * 0.84);
-      const bite = jag && i % 2 ? jag : 0;
-      const x = cx + Math.cos(a) * w * 0.46 * r1 * (1 + bite);
-      const y = h * 0.95 + Math.sin(a) * h * 0.85 * r1 * (1 + bite);
-      if (i) c.lineTo(x, y);
-      else c.moveTo(x, y);
-    }
-    c.ellipse(cx, h * 1.02, w * 0.44 * r2, h * 0.72 * r2, 0, Math.PI * 1.92, Math.PI * 1.08, true);
-    c.closePath();
-  };
-  if (style === "kitetsu") {
-    arc(1.03, 0.95, 0.05);
-    c.fillStyle = "#1a1714";
-    c.fill();
-    arc(1, 0.97, 0.045);
-    const g = c.createLinearGradient(0, 0, w, 0);
-    g.addColorStop(0, "#7c3aed");
-    g.addColorStop(0.5, "#e11d48");
-    g.addColorStop(1, "#7c3aed");
-    c.fillStyle = g;
-    c.fill();
-    // a pale core along the inner edge
-    arc(0.985, 0.975);
-    c.fillStyle = "rgba(255,240,245,.85)";
-    c.fill();
-    return;
-  }
-  if (style === "enma") {
-    // the glow first, then the body, then lightning crackling off it
-    c.save();
-    c.shadowColor = "#a855f7";
-    c.shadowBlur = h * 0.12;
-    arc(1.06, 0.92);
-    c.fillStyle = "#1b0b2e";
-    c.fill();
-    c.restore();
-    arc(1.04, 0.94);
-    const g = c.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, "#2a0f45");
-    g.addColorStop(1, "#6b21a8");
-    c.fillStyle = g;
-    c.fill();
-    c.lineWidth = 5;
-    c.strokeStyle = "#c084fc";
-    c.stroke();
-    c.strokeStyle = "#ff2d55";
-    c.lineWidth = 4;
-    c.lineJoin = "miter";
-    [0.18, 0.42, 0.66, 0.86].forEach((f, i) => {
-      const a = Math.PI * (1.1 + f * 0.8);
-      let x = cx + Math.cos(a) * w * 0.47;
-      let y = h * 0.95 + Math.sin(a) * h * 0.87;
-      c.beginPath();
-      c.moveTo(x, y);
-      for (let k = 0; k < 4; k++) {
-        x += Math.cos(a) * w * 0.03 + (k % 2 ? 1 : -1) * w * 0.02;
-        y += Math.sin(a) * h * 0.07 + (i % 2 ? 1 : -1) * h * 0.02;
-        c.lineTo(x, y);
-      }
-      c.stroke();
-    });
-    return;
-  }
-  arc(1.02, 0.985);
-  c.fillStyle = "#000";
-  c.fill();
-  arc(1, 0.995);
-  c.fillStyle = "#fffdf5";
-  c.fill();
-  c.lineWidth = 4;
-  c.strokeStyle = "#bfe9ff";
-  c.stroke();
-}
-
 // A little four-pointed glint, for light catching a blade's tip
 export function drawGlint(c, w, h) {
   c.clearRect(0, 0, w, h);
@@ -3580,49 +3494,13 @@ export function drawHakiAura(c, w, h) {
   c.restore();
 }
 
-// A manga shout, as in a fight panel: a white burst with uneven spikes over a ring of speed
-// lines, the technique's name in heavy slanted black type with a red offset shadow (split over
-// two lines when it's long), and a red 斬 ("cut") seal stamped in the corner
-export function drawShout(c, w, h, text) {
+// The technique's name, called out in the site's own badge style: a slanted plate in the
+// sword's colour (flat, ink outline, hard offset shadow), sized to the name (split over two
+// lines when it's long), with a small ink 斬 ("cut") chip pinned to its corner
+const SHOUT_COLORS = { wado: ["#ffdd00", "#1a1714"], kitetsu: ["#c81e1e", "#fffdf5"], enma: ["#6b2fa8", "#fffdf5"] };
+export function drawShout(c, w, h, text, { style = "wado" } = {}) {
   c.clearRect(0, 0, w, h);
-  const cx = w / 2;
-  const cy = h * 0.52;
-  // speed lines radiating out from behind the balloon
-  c.strokeStyle = "#1a1714";
-  for (let i = 0; i < 64; i++) {
-    const a = (i / 64) * Math.PI * 2 + Math.sin(i * 7.1) * 0.03;
-    const r0 = 0.42 + Math.abs(Math.sin(i * 3.7)) * 0.06;
-    c.lineWidth = 1.5 + Math.abs(Math.sin(i * 5.3)) * 3.5;
-    c.beginPath();
-    c.moveTo(cx + Math.cos(a) * w * r0, cy + Math.sin(a) * h * r0 * 1.05);
-    c.lineTo(cx + Math.cos(a) * w * 0.62, cy + Math.sin(a) * h * 0.62 * 1.05);
-    c.stroke();
-  }
-  // the balloon: long sharp spikes between short ones, no two alike
-  const spikes = 22;
-  const burst = (dx, dy) => {
-    c.beginPath();
-    for (let i = 0; i <= spikes * 2; i++) {
-      const a = (i / (spikes * 2)) * Math.PI * 2;
-      const long = 0.98 + Math.abs(Math.sin(i * 2.3)) * 0.1;
-      const r = i % 2 ? 0.74 + Math.abs(Math.sin(i * 1.7)) * 0.06 : long;
-      const x = cx + dx + Math.cos(a) * w * 0.43 * r;
-      const y = cy + dy + Math.sin(a) * h * 0.4 * r;
-      if (i) c.lineTo(x, y);
-      else c.moveTo(x, y);
-    }
-    c.closePath();
-  };
-  burst(10, 10);
-  c.fillStyle = "#1a1714";
-  c.fill();
-  burst(0, 0);
-  c.fillStyle = "#fffdf5";
-  c.fill();
-  c.lineWidth = 7;
-  c.lineJoin = "miter";
-  c.strokeStyle = "#1a1714";
-  c.stroke();
+  const [fill, ink] = SHOUT_COLORS[style] || SHOUT_COLORS.wado;
   // the name: two lines at a colon or the middle space when it's long
   let lines = [text];
   if (text.length > 14) {
@@ -3630,42 +3508,49 @@ export function drawShout(c, w, h, text) {
     const cut = colon > 0 ? colon + 1 : text.lastIndexOf(" ", Math.ceil(text.length / 2) + 2);
     if (cut > 0) lines = [text.slice(0, cut).trim(), text.slice(cut).trim()];
   }
-  c.save();
-  c.translate(cx, cy);
-  c.rotate(-0.07);
-  c.transform(1, 0, -0.18, 1, 0, 0);
-  c.textAlign = "center";
-  c.textBaseline = "middle";
   const longest = lines.reduce((a, b) => (a.length > b.length ? a : b));
-  fitFont(c, longest, 900, DISPLAY, Math.round(h * (lines.length > 1 ? 0.17 : 0.22)), w * 0.62);
+  fitFont(c, longest, 900, DISPLAY, Math.round(h * (lines.length > 1 ? 0.13 : 0.16)), w * 0.7);
   const size = parseInt(c.font.match(/(\d+)px/)[1], 10);
-  const lead = size * 1.12;
-  lines.forEach((line, i) => {
-    const y = (i - (lines.length - 1) / 2) * lead;
-    c.lineJoin = "round";
-    c.lineWidth = size * 0.3;
-    c.strokeStyle = "#fffdf5";
-    c.strokeText(line, 0, y);
-    c.fillStyle = "#e11d48";
-    c.fillText(line, size * 0.07, y + size * 0.07);
-    c.fillStyle = "#1a1714";
-    c.fillText(line, 0, y);
-  });
-  c.restore();
-  // the seal
+  const lead = size * 1.2;
+  const textW = Math.max(...lines.map((line) => c.measureText(line).width));
+  const plateW = textW + size * 1.6;
+  const plateH = lead * lines.length + size * 0.9;
+  const skew = plateH * 0.22;
+  const shadow = h * 0.04;
   c.save();
-  c.translate(w * 0.83, h * 0.2);
-  c.rotate(0.15);
-  c.fillStyle = "#e11d48";
-  c.fillRect(-h * 0.1, -h * 0.1, h * 0.2, h * 0.2);
+  c.translate(w / 2, h / 2);
+  c.rotate(-0.06);
+  const plate = (dx, dy) => {
+    c.beginPath();
+    c.moveTo(-plateW / 2 + skew + dx, -plateH / 2 + dy);
+    c.lineTo(plateW / 2 + skew + dx, -plateH / 2 + dy);
+    c.lineTo(plateW / 2 - skew + dx, plateH / 2 + dy);
+    c.lineTo(-plateW / 2 - skew + dx, plateH / 2 + dy);
+    c.closePath();
+  };
+  plate(shadow, shadow);
+  c.fillStyle = "#1a1714";
+  c.fill();
+  plate(0, 0);
+  c.fillStyle = fill;
+  c.fill();
+  c.lineWidth = h * 0.022;
+  c.lineJoin = "miter";
   c.strokeStyle = "#1a1714";
-  c.lineWidth = 4;
-  c.strokeRect(-h * 0.1, -h * 0.1, h * 0.2, h * 0.2);
-  c.fillStyle = "#fffdf5";
-  c.font = `900 ${Math.round(h * 0.15)}px serif`;
+  c.stroke();
   c.textAlign = "center";
   c.textBaseline = "middle";
-  c.fillText("斬", 0, h * 0.01);
+  c.fillStyle = ink;
+  lines.forEach((line, i) => c.fillText(line, 0, (i - (lines.length - 1) / 2) * lead + size * 0.05));
+  // the chip, half off the plate's top-left corner
+  const chip = h * 0.15;
+  c.translate(-plateW / 2 + skew - chip * 0.15, -plateH / 2 - chip * 0.1);
+  c.rotate(-0.12);
+  c.fillStyle = "#1a1714";
+  c.fillRect(-chip / 2, -chip / 2, chip, chip);
+  c.fillStyle = "#ffdd00";
+  c.font = `900 ${Math.round(chip * 0.7)}px serif`;
+  c.fillText("斬", 0, chip * 0.04);
   c.restore();
 }
 
@@ -4420,26 +4305,35 @@ export function drawSparkStreak(c, w, h, { color = "#e11d48", core = "#ffdd00" }
   c.fillStyle = core;
   c.fill();
 }
-// Black lightning (Haki crackling off Enma): a jagged bolt in black with a red-violet rim
+// Black lightning (Haki crackling off Enma), drawn to read from across the room: a wide
+// violet glow, a thick ink bolt jagging down the canvas with two forks, and a hot white-violet
+// crack running down its heart
 export function drawBlackBolt(c, w, h) {
   c.clearRect(0, 0, w, h);
-  const pts = [[0.55, 0], [0.42, 0.22], [0.58, 0.3], [0.38, 0.55], [0.55, 0.6], [0.3, 1]];
-  const branch = [[0.42, 0.55], [0.22, 0.7], [0.3, 0.78]];
-  const path = (list) => {
-    c.beginPath();
-    list.forEach(([x, y], i) => (i ? c.lineTo(x * w, y * h) : c.moveTo(x * w, y * h)));
-  };
-  c.lineCap = "round";
-  c.lineJoin = "round";
-  [[w * 0.16, "rgba(225,29,72,.85)"], [w * 0.09, "#1a1714"]].forEach(([lw, color]) => {
+  const pts = [[0.55, 0], [0.4, 0.16], [0.6, 0.27], [0.36, 0.45], [0.58, 0.56], [0.4, 0.74], [0.5, 0.84], [0.32, 1]];
+  const forks = [
+    [[0.36, 0.45], [0.24, 0.55], [0.28, 0.64], [0.19, 0.76]],
+    [[0.58, 0.56], [0.72, 0.66], [0.67, 0.74], [0.8, 0.86]],
+  ];
+  const stroke = (list, lw, color) => {
     c.lineWidth = lw;
     c.strokeStyle = color;
-    path(pts);
+    c.beginPath();
+    list.forEach(([x, y], i) => (i ? c.lineTo(x * w, y * h) : c.moveTo(x * w, y * h)));
     c.stroke();
-    c.lineWidth = lw * 0.6;
-    path(branch);
-    c.stroke();
-  });
+  };
+  c.lineCap = "round";
+  c.lineJoin = "miter";
+  c.save();
+  c.shadowColor = "#a855f7";
+  c.shadowBlur = w * 0.18;
+  stroke(pts, w * 0.2, "rgba(168,85,247,.9)");
+  forks.forEach((fork) => stroke(fork, w * 0.12, "rgba(168,85,247,.9)"));
+  c.restore();
+  stroke(pts, w * 0.13, "#1a1714");
+  forks.forEach((fork) => stroke(fork, w * 0.08, "#1a1714"));
+  stroke(pts, w * 0.035, "#f5e8ff");
+  forks.forEach((fork) => stroke(fork, w * 0.02, "#f5e8ff"));
 }
 export function drawSakuraPetal(c, w, h) {
   c.clearRect(0, 0, w, h);
@@ -4962,53 +4856,5 @@ export function drawInvaders(c, w, h, t = 0) {
     c.textAlign = "center";
     c.fillText("STAGE CLEAR!", w / 2, p * 22);
     c.textAlign = "left";
-  }
-}
-
-// ---------- technique effects ----------
-// A whirlwind for the TATSU MAKI techniques: stacked bands winding up a cone, in the sword's
-// colour with ink edges, drawn upright on a transparent canvas
-const CUT_COLORS = { wado: ["#fffdf5", "#bfe9ff"], kitetsu: ["#e11d48", "#7c3aed"], enma: ["#6b21a8", "#c084fc"] };
-export function drawTornado(c, w, h, { style = "wado" } = {}) {
-  c.clearRect(0, 0, w, h);
-  const [main, edge] = CUT_COLORS[style] || CUT_COLORS.wado;
-  const bands = 9;
-  for (let i = 0; i < bands; i++) {
-    const f = i / (bands - 1);
-    const y = h * (0.08 + f * 0.82);
-    const rx = w * (0.46 - f * 0.36);
-    const ry = h * 0.035;
-    const tilt = (i % 2 ? 1 : -1) * 0.12;
-    c.save();
-    c.translate(w / 2 + Math.sin(i * 1.3) * w * 0.04, y);
-    c.rotate(tilt);
-    c.beginPath();
-    c.ellipse(0, 0, rx, ry, 0, Math.PI * 0.05, Math.PI * 1.15);
-    c.lineWidth = h * 0.03;
-    c.strokeStyle = "#1a1714";
-    c.stroke();
-    c.lineWidth = h * 0.018;
-    c.strokeStyle = i % 2 ? edge : main;
-    c.stroke();
-    c.restore();
-  }
-}
-// Speed lines: a burst of straight streaks for the "already cut" techniques
-export function drawSpeedLines(c, w, h) {
-  c.clearRect(0, 0, w, h);
-  for (let i = 0; i < 14; i++) {
-    const y = h * (0.1 + ((i * 0.618) % 1) * 0.8);
-    const len = w * (0.45 + ((i * 0.37) % 1) * 0.55);
-    const x = (w - len) * ((i * 0.29) % 1);
-    c.lineCap = "round";
-    c.lineWidth = h * 0.05;
-    c.strokeStyle = "#1a1714";
-    c.beginPath();
-    c.moveTo(x, y);
-    c.lineTo(x + len, y);
-    c.stroke();
-    c.lineWidth = h * 0.028;
-    c.strokeStyle = "#fffdf5";
-    c.stroke();
   }
 }

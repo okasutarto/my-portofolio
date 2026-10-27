@@ -520,7 +520,8 @@ const SOUNDS = {
       noise(at, { freq: vary(2500, 0.3), q: 2, attack: 0.002, peak: 0.06 * volume, decay: 0.012 });
     }
   },
-  // A cat: a nasal rise and fall through a vowel-ish band (higher and shorter for a "mrrp")
+  // A cat: a nasal rise and fall through a vowel-ish band (higher and shorter for a "mrrp"),
+  // kept soft: it's a small cat in the corner, under everything else
   meow(t, { short = false } = {}) {
     const osc = ctx.createOscillator();
     osc.type = "sawtooth";
@@ -537,8 +538,8 @@ const SOUNDS = {
     formant.frequency.linearRampToValueAtTime(1000, t + len);
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.35, t + 0.05);
-    gain.gain.setValueAtTime(0.35, t + len * 0.7);
+    gain.gain.exponentialRampToValueAtTime(0.15, t + 0.05);
+    gain.gain.setValueAtTime(0.15, t + len * 0.7);
     gain.gain.exponentialRampToValueAtTime(0.0001, t + len);
     osc.connect(formant).connect(gain).connect(out);
     osc.start(t);
@@ -588,8 +589,8 @@ const SOUNDS = {
   // recording has its own sound here, falling back to the shared synth when it isn't loaded
   // The cat landing: soft padded paws, with only a little of the synth weight under them
   catLand(t, { strength = 0.3 } = {}) {
-    if (!sample(t, "paw", { peak: 1.2 * strength })) return SOUNDS.thud(t, { strength });
-    tone(t, { freq: vary(110), to: 50, peak: 0.6 * strength, decay: 0.12 });
+    if (!sample(t, "paw", { peak: 0.7 * strength })) return SOUNDS.thud(t, { strength: strength * 0.6 });
+    tone(t, { freq: vary(110), to: 50, peak: 0.35 * strength, decay: 0.12 });
   },
   // A ceramic mug set back on the desk
   mugDown(t, { strength = 0.35 } = {}) {
@@ -678,6 +679,21 @@ const SOUNDS = {
     noise(t, { filter: "bandpass", freq: 900, to: 3800, q: 2.2, attack: 0.05, peak: 0.22 * layer, decay: 0.32 });
     noise(t + 0.02, { filter: "highpass", freq: 2500, to: 5200, q: 0.7, attack: 0.04, peak: 0.07 * layer, decay: 0.3 });
     tone(t + 0.3, { type: "triangle", freq: 620, to: 590, attack: 0.01, peak: 0.05, decay: 0.35 });
+  },
+  // Koiguchi: the thumb pushing the guard to break the saya's seal, a small dry click, then a
+  // short hush of steel easing a hand's width out. Synth only and the same every time (a hover
+  // is made over and over, so it mustn't wander), and opening and shutting are separate sounds
+  // so moving from one sword to the next (shut, then open, at once) never drops the open.
+  koiguchi(t) {
+    noise(t, { filter: "bandpass", freq: 2400, q: 4, attack: 0.001, peak: 0.16, decay: 0.03 });
+    tone(t, { type: "triangle", freq: 1250, to: 1100, attack: 0.001, peak: 0.05, decay: 0.05 });
+    noise(t + 0.1, { filter: "bandpass", freq: 1400, to: 3000, q: 2.4, attack: 0.05, peak: 0.12, decay: 0.24 });
+    noise(t + 0.12, { filter: "highpass", freq: 3200, to: 5200, q: 0.7, attack: 0.04, peak: 0.035, decay: 0.2 });
+  },
+  // Shut again: the hush shorter and falling, ending on the guard's soft "tak" against the mouth
+  koiguchiShut(t) {
+    noise(t, { filter: "bandpass", freq: 2600, to: 1300, q: 2.2, attack: 0.02, peak: 0.07, decay: 0.16 });
+    noise(t + 0.2, { filter: "bandpass", freq: 900, q: 3, attack: 0.001, peak: 0.2, decay: 0.035 });
   },
   // The cut itself: a recorded blade slicing through, over a short falling rush of air (just the
   // old synth whoosh when the recording isn't there)
@@ -799,7 +815,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { cheer: 2, applause: 3, meow: 0.3, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, rubber: 0.15, boing: 0.3, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, dumbbell: 0.12, rackLand: 0.12, dock: 0.12, rimHit: 0.12, paperBounce: 0.05, swish: 0.2, wingFlap: 0.08, strap: 0.08, badgeClick: 0.12, shing: 0.5, slash: 0.15, sheathe: 0.4, whooshAway: 0.4, power: 1.4, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
+const MIN_GAP = { cheer: 2, applause: 3, meow: 0.3, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, rubber: 0.15, boing: 0.3, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, dumbbell: 0.12, rackLand: 0.12, dock: 0.12, rimHit: 0.12, paperBounce: 0.05, swish: 0.2, wingFlap: 0.08, strap: 0.08, badgeClick: 0.12, shing: 0.5, koiguchi: 0.12, koiguchiShut: 0.12, slash: 0.15, sheathe: 0.4, whooshAway: 0.4, power: 1.4, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || (ctx.state !== "running" && !resuming) || document.hidden) return;

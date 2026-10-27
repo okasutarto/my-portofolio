@@ -60,8 +60,10 @@ function roundRect(c, x, y, w, h, r) {
 // ---------- theme: the desktop follows the room's day and night ----------
 const THEMES = {
   light: {
-    sky: ["#d8cbff", "#ffd2c2"], dots: "rgba(26,23,20,.08)", line: "#1a1714",
-    shapes: ["#ff90e8", "#00e0c6", "#ffdd00", "#7fb2ff", "#ffb35c"],
+    // a cool sky and bold, plain colours: navy where the pink blob was, cobalt, teal, the
+    // yellow sun with orange stripes
+    sky: ["#a8dcff", "#eef8ff"], dots: "rgba(26,23,20,.09)", line: "#1a1714",
+    shapes: ["#1e3a8a", "#00e0c6", "#ffdd00", "#3b82f6", "#ff7a1a"],
     bar: "rgba(255,253,245,.92)", ink: "#1a1714", edge: "#000",
     dock: "rgba(255,253,245,.75)", tip: "#1a1714", tipInk: "#fffdf5", card: "#fffdf5",
   },
@@ -88,7 +90,7 @@ function drawWallpaper(c, name) {
     w.fillRect(0, 0, SCREEN_W, SCREEN_H);
     w.fillStyle = theme.dots;
     for (let y = 12; y < SCREEN_H; y += 16) for (let x = 12; x < SCREEN_W; x += 16) w.fillRect(x, y, 1.6, 1.6);
-    const [pink, teal, yellow, blue, orange] = theme.shapes;
+    const [blob, teal, yellow, blue, orange] = theme.shapes;
     w.lineWidth = 3;
     w.lineJoin = "round";
     w.lineCap = "round";
@@ -101,7 +103,7 @@ function drawWallpaper(c, name) {
       w.stroke();
     };
     // a blob spilling in from the top right
-    shape(pink, () => {
+    shape(blob, () => {
       w.moveTo(430, -10);
       w.bezierCurveTo(440, 60, 500, 120, 580, 110);
       w.bezierCurveTo(630, 104, 650, 150, 660, 170);
@@ -161,7 +163,7 @@ function drawWallpaper(c, name) {
     for (let x = 150; x <= 330; x += 4) w.lineTo(x, 48 + Math.sin((x - 150) / 14) * 9);
     w.stroke();
     // confetti: a few dots, a triangle and a sparkle
-    [[pink, 380, 330, 7], [teal, 250, 345, 5], [yellow, 600, 60, 6], [orange, 120, 105, 5]].forEach(([fill, x, y, r]) =>
+    [[blob, 380, 330, 7], [teal, 250, 345, 5], [yellow, 600, 60, 6], [orange, 120, 105, 5]].forEach(([fill, x, y, r]) =>
       shape(fill, () => w.arc(x, y, r, 0, Math.PI * 2)),
     );
     shape(orange, () => {

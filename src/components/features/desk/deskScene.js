@@ -4164,20 +4164,20 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const monitor = new THREE.Group();
   monitor.position.set(-0.2, 0, -2.75);
   scene.add(monitor);
-  // iMac-style (silver): a thin aluminium slab with a light bezel around the screen, a silver
-  // chin below it, on a flat foot with a slanted aluminium plate for a stand
-  const aluminium = toon("#c2c6cc");
+  // iMac-style, in black: a thin slab with a black bezel around the screen, a dark chin below
+  // it, on a flat foot with a slanted plate for a stand (a few near-blacks, so it keeps its shape)
+  const aluminium = toon("#2b2d31");
   const base = mesh(rbox(1.75, 0.07, 1.3, 0.03), aluminium, { outline: 0.03 });
   base.position.set(0, 0.035, -0.15);
   const neck = mesh(rbox(1.3, 1.75, 0.09, 0.03), aluminium, { outline: 0.03 });
   neck.position.set(0, 0.9, -0.42);
   neck.rotation.x = 0.16;
-  const body = mesh(rbox(4.6, 3.2, 0.14, 0.1), toon("#9fa4ac"), { outline: 0.06 });
+  const body = mesh(rbox(4.6, 3.2, 0.14, 0.1), toon("#1f2125"), { outline: 0.06 });
   body.position.set(0, 2.4, 0);
-  const bezel = mesh(rbox(4.46, 2.62, 0.02, 0.06), toon("#f4f2ee"), { outline: 0, cast: false });
+  const bezel = mesh(rbox(4.46, 2.62, 0.02, 0.06), toon("#141518"), { outline: 0, cast: false });
   bezel.position.set(0, 2.63, 0.075);
   monitor.add(base, neck, body, bezel);
-  // The details: a thin black border round the panel, a webcam in the top bezel, a lighter chin
+  // The details: a thin black border round the panel, a webcam in the top bezel, a dark chin
   // with a little logo and a power light, and the cable hole through the stand
   // between the bezel's face (z 0.085) and the screen (z 0.09)
   const panelEdge = mesh(rbox(4.08, 2.44, 0.006, 0.002), toon("#1a1714"), { outline: 0, cast: false });
@@ -4187,14 +4187,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
   webcam.position.set(0, 3.897, 0.087);
   const webcamLens = new THREE.Mesh(track(new THREE.CircleGeometry(0.012, 12)), track(new THREE.MeshBasicMaterial({ color: "#5a7bb0" })));
   webcamLens.position.set(0, 3.897, 0.088);
-  const chin = mesh(rbox(4.5, 0.46, 0.02, 0.05), toon("#dfe2e6"), { outline: 0, cast: false });
+  const chin = mesh(rbox(4.5, 0.46, 0.02, 0.05), toon("#26282d"), { outline: 0, cast: false });
   chin.position.set(0, 1.06, 0.072);
-  const chinLogo = new THREE.Mesh(track(new THREE.CircleGeometry(0.09, 5)), track(new THREE.MeshBasicMaterial({ color: "#8a9099" })));
+  // a small, plain round mark (the pentagon read as clutter)
+  const chinLogo = new THREE.Mesh(track(new THREE.CircleGeometry(0.05, 24)), track(new THREE.MeshBasicMaterial({ color: "#5c6169" })));
   chinLogo.position.set(0, 1.06, 0.085);
-  chinLogo.rotation.z = Math.PI / 2;
   const powerLed = new THREE.Mesh(track(new THREE.CircleGeometry(0.025, 10)), track(new THREE.MeshBasicMaterial({ color: "#16a34a" })));
   powerLed.position.set(1.95, 0.95, 0.085);
-  const cableHole = new THREE.Mesh(track(new THREE.CircleGeometry(0.12, 18)), track(new THREE.MeshBasicMaterial({ color: "#3a3d43" })));
+  const cableHole = new THREE.Mesh(track(new THREE.CircleGeometry(0.12, 18)), track(new THREE.MeshBasicMaterial({ color: "#0e0f11" })));
   cableHole.position.set(0, 0.25, 0.05);
   neck.add(cableHole);
   [panelEdge, webcam, webcamLens, chin, chinLogo, powerLed].forEach((part) => (part.raycast = noRaycast));
@@ -7493,7 +7493,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
     // Square on the window in the left wall. A shallow clip: the desk's left end sits close to it.
     // The window, with its weather card on the wall to its left
     window: () => ({ target: [windowGroup.position.x + 0.1, windowGroup.position.y + 0.15, windowGroup.position.z + 1.55], dir: [1, 0.08, 0.04], fit: [8.6, 6.2], depth: 1.4 }),
-    monitor: () => ({ target: [-0.2, 2.63, -2.66], dir: [0.1, 0.32, 1], fit: [5.2, 3.4] }),
+    // Framed a little high, with room under the monitor's chin for the command chips and the
+    // hint (they'd sit over the chin otherwise)
+    monitor: () => ({ target: [-0.2, 2.25, -2.66], dir: [0.1, 0.32, 1], fit: [5.2, 4.6] }),
     keyboard: () => ({ target: [0.2, 0.3, 0.75], dir: [0.1, 1, 0.75], fit: [5.4, 2.6] }),
     // A higher angle pushes the plant above the frame and leaves room for the sip quote.
     mug: () => ({ target: [mug.position.x - 0.3, 0.95 + MUG_Y, mug.position.z - 0.45], dir: [-0.2, 1, 0.45], fit: [3.1, 4.1] }),

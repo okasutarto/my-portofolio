@@ -776,41 +776,84 @@ const SOUNDS = {
     noise(t + 0.06, { filter: "lowpass", freq: 220, to: 70, attack: 0.04, peak: 0.45, decay: 1.1 });
     tone(t + 0.02, { freq: 70, to: 32, attack: 0.01, peak: 0.4, decay: 0.8 });
   },
-  // Three overlapping cartoon voices shape an ee-to-ah "yeah!", through the normal mute bus.
+  // A whole crowd shouting "yeaaah!": a stack of voices sliding up from "ee" into a wide-open
+  // "ah", each with its own wobble, over a breathy roar, with a couple of "woo!"s on top
   cheer(t) {
-    [165, 205, 250].forEach((pitch, i) => {
-      const at = t + i * 0.07;
+    const voices = [140, 175, 210, 240, 280, 320, 370, 430];
+    voices.forEach((pitch, i) => {
+      const at = t + Math.random() * 0.12;
+      const len = vary(1.35, 0.12);
       const voice = ctx.createOscillator();
       voice.type = "sawtooth";
-      voice.frequency.setValueAtTime(pitch, at);
-      voice.frequency.linearRampToValueAtTime(pitch * 1.3, at + 0.22);
-      voice.frequency.linearRampToValueAtTime(pitch * 1.08, at + 1.05);
-      [[320, 780, 0.12], [2300, 1550, 0.07]].forEach(([start, end, level]) => {
+      const p = vary(pitch, 0.04);
+      voice.frequency.setValueAtTime(p * 0.85, at);
+      voice.frequency.exponentialRampToValueAtTime(p * 1.45, at + 0.18);
+      voice.frequency.exponentialRampToValueAtTime(p * 1.25, at + len * 0.6);
+      voice.frequency.exponentialRampToValueAtTime(p * 0.95, at + len);
+      // Excited throats shake: a fast vibrato that deepens as the shout is held
+      const wobble = ctx.createOscillator();
+      wobble.frequency.value = vary(6.5, 0.15);
+      const depth = ctx.createGain();
+      depth.gain.setValueAtTime(0, at);
+      depth.gain.linearRampToValueAtTime(p * 0.05, at + 0.5);
+      wobble.connect(depth).connect(voice.frequency);
+      const level = 0.075 * (i % 2 ? 0.85 : 1);
+      const mix = ctx.createGain();
+      mix.gain.setValueAtTime(0.0001, at);
+      mix.gain.exponentialRampToValueAtTime(level, at + 0.06);
+      mix.gain.setValueAtTime(level, at + len * 0.55);
+      mix.gain.exponentialRampToValueAtTime(0.0001, at + len);
+      [[300, 850, 1], [2400, 1250, 0.55], [3000, 2700, 0.25]].forEach(([from, to, amount]) => {
         const vowel = ctx.createBiquadFilter();
         vowel.type = "bandpass";
-        vowel.Q.value = 5;
-        vowel.frequency.setValueAtTime(start, at);
-        vowel.frequency.exponentialRampToValueAtTime(end, at + 0.22);
-        const gain = ctx.createGain();
-        gain.gain.setValueAtTime(0.0001, at);
-        gain.gain.exponentialRampToValueAtTime(level, at + 0.07);
-        gain.gain.setValueAtTime(level, at + 0.65);
-        gain.gain.exponentialRampToValueAtTime(0.0001, at + 1.1);
-        voice.connect(vowel).connect(gain).connect(out);
+        vowel.Q.value = 6;
+        vowel.frequency.setValueAtTime(from, at);
+        vowel.frequency.exponentialRampToValueAtTime(to, at + 0.2);
+        const g = ctx.createGain();
+        g.gain.value = amount;
+        voice.connect(vowel).connect(g).connect(mix);
       });
+      mix.connect(out);
+      toHall(mix, 0.35);
       voice.start(at);
-      voice.stop(at + 1.15);
+      wobble.start(at);
+      voice.stop(at + len + 0.05);
+      wobble.stop(at + len + 0.05);
+    });
+    // The breath of the crowd behind the voices, opening up with the vowel
+    noise(t, { freq: 700, to: 1100, q: 0.9, attack: 0.08, peak: 0.12, decay: 1.2, send: 0.3 });
+    noise(t, { filter: "highpass", freq: 2500, attack: 0.05, peak: 0.04, decay: 0.8 });
+    // "Woo!": high falsetto yelps swooping up over the top
+    [0.25, 0.6].forEach((d) => {
+      const at = t + d + Math.random() * 0.08;
+      tone(at, { type: "triangle", freq: vary(620, 0.08), to: vary(1250, 0.06), attack: 0.05, peak: 0.07, decay: 0.35, send: 0.4 });
     });
   },
-  // Loose, overlapping palm transients, with a short room reflection and a gentle fade.
-  applause(t) {
-    for (let i = 0; i < 28; i++) {
-      const at = t + i * 0.085 + Math.random() * 0.04;
-      const level = 0.12 * Math.min(1, (i + 2) / 5, (30 - i) / 8);
-      noise(at, { filter: "bandpass", freq: vary(1250, 0.3), q: 0.7, attack: 0.001, peak: level, decay: 0.07 });
-      noise(at + 0.012, { filter: "highpass", freq: 1700, attack: 0.001, peak: level * 0.5, decay: 0.045 });
-      noise(at + 0.055, { freq: 900, q: 0.6, attack: 0.004, peak: level * 0.2, decay: 0.1 });
+  // A packed room going wild: hundreds of hands, a roar under them, and whistles on top. It
+  // swells in, holds for a few seconds, then thins out to the last few clappers.
+  applause(t, { duration = 3.8 } = {}) {
+    const swell = (at) => {
+      const x = (at - t) / duration;
+      return Math.min(1, x / 0.12, (1 - x) / 0.35);
+    };
+    for (let at = t; at < t + duration; at += 0.006 + Math.random() * 0.014) {
+      const level = 0.11 * swell(at) * (0.5 + Math.random() * 0.5);
+      if (level <= 0.002) continue;
+      const near = Math.random() < 0.25;
+      noise(at, { freq: vary(near ? 1100 : 1600, 0.35), q: 0.8, attack: 0.001, peak: level * (near ? 1.4 : 1), decay: vary(0.05, 0.3), send: 0.15 });
+      if (near) noise(at + 0.003, { filter: "highpass", freq: 2200, attack: 0.001, peak: level * 0.6, decay: 0.03 });
     }
+    // The crowd's roar and cheering underneath
+    noise(t, { freq: 650, q: 0.7, attack: 0.4, peak: 0.1, decay: duration * 0.9, send: 0.4 });
+    noise(t + 0.1, { filter: "lowpass", freq: 500, attack: 0.5, peak: 0.08, decay: duration * 0.7 });
+    // Two-finger whistles: a rising "fweet!" and a "fwee-fwoo"
+    [[0.35, 1800, 2900], [0.9, 2600, 1900], [1.5, 1900, 3100], [2.3, 2200, 3000]].forEach(([d, from, to]) => {
+      tone(t + d + Math.random() * 0.1, { freq: vary(from, 0.05), to: vary(to, 0.05), attack: 0.03, peak: 0.06, decay: 0.32, send: 0.35 });
+    });
+    // A few "woo!" and "yeah!" shouts popping out of the crowd
+    [0.5, 1.2, 1.9].forEach((d) => {
+      tone(t + d + Math.random() * 0.15, { type: "triangle", freq: vary(520, 0.12), to: vary(1050, 0.1), attack: 0.06, peak: 0.05, decay: 0.4, send: 0.4 });
+    });
   },
   // Plain UI click
   click(t) {
@@ -819,7 +862,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { cheer: 2, applause: 3, meow: 0.3, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, rubber: 0.15, boing: 0.3, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, dumbbell: 0.12, rackLand: 0.12, dock: 0.12, rimHit: 0.12, paperBounce: 0.05, swish: 0.2, wingFlap: 0.08, strap: 0.08, badgeClick: 0.12, shing: 0.5, koiguchi: 0.12, koiguchiShut: 0.12, slash: 0.15, sheathe: 0.4, whooshAway: 0.4, power: 1.4, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
+const MIN_GAP = { cheer: 2, applause: 4, meow: 0.3, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, rubber: 0.15, boing: 0.3, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, dumbbell: 0.12, rackLand: 0.12, dock: 0.12, rimHit: 0.12, paperBounce: 0.05, swish: 0.2, wingFlap: 0.08, strap: 0.08, badgeClick: 0.12, shing: 0.5, koiguchi: 0.12, koiguchiShut: 0.12, slash: 0.15, sheathe: 0.4, whooshAway: 0.4, power: 1.4, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || (ctx.state !== "running" && !resuming) || document.hidden) return;

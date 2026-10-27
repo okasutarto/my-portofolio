@@ -1845,13 +1845,33 @@ export function drawClockFace(c, w, h) {
 // The guitar's top, laid out in the body outline's own units (x -1..1 across, y -0.95..1.92),
 // in the room's neo-brutalist style: one flat colour, a faint halftone, a teal pickguard,
 // thick black and white rings round the soundhole, and a few stickers with hard shadows
-export function drawGuitarTop(c, w, h) {
+export function drawGuitarTop(c, w, h, { halfWidth = null } = {}) {
   const toX = (x) => ((x + 1) / 2) * w;
   const toY = (y) => (1 - (y + 0.95) / 2.87) * h;
   const ux = w / 2;
   const line = w * 0.018;
+  let seed = 3907;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   // A natural spruce top, warm but quiet next to the room's brights
   c.fillStyle = "#e6c38f";
+  c.fillRect(0, 0, w, h);
+  // its grain: fine straight lines running the length of the top, a little uneven in weight
+  // and spacing, each wavering faintly
+  for (let x = 0; x < w; x += 3 + rand() * 5) {
+    c.strokeStyle = `rgba(150,95,40,${0.08 + rand() * 0.14})`;
+    c.lineWidth = 0.6 + rand() * 1.2;
+    const sway = rand() * 2;
+    c.beginPath();
+    c.moveTo(x, 0);
+    c.bezierCurveTo(x + sway, h * 0.33, x - sway, h * 0.66, x + sway * 0.5, h);
+    c.stroke();
+  }
+  // a soft sunburst: the lower bout's middle stays pale, its edges warming to amber
+  const burst = c.createRadialGradient(toX(0), toY(0.1), ux * 0.35, toX(0), toY(0.4), ux * 1.25);
+  burst.addColorStop(0, "rgba(160,80,20,0)");
+  burst.addColorStop(0.7, "rgba(160,80,20,.12)");
+  burst.addColorStop(1, "rgba(110,50,10,.42)");
+  c.fillStyle = burst;
   c.fillRect(0, 0, w, h);
   // halftone dots, heavier toward the lower edge
   for (let y = 0; y < h; y += w * 0.035) {
@@ -1879,6 +1899,35 @@ export function drawGuitarTop(c, w, h) {
   c.lineWidth = line * 0.8;
   c.strokeStyle = "#000";
   c.stroke();
+  // tortoiseshell: warm amber flecks through the dark, kept inside the guard
+  c.save();
+  c.clip();
+  for (let i = 0; i < 40; i++) {
+    c.fillStyle = rand() < 0.5 ? "rgba(180,95,30,.35)" : "rgba(20,10,5,.35)";
+    c.beginPath();
+    c.ellipse(toX(0.1 + rand() * 0.8), toY(0.5 + rand() * 0.7), ux * (0.02 + rand() * 0.05), ux * (0.01 + rand() * 0.03), rand() * Math.PI, 0, Math.PI * 2);
+    c.fill();
+  }
+  c.restore();
+  // binding round the edge: a cream band just inside the outline with a fine dark purfling
+  // line inside it
+  if (halfWidth) {
+    const trace = (inset) => {
+      c.beginPath();
+      const ys = Array.from({ length: 121 }, (_, k) => -0.95 + (k / 120) * 2.87);
+      ys.forEach((y, k) => (k ? c.lineTo(toX(halfWidth(y) - inset), toY(y)) : c.moveTo(toX(halfWidth(y) - inset), toY(y))));
+      [...ys].reverse().forEach((y) => c.lineTo(toX(-halfWidth(y) + inset), toY(y)));
+      c.closePath();
+    };
+    trace(0.03);
+    c.strokeStyle = "#fffdf5";
+    c.lineWidth = ux * 0.05;
+    c.stroke();
+    trace(0.065);
+    c.strokeStyle = "rgba(40,20,10,.7)";
+    c.lineWidth = ux * 0.012;
+    c.stroke();
+  }
   // rosette: black, white, black
   [[0.5, "#1a1714", 0.09], [0.43, "#fffdf5", 0.05], [0.38, "#1a1714", 0.03]].forEach(([r, color, t]) => {
     c.strokeStyle = color;
@@ -2037,6 +2086,63 @@ export function drawCarbonWeave(c, w, h) {
       c.fillStyle = sheen;
       c.fillRect(col * s + 1, row * s + 1, s - 2, s - 2);
     }
+  }
+}
+
+// Brushed metal, as a light tile its material tints: fine streaks drawn across in slightly
+// different greys, with a broad soft sheen through the middle. Tiles across.
+export function drawBrushedMetal(c, w, h) {
+  let r = 6151;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  c.fillStyle = "#c8c8c8";
+  c.fillRect(0, 0, w, h);
+  for (let i = 0; i < h * 3; i++) {
+    const tone = 170 + Math.floor(rand() * 85);
+    c.fillStyle = `rgba(${tone},${tone},${tone},.5)`;
+    c.fillRect(rand() * w - w * 0.5, rand() * h, w * (0.3 + rand() * 0.9), 0.6 + rand() * 0.8);
+  }
+  const sheen = c.createLinearGradient(0, 0, 0, h);
+  sheen.addColorStop(0, "rgba(255,255,255,0)");
+  sheen.addColorStop(0.5, "rgba(255,255,255,.18)");
+  sheen.addColorStop(1, "rgba(255,255,255,0)");
+  c.fillStyle = sheen;
+  c.fillRect(0, 0, w, h);
+}
+
+// A satin-painted cabinet, as a light tile its material tints: a fine even stipple with a
+// faint grain running along it, so a flat panel reads as a finished surface. Tiles both ways.
+export function drawSatinFinish(c, w, h, { grain = 0.06 } = {}) {
+  let r = 2713;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  c.fillStyle = "#d4d4d4";
+  c.fillRect(0, 0, w, h);
+  for (let y = 0; y < h; y += 2) {
+    c.fillStyle = `rgba(${rand() < 0.5 ? "255,255,255" : "0,0,0"},${rand() * grain})`;
+    c.fillRect(0, y, w, 1 + rand());
+  }
+  for (let i = 0; i < (w * h) / 6; i++) {
+    c.fillStyle = rand() < 0.5 ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.14)";
+    c.fillRect(rand() * w, rand() * h, 1, 1);
+  }
+}
+
+// A speaker cone's surface on its lathe's uv (up the canvas is from the rim in to the centre):
+// pressed concentric ribs, and fine fibres radiating out through the paper
+export function drawConeRibs(c, w, h) {
+  let r = 811;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  c.fillStyle = "#e4e4e4";
+  c.fillRect(0, 0, w, h);
+  for (let x = 0; x < w; x += 1.5) {
+    c.fillStyle = `rgba(${rand() < 0.5 ? "255,255,255" : "0,0,0"},${rand() * 0.12})`;
+    c.fillRect(x, 0, 1, h);
+  }
+  for (let k = 1; k < 6; k++) {
+    const y = h * (0.22 + k * 0.11);
+    c.fillStyle = "rgba(0,0,0,.22)";
+    c.fillRect(0, y, w, h * 0.025);
+    c.fillStyle = "rgba(255,255,255,.3)";
+    c.fillRect(0, y + h * 0.025, w, h * 0.02);
   }
 }
 

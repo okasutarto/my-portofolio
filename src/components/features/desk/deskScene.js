@@ -84,6 +84,9 @@ import {
   drawStraw,
   drawCarbonWeave,
   drawLeatherGrain,
+  drawBrushedMetal,
+  drawSatinFinish,
+  drawConeRibs,
   drawPlantLeaf,
   drawTerracotta,
   drawChairCrest,
@@ -1032,7 +1035,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // the outline's own units; the sides and back are plain
   const guitarTop = canvasTexture(512, 740);
   track(guitarTop.texture);
-  drawGuitarTop(guitarTop.ctx, 512, 740);
+  drawGuitarTop(guitarTop.ctx, 512, 740, { halfWidth });
   guitarTop.texture.repeat.set(0.5, 1 / 2.87);
   guitarTop.texture.offset.set(0.5, 0.95 / 2.87);
   const guitarTopMat = toon("#ffffff");
@@ -5761,13 +5764,44 @@ export function createDeskScene({ container, projects, experiences, dark = false
   scene.add(monitor);
   // Nearly bezelless, in black: a thin slab that stops just short of the screen's edges, a
   // slim chin below it, on a flat foot with a slanted plate for a stand (a few near-blacks, so
-  // it keeps its shape)
-  const aluminium = toon("#2b2d31");
-  const base = mesh(rbox(1.75, 0.07, 1.3, 0.03), aluminium, { outline: 0.03 });
-  base.position.set(0, 0.035, -0.15);
+  // it keeps its shape). The stand is brushed dark aluminium.
+  const brushed = canvasTexture(128, 128);
+  track(brushed.texture);
+  drawBrushedMetal(brushed.ctx, 128, 128);
+  const aluminium = toon("#34363b");
+  aluminium.map = brushed.texture;
+  // The foot stands on two rubber strips, a thick plate in a lighter grey than the stand, so
+  // it reads as sitting on the riser: thin and dark, in the riser's shade, it looked sunk in
+  const FOOT_LIFT = 0.04;
+  const FOOT_H = 0.12;
+  const footMat = toon("#55595f");
+  footMat.map = brushed.texture;
+  const base = mesh(rbox(1.75, FOOT_H, 1.3, 0.04), footMat, { outline: 0.03 });
+  base.position.set(0, FOOT_LIFT + FOOT_H / 2, -0.15);
   const neck = mesh(rbox(1.3, 1.75, 0.09, 0.03), aluminium, { outline: 0.03 });
   neck.position.set(0, 0.9, -0.42);
   neck.rotation.x = 0.16;
+  // A hinge barrel where the neck meets the foot, with a dark seam either end, and a mount
+  // block joining its top to the screen's back
+  const hingeMat = toon("#1c1d21");
+  const hinge = mesh(new THREE.CylinderGeometry(0.075, 0.075, 1.22, 24), aluminium, { outline: 0.015 });
+  hinge.rotation.z = Math.PI / 2;
+  hinge.position.set(0, FOOT_LIFT + FOOT_H + 0.05, -0.55);
+  [-0.42, 0.42].forEach((x) => {
+    const seam = mesh(new THREE.CylinderGeometry(0.078, 0.078, 0.02, 24), hingeMat, { outline: 0, cast: false });
+    seam.rotation.z = Math.PI / 2;
+    seam.position.set(x, FOOT_LIFT + FOOT_H + 0.05, -0.55);
+    seam.raycast = noRaycast;
+    monitor.add(seam);
+  });
+  const mount = mesh(rbox(0.95, 0.62, 0.2, 0.04), hingeMat, { outline: 0.02 });
+  mount.position.set(0, 1.72, -0.17);
+  const footStrips = [0.4, -0.7].map((z) => {
+    const strip = mesh(rbox(1.55, FOOT_LIFT, 0.09, 0.008), hingeMat, { outline: 0.008, cast: false });
+    strip.position.set(0, FOOT_LIFT / 2, z);
+    return strip;
+  });
+  monitor.add(hinge, mount, ...footStrips);
   // The screen runs from x -2.0 to 2.0 and y 1.43 to 3.83; the body is only 0.11 wider each
   // side and 0.09 taller, with the chin below from 1.0
   const body = mesh(rbox(4.22, 2.92, 0.14, 0.08), toon("#1f2125"), { outline: 0.06 });
@@ -5915,17 +5949,33 @@ export function createDeskScene({ container, projects, experiences, dark = false
     gsap.fromTo(speaker.dustCap.position, { z: speaker.dustCap.userData.restZ + 0.018 * strength }, { z: speaker.dustCap.userData.restZ, duration: 0.18, ease: "power2.out", overwrite: true });
     gsap.fromTo(speaker.group.scale, { x: 1.02, y: 0.98, z: 1.02 }, { x: 1, y: 1, z: 1, duration: 0.22, ease: "power2.out", overwrite: true });
   }
+  // Satin-painted cabinets and baffles and ribbed paper cones, shared by both
+  const satin = canvasTexture(128, 128);
+  track(satin.texture);
+  drawSatinFinish(satin.ctx, 128, 128);
+  const cabinetMat = toon("#2b313a");
+  cabinetMat.map = satin.texture;
+  const baffleMat = toon("#181d24");
+  baffleMat.map = satin.texture;
+  const ribs = canvasTexture(256, 64);
+  track(ribs.texture);
+  drawConeRibs(ribs.ctx, 256, 64);
+  const coneMat = toon("#88a8e2");
+  coneMat.map = ribs.texture;
   [-3.05, 2.55].forEach((x) => {
     const speaker = new THREE.Group();
-    speaker.position.set(x, RISER_TOP, -3.55);
+    // on a foam isolation pad
+    speaker.position.set(x, RISER_TOP + 0.1, -3.55);
     scene.add(speaker);
-    const cabinet = mesh(rbox(0.95, 1.75, 0.85, 0.065), toon("#252a31"), { outline: 0.028 });
+    const pad = mesh(rbox(0.99, 0.1, 0.89, 0.035), toon("#3b4048"), { outline: 0.015 });
+    pad.position.y = -0.05;
+    const cabinet = mesh(rbox(0.95, 1.75, 0.85, 0.065), cabinetMat, { outline: 0.028 });
     cabinet.position.y = 0.875;
-    const baffle = mesh(rbox(0.83, 1.58, 0.035, 0.045), toon("#14181e"), { outline: 0.009 });
+    const baffle = mesh(rbox(0.83, 1.58, 0.035, 0.045), baffleMat, { outline: 0.009 });
     baffle.position.set(0, 0.9, 0.431);
     // A recessed cone meets its rubber surround; the centre cap sits inside the cone.
     const coneProfile = [[0.278, 0.018], [0.26, 0.012], [0.13, -0.035], [0.09, -0.035]].map(([r, depth]) => new THREE.Vector2(r, depth));
-    const woofer = mesh(new THREE.LatheGeometry(coneProfile, 48), toon("#7f9fd8"), { outline: 0 });
+    const woofer = mesh(new THREE.LatheGeometry(coneProfile, 48), coneMat, { outline: 0 });
     woofer.rotation.x = Math.PI / 2;
     woofer.position.set(0, 0.62, 0.49);
     const basket = mesh(new THREE.TorusGeometry(0.322, 0.014, 10, 48), toon("#454e5d"), { outline: 0 });
@@ -5970,7 +6020,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     knob.position.set(0.26, 0.18, 0.465);
     const knobMark = mesh(new THREE.BoxGeometry(0.006, 0.02, 0.004), toon("#f1f1ed"), { outline: 0 });
     knobMark.position.set(0.26, 0.194, 0.485);
-    speaker.add(cabinet, baffle, basket, surround, woofer, dustCap, waveguide, tweeter, tweeterRim, ledHousing, led, port, portRim, knob, knobMark);
+    // a small silver nameplate between the port and the knob
+    const nameplate = mesh(rbox(0.17, 0.035, 0.01, 0.004), toon("#8a9099"), { outline: 0, cast: false });
+    nameplate.position.set(0, 0.18, 0.453);
+    speaker.add(pad, nameplate, cabinet, baffle, basket, surround, woofer, dustCap, waveguide, tweeter, tweeterRim, ledHousing, led, port, portRim, knob, knobMark);
     const entry = { group: speaker, woofer, dustCap, tweeter };
     speakers.push(entry);
     register(speaker, {
@@ -8859,71 +8912,70 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const handle = mesh(new THREE.TorusGeometry(0.28, 0.08, 10, 20, Math.PI), mugMat, { outline: 0.04 });
   handle.rotation.z = -Math.PI / 2;
   handle.position.set(0.46, 0.58, 0);
-  // Steam: three cartoon squiggles rising off the coffee, redrawn as they go. Each one is a
-  // wavy white stroke with a soft grey edge that curls up out of the cup, sways as it climbs
-  // and thins away at the top, staggered so the next is always on its way.
-  const STEAM_W = 128;
+  // Steam: little cartoon puffs rising off the coffee, inked like everything else on the desk.
+  // Each puff is a lumpy cloud that buds small at the surface, swells as it climbs, leans off
+  // to the right (away from the phone behind the mug) and shrinks away near the top. All the
+  // ink goes down first and the fills over it, so puffs that touch merge into one outlined
+  // cloud, with a grey underside for a toon shade.
+  const STEAM_W = 256;
   const STEAM_H = 256;
+  const STEAM_SCALE = { x: 1.9, y: 1.9 };
+  const STEAM_SCALE_HOVER = { x: 2.15, y: 2.15 };
   const steamTex = canvasTexture(STEAM_W, STEAM_H);
   track(steamTex.texture);
   const steam = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: steamTex.texture, transparent: true, depthWrite: false })));
   steam.raycast = noRaycast;
   steam.center.set(0.5, 0);
-  steam.scale.set(0.8, 1.6, 1);
-  steam.position.set(0, 1.08, 0);
+  steam.scale.set(STEAM_SCALE.x, STEAM_SCALE.y, 1);
+  steam.position.set(0, 0.9, 0);
   mug.add(steam);
   const puffs = [steam];
-  const WISPS = [{ x: 0.3, phase: 0 }, { x: 0.52, phase: 0.36 }, { x: 0.72, phase: 0.7 }];
-  const STEAM_PERIOD = 2.6;
+  const STEAM_PERIOD = 5.5;
+  const STEAM_PUFFS = 4;
+  // where puffs bud (a share of the width), how far right they've drifted by the top, and how
+  // big they get (a share of the width)
+  const STEAM_FROM = 0.42;
+  const STEAM_LEAN = 0.52;
+  const STEAM_R = 0.1;
+  const STEAM_INK = 6;
+  // the lumps of one puff: offset and radius, as shares of its size
+  const PUFF_LOBES = [[0, 0, 1], [-0.62, 0.22, 0.68], [0.6, 0.28, 0.62], [0.08, -0.5, 0.6]];
   let steamDrawnAt = 0;
-  // Each wisp is drawn solid here, then laid onto the texture at its own opacity
-  const wispLayer = document.createElement("canvas");
-  wispLayer.width = STEAM_W;
-  wispLayer.height = STEAM_H;
-  const wc = wispLayer.getContext("2d");
-  wc.lineCap = "round";
-  wc.lineJoin = "round";
   function updateSteam(now) {
     if (!steam.visible || now - steamDrawnAt < 33) return;
     steamDrawnAt = now;
     const c = steamTex.ctx;
     c.clearRect(0, 0, STEAM_W, STEAM_H);
-    c.lineCap = "round";
-    c.lineJoin = "round";
     const t = now / 1000;
-    WISPS.forEach(({ x, phase }) => {
-      const p = (t / STEAM_PERIOD + phase) % 1;
-      // The stroke spans a window that climbs the canvas: born at the cup, gone at the top
-      const head = p * 1.3;
-      const tail = Math.max(0, head - 0.55);
-      if (tail >= 1) return;
-      const points = [];
-      for (let f = tail; f <= Math.min(1, head); f += 0.02) {
-        const sway = Math.sin(f * 9 - t * 3 + phase * 7) * (0.06 + f * 0.1);
-        points.push([(x + sway) * STEAM_W, (1 - f) * STEAM_H]);
-      }
-      if (points.length < 2) return;
-      // fades in near the cup and out toward the top
-      const alpha = Math.min(1, p / 0.15) * Math.min(1, (1 - tail) / 0.45);
-      // Segment by segment, so the stroke swells in the middle and tapers at both ends
-      const trace = (color, extra) => {
-        wc.strokeStyle = color;
-        for (let i = 1; i < points.length; i++) {
-          const k = i / (points.length - 1);
-          wc.lineWidth = 4 + Math.sin(k * Math.PI) * 11 + extra;
-          wc.beginPath();
-          wc.moveTo(points[i - 1][0], points[i - 1][1]);
-          wc.lineTo(points[i][0], points[i][1]);
-          wc.stroke();
-        }
-      };
-      wc.clearRect(0, 0, STEAM_W, STEAM_H);
-      trace("#b4bcc6", 5);
-      trace("#ffffff", 0);
-      c.globalAlpha = alpha * 0.92;
-      c.drawImage(wispLayer, 0, 0);
-    });
-    c.globalAlpha = 1;
+    const lumps = [];
+    for (let i = 0; i < STEAM_PUFFS; i++) {
+      const p = (t / STEAM_PERIOD + i / STEAM_PUFFS) % 1;
+      // buds, swells, then shrinks away as it nears the top
+      const size = STEAM_R * STEAM_W * Math.min(1, 0.35 + p / 0.25) * Math.min(1, (1 - p) / 0.4);
+      if (size < 1) continue;
+      // drifting off to the right more and more as it rises, a curl rather than a slant
+      const x = (STEAM_FROM + p * p * STEAM_LEAN + Math.sin(p * 5 + i * 2.1) * 0.03) * STEAM_W;
+      const y = STEAM_H - size - 4 - p * (STEAM_H - 2 * STEAM_R * STEAM_W);
+      // each puff turns a little as it rises, so its lumps don't sit still
+      const spin = i * 1.7 + p * 1.2;
+      PUFF_LOBES.forEach(([dx, dy, r]) => {
+        const cos = Math.cos(spin * 0.4);
+        const sin = Math.sin(spin * 0.4);
+        lumps.push([x + (dx * cos - dy * sin) * size, y + (dx * sin + dy * cos) * size, r * size]);
+      });
+    }
+    const fill = (color, grow, shift) => {
+      c.fillStyle = color;
+      lumps.forEach(([x, y, r]) => {
+        c.beginPath();
+        c.arc(x + shift * r, y + shift * r, Math.max(0, r + grow * (shift ? r : 1)), 0, Math.PI * 2);
+        c.fill();
+      });
+    };
+    fill("#1a1714", STEAM_INK, 0);
+    fill("#cfd6df", 0, 0);
+    // the lit part, nudged up and left, leaves the grey showing on the underside
+    fill("#ffffff", -0.18, -0.12);
     steamTex.texture.needsUpdate = true;
   }
 
@@ -8996,7 +9048,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     onHover: (on) => {
       if (sipping) return;
       gsap.to(mug.position, { y: on ? MUG_Y + 0.06 : MUG_Y, duration: 0.3, ease: "power2.out", overwrite: true });
-      gsap.to(steam.scale, { x: on ? 1 : 0.8, y: on ? 1.95 : 1.6, duration: 0.4, overwrite: true });
+      gsap.to(steam.scale, { ...(on ? STEAM_SCALE_HOVER : STEAM_SCALE), duration: 0.4, overwrite: true });
       if (on) gsap.fromTo(crema.rotation, { z: -0.12 }, { z: 0, duration: 0.7, ease: "elastic.out(1, 0.4)", overwrite: true });
     },
     onArrive: sip,

@@ -2240,13 +2240,61 @@ function drawSunset(c, w, h, ink) {
 export function drawRug(c, w, h, { base = "#4a4b50", border = "#f3ead8" } = {}) {
   c.fillStyle = base;
   c.fillRect(0, 0, w, h);
-  // the faintest weave, so it reads as fabric rather than paint
-  c.fillStyle = "rgba(0,0,0,.035)";
-  for (let y = 0; y < h; y += 10) c.fillRect(0, y, w, 3);
+  let r = 2909;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  // a low pile: thousands of short fibres a shade lighter or darker than the base
+  for (let i = 0; i < (w * h) / 26; i++) {
+    c.fillStyle = rand() < 0.5 ? "rgba(0,0,0,.09)" : "rgba(255,255,255,.06)";
+    c.fillRect(rand() * w, rand() * h, 1 + rand() * 2, 1 + rand() * 2);
+  }
+  // a twill weave: fine diagonal ribs running across it
+  c.strokeStyle = "rgba(0,0,0,.07)";
+  c.lineWidth = 2;
+  for (let x = -h; x < w; x += 12) {
+    c.beginPath();
+    c.moveTo(x, h);
+    c.lineTo(x + h, 0);
+    c.stroke();
+  }
+  c.strokeStyle = "rgba(255,255,255,.035)";
+  for (let x = -h + 6; x < w; x += 12) {
+    c.beginPath();
+    c.moveTo(x, h);
+    c.lineTo(x + h, 0);
+    c.stroke();
+  }
+  // the border: a cream line, then a band of little diamonds in the room's accents just inside
   const inset = w * 0.045;
   c.lineWidth = Math.max(5, w / 200);
   c.strokeStyle = border;
   c.strokeRect(inset, inset, w - inset * 2, h - inset * 2);
+  const band = inset + w * 0.022;
+  const step = w * 0.03;
+  const ACCENTS = ["#00e0c6", "#ff90e8", "#ffdd00"];
+  const diamond = (x, y, k) => {
+    const d = w * 0.007;
+    c.beginPath();
+    c.moveTo(x, y - d);
+    c.lineTo(x + d, y);
+    c.lineTo(x, y + d);
+    c.lineTo(x - d, y);
+    c.closePath();
+    c.fillStyle = ACCENTS[k % ACCENTS.length];
+    c.fill();
+  };
+  let k = 0;
+  for (let x = band + step / 2; x < w - band; x += step) {
+    diamond(x, band, k);
+    diamond(x, h - band, k++);
+  }
+  for (let y = band + step / 2; y < h - band; y += step) {
+    diamond(band, y, k);
+    diamond(w - band, y, k++);
+  }
+  c.lineWidth = Math.max(3, w / 400);
+  c.strokeStyle = "rgba(243,234,216,.55)";
+  c.strokeRect(band + w * 0.018, band + w * 0.018, w - (band + w * 0.018) * 2, h - (band + w * 0.018) * 2);
+  // the outer edge, bound in black
   c.lineWidth = Math.max(8, w / 80);
   c.strokeStyle = "#1a1714";
   c.strokeRect(0, 0, w, h);

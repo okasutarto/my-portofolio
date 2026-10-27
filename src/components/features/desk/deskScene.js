@@ -5337,6 +5337,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const fur = toon("#ff9f45");
   const furDark = toon("#d9741f");
   const furLight = toon("#fffdf5");
+  // In the desk's shade (the floor, the rug, the chair) her toon colours sink to flat darks and
+  // her stripes and white bits vanish; there her fur gives off a little of its own colour, so
+  // she reads as well as she does under the lamp. Out of the shade it fades back off.
+  const FUR_MATS = [fur, furDark, furLight];
+  FUR_MATS.forEach((mat) => mat.emissive.copy(mat.color));
+  function catShade(inShade, duration = 0.6) {
+    FUR_MATS.forEach((mat) => gsap.to(mat, { emissiveIntensity: inShade ? 0.38 : 0, duration, overwrite: true }));
+  }
   const catInk = toon("#1a1714");
   const cat = new THREE.Group();
   cat.scale.setScalar(0.85);
@@ -5506,6 +5514,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   };
   const bedFor = (night) => CAT_BEDS[night ? "desk" : "floor"];
   let catBed = bedFor(dark);
+  catShade(catBed !== CAT_BEDS.desk, 0);
   catBed.parent.add(cat);
   cat.position.copy(catBed.position);
   cat.rotation.y = catBed.yaw;
@@ -5563,6 +5572,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
         cat.position.copy(bed.position);
         cat.rotation.set(0, bed.yaw, 0);
         catBed = bed;
+        catShade(bed !== CAT_BEDS.desk);
       });
   }
   // Where she belongs right now: the desk at night, unless the case files are open on it (then

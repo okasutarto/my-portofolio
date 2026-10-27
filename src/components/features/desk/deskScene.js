@@ -95,6 +95,7 @@ import {
 } from "./textures";
 import { createDesktop, SCREEN_W, SCREEN_H } from "./desktop";
 import { createLofi, TRACKS } from "./lofi";
+import { createToonBatch } from "./toonBatch";
 
 const PALETTES = {
   // The shelf's oak tone, so the desk, the riser, the shelf and the window frame read as one set
@@ -104,12 +105,14 @@ const PALETTES = {
 };
 // Props that stand for a section of the 2D site
 export const SECTIONS = ["hero", "about", "experience", "projects", "contact"];
+const perfParams = new URLSearchParams(window.location.search);
+const benchmark = perfParams.has("perf") ? perfParams.get("bench") : null;
 
 // Contact-hardening soft shadows (PCSS): crisp where a prop meets the surface, spreading wider
 // the further the shadow falls from it. Swapped in for three's fixed-width PCF soft filter, for
 // the sun, window and lamp and for the neons' point lights alike; each light's `shadow.radius`
 // is its widest blur, in texels.
-if (!THREE.ShaderChunk.shadowmap_pars_fragment.includes("pcssShadow")) {
+if (benchmark !== "no-pcss" && !THREE.ShaderChunk.shadowmap_pars_fragment.includes("pcssShadow")) {
   const pcss = `
     // a quick search for what's in the way, then a finer filter sized by how far it is
     #define PCSS_SEARCH 8
@@ -195,10 +198,11 @@ const VIEW_W = 21.5;
 const VIEW_H = 14.5;
 
 export function createDeskScene({ container, projects, experiences, dark = false, muted = false, onEvent = () => {} }) {
+  let responsiveUntil = 0;
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = benchmark !== "no-shadows";
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.domElement.className = "absolute inset-0 w-full h-full block";
   renderer.domElement.style.touchAction = "none";
@@ -217,35 +221,54 @@ export function createDeskScene({ container, projects, experiences, dark = false
   );
   composer.addPass(new RenderPass(scene, camera));
   const aoPass = new GTAOPass(scene, camera, 1, 1);
-  // three r160 misspells this define in the constructor, so an orthographic camera would get
-  // the perspective depth maths
-  [aoPass.gtaoMaterial, aoPass.depthRenderMaterial].forEach((m) => {
-    m.defines.PERSPECTIVE_CAMERA = 0;
-    m.needsUpdate = true;
-  });
+  aoPass.depthRenderMaterial.defines.PERSPECTIVE_CAMERA = 0;
   aoPass.updateGtaoMaterial({ radius: 1.2, thickness: 1, distanceExponent: 1.5, scale: 1.4, samples: 12 });
   aoPass.updatePdMaterial({ radius: 6, samples: 12, rings: 2 });
-  // Occlusion is soft, so it's worked out at half resolution and blended up onto the full frame
   const aoSetSize = aoPass.setSize.bind(aoPass);
   aoPass.setSize = (width, height) => aoSetSize(Math.ceil(width / 2), Math.ceil(height / 2));
   aoPass.blendIntensity = 0.85;
   const useFrameDepth = () => aoPass.setGBuffer(composer.readBuffer.depthTexture);
   useFrameDepth();
-  // the switch to depth-only changes the shaders' defines
   [aoPass.gtaoMaterial, aoPass.pdMaterial].forEach((m) => (m.needsUpdate = true));
   composer.addPass(aoPass);
   composer.addPass(new OutputPass());
+  if (benchmark === "no-ao") aoPass.enabled = false;
+  // Count the complete frame, including shadow, postprocessing and overlay draws.
+  if (perfParams.has("perf")) renderer.info.autoReset = false;
+  let renderMs = 0;
+  let drawCalls = 0;
+  let triangles = 0;
+  let gpuMs = null;
+  const gl = renderer.getContext();
+  const gpuTimer = perfParams.has("perf") ? gl.getExtension("EXT_disjoint_timer_query_webgl2") : null;
+  let gpuQuery = null;
   // Cards, labels and bubbles drawn over everything (no depth test) skip the composer and are
   // laid on top afterwards, so the occlusion never shades them
   const overlays = [];
   const overlaySet = new Set();
   function renderFrame() {
+    const started = performance.now();
+    if (perfParams.has("perf")) renderer.info.reset();
+    if (gpuQuery && gl.getQueryParameter(gpuQuery, gl.QUERY_RESULT_AVAILABLE)) {
+      if (!gl.getParameter(gpuTimer.GPU_DISJOINT_EXT)) {
+        const elapsed = gl.getQueryParameter(gpuQuery, gl.QUERY_RESULT) / 1e6;
+        gpuMs = gpuMs === null ? elapsed : gpuMs + (elapsed - gpuMs) * 0.1;
+      }
+      gl.deleteQuery(gpuQuery);
+      gpuQuery = null;
+    }
+    const measuring = gpuTimer && !gpuQuery;
+    if (measuring) {
+      gpuQuery = gl.createQuery();
+      gl.beginQuery(gpuTimer.TIME_ELAPSED_EXT, gpuQuery);
+    }
     overlays.length = 0;
     overlaySet.clear();
     scene.traverseVisible((o) => {
       if (o.material?.depthTest !== false) return;
       for (let p = o.parent; p; p = p.parent) if (overlaySet.has(p)) return;
       overlaySet.add(o);
+      o.traverse((part) => part.layers.enable(1));
       overlays.push(o);
     });
     overlays.forEach((o) => (o.visible = false));
@@ -253,10 +276,21 @@ export function createDeskScene({ container, projects, experiences, dark = false
     useFrameDepth();
     composer.render();
     overlays.forEach((o) => (o.visible = true));
-    if (!overlays.length) return;
-    renderer.autoClear = false;
-    overlays.forEach((o) => renderer.render(o, camera));
-    renderer.autoClear = true;
+    if (overlays.length) {
+      renderer.autoClear = false;
+      const layers = camera.layers.mask;
+      const background = scene.background;
+      camera.layers.set(1);
+      scene.background = null;
+      renderer.render(scene, camera);
+      scene.background = background;
+      camera.layers.mask = layers;
+      renderer.autoClear = true;
+    }
+    if (measuring) gl.endQuery(gpuTimer.TIME_ELAPSED_EXT);
+    renderMs += (performance.now() - started - renderMs) * 0.1;
+    drawCalls += (renderer.info.render.calls - drawCalls) * 0.1;
+    triangles += (renderer.info.render.triangles - triangles) * 0.1;
   }
 
   // Daylight enters from the upper panes of the left window, across the desk.
@@ -712,14 +746,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
   };
   const shadowedNeons = [];
   let neonShadowTurn = 0;
-  function updateNeonLights() {
+  let neonShadowAt = 0;
+  function updateNeonLights(now, moving = false) {
     neonLights.forEach(({ light, max, level, tint }) => {
       light.intensity = max * level();
       if (tint) light.color.copy(tint.color);
     });
-    // The neons' shadows are refreshed in turn, one a frame and only while lit: the props they
-    // shade barely move between refreshes, and it spares five of every six cube renders
-    if (!shadowedNeons.length) return;
+    // Cache decorative shadows while idle; motion gets one cube update per rendered frame.
+    if (!shadowedNeons.length || (!moving && now < neonShadowAt)) return;
+    neonShadowAt = now + 50;
     neonShadowTurn = (neonShadowTurn + 1) % shadowedNeons.length;
     const light = shadowedNeons[neonShadowTurn];
     if (light.intensity > 0) light.shadow.needsUpdate = true;
@@ -2010,11 +2045,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
     shelf.add(channel, strip, glow);
     shelfLeds.push({ ledMat, glowMat });
   });
-  // The LEDs' colour on the shelves, party hues included: one light per two compartments, set in
-  // the board between them (every light is paid for on every pixel, so they're kept few)
+  // The LEDs' colour on the shelves, party hues included: one light per two compartments, level
+  // with the board between them (every light is paid for on every pixel, so they're kept few).
+  // Held out in front of the shelf: toon shading lights a face even from behind, so a light
+  // inside the board burnt a bright disc onto its top.
   const shelfLights = [LEVELS[1], LEVELS[3]].map((y) => {
     const light = neonLight("#70e5e0", 3.2, () => shelfLeds[0].glowMat.opacity / 0.5, { distance: 3.6 });
-    light.position.set(0, y, 0.1);
+    light.position.set(0, y, SHELF_D / 2 + 0.55);
     shelf.add(light);
     return light;
   });
@@ -5516,7 +5553,26 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const BADGE_PIN = new THREE.Vector3(1.4, 7.55, WALL_Z + 0.48);
   const BADGE_CLIP = new THREE.Vector3(1.4, 5.85, WALL_Z + 0.58); // straight below the pin: the rope's resting shape
   // Blue: it stands off the yellow badge, the red pin and the cork
-  const strapMat = toon("#3b82f6");
+  const strapWeave = canvasTexture(512, 128);
+  track(strapWeave.texture);
+  const weave = strapWeave.ctx;
+  weave.fillStyle = "#245bd7";
+  weave.fillRect(0, 0, 512, 128);
+  for (let y = 0; y < 128; y += 3) {
+    weave.fillStyle = y % 2 ? "#ffffff12" : "#0b256522";
+    weave.fillRect(0, y, 512, 1);
+  }
+  weave.fillStyle = "#b9d3ff";
+  for (const y of [5, 59, 69, 123]) {
+    for (let x = 0; x < 512; x += 12) weave.fillRect(x, y, 7, 1);
+  }
+  weave.font = "700 11px 'Space Grotesk', sans-serif";
+  weave.textAlign = "center";
+  for (const y of [35, 99]) {
+    for (const x of [128, 384]) weave.fillText("OKASP  /  MAKE THINGS WORK", x, y);
+  }
+  const strapMat = toon("#ffffff");
+  strapMat.map = strapWeave.texture;
   // Where the pin is now: drag it to re-pin the badge anywhere on this stretch of wall
   const badgePin = BADGE_PIN.clone();
   const PIN_BOUNDS = { minX: 0.3, maxX: 8.0, minY: 4.9 + WALL_LIFT, maxY: 9.0 + WALL_LIFT };
@@ -5581,10 +5637,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const t = i / ROPE_SEGMENTS;
     return out.set(rope[i].x + side * 0.17 * Math.sin(Math.PI * t), rope[i].y, rope[i].z + 0.02);
   };
-  // Each strand is one smooth tube through the rope's points, reshaped every frame as the rope
-  // moves; its outline hull shares the tube, so the line runs on unbroken from pin to clip
+  // Flattened, rounded ribbons: reuse their buffers as the rope moves, including the outline.
   const STRAND_STEPS = 48;
-  const STRAND_RADIUS = 0.05;
+  const STRAND_RADIUS = 0.075;
+  const STRAND_DEPTH = 0.014;
   const strands = [-1, 1].map((side) => {
     const curve = new THREE.CatmullRomCurve3(rope.map((_, i) => strandPoint(i, side, new THREE.Vector3())));
     const geo = track(new THREE.TubeGeometry(curve, STRAND_STEPS, STRAND_RADIUS, 8));
@@ -5599,7 +5655,19 @@ export function createDeskScene({ container, projects, experiences, dark = false
     scene.add(tube);
     return { side, curve, tube };
   });
-  const strapPin = mesh(new THREE.SphereGeometry(0.11, 14, 10), toon("#e11d48"), { outline: 0.025 });
+  const strapPin = new THREE.Group();
+  const pinMetal = toon("#b8c4d5");
+  const pinSeat = mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.04, 20), toon("#9f1239"), { outline: 0.012 });
+  pinSeat.rotation.x = Math.PI / 2;
+  const pinStem = mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.11, 12), pinMetal, { outline: 0.008 });
+  pinStem.rotation.x = Math.PI / 2;
+  pinStem.position.z = 0.04;
+  const pinHead = mesh(new THREE.SphereGeometry(0.105, 18, 12), toon("#f43f5e"), { outline: 0.02 });
+  pinHead.scale.set(1, 1, 0.65);
+  pinHead.position.z = 0.12;
+  const pinGlint = mesh(new THREE.SphereGeometry(0.025, 10, 8), toon("#ffbdcc"), { outline: 0, cast: false });
+  pinGlint.position.set(-0.035, 0.04, 0.175);
+  strapPin.add(pinSeat, pinStem, pinHead, pinGlint);
   strapPin.position.copy(BADGE_PIN).add(new THREE.Vector3(0, 0, 0.06));
   scene.add(strapPin);
   // Grabbing the lanyard: the pin, a point along the strap, or the badge (its clip end).
@@ -5664,6 +5732,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // The badge swings on its clip a little behind the strap's own angle: a damped spring
   let badgeAngle = 0;
   let badgeSpin = 0;
+  // How far out from the wall the badge must hang at (x, y, angle) to clear the papers under
+  // it; the About board fills this in once its papers exist
+  let badgeClearance = () => -Infinity;
+  let badgeZ = BADGE_CLIP.z;
+  const strapPoint = new THREE.Vector3();
+  const strapTangent = new THREE.Vector3();
   function updateLanyard(dt) {
     ropeTime += dt;
     ropeClock += dt;
@@ -5672,18 +5746,37 @@ export function createDeskScene({ container, projects, experiences, dark = false
       stepRope(STEP);
       ropeClock -= STEP;
     }
+    // Over a paper the badge stands off it, quick to pull out and slow to settle back, and
+    // the strap leans out with it from the pin
+    const clearance = Math.max(BADGE_CLIP.z, badgeClearance(rope[ROPE_SEGMENTS].x, rope[ROPE_SEGMENTS].y, badgeAngle));
+    badgeZ += (clearance - badgeZ) * Math.min(1, dt * (clearance > badgeZ ? 30 : 4));
+    rope.forEach((p, i) => (p.z = THREE.MathUtils.lerp(BADGE_PIN.z, badgeZ, i / ROPE_SEGMENTS)));
     strands.forEach(({ side, curve, tube }) => {
       curve.points.forEach((point, i) => strandPoint(i, side, point));
-      const shape = new THREE.TubeGeometry(curve, STRAND_STEPS, STRAND_RADIUS, 8);
       const { position, normal } = tube.geometry.attributes;
-      position.array.set(shape.attributes.position.array);
-      normal.array.set(shape.attributes.normal.array);
+      for (let i = 0; i <= STRAND_STEPS; i++) {
+        curve.getPoint(i / STRAND_STEPS, strapPoint);
+        curve.getTangent(i / STRAND_STEPS, strapTangent);
+        const length = Math.hypot(strapTangent.x, strapTangent.y) || 1;
+        const sx = strapTangent.y / length;
+        const sy = -strapTangent.x / length;
+        for (let j = 0; j <= 8; j++) {
+          const angle = j / 8 * Math.PI * 2;
+          const x = Math.cos(angle);
+          const z = Math.sin(angle);
+          const index = i * 9 + j;
+          position.setXYZ(index, strapPoint.x + sx * x * STRAND_RADIUS, strapPoint.y + sy * x * STRAND_RADIUS, strapPoint.z + z * STRAND_DEPTH);
+          const nx = x / STRAND_RADIUS;
+          const nz = z / STRAND_DEPTH;
+          const n = Math.hypot(nx, nz);
+          normal.setXYZ(index, sx * nx / n, sy * nx / n, nz / n);
+        }
+      }
       position.needsUpdate = normal.needsUpdate = true;
-      shape.dispose();
     });
     const end = rope[ROPE_SEGMENTS];
     const before = rope[ROPE_SEGMENTS - 2];
-    badge.position.set(end.x, end.y, BADGE_CLIP.z);
+    badge.position.set(end.x, end.y, badgeZ);
     const target = Math.atan2(end.x - before.x, before.y - end.y);
     badgeSpin += (90 * (target - badgeAngle) - 7 * badgeSpin) * dt;
     badgeAngle += badgeSpin * dt;
@@ -5698,17 +5791,26 @@ export function createDeskScene({ container, projects, experiences, dark = false
   };
   // Deep enough to close round both strands' ends (they meet at its centre, 0.05 thick and
   // 0.02 proud of the badge), so neither pokes out through its face
-  const clip = mesh(rbox(0.22, 0.16, 0.17, 0.03), toon("#888888"), { outline: 0.025 });
+  const clip = new THREE.Group();
   clip.position.z = 0.02;
+  const clipBody = at(mesh(rbox(0.23, 0.14, 0.09, 0.025), pinMetal, { outline: 0.018 }), 0, 0, 0.025);
+  const clipInset = at(mesh(rbox(0.15, 0.045, 0.015, 0.01), toon("#526075"), { outline: 0.006 }), 0, 0.01, 0.08);
+  const clipRivet = at(mesh(new THREE.SphereGeometry(0.025, 12, 8), toon("#edf4ff"), { outline: 0.006 }), 0, -0.025, 0.085);
+  const clipRing = mesh(new THREE.TorusGeometry(0.07, 0.018, 8, 20), pinMetal, { outline: 0.008 });
+  clipRing.position.set(0, -0.115, 0.025);
+  clip.add(clipBody, clipInset, clipRivet, clipRing);
   const badgeCard = new THREE.Group();
   // About the size of a real ID card on a lanyard (it was reading as a clipboard)
   badgeCard.position.y = -0.74;
-  const badgeFront = printed(0.8, 1.3, 560, (c, w, h) => drawBadge(c, w, h));
-  badgeFront.position.z = 0.023;
-  const badgeBack = printed(0.8, 1.3, 560, (c, w, h) => drawBadge(c, w, h, { back: true }));
-  badgeBack.position.z = -0.023;
+  const badgeFront = printed(0.76, 1.22, 700, (c, w, h) => drawBadge(c, w, h));
+  badgeFront.position.z = 0.038;
+  const badgeBack = printed(0.76, 1.22, 700, (c, w, h) => drawBadge(c, w, h, { back: true }));
+  badgeBack.position.z = -0.038;
   badgeBack.rotation.y = Math.PI;
-  badgeCard.add(mesh(rbox(0.8, 1.3, 0.04, 0.035), toon("#ffffff"), { outline: 0.03 }), badgeFront, badgeBack);
+  const badgeHolder = mesh(phoneSlab(0.86, 1.34, 0.065, 0.06), toon("#d6e2ee"), { outline: 0.025 });
+  const badgeLip = at(mesh(rbox(0.23, 0.1, 0.07, 0.025), pinMetal, { outline: 0.012 }), 0, 0.65, 0);
+  const holderSlot = at(mesh(rbox(0.115, 0.025, 0.075, 0.01), toon("#273449"), { outline: 0 }), 0, 0.66, 0);
+  badgeCard.add(badgeHolder, badgeFront, badgeBack, badgeLip, holderSlot);
   badge.add(clip, badgeCard);
   // Zoomed in, clicking the badge turns it over: the links are printed on the back
   let badgeFlipped = false;
@@ -5826,6 +5928,27 @@ export function createDeskScene({ container, projects, experiences, dark = false
     aboutBoard.add(shadow, paper);
     return { paper, sheet, shadow, pin, pinShadow, head, highlight, ring, w, h, href: note.href, angle: paper.rotation.z };
   });
+  // The badge swinging over the board clears each paper's face, its pin and however far a
+  // hover has tipped the sheet out from the cork, with a margin for the swing's speed
+  badgeClearance = (x, y, angle) => {
+    const cos = Math.abs(Math.cos(angle));
+    const sin = Math.abs(Math.sin(angle));
+    const cardX = x + 0.74 * Math.sin(angle);
+    const cardY = y - 0.74 * Math.cos(angle);
+    const halfX = 0.43 * cos + 0.67 * sin + 0.2;
+    const halfY = 0.43 * sin + 0.67 * cos + 0.2;
+    let z = -Infinity;
+    boardNotes.forEach(({ paper, sheet, w, h }) => {
+      const noteX = (w * Math.cos(paper.rotation.z) + h * Math.abs(Math.sin(paper.rotation.z))) / 2 * paper.scale.x;
+      const noteY = (h * Math.cos(paper.rotation.z) + w * Math.abs(Math.sin(paper.rotation.z))) / 2 * paper.scale.y;
+      if (Math.abs(aboutBoard.position.x + paper.position.x - cardX) > halfX + noteX) return;
+      if (Math.abs(aboutBoard.position.y + paper.position.y - cardY) > halfY + noteY) return;
+      const tipped = Math.sin(Math.max(0, -sheet.rotation.x)) * h;
+      z = Math.max(z, aboutBoard.position.z + paper.position.z + Math.max(0.17, 0.12 + tipped));
+    });
+    // The holder's half depth and a little air
+    return z + 0.1;
+  };
   const boardPinGlints = [];
   // Spare push pins left stuck in the cork
   [[-3.0, -1.55, "#00e0c6"], [0.6, 1.45, "#ffdd00"], [3.02, 0.25, "#ff6b6b"], [-0.6, 1.55, "#7fb2ff"]].forEach(([x, y, color], i) => {
@@ -5918,14 +6041,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   let boardIntroduced = false;
   register(aboutBoard, {
     focus: "about",
-    onHover: (on) => {
-      boardPinGlints.forEach((glint) => gsap.to(glint.material, { opacity: on ? 1 : 0.35, duration: 0.3, overwrite: true }));
-      // A staggered flutter reads from the room view while the cork and pins stay fixed.
-      boardNotes.forEach((note, i) => {
-        if (noteDrag?.note === note || gsap.isTweening(note.pin.position)) return;
-        gsap.to(note.sheet.rotation, { x: on ? -0.16 : 0, z: 0, delay: on ? i * 0.035 : 0, duration: on ? 0.35 : 0.5, ease: "power2.out", overwrite: true });
-      });
-    },
+    // The pins glint; each paper answers only its own hover, so the cork leaves them alone
+    onHover: (on) => boardPinGlints.forEach((glint) => gsap.to(glint.material, { opacity: on ? 1 : 0.35, duration: 0.3, overwrite: true })),
     onArrive: () => {
       if (boardIntroduced) return;
       boardIntroduced = true;
@@ -6025,7 +6142,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
       const key = new THREE.Group();
       key.position.set((cursor + width / 2) * KEY_UNIT, KEY_Y, (r - 2.5) * KEY_UNIT);
       key.userData.code = code;
-      key.add(mesh(rbox(w, 0.18, d, 0.05), keyMat(color), { outline: 0.03 }));
+      // AO supplies the gaps between caps; the case supplies the keyboard's cast shadow.
+      key.add(mesh(rbox(w, 0.18, d, 0.05), keyMat(color), { outline: 0.03, cast: false }));
       if (label) {
         const homing = code === "KeyF" || code === "KeyJ" ? "#38bdf8" : null;
         const legend = printed(w - 0.05, d - 0.05, 340, (c, cw, ch) => drawKeyLabel(c, cw, ch, label, color, { ink: keyInk(code), small: label.length > 1, shift: SHIFTED[code] || MOD_SYMBOLS[code], homing }));
@@ -6071,6 +6189,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     onPointer: hoverKey,
   });
   const onKeyDown = (e) => {
+    responsiveUntil = performance.now() + 2000;
     // A modifier's own keydown already carries its flag (Cmd sets metaKey), so it's pressed
     // here, before combinations are ignored below
     if (MODIFIER_CODES.has(e.code)) {
@@ -7341,6 +7460,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     },
   });
   const onWheel = (e) => {
+    responsiveUntil = performance.now() + 2000;
     if (focus.name === "shelf") {
       e.preventDefault();
       const delta = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? container.clientHeight : 1);
@@ -8245,6 +8365,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
 
   // ---------- pointer ----------
   const raycaster = new THREE.Raycaster();
+  raycaster.layers.enable(2);
   const ndc = new THREE.Vector2();
   const parallax = { x: 0, y: 0, tx: 0, ty: 0 };
   let hovered = null;
@@ -8269,9 +8390,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // For hover: stay on the item already hovered while the pointer is still over any part of
   // it. A lifted ticket or folder shifts a little on screen; without this the hover would
   // flick back and forth between it and the one beneath.
-  const pickHover = (e) => {
+  const pickHover = (e, hits = null) => {
     rayFromPointer(e);
-    const hits = visibleHits();
+    if (!hits) hits = visibleHits();
     const nearest = hits[0] ? entryFor(hits[0].object) : null;
     // A paper in front of its board must take hover from the parent behind it.
     // Keep the existing retention for overlapping peers such as tickets and folders.
@@ -8325,6 +8446,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     return drag;
   }
   const onPointerMove = (e) => {
+    responsiveUntil = performance.now() + 2000;
     if (shelfDrag) {
       if (e.pointerId !== shelfDrag.pointerId) return;
       const dy = e.clientY - shelfDrag.startY;
@@ -8384,21 +8506,24 @@ export function createDeskScene({ container, projects, experiences, dark = false
     parallax.tx = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
     parallax.ty = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
     if (e.pointerType === "mouse") {
-      setHover(pickHover(e));
+      // Reuse one raycast for hover, prop hotspots and the lanyard hit area.
+      rayFromPointer(e);
+      const hits = visibleHits();
+      setHover(pickHover(e, hits));
       if (hovered?.onPointer) {
-        const hit = visibleHits()[0];
+        const hit = hits[0];
         hovered.onPointer(entryFor(hit?.object)?.object === hovered.object ? hit : null);
       }
-      if (lanyardUnder(e)?.strap) renderer.domElement.style.cursor = "grab";
+      if (lanyardUnder(e, hits)?.strap) renderer.domElement.style.cursor = "grab";
       mouseAim.x = MOUSE_ORIGIN.x + parallax.tx * 0.6;
       mouseAim.z = MOUSE_ORIGIN.z + parallax.ty * 0.45;
     }
   };
   // The pin or strap under the pointer, or the badge itself, on the shots where it's in reach
   // (the overview, the badge close up, and the About board it hangs from)
-  function lanyardUnder(e) {
+  function lanyardUnder(e, hits = null) {
     if (focus.name !== "overview" && focus.name !== "hero" && focus.name !== "about") return null;
-    const badgeHit = pick(e)?.entry?.object === badge;
+    const badgeHit = hits ? entryFor(hits[0]?.object)?.object === badge : pick(e)?.entry?.object === badge;
     const point = rayFromPointer(e).intersectPlane(lanyardPlane, lanyardPoint);
     return point ? lanyardAt(point, badgeHit) : null;
   }
@@ -8413,6 +8538,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     return drag;
   }
   const onPointerDown = (e) => {
+    responsiveUntil = performance.now() + 2000;
     if (shelfDrag || stickyDrag || noteDrag || lanyardDrag || e.button !== 0) return;
     downAt = { x: e.clientX, y: e.clientY };
     if (focus.name === "shelf") {
@@ -8745,9 +8871,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const w = container.clientWidth || 1;
     const h = container.clientHeight || 1;
     const density = pixelRatio();
-    // A new density is usually the window moving to another screen (a Retina laptop and a 1080p
-    // monitor, say), which may refresh at another rate too: start the quality over for it
-    if (density !== renderer.getPixelRatio()) resetQuality();
     renderer.setPixelRatio(density);
     const aspect = w / h;
     // Keep desk props large enough to tap while the room fills the rest of the screen.
@@ -8763,128 +8886,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
     if (!intro?.isActive()) applyShot(true);
   }
 
-  // Adaptive quality. The display's own refresh rate is the target (a 120Hz Mac shows a frame
-  // every 8.3ms, and settling for 60 there reads as judder), learnt from the quickest frames in
-  // the first seconds. Decisions go on the median of the last frames, so a camera flight or a
-  // shader compiling doesn't count, only a steady shortfall. Sharpness is the last to give:
-  // first the ambient occlusion, then the neons' shadows, then the post passes' density (up to
-  // 2×, upscaled onto the canvas, never under one pass pixel per screen pixel). With headroom it
-  // climbs back a step; a step that falls behind again waits longer before the next try.
-  const QUALITY_LEVELS = [
-    { ao: true, neonShadows: true, density: 1 },
-    { ao: false, neonShadows: true, density: 1 },
-    { ao: false, neonShadows: false, density: 1 },
-    { ao: false, neonShadows: false, density: 0.875 },
-    { ao: false, neonShadows: false, density: 0.75 },
-    { ao: false, neonShadows: false, density: 0.625 },
-    { ao: false, neonShadows: false, density: 0.5 },
-  ];
-  let qualityLevel = 0;
-  let quality = 1;
-  let refreshMs = 1000 / 60;
-  const warmup = [];
-  const recentFrames = [];
+  // Match the canvas at every zoom/density. Slow frames must never lower image sharpness.
+  const refreshMs = 1000 / 60;
   let frameMs = 16;
-  // the first seconds compile shaders and load textures, which says nothing about steady frames;
-  // they still show how often the display refreshes
-  let warmupUntil = performance.now() + 5000;
-  let qualityCheckAt = warmupUntil;
-  let slowSince = null;
-  let easySince = null;
-  // per level: when climbing back to it may be tried again, and how long the next wait is
-  let retryAt = [];
-  let retryWait = [];
-  let climbedAt = -Infinity;
-  const postDensity = () => Math.max(1, Math.min(renderer.getPixelRatio(), 2) * quality);
+  const postDensity = () => renderer.getPixelRatio();
   function sizeComposer() {
     composer.setPixelRatio(postDensity());
     composer.setSize(container.clientWidth || 1, container.clientHeight || 1);
-  }
-  function applyQuality() {
-    const level = QUALITY_LEVELS[qualityLevel];
-    quality = level.density;
-    aoPass.enabled = level.ao;
-    // the shaders recompile when the six-sided shadow lookups come or go, so only on a change
-    if (shadowedNeons.some((light) => light.castShadow !== level.neonShadows)) {
-      shadowedNeons.forEach((light) => (light.castShadow = level.neonShadows));
-    }
-    sizeComposer();
-    recentFrames.length = 0;
-    slowSince = easySince = null;
-  }
-  // a lower step that changes nothing here (density already at the 1× floor) isn't a step
-  const lowestUseful = () => {
-    let last = 2;
-    let density = Math.max(1, Math.min(renderer.getPixelRatio(), 2));
-    QUALITY_LEVELS.forEach((level, i) => {
-      const next = Math.max(1, Math.min(renderer.getPixelRatio(), 2) * level.density);
-      if (next < density) last = i;
-      density = next;
-    });
-    return last;
-  };
-  function resetQuality() {
-    qualityLevel = 0;
-    retryAt = [];
-    retryWait = [];
-    slowSince = easySince = null;
-    climbedAt = -Infinity;
-    refreshMs = 1000 / 60;
-    warmup.length = 0;
-    recentFrames.length = 0;
-    warmupUntil = qualityCheckAt = performance.now() + 3000;
-    applyQuality();
-  }
-  function adaptQuality(now, ms) {
-    // a long gap is a background tab or a hitch, not the cost of a frame
-    if (document.hidden || ms > 100) {
-      recentFrames.length = 0;
-      slowSince = easySince = null;
-      return;
-    }
-    frameMs += (ms - frameMs) * 0.05;
-    recentFrames.push(ms);
-    if (recentFrames.length > 90) recentFrames.shift();
-    if (now < warmupUntil) {
-      warmup.push(ms);
-      return;
-    }
-    if (now < qualityCheckAt) return;
-    qualityCheckAt = now + 1000;
-    if (warmup.length) {
-      // snapped to the nearest common rate, since frame timings jitter either side of it
-      warmup.sort((a, b) => a - b);
-      const hz = 1000 / warmup[Math.floor(warmup.length * 0.25)];
-      refreshMs = 1000 / [60, 75, 90, 120, 144, 165].reduce((best, rate) => (Math.abs(rate - hz) < Math.abs(best - hz) ? rate : best));
-      warmup.length = 0;
-    }
-    if (recentFrames.length < 90) return;
-    const median = [...recentFrames].sort((a, b) => a - b)[recentFrames.length >> 1];
-    if (median > refreshMs * 1.2) {
-      easySince = null;
-      if (slowSince === null) slowSince = now;
-      if (now - slowSince < 2000 || qualityLevel >= lowestUseful()) return;
-      // falling behind soon after a climb: that step is too much for now
-      if (slowSince - climbedAt < 4000) {
-        retryWait[qualityLevel] = Math.min(8 * 60000, (retryWait[qualityLevel] || 15000) * 2);
-        retryAt[qualityLevel] = now + retryWait[qualityLevel];
-      }
-      climbedAt = -Infinity;
-      qualityLevel++;
-      applyQuality();
-    } else {
-      slowSince = null;
-      if (median > refreshMs * 1.05) {
-        easySince = null;
-        return;
-      }
-      if (easySince === null) easySince = now;
-      if (now - easySince < 10000 || qualityLevel === 0) return;
-      if (now < (retryAt[qualityLevel - 1] || 0)) return;
-      qualityLevel--;
-      climbedAt = now;
-      applyQuality();
-    }
   }
   // `?perf` in the address shows the frame rate and what the quality has settled on
   const perfReadout = new URLSearchParams(window.location.search).has("perf") ? document.createElement("div") : null;
@@ -8893,7 +8901,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
     container.appendChild(perfReadout);
     timers.push(setInterval(() => {
       const neonShadows = shadowedNeons.some((light) => light.castShadow);
-      perfReadout.textContent = `${(1000 / frameMs).toFixed(0)} fps (display ${(1000 / refreshMs).toFixed(0)}Hz) · step ${qualityLevel}\npost ${postDensity().toFixed(2)}× · AO ${aoPass.enabled ? "on" : "off"} · neon shadows ${neonShadows ? "on" : "off"}`;
+      const intervals = [...frameIntervals].sort((a, b) => a - b);
+      const p95 = intervals[Math.min(intervals.length - 1, Math.floor(intervals.length * 0.95))] || 0;
+      perfReadout.textContent = `${(1000 / frameMs).toFixed(0)} fps (budget ${(1000 / refreshMs).toFixed(0)}) · resolution locked\npost ${postDensity().toFixed(2)}× · GTAO ${aoPass.enabled ? "on" : "off"} · neon shadows ${neonShadows ? "on" : "off"}\n${drawCalls.toFixed(0)} draws · ${(triangles / 1000).toFixed(0)}k triangles\nCPU submit ${renderMs.toFixed(1)}ms · GPU ${gpuMs === null ? "n/a" : gpuMs.toFixed(1) + "ms"} · frame p95 ${p95.toFixed(1)}ms${benchmark ? " · " + benchmark : ""}`;
     }, 500));
   }
 
@@ -8903,17 +8913,38 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const dir = new THREE.Vector3();
   const target = new THREE.Vector3();
   let lastTick = 0;
+  let mainShadowAt = 0;
+  const frameIntervals = [];
+  const updateToonBatch = benchmark === "no-batch" ? () => {} : createToonBatch(scene, renderer, track);
+  [sun, windowLight, lampLight].forEach((light) => {
+    light.shadow.autoUpdate = false;
+    light.shadow.needsUpdate = true;
+  });
   function tick(now) {
     frame = requestAnimationFrame(tick);
+    if (document.hidden) {
+      lastTick = 0;
+      frameIntervals.length = 0;
+      return;
+    }
+    const moving = now < responsiveUntil || gsap.isTweening(cam) || catIdleTl?.isActive() || mouseRunning || lampHopping || trophyCelebrating || lanyardDrag || noteDrag || shelfDrag || stickyDrag;
+    // Do not skip presentation frames during interaction. Idle uses a tolerant interval rather
+    // than an accumulated deadline, which otherwise creates short/long frame pairs under jitter.
+    if (!moving && lastTick && now - lastTick < refreshMs * 0.7) return;
+    if (lastTick && perfReadout) {
+      frameIntervals.push(now - lastTick);
+      if (frameIntervals.length > 180) frameIntervals.shift();
+    }
     // Step size for the springs, capped so a background tab doesn't fling them on return
     const dt = Math.min(0.05, lastTick ? (now - lastTick) / 1000 : 0.016);
-    if (lastTick) adaptQuality(now, now - lastTick);
+    if (lastTick) frameMs += (now - lastTick - frameMs) * 0.05;
     lastTick = now;
     updateTicketHover(dt);
     updateTassels(dt);
     poseFolders();
-    parallax.x += (parallax.tx - parallax.x) * 0.06;
-    parallax.y += (parallax.ty - parallax.y) * 0.06;
+    const pointerBlend = 1 - Math.pow(0.94, dt * 60);
+    parallax.x += (parallax.tx - parallax.x) * pointerBlend;
+    parallax.y += (parallax.ty - parallax.y) * pointerBlend;
     if (focus.name === "shelf" && !shelfDrag && !gsap.isTweening(cam)) {
       const shot = SHOTS.shelf();
       const blend = 1 - Math.exp(-14 * dt);
@@ -8963,8 +8994,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
     updateButterfly(dt, now);
     updatePapers(dt);
     if (!mouseRunning) {
-      mouse.position.x += (mouseAim.x - mouse.position.x) * 0.18;
-      mouse.position.z += (mouseAim.z - mouse.position.z) * 0.18;
+      const blend = 1 - Math.pow(0.82, dt * 60);
+      mouse.position.x += (mouseAim.x - mouse.position.x) * blend;
+      mouse.position.z += (mouseAim.z - mouse.position.z) * blend;
     }
     for (const { object, plane, baseY, strength } of contactShadows) {
       const lift = Math.max(0, object.position.y - baseY);
@@ -8999,7 +9031,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
       chatDirty = false;
       redrawChat();
     }
-    updateNeonLights();
+    // Moving props need primary shadows in the same frame, not a delayed 30Hz silhouette.
+    if (moving || now >= mainShadowAt) {
+      mainShadowAt = now + 1000 / 30 - 0.5;
+      [sun, windowLight, lampLight].forEach((light) => {
+        if (light.castShadow && light.intensity > 0) light.shadow.needsUpdate = true;
+      });
+    }
+    updateNeonLights(now, moving);
+    updateToonBatch();
     renderFrame();
     if (firstFrame) {
       firstFrame = false;
@@ -9097,6 +9137,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       neonLights.forEach(({ light }) => light.shadow?.dispose());
       composer.passes.forEach((pass) => pass.dispose?.());
       composer.dispose();
+      if (gpuQuery) gl.deleteQuery(gpuQuery);
       renderer.dispose();
       renderer.domElement.remove();
     },

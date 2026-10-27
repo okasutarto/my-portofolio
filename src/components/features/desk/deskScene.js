@@ -1448,9 +1448,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
   scene.add(familyFrame);
   register(familyFrame, { focus: "family", onHover: hoverScale(familyFrame, 0.82, 0.8) });
 
-  // ---------- potted plant (back-right, decor) ----------
+  // ---------- potted plant, on the window sill in the light ----------
+  // On the sill's front end, toward the room, scaled to the sill's depth (it runs from the frame,
+  // x -7.68, out past the wall to -6.81; its top is at y 2.52)
+  const PLANT_SCALE = 0.45;
+  const SILL_TOP = WINDOW_AT.y - 2.18;
   const plant = new THREE.Group();
-  plant.position.set(5.45, 0, -3.2);
+  plant.position.set(-7.15, SILL_TOP, 0.15);
+  plant.scale.setScalar(PLANT_SCALE);
   scene.add(plant);
   const potProfile = [
     [0, 0],
@@ -1561,11 +1566,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
     if (!flight.active) return;
     flight.t += dt;
     const t = flight.t;
-    // A lazy figure-eight round the plant, dipping toward the flowers
+    // A lazy figure-eight round the plant, dipping toward the flowers, on the room's side of the
+    // window (the plant's on the sill, against the wall)
     const p = plant.position;
-    const x = p.x + Math.sin(t * 1.1) * 1.3;
-    const z = p.z + Math.sin(t * 2.2) * 0.7 + 0.3;
-    let y = 3.8 + Math.sin(t * 1.7) * 0.35;
+    const x = p.x + 0.9 + Math.sin(t * 1.1) * 0.55;
+    const z = p.z + Math.sin(t * 2.2) * 0.9 + 0.2;
+    let y = p.y + 1.7 + Math.sin(t * 1.7) * 0.3;
     // Arriving from above, leaving up and to the right
     const arrive = Math.min(1, t / 1.2);
     const leave = Math.max(0, t - FLIGHT_TIME);
@@ -1607,6 +1613,226 @@ export function createDeskScene({ container, projects, experiences, dark = false
         sfx.bloom({ pitch: 1 + bloomed * 0.25, delay: 0.12 });
       }
       if (bloomed === flowers.length) timers.push(setTimeout(callButterfly, 500));
+    },
+  });
+
+  // ---------- gaming PC, on the desk's back-right corner (where the plant was) ----------
+  // A dual-chamber glass case, glass on the front and the right (toward the room), black
+  // everywhere else. Inside, as you look in: the motherboard on the back panel with its
+  // heatsinks, an AIO pump with an RGB ring and its tubes up to a top radiator with three fans,
+  // four RGB RAM sticks, a big GPU mounted upright with its three fans facing out, a column of
+  // three side fans behind the right glass, and the PSU shroud along the floor. Every ring and
+  // strip is RGB: a rainbow wave by default; click it to switch to a single colour, a slow
+  // breathe, and back, the fans spinning up as it changes. It casts a soft coloured light on
+  // the desk and wall around it, stronger at night.
+  const PC_W = 2.1;
+  const PC_H = 3.4;
+  const PC_D = 2.6;
+  const pc = new THREE.Group();
+  pc.position.set(5.7, 0, -2.95);
+  scene.add(pc);
+  const pcBlack = toon("#1c1d21");
+  const pcDark = toon("#353941");
+  const pcMid = toon("#4a4f58");
+  const pcBack = -PC_D / 2;
+  // every glowing part, with its place in the rainbow wave
+  const pcRgbParts = [];
+  const pcRgbMat = (offset) => {
+    const mat = track(new THREE.MeshBasicMaterial({ color: "#ff00aa" }));
+    pcRgbParts.push({ mat, offset });
+    return mat;
+  };
+  // the case: base on four feet, top, back, the left side, and two slim pillars
+  [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(([sx, sz]) => {
+    pc.add(at(mesh(new THREE.CylinderGeometry(0.11, 0.12, 0.08, 14), pcBlack, { outline: 0.01 }), sx * (PC_W / 2 - 0.22), 0.04, sz * (PC_D / 2 - 0.25)));
+  });
+  pc.add(
+    at(mesh(rbox(PC_W, 0.14, PC_D, 0.04), pcBlack, { outline: 0.03 }), 0, 0.15, 0),
+    at(mesh(rbox(PC_W, 0.16, PC_D, 0.05), pcBlack, { outline: 0.03 }), 0, PC_H - 0.08, 0),
+    at(mesh(rbox(PC_W, PC_H - 0.3, 0.06, 0.02), pcBlack, { outline: 0.02 }), 0, PC_H / 2, pcBack + 0.03),
+    at(mesh(rbox(0.06, PC_H - 0.3, PC_D, 0.02), pcBlack, { outline: 0.02 }), -PC_W / 2 + 0.03, PC_H / 2, 0),
+    at(mesh(rbox(0.08, PC_H - 0.3, 0.08, 0.02), pcBlack, { outline: 0.012 }), -PC_W / 2 + 0.04, PC_H / 2, PC_D / 2 - 0.04),
+    at(mesh(rbox(0.08, PC_H - 0.3, 0.08, 0.02), pcBlack, { outline: 0.012 }), PC_W / 2 - 0.04, PC_H / 2, pcBack + 0.04),
+  );
+  // the PSU shroud along the bottom, with vent slots and a little badge
+  const PC_SHROUD_TOP = 0.84;
+  pc.add(at(mesh(rbox(PC_W - 0.14, PC_SHROUD_TOP - 0.22, PC_D - 0.14, 0.03), toon("#16171a"), { outline: 0.015 }), 0, 0.22 + (PC_SHROUD_TOP - 0.22) / 2, 0));
+  for (let i = 0; i < 6; i++) pc.add(at(mesh(rbox(0.08, 0.32, 0.01, 0.004), pcMid, { outline: 0, cast: false }), 0.15 + i * 0.13, 0.53, PC_D / 2 - 0.065));
+  pc.add(at(mesh(rbox(0.36, 0.08, 0.012, 0.01), toon("#00e0c6"), { outline: 0.004, cast: false }), -0.55, 0.53, PC_D / 2 - 0.065));
+  // A fan: a square frame, an RGB ring, seven curved blades on a hub. Built facing +z.
+  const pcBladeShapes = (r0, r1) => Array.from({ length: 7 }, (_, k) => {
+    const a = (k / 7) * Math.PI * 2;
+    const pt = (r, t) => new THREE.Vector2(Math.cos(a + t) * r, Math.sin(a + t) * r);
+    const shape = new THREE.Shape();
+    const p0 = pt(r0, 0);
+    shape.moveTo(p0.x, p0.y);
+    const c1 = pt((r0 + r1) / 2, 0.15);
+    const p1 = pt(r1, 0.45);
+    shape.quadraticCurveTo(c1.x, c1.y, p1.x, p1.y);
+    const p2 = pt(r1, 0.85);
+    const c2 = pt(r1 * 1.02, 0.65);
+    shape.quadraticCurveTo(c2.x, c2.y, p2.x, p2.y);
+    const c3 = pt((r0 + r1) / 2, 0.7);
+    const p3 = pt(r0, 0.5);
+    shape.quadraticCurveTo(c3.x, c3.y, p3.x, p3.y);
+    shape.closePath();
+    return shape;
+  });
+  const pcFans = [];
+  const pcBladeMat = toon("#26292f");
+  function pcFan(size, offset) {
+    const fan = new THREE.Group();
+    const h = size / 2;
+    const bar = 0.07 * size;
+    [[0, h - bar / 2, size, bar], [0, -h + bar / 2, size, bar], [h - bar / 2, 0, bar, size], [-h + bar / 2, 0, bar, size]].forEach(([x, y, w, hh]) =>
+      fan.add(at(mesh(rbox(w, hh, 0.1 * size, 0.01), pcBlack, { outline: 0.006, cast: false }), x, y, 0)),
+    );
+    const ring = new THREE.Mesh(track(new THREE.TorusGeometry(h * 0.84, 0.045 * size, 8, 40)), pcRgbMat(offset));
+    ring.position.z = 0.04 * size;
+    const blades = mesh(new THREE.ExtrudeGeometry(pcBladeShapes(0.14 * size, 0.4 * size), { depth: 0.02 * size, bevelEnabled: false, curveSegments: 6 }), pcBladeMat, { outline: 0.004, cast: false });
+    const hub = mesh(new THREE.CylinderGeometry(0.14 * size, 0.14 * size, 0.06 * size, 20), pcDark, { outline: 0.005, cast: false });
+    hub.rotation.x = Math.PI / 2;
+    hub.position.z = 0.03 * size;
+    fan.add(ring, blades, hub);
+    pcFans.push(blades);
+    return fan;
+  }
+  // the motherboard on the back panel, its heatsinks and chipset cover
+  const PC_BOARD_Z = pcBack + 0.1;
+  pc.add(
+    at(mesh(rbox(1.35, 2.05, 0.05, 0.02), toon("#1f2228"), { outline: 0.01, cast: false }), -0.28, 1.95, PC_BOARD_Z),
+    at(mesh(rbox(0.9, 0.18, 0.12, 0.03), pcMid, { outline: 0.008, cast: false }), -0.32, 2.82, PC_BOARD_Z + 0.08),
+    at(mesh(rbox(0.18, 0.7, 0.12, 0.03), pcMid, { outline: 0.008, cast: false }), -0.86, 2.42, PC_BOARD_Z + 0.08),
+    at(mesh(rbox(0.46, 0.34, 0.06, 0.03), pcMid, { outline: 0.006, cast: false }), 0.06, 1.0, PC_BOARD_Z + 0.05),
+  );
+  // the AIO pump: a round block with an RGB ring and a glowing centre, two tubes up to the radiator
+  const PC_PUMP = new THREE.Vector3(-0.32, 2.3, PC_BOARD_Z + 0.14);
+  const pcPump = mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.16, 28), pcBlack, { outline: 0.012 });
+  pcPump.rotation.x = Math.PI / 2;
+  pcPump.position.copy(PC_PUMP);
+  const pcPumpRing = new THREE.Mesh(track(new THREE.TorusGeometry(0.21, 0.035, 8, 32)), pcRgbMat(0.1));
+  pcPumpRing.position.set(PC_PUMP.x, PC_PUMP.y, PC_PUMP.z + 0.085);
+  const pcPumpFace = new THREE.Mesh(track(new THREE.CircleGeometry(0.15, 28)), pcRgbMat(0.45));
+  pcPumpFace.position.set(PC_PUMP.x, PC_PUMP.y, PC_PUMP.z + 0.082);
+  pc.add(pcPump, pcPumpRing, pcPumpFace);
+  [-0.12, 0.12].forEach((dx, i) => {
+    const tube = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(PC_PUMP.x + 0.26, PC_PUMP.y + dx, PC_PUMP.z),
+      new THREE.Vector3(PC_PUMP.x + 0.55, PC_PUMP.y + 0.2 + dx, PC_PUMP.z + 0.25),
+      new THREE.Vector3(0.45 + i * 0.12, PC_H - 0.55, -0.1),
+      new THREE.Vector3(0.45 + i * 0.12, PC_H - 0.34, -0.15),
+    ]);
+    pc.add(mesh(new THREE.TubeGeometry(tube, 24, 0.045, 8), pcBlack, { outline: 0.008, cast: false }));
+  });
+  // four RAM sticks right of the pump, with RGB tops
+  [0.16, 0.25, 0.34, 0.43].forEach((x, i) => {
+    pc.add(at(mesh(rbox(0.05, 0.62, 0.2, 0.01), pcDark, { outline: 0.005, cast: false }), x, 2.3, PC_BOARD_Z + 0.12));
+    pc.add(at(new THREE.Mesh(track(new THREE.BoxGeometry(0.052, 0.07, 0.2)), pcRgbMat(0.2 + i * 0.05)), x, 2.64, PC_BOARD_Z + 0.12));
+  });
+  // the GPU, mounted upright so its three fans face out of the front glass, an RGB strip on top
+  const PC_GPU_Y = 1.32;
+  const PC_GPU_Z = pcBack + 0.62;
+  pc.add(at(mesh(rbox(1.62, 0.62, 0.3, 0.05), toon("#23262c"), { outline: 0.015 }), -0.14, PC_GPU_Y, PC_GPU_Z));
+  pc.add(at(mesh(rbox(1.62, 0.04, 0.3, 0.01), pcMid, { outline: 0, cast: false }), -0.14, PC_GPU_Y + 0.33, PC_GPU_Z));
+  pc.add(at(new THREE.Mesh(track(new THREE.BoxGeometry(1.4, 0.035, 0.035)), pcRgbMat(0.6)), -0.14, PC_GPU_Y + 0.31, PC_GPU_Z + 0.16));
+  [-0.68, -0.14, 0.4].forEach((x, i) => pc.add(at(pcFan(0.5, 0.7 + i * 0.08), x, PC_GPU_Y - 0.01, PC_GPU_Z + 0.16)));
+  // the vertical mount it stands in: a bracket on the shroud and two posts up to the card
+  pc.add(at(mesh(rbox(1.7, 0.05, 0.4, 0.015), pcMid, { outline: 0.006, cast: false }), -0.14, PC_SHROUD_TOP + 0.025, PC_GPU_Z));
+  [-0.88, 0.6].forEach((x) => pc.add(at(mesh(rbox(0.08, PC_GPU_Y - 0.31 - PC_SHROUD_TOP, 0.12, 0.01), pcMid, { outline: 0.005, cast: false }), x, (PC_SHROUD_TOP + PC_GPU_Y - 0.31) / 2, PC_GPU_Z)));
+  // the top radiator, its three fans hanging under it facing down
+  const PC_RAD_Y = PC_H - 0.3;
+  pc.add(at(mesh(rbox(1.45, 0.14, 2.0, 0.03), pcDark, { outline: 0.012, cast: false }), -0.2, PC_RAD_Y, -0.15));
+  [-0.85, -0.15, 0.55].forEach((z, i) => {
+    const fan = pcFan(0.58, 0.3 + i * 0.08);
+    fan.rotation.x = Math.PI / 2;
+    pc.add(at(fan, -0.2, PC_RAD_Y - 0.12, z));
+  });
+  // three side fans in a column behind the right glass, facing out of it
+  [1.25, 1.99, 2.73].forEach((y, i) => {
+    const fan = pcFan(0.7, 0.95 + i * 0.1);
+    fan.rotation.y = Math.PI / 2;
+    pc.add(at(fan, PC_W / 2 - 0.16, y, -0.35));
+  });
+  // LED strips: along the top front and right edges, and a bar along the shroud's front
+  pc.add(at(new THREE.Mesh(track(new THREE.BoxGeometry(PC_W - 0.25, 0.04, 0.04)), pcRgbMat(0)), 0, PC_H - 0.2, PC_D / 2 - 0.08));
+  const pcSideStrip = new THREE.Mesh(track(new THREE.BoxGeometry(0.04, 0.04, PC_D - 0.25)), pcRgbMat(0.15));
+  pc.add(at(pcSideStrip, PC_W / 2 - 0.08, PC_H - 0.2, 0));
+  pc.add(at(new THREE.Mesh(track(new THREE.BoxGeometry(PC_W - 0.3, 0.035, 0.035)), pcRgbMat(0.5)), 0, PC_SHROUD_TOP + 0.02, PC_D / 2 - 0.1));
+  // front I/O on the base, bottom right: a power button with a lit ring, two ports
+  const pcPowerBtn = mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.03, 16), pcMid, { outline: 0.005, cast: false });
+  pcPowerBtn.rotation.x = Math.PI / 2;
+  pc.add(at(pcPowerBtn, PC_W / 2 - 0.3, 0.15, PC_D / 2 + 0.005));
+  const pcPowerRing = new THREE.Mesh(track(new THREE.TorusGeometry(0.075, 0.012, 6, 20)), pcRgbMat(0));
+  pc.add(at(pcPowerRing, PC_W / 2 - 0.3, 0.15, PC_D / 2 + 0.02));
+  [0.5, 0.62].forEach((dx) => pc.add(at(mesh(rbox(0.08, 0.03, 0.01, 0.005), toon("#0b0c0e"), { outline: 0, cast: false }), PC_W / 2 - 0.3 - dx, 0.15, PC_D / 2 + 0.005)));
+  // the glass: front and right panels, a faint tint and a couple of glare streaks each
+  const pcGlassTint = track(new THREE.MeshBasicMaterial({ color: "#cfeaff", transparent: true, opacity: 0.1, depthWrite: false }));
+  const pcGlare = printed(1, 1, 256, (c, w, h) => {
+    c.clearRect(0, 0, w, h);
+    c.fillStyle = "rgba(255,255,255,.35)";
+    [[0.15, 0.12], [0.32, 0.05]].forEach(([x, t]) => {
+      c.beginPath();
+      c.moveTo(w * x, 0);
+      c.lineTo(w * (x + t), 0);
+      c.lineTo(w * (x + t - 0.25), h);
+      c.lineTo(w * (x - 0.25), h);
+      c.closePath();
+      c.fill();
+    });
+  });
+  pcGlare.material.transparent = true;
+  pcGlare.material.depthWrite = false;
+  const pcGlassFront = new THREE.Mesh(track(new THREE.PlaneGeometry(PC_W - 0.08, PC_H - 0.3)), pcGlassTint);
+  pcGlassFront.position.set(0, PC_H / 2, PC_D / 2 - 0.01);
+  const pcGlassSide = new THREE.Mesh(track(new THREE.PlaneGeometry(PC_D - 0.08, PC_H - 0.3)), pcGlassTint);
+  pcGlassSide.rotation.y = Math.PI / 2;
+  pcGlassSide.position.set(PC_W / 2 - 0.01, PC_H / 2, 0);
+  const pcGlareFront = pcGlare.clone();
+  pcGlareFront.scale.set(PC_W - 0.08, PC_H - 0.3, 1);
+  pcGlareFront.position.set(0, PC_H / 2, PC_D / 2 - 0.005);
+  const pcGlareSide = pcGlare.clone();
+  pcGlareSide.scale.set(PC_D - 0.08, PC_H - 0.3, 1);
+  pcGlareSide.rotation.y = Math.PI / 2;
+  pcGlareSide.position.set(PC_W / 2 - 0.005, PC_H / 2, 0);
+  [pcGlassFront, pcGlassSide, pcGlareFront, pcGlareSide].forEach((pane) => {
+    pane.renderOrder = 2;
+    pc.add(pane);
+  });
+  // its glow on the desk and wall, and a light inside so the parts read through the glass
+  const pcLight = new THREE.PointLight("#ff00aa", 0, 7, 2);
+  pcLight.position.set(0.3, PC_H * 0.55, PC_D / 2 + 0.4);
+  const pcInnerLight = new THREE.PointLight("#ffffff", 0, 3.2, 1.5);
+  pcInnerLight.position.set(0.2, PC_H * 0.6, 0.3);
+  pc.add(pcLight, pcInnerLight);
+  // RGB: 0 rainbow wave, 1 one colour (the room's teal), 2 a slow pink breathe
+  const PC_RGB_MODES = ["rainbow", "teal", "breathe"];
+  const pcState = { mode: 0, spin: 7 };
+  const pcRgbColor = new THREE.Color();
+  const WHITE_LIGHT = new THREE.Color("#ffffff");
+  function updatePC(dt, now) {
+    const t = now / 1000;
+    const mode = PC_RGB_MODES[pcState.mode];
+    pcRgbParts.forEach(({ mat, offset }) => {
+      if (mode === "rainbow") mat.color.setHSL((t * 0.12 + offset) % 1, 1, 0.55);
+      else if (mode === "teal") mat.color.set("#00e0c6");
+      else mat.color.setHSL(0.87, 1, 0.3 + 0.28 * (0.5 + 0.5 * Math.sin(t * 2)));
+    });
+    pcRgbColor.copy(pcRgbParts[0].mat.color);
+    pcLight.color.copy(pcRgbColor);
+    pcLight.intensity = darkNow ? 7 : 2.2;
+    pcInnerLight.color.copy(pcRgbColor).lerp(WHITE_LIGHT, 0.5);
+    pcInnerLight.intensity = darkNow ? 5 : 4;
+    pcFans.forEach((blades, i) => (blades.rotation.z -= dt * pcState.spin * (i % 2 ? 1.08 : 1)));
+    // fans ease back down to idle after a spin-up
+    pcState.spin += (7 - pcState.spin) * Math.min(1, dt * 0.8);
+  }
+  register(pc, {
+    onHover: (on) => on && (pcState.spin = Math.max(pcState.spin, 12)),
+    onClick: () => {
+      pcState.mode = (pcState.mode + 1) % PC_RGB_MODES.length;
+      pcState.spin = 30;
+      sfx.click();
+      sfx.whoosh({ duration: 0.6 });
     },
   });
 
@@ -7032,7 +7258,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     contactShadows.push({ object, plane, baseY: object.position.y, strength });
   };
   contactShadow(mug, 1.55, 1.55);
-  contactShadow(plant, 1.9, 1.9);
+  contactShadow(plant, 1.9 * PLANT_SCALE, 1.9 * PLANT_SCALE, SILL_TOP);
+  contactShadow(pc, PC_W * 1.2, PC_D * 1.15);
   contactShadow(mouse, 0.85, 1.2, MAT_TOP);
   contactShadow(monitor, 2.2, 1.5);
   contactShadow(keyboard, 5.8, 2.5, MAT_TOP, 0.8);
@@ -7652,6 +7879,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     updateShelfLeds(now);
     updateCatWatch(now);
     updateCatLife(now);
+    updatePC(dt, now);
     updateSecondHand();
     outside.t += dt;
     outside.rain += (outside.rainTarget - outside.rain) * Math.min(1, dt * 0.35);

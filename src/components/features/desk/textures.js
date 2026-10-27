@@ -2121,11 +2121,9 @@ export function drawLeatherGrain(c, w, h, { perforated = false } = {}) {
 
 // A plant leaf, laid out on its own uv: across the canvas is across the blade, edge to edge at
 // every height, and up the canvas is from its base to its tip. Darker at the base and lighter
-// toward the tip and the margins, with a pale midrib and pairs of side veins arching out to
-// near the edge, and a faint mottle.
-export function drawPlantLeaf(c, w, h, { base = "#15803d", tip = "#4ade80", vein = "#bbf7d0", seed = 1 } = {}) {
-  let r = 4211 * seed;
-  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+// toward the tip and the margins, with a pale midrib and a few faint side veins arching out
+// toward the edge.
+export function drawPlantLeaf(c, w, h, { base = "#15803d", tip = "#4ade80", vein = "#bbf7d0" } = {}) {
   const along = c.createLinearGradient(0, h, 0, 0);
   along.addColorStop(0, base);
   along.addColorStop(1, tip);
@@ -2140,21 +2138,15 @@ export function drawPlantLeaf(c, w, h, { base = "#15803d", tip = "#4ade80", vein
   across.addColorStop(1, "rgba(255,255,255,.16)");
   c.fillStyle = across;
   c.fillRect(0, 0, w, h);
-  for (let i = 0; i < 70; i++) {
-    c.fillStyle = rand() < 0.5 ? "rgba(255,255,255,.05)" : "rgba(0,40,0,.06)";
-    c.beginPath();
-    c.ellipse(rand() * w, rand() * h, 3 + rand() * 9, 2 + rand() * 6, rand() * Math.PI, 0, Math.PI * 2);
-    c.fill();
-  }
   c.strokeStyle = vein;
   c.lineCap = "round";
   // side veins, from the midrib up and out, thinning toward the edge
-  for (let k = 0; k < 7; k++) {
-    const y = h * (0.88 - k * 0.115);
+  for (let k = 0; k < 4; k++) {
+    const y = h * (0.8 - k * 0.17);
     const rise = h * (0.1 + k * 0.006);
     for (const side of [-1, 1]) {
-      c.globalAlpha = 0.55;
-      c.lineWidth = 2.2 - k * 0.12;
+      c.globalAlpha = 0.3;
+      c.lineWidth = 2 - k * 0.2;
       c.beginPath();
       c.moveTo(w / 2, y);
       c.quadraticCurveTo(w / 2 + side * w * 0.22, y - rise * 0.35, w / 2 + side * w * 0.43, y - rise);
@@ -2197,7 +2189,7 @@ export function drawTerracotta(c, w, h, { base = "#ff7a1a", wall = [0, 1], rim =
   c.fillRect(0, y(w1), w, y(w0) - y(w1));
   for (let k = 1; k < 9; k++) {
     const ring = y(w0 + ((w1 - w0) * k) / 9 + (rand() - 0.5) * 0.004);
-    c.fillStyle = k % 2 ? "rgba(120,40,0,.12)" : "rgba(255,220,180,.1)";
+    c.fillStyle = k % 2 ? "rgba(120,40,0,.07)" : "rgba(255,220,180,.06)";
     c.fillRect(0, ring, w, 1.5);
   }
   if (rim) {
@@ -2206,7 +2198,7 @@ export function drawTerracotta(c, w, h, { base = "#ff7a1a", wall = [0, 1], rim =
     c.fillStyle = "rgba(90,30,0,.25)";
     c.fillRect(0, y(rim[0]) - 2, w, 2);
   }
-  for (let i = 0; i < (w * h) / 40; i++) {
+  for (let i = 0; i < (w * h) / 180; i++) {
     const dark = rand() < 0.6;
     c.fillStyle = dark ? `rgba(110,40,0,${0.15 + rand() * 0.25})` : `rgba(255,236,210,${0.2 + rand() * 0.3})`;
     c.fillRect(rand() * w, rand() * h, 1 + rand() * 1.4, 1 + rand() * 1.4);

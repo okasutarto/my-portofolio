@@ -1135,7 +1135,44 @@ export function createDeskScene({ container, projects, experiences, dark = false
     str.position.set(-0.085 + k * 0.034, 1.925, 0.23);
     return str;
   }));
-  guitarParts.add(guitarBody, soundHole, bridge, guitarNeck, fretboard, ...frets, ...inlays, headstock, nut, trussCover, headStar, ...pegs, ...posts, ...strings);
+  // On the bridge, a bone saddle the strings break over and a cream pin for each string behind
+  // it; a strap button at the foot of the body; and a yellow pick tucked under the strings
+  // up by the nut, ready to hand
+  const saddle = mesh(rbox(0.3, 0.025, 0.03, 0.008), toon("#fffdf5"), { outline: 0.008, cast: false });
+  saddle.position.set(0, -0.11, 0.245);
+  const bridgePins = Array.from({ length: 6 }, (_, k) => flat(new THREE.CircleGeometry(0.014, 12), "#f1e6cf", -0.085 + k * 0.034, -0.19, 0.237));
+  const strapButton = mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.07, 14), toon("#f1e6cf"), { outline: 0.01, cast: false });
+  strapButton.position.set(0, -1.0, 0);
+  const pickShape = new THREE.Shape();
+  pickShape.moveTo(0, -0.07);
+  pickShape.quadraticCurveTo(0.075, 0.02, 0.06, 0.055);
+  pickShape.quadraticCurveTo(0, 0.08, -0.06, 0.055);
+  pickShape.quadraticCurveTo(-0.075, 0.02, 0, -0.07);
+  const guitarPick = mesh(new THREE.ShapeGeometry(pickShape, 8), toon("#ffdd00"), { outline: 0.01, cast: false });
+  guitarPick.position.set(0.03, 3.62, 0.215);
+  guitarPick.rotation.z = -0.35;
+  // A woven strap, tied on behind the nut and run down to the strap button, hanging slack in a
+  // loop beside the body: red with yellow and teal bands woven down its length
+  const guitarStrapTex = canvasTexture(64, 16);
+  track(guitarStrapTex.texture);
+  [["#d62828", 0, 64], ["#ffdd00", 6, 4], ["#00a99d", 14, 6], ["#ffdd00", 24, 4], ["#fffdf5", 40, 3], ["#00a99d", 50, 6]].forEach(([color, x, w]) => {
+    guitarStrapTex.ctx.fillStyle = color;
+    guitarStrapTex.ctx.fillRect(x, 0, w, 16);
+  });
+  guitarStrapTex.ctx.fillStyle = "rgba(0,0,0,.18)";
+  for (let y = 0; y < 16; y += 4) guitarStrapTex.ctx.fillRect(0, y, 64, 1);
+  guitarStrapTex.texture.wrapS = THREE.RepeatWrapping;
+  const guitarStrapPath = new THREE.CatmullRomCurve3([
+    [-0.1, 3.94, -0.06], [-0.32, 3.4, -0.1], [-0.62, 2.4, -0.12], [-1.05, 1.0, -0.12],
+    [-1.12, -0.2, -0.12], [-0.85, -0.95, -0.1], [-0.35, -1.12, -0.06], [0, -1.02, 0],
+  ].map(([x, y, z]) => new THREE.Vector3(x, y, z)));
+  guitarStrapTex.texture.repeat.set(Math.round(guitarStrapPath.getLength() / 0.9), 1);
+  const guitarStrapMat = toon("#ffffff");
+  guitarStrapMat.map = guitarStrapTex.texture;
+  const guitarStrap = mesh(new THREE.TubeGeometry(guitarStrapPath, 80, 0.06, 6), guitarStrapMat, { outline: 0.015, cast: false });
+  // flattened into a band lying against the wall
+  guitarStrap.scale.z = 0.35;
+  guitarParts.add(guitarBody, soundHole, bridge, saddle, guitarStrap, ...bridgePins, strapButton, guitarNeck, fretboard, ...frets, ...inlays, headstock, nut, trussCover, headStar, ...pegs, ...posts, ...strings, guitarPick);
   // The hook: a plate on the wall and two arms the headstock rests on
   const hookMat = toon("#1a1714");
   const hookPlate = mesh(rbox(0.34, 0.5, 0.06, 0.02), hookMat, { outline: 0.02 });
@@ -2005,41 +2042,28 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const saucer = mesh(new THREE.LatheGeometry(saucerProfile, 36), toon("#e0631a"), { outline: 0.03 });
   const soil = mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.04, 24), toon("#3b2a1a"), { outline: 0, cast: false });
   soil.position.y = 1.05;
-  // a few clumps of earth and pale pebbles on top of it
-  const pebbleGeo = new THREE.DodecahedronGeometry(1, 0);
-  const clumpMat = toon("#2a1d12");
-  const pebbleMat = toon("#d6cfc4");
-  [
-    [0.3, 0.12, 0.05, clumpMat], [-0.28, 0.2, 0.06, clumpMat], [0.08, -0.34, 0.045, clumpMat], [-0.12, -0.18, 0.04, clumpMat],
-    [0.36, -0.15, 0.045, pebbleMat], [-0.34, -0.12, 0.04, pebbleMat], [0.18, 0.33, 0.035, pebbleMat], [-0.05, 0.38, 0.04, pebbleMat],
-  ].forEach(([x, z, size, material], i) => {
-    const bit = mesh(pebbleGeo, material, { outline: 0, cast: false });
-    bit.scale.set(size, size * 0.6, size * 1.1);
-    bit.position.set(x, 0.03, z);
-    bit.rotation.set(i, i * 2.3, 0);
-    bit.raycast = noRaycast;
-    soil.add(bit);
-  });
   const foliage = new THREE.Group();
   foliage.position.y = 1.05;
+  // a touch smaller than the pot would grow it, so the leaves clear the wall behind
+  foliage.scale.setScalar(0.85);
   plant.add(saucer, pot, soil, foliage);
   const stemMat = toon("#166534");
   // Each leaf colouring is its own painted texture: [base, tip, vein]; the last is the young
   // leaves' fresh lime
   const leafMats = [
     ["#166534", "#22c55e", "#a7f3c0"], ["#15803d", "#4ade80", "#bbf7d0"], ["#2f7d43", "#8fd694", "#dcfce7"], ["#4d9c2f", "#a3e66b", "#ecfccb"],
-  ].map(([base, tip, vein], seed) => {
+  ].map(([base, tip, vein]) => {
     const tex = canvasTexture(256, 256);
     track(tex.texture);
-    drawPlantLeaf(tex.ctx, 256, 256, { base, tip, vein, seed: seed + 1 });
+    drawPlantLeaf(tex.ctx, 256, 256, { base, tip, vein });
     const material = toon("#ffffff");
     material.map = tex.texture;
     return material;
   });
   // A leaf blade as a thin solid: a teardrop outline, folded up a little either side of its
-  // midrib, arching back so its tip droops, its edges faintly rippled. Built along +y with its
+  // midrib, arching back so its tip droops. Built along +y with its
   // upper face toward -z; uv runs edge to edge across it and base to tip along it.
-  const leafGeo = (length, width, { fold = 0.3, arch = 0.22, ripple = 0.012 } = {}) => {
+  const leafGeo = (length, width, { fold = 0.3, arch = 0.22 } = {}) => {
     const ROWS = 22;
     const COLS = 10;
     const THICK = 0.012;
@@ -2053,7 +2077,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
         for (let i = 0; i <= COLS; i++) {
           const u = (i / COLS) * 2 - 1;
           const x = u * halfWidth(t);
-          const z = -fold * Math.abs(x) + arch * length * t * t + ripple * Math.sin(t * 15 + u * 2) * Math.abs(u);
+          const z = -fold * Math.abs(x) + arch * length * t * t;
           position.push(x, t * length, z + side * THICK);
           uv.push((u + 1) / 2, t);
         }
@@ -2085,7 +2109,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
     [20, 0.3, 0.85, 1.5, 0.62, 0], [100, 0.4, 0.8, 1.6, 0.6, 1], [170, 0.5, 0.7, 1.5, 0.58, 2], [250, 0.35, 0.85, 1.6, 0.62, 0],
     [320, 0.55, 0.65, 1.4, 0.56, 1], [60, 0.7, 0.45, 1.35, 0.52, 2], [210, 0.8, 0.4, 1.35, 0.52, 1],
     [140, 0.9, 0.3, 0.7, 0.3, 3], [290, 0.95, 0.32, 0.65, 0.28, 3], [30, 1.05, 0.22, 0.55, 0.25, 3],
-    [350, 0.62, 0.5, 0.8, 0.34, 3], [195, 0.68, 0.48, 0.75, 0.32, 3],
   ].forEach(([heading, height, lean, length, width, colouring], i) => {
     const angle = THREE.MathUtils.degToRad(heading);
     const young = length < 1;
@@ -9139,13 +9162,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const viewPoint = new THREE.Vector3();
   // (nor the gauntlet while it's put away for the swords' close-up: hidden, it's still there
   // for the ray)
-  const inGauntlet = (object) => {
-    for (let o = object; o; o = o.parent) if (o === gauntlet) return true;
+  // (nor the chair, put away for the tickets' close-up)
+  const inside = (object, group) => {
+    for (let o = object; o; o = o.parent) if (o === group) return true;
     return false;
   };
   const visibleHits = () => raycaster.intersectObjects(pickables, true)
     .filter((h) => -viewPoint.copy(h.point).applyMatrix4(camera.matrixWorldInverse).z >= camera.near)
-    .filter((h) => gauntlet.visible || !inGauntlet(h.object));
+    .filter((h) => (gauntlet.visible || !inside(h.object, gauntlet)) && (chair.visible || !inside(h.object, chair)));
   const pick = (e) => {
     rayFromPointer(e);
     const hit = visibleHits()[0];
@@ -9233,6 +9257,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       renderer.domElement.style.cursor = "grabbing";
       e.preventDefault();
       return;
+    }
     if (chairDrag) {
       if (e.pointerId !== chairDrag.pointerId) return;
       if (!chairDrag.moved && Math.hypot(e.clientX - chairDrag.startX, e.clientY - chairDrag.startY) < 4) return;
@@ -9244,7 +9269,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
       turnChair(chairDrag, e.clientX, performance.now());
       e.preventDefault();
       return;
-    }
     }
     if (hatDrag) {
       if (e.pointerId !== hatDrag.pointerId) return;
@@ -9315,6 +9339,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const point = rayFromPointer(e).intersectPlane(lanyardPlane, lanyardPoint);
     return point ? lanyardAt(point, badgeHit) : null;
   }
+  let lanyardDrag = null;
   // The gaming chair, turned on its post by a sideways drag
   let chairDrag = null;
   function finishChairDrag(pointerId = null) {
@@ -9326,7 +9351,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
     renderer.domElement.style.cursor = "grab";
     return drag;
   }
-  let lanyardDrag = null;
   // The straw hat, held and pulled on its cord
   let hatDrag = null;
   function finishHatDrag(pointerId = null) {
@@ -9374,12 +9398,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
       renderer.domElement.style.cursor = "grabbing";
       e.preventDefault();
       return;
+    }
     if (stickyEntry?.grabTurn && !chairBusy) {
       chairDrag = { entry: stickyEntry, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moved: false };
       renderer.domElement.setPointerCapture(e.pointerId);
       e.preventDefault();
       return;
-    }
     }
     if (stickyEntry?.object === hatPeg) {
       const drag = { entry: stickyEntry, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moved: false };
@@ -9438,8 +9462,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     finishStickyDrag(e.pointerId);
     finishNoteDrag(e.pointerId);
     if (lanyardDrag?.pointerId === e.pointerId) finishLanyardDrag();
-    finishChairDrag(e.pointerId);
     finishHatDrag(e.pointerId);
+    finishChairDrag(e.pointerId);
   };
   const onWindowBlur = () => {
     setHover(null);
@@ -9447,8 +9471,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     finishStickyDrag();
     finishNoteDrag();
     finishLanyardDrag();
-    finishChairDrag();
     finishHatDrag();
+    finishChairDrag();
   };
   const onPointerUp = (e) => {
     if (shelfDrag) {
@@ -9461,12 +9485,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
       const drag = finishStickyDrag(e.pointerId);
       if (!drag.moved) handleClick(drag.entry);
       return;
+    }
     if (chairDrag && e.pointerId === chairDrag.pointerId) {
       const drag = finishChairDrag(e.pointerId);
       downAt = null;
       if (!drag.moved) handleClick(drag.entry);
       return;
-    }
     }
     if (hatDrag && e.pointerId === hatDrag.pointerId) {
       const drag = finishHatDrag(e.pointerId);
@@ -9786,6 +9810,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     updateFx(dt);
     updateTrail(dt);
     updateSpotlight(dt);
+    // the chair stands between the camera and the tickets' close-up, so it's put away for it
+    chair.visible = focus.name !== "experience";
     poseFolders();
     const pointerBlend = 1 - Math.pow(0.94, dt * 60);
     parallax.x += (parallax.tx - parallax.x) * pointerBlend;
@@ -9852,6 +9878,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       // Ambient occlusion now darkens the contact itself; this only softens it under a prop
       // and carries the shadow while the prop is lifted
       plane.material.opacity = (darkNow ? 0.22 : 0.28) * strength / (1 + lift * 3);
+      plane.visible = object.visible;
     }
     if (now - lastBlink > 530) {
       lastBlink = now;

@@ -3399,6 +3399,42 @@ export function drawRepBadge(c, w, h, text, fill = "#ffdd00") {
   c.textBaseline = "alphabetic";
 }
 
+// The wastebasket's wrap-round sticker: a little basketball and "TRASH" on a white band, in the
+// same thick-lined, hard-shadow style as the rest of the room's print
+export function drawBinLabel(c, w, h) {
+  c.clearRect(0, 0, w, h);
+  brutalBox(c, 8, 8, w - 26, h - 26, "#fffdf5", { shadow: 10, line: 7 });
+  const r = h * 0.24;
+  const bx = 40 + r * 1.35;
+  const by = (h - 18) / 2;
+  c.fillStyle = "#ff7a1a";
+  c.strokeStyle = "#000";
+  c.lineWidth = 6;
+  c.beginPath();
+  c.arc(bx, by, r, 0, Math.PI * 2);
+  c.fill();
+  c.stroke();
+  c.lineWidth = 4;
+  c.beginPath();
+  c.moveTo(bx - r, by);
+  c.lineTo(bx + r, by);
+  c.moveTo(bx, by - r);
+  c.lineTo(bx, by + r);
+  c.stroke();
+  c.beginPath();
+  c.arc(bx - r * 1.25, by, r * 0.85, -0.85, 0.85);
+  c.stroke();
+  c.beginPath();
+  c.arc(bx + r * 1.25, by, r * 0.85, Math.PI - 0.85, Math.PI + 0.85);
+  c.stroke();
+  c.fillStyle = "#000";
+  c.textBaseline = "middle";
+  const left = bx + r + 22;
+  fitFont(c, "TRASH", 800, DISPLAY, Math.round(h * 0.4), w - left - 36);
+  c.fillText("TRASH", left, by + 4);
+  c.textBaseline = "alphabetic";
+}
+
 // ---------- katana ----------
 // The slash: a thick white crescent with a black outline, tapering at both ends
 // Each sword cuts its own trail:

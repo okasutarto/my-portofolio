@@ -53,6 +53,7 @@ import {
   drawGameSpine,
   drawGameCover,
   drawRepBadge,
+  drawBinLabel,
   drawSlash,
   drawGlint,
   drawHakiAura,
@@ -1826,7 +1827,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     return g;
   };
   // ---------- secrets: every hidden interaction found, kept on the trophy's plate ----------
-  const SECRETS = ["snap", "katana", "rat", "catKeys", "rain", "star", "lamp", "painting", "chair", "guitar", "luffy", "clock", "butterfly", "lofi", "badge", "gymPR", "konami", "console", "robot"];
+  const SECRETS = ["snap", "katana", "rat", "catKeys", "rain", "star", "lamp", "painting", "chair", "guitar", "luffy", "clock", "butterfly", "lofi", "badge", "gymPR", "konami", "console", "robot", "trash"];
   // What the trophy hints at, one at a time, for the secrets still to find
   const SECRET_HINTS = {
     snap: "a golden glove wants to snap",
@@ -1848,6 +1849,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     konami: "an old cheat code, it starts up, up...",
     console: "press start",
     robot: "the little robot likes attention: five pokes",
+    trash: "beside the shelf: three in a row, nothing but net",
   };
   // Local-only preview; all secrets exist for this scene without touching saved progress.
   const previewTrophy = process.env.NODE_ENV === "development" && new URLSearchParams(window.location.search).get("preview") === "trophy";
@@ -1914,7 +1916,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
         sfx.sparkle();
         sfx.cheer();
         sfx.applause({ delay: 0.2 });
-        shelfSay(trophy, "19/19 SECRETS FOUND!", "master of the desk", 6000);
+        shelfSay(trophy, `${SECRETS.length}/${SECRETS.length} SECRETS FOUND!`, "master of the desk", 6000);
       }, null, 0.65)
       .to(trophy.position, { y: restY, duration: 0.6, ease: "bounce.out" }, 2.1)
       .set(trophy.rotation, { y: 0 }, 2.7)
@@ -4314,6 +4316,364 @@ export function createDeskScene({ container, projects, experiences, dark = false
     onClick: () => lift(db),
   }));
   register(gym, { onClick: () => lift() });
+
+  // ---------- wastebasket: office basketball, right of the shelf ----------
+  // A teal bin with a mini hoop clipped to its back rim. Click to shoot a crumpled paper ball
+  // at it: a swish drops in (the net stretches, the bin squashes), a brick
+  // clangs off the rim and rolls away across the floor. Three in a row and it's ON FIRE (a secret).
+  const bin = new THREE.Group();
+  bin.position.set(13.35, FLOOR_Y, -3.6);
+  bin.rotation.y = -0.2;
+  bin.scale.setScalar(1.2);
+  scene.add(bin);
+  const BIN_H = 1.4;
+  const binBody = new THREE.Group();
+  bin.add(binBody);
+  const binProfile = [
+    [0, 0], [0.4, 0], [0.5, BIN_H], [0.55, BIN_H], [0.55, BIN_H + 0.08], [0.47, BIN_H + 0.08], [0.37, 0.08], [0, 0.08],
+  ].map(([x, y]) => new THREE.Vector2(x, y));
+  binBody.add(mesh(new THREE.LatheGeometry(binProfile, 28), toon("#00e0c6"), { outline: 0.045 }));
+  const binRim = mesh(new THREE.TorusGeometry(0.54, 0.045, 8, 32), toon("#1a1714"), { outline: 0 });
+  binRim.rotation.x = Math.PI / 2;
+  binRim.position.y = BIN_H + 0.06;
+  binBody.add(binRim);
+  // Close up it wants a little more to it: a dark band round the foot and one under the rim
+  // (proud of the tapered side by a hair), and a sticker wrapped round the front
+  const binRadius = (y) => 0.4 + (0.1 * y) / BIN_H;
+  const bandMat = toon("#008f80");
+  [[0.12, 0.1], [BIN_H - 0.2, 0.08]].forEach(([y, h]) => {
+    const band = mesh(new THREE.CylinderGeometry(binRadius(y + h / 2) + 0.012, binRadius(y - h / 2) + 0.012, h, 32, 1, true), bandMat, { outline: 0, cast: false });
+    band.position.y = y;
+    binBody.add(band);
+  });
+  const LABEL_Y = [0.5, 1.0];
+  const LABEL_ARC = 1.15;
+  const binLabelTex = canvasTexture(560, 200);
+  track(binLabelTex.texture);
+  drawBinLabel(binLabelTex.ctx, 560, 200);
+  const binLabel = new THREE.Mesh(
+    track(new THREE.CylinderGeometry(binRadius(LABEL_Y[1]) + 0.01, binRadius(LABEL_Y[0]) + 0.01, LABEL_Y[1] - LABEL_Y[0], 24, 1, true, -LABEL_ARC / 2, LABEL_ARC)),
+    track(new THREE.MeshBasicMaterial({ map: binLabelTex.texture, transparent: true })),
+  );
+  binLabel.position.y = (LABEL_Y[0] + LABEL_Y[1]) / 2;
+  binLabel.raycast = noRaycast;
+  binBody.add(binLabel);
+  // A crumpled paper ball: a lumpy icosahedron, each one squashed a little differently
+  const paperMat = toon("#fffdf5");
+  const crumple = (r) => {
+    const raw = new THREE.IcosahedronGeometry(r, 1);
+    raw.deleteAttribute("normal");
+    raw.deleteAttribute("uv");
+    const geo = mergeVertices(raw, 1e-4);
+    raw.dispose();
+    const p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const k = 0.78 + Math.random() * 0.34;
+      p.setXYZ(i, p.getX(i) * k, p.getY(i) * k, p.getZ(i) * k);
+    }
+    geo.computeVertexNormals();
+    return mesh(geo, paperMat, { outline: 0.018 });
+  };
+  // What's already in it, peeking over the rim; a swish adds to the pile (up to full)
+  const binPile = [[-0.15, 0.1], [0.18, -0.05], [0.02, 0.2], [-0.05, -0.2], [0.22, 0.18]].map(([x, z], i) => {
+    const ball = crumple(0.17);
+    ball.position.set(x, BIN_H - 0.22 + (i % 2) * 0.06, z);
+    ball.rotation.set(Math.random() * 3, Math.random() * 3, 0);
+    ball.visible = i < 2;
+    binBody.add(ball);
+    return ball;
+  });
+  let binFill = 2;
+  // The hoop: a little backboard on a post at the back rim, an orange ring and a net under it
+  const HOOP_Y = BIN_H + 0.72;
+  const HOOP_Z = -0.16;
+  const hoop = new THREE.Group();
+  hoop.position.set(0, HOOP_Y, HOOP_Z);
+  bin.add(hoop);
+  const hoopPost = mesh(rbox(0.07, 0.9, 0.07, 0.02), toon("#1a1714"), { outline: 0.015 });
+  hoopPost.position.set(0, BIN_H + 0.42, -0.52);
+  // Clamped over the back of the rim, with a screw knob
+  const hoopClamp = mesh(rbox(0.16, 0.22, 0.14, 0.03), toon("#1a1714"), { outline: 0.015 });
+  hoopClamp.position.set(0, BIN_H + 0.02, -0.53);
+  const clampKnob = mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.08, 10), toon("#ff7a1a"), { outline: 0.01 });
+  clampKnob.rotation.z = Math.PI / 2;
+  clampKnob.position.set(0.11, -0.03, 0);
+  hoopClamp.add(clampKnob);
+  bin.add(hoopPost, hoopClamp);
+  const backboard = mesh(rbox(0.9, 0.6, 0.05, 0.03), toon("#ffdd00"), { outline: 0.025 });
+  backboard.position.set(0, 0.28, -0.36);
+  const boxMat = toon("#1a1714");
+  [[0, 0.17, 0.32, 0.03], [0, -0.01, 0.32, 0.03], [-0.145, 0.08, 0.03, 0.2], [0.145, 0.08, 0.03, 0.2]].forEach(([x, y, w, h]) => {
+    const bar = mesh(new THREE.BoxGeometry(w, h, 0.01), boxMat, { outline: 0, cast: false });
+    bar.position.set(x, y, 0.03);
+    backboard.add(bar);
+  });
+  const ring = mesh(new THREE.TorusGeometry(0.22, 0.025, 8, 24), toon("#ff7a1a"), { outline: 0.012 });
+  ring.rotation.x = Math.PI / 2;
+  const net = new THREE.Mesh(
+    track(new THREE.CylinderGeometry(0.22, 0.14, 0.32, 10, 2, true)),
+    track(new THREE.MeshBasicMaterial({ color: "#fffdf5", wireframe: true })),
+  );
+  net.geometry.translate(0, -0.16, 0);
+  net.raycast = noRaycast;
+  hoop.add(backboard, ring, net);
+
+  const binTex = canvasTexture(320, 160);
+  track(binTex.texture);
+  const binBadge = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: binTex.texture, depthTest: false, transparent: true })));
+  binBadge.renderOrder = 10;
+  binBadge.raycast = noRaycast;
+  binBadge.scale.set(0.001, 0.001, 1);
+  binBadge.position.set(bin.position.x, FLOOR_Y + HOOP_Y * 1.2 + 1.1, bin.position.z);
+  scene.add(binBadge);
+  let binBadgeTimer = null;
+  function binSay(text, fill) {
+    drawRepBadge(binTex.ctx, 320, 160, text, fill);
+    binTex.texture.needsUpdate = true;
+    gsap.fromTo(binBadge.scale, { x: 0.6, y: 0.3 }, { x: 1.6, y: 0.8, duration: 0.35, ease: "back.out(3)", overwrite: true });
+    clearTimeout(binBadgeTimer);
+    binBadgeTimer = setTimeout(() => gsap.to(binBadge.scale, { x: 0.001, y: 0.001, duration: 0.2, ease: "power2.in", overwrite: true }), 1800);
+  }
+
+  const hoopWorld = () => hoop.getWorldPosition(new THREE.Vector3());
+  const squashBin = (k = 1) => {
+    gsap.fromTo(binBody.scale, { x: 1 + 0.1 * k, y: 1 - 0.12 * k, z: 1 + 0.1 * k }, { x: 1, y: 1, z: 1, duration: 0.7, ease: "elastic.out(1.2, 0.35)" });
+  };
+  // The shot is yours: each paper ball is thrown from just below the bottom of the screen, under
+  // the hoop, so it rises into view as if tossed from where you're sitting. From there it's
+  // plain physics (gravity, bounces, rolling), stepped in the render loop, so a brick falls,
+  // bounces and rolls without a seam. Missed balls stay where they stop, a few of them strewn
+  // round the bin; click one to pick it up and shoot it again from there.
+  const GRAVITY = 16;
+  const PAPER_R = 0.15;
+  const MAX_LITTER = 5;
+  const PARKED = new THREE.Vector3(0, -100, 0); // hidden balls are parked out of the pointer's way
+  const papers = Array.from({ length: MAX_LITTER + 3 }, () => {
+    const ball = crumple(0.16);
+    ball.position.copy(PARKED);
+    ball.visible = false;
+    scene.add(ball);
+    return { ball, state: "idle", vel: new THREE.Vector3(), spin: new THREE.Vector3(), t: 0, at: 0, swish: false, side: 1, born: 0 };
+  });
+  const litter = () => papers.filter((p) => p.state === "litter");
+  const tmpV = new THREE.Vector3();
+  const tmpQ = new THREE.Quaternion();
+  const binTop = () => bin.position.y + (BIN_H + 0.08) * bin.scale.y;
+  // Where a throw from the viewer starts: a little below the screen's bottom edge, under the
+  // hoop, and a touch nearer the camera so nothing in the room clips it on the way up
+  function throwOrigin(hoopAt) {
+    camera.updateMatrixWorld();
+    tmpV.copy(hoopAt).project(camera);
+    const x = THREE.MathUtils.clamp(tmpV.x - 0.25, -0.9, 0.9);
+    return new THREE.Vector3(x, -1.15, tmpV.z).unproject(camera)
+      .addScaledVector(camera.getWorldDirection(new THREE.Vector3()), -0.6);
+  }
+  let streak = 0;
+  function shoot(from) {
+    const hoopAt = hoopWorld();
+    let paper = from;
+    if (!paper) {
+      paper = papers.find((p) => p.state === "idle");
+      if (!paper) paper = litter().sort((a, b) => a.born - b.born)[0];
+      if (!paper) return; // every ball is in the air
+    }
+    const { ball } = paper;
+    gsap.killTweensOf(ball.scale);
+    ball.scale.setScalar(1);
+    ball.visible = true;
+    if (!from) ball.position.copy(throwOrigin(hoopAt));
+    paper.swish = Math.random() < 0.65;
+    paper.side = Math.random() < 0.5 ? -1 : 1;
+    // Aim through the ring's middle for a swish, or at one side of its rim for a brick, and
+    // solve for the launch velocity that gets there in `at` seconds under gravity
+    const aim = paper.swish
+      ? hoopAt.clone().add(tmpV.set(0, 0.04, 0))
+      : hoopAt.clone().add(tmpV.set(paper.side * 0.24, 0.06, 0).applyQuaternion(bin.quaternion));
+    paper.at = THREE.MathUtils.clamp(0.55 + ball.position.distanceTo(aim) * 0.06, 0.7, 1.05);
+    paper.vel.subVectors(aim, ball.position).divideScalar(paper.at);
+    paper.vel.y += 0.5 * GRAVITY * paper.at;
+    paper.spin.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(8 + Math.random() * 6);
+    paper.t = 0;
+    paper.state = "flying";
+    sfx.whoosh({ duration: 0.4 });
+  }
+  // A swish: it's through the hoop and falls into the bin
+  function scored(paper) {
+    const hoopAt = hoopWorld();
+    paper.state = "idle";
+    paper.ball.visible = false;
+    paper.ball.position.copy(PARKED);
+    sfx.paper();
+    sfx.pop({ pitch: 0.8 });
+    squashBin();
+    if (binFill < binPile.length) {
+      const ball = binPile[binFill++];
+      ball.visible = true;
+      gsap.fromTo(ball.scale, { x: 0.3, y: 0.3, z: 0.3 }, { x: 1, y: 1, z: 1, duration: 0.4, ease: "back.out(3)" });
+    }
+    streak++;
+    if (streak >= 3) {
+      binSay("ON FIRE!", "#ff6b6b");
+      discover("trash");
+      burst(hoopAt.x, hoopAt.y + 0.2, hoopAt.z + 0.4);
+      sfx.sparkle();
+      sfx.cheer();
+      streak = 0;
+    } else binSay(streak === 1 ? "SWISH!" : `SWISH x${streak}`, "#00e0c6");
+  }
+  // Settled on the floor: it stays there, and the oldest goes once there are too many
+  function settle(paper) {
+    paper.state = "litter";
+    paper.born = performance.now();
+    paper.vel.set(0, 0, 0);
+    const strewn = litter().sort((a, b) => a.born - b.born);
+    strewn.slice(0, Math.max(0, strewn.length - MAX_LITTER)).forEach((old) => {
+      old.state = "leaving";
+      gsap.to(old.ball.scale, {
+        x: 0.001, y: 0.001, z: 0.001, duration: 0.3, ease: "back.in(2)",
+        onComplete: () => {
+          old.state = "idle";
+          old.ball.visible = false;
+          old.ball.position.copy(PARKED);
+        },
+      });
+    });
+  }
+  const SHELF_BOX = {
+    x0: shelf.position.x - SHELF_W / 2, x1: shelf.position.x + SHELF_W / 2,
+    z0: shelf.position.z - SHELF_D / 2, z1: shelf.position.z + SHELF_D / 2, y1: shelf.position.y + SHELF_H,
+  };
+  const BOUNCE = 0.42;
+  const LITTER_FRONT = bin.position.z + 0.95;
+  function stepPaper(paper, dt) {
+    const { ball, vel, spin } = paper;
+    const p = ball.position;
+    const prevT = paper.t;
+    paper.t += dt;
+    vel.y -= GRAVITY * dt;
+    p.addScaledVector(vel, dt);
+    if (paper.state === "flying" && prevT < paper.at && paper.t >= paper.at) {
+      if (paper.swish) {
+        // The net catches it: most of its sideways speed goes, and it drops through
+        vel.x *= 0.12;
+        vel.z *= 0.12;
+        vel.y = Math.min(vel.y, -1.5);
+        sfx.rustle({ duration: 0.3 });
+        gsap.fromTo(net.scale, { x: 0.8, y: 1.7, z: 0.8 }, { x: 1, y: 1, z: 1, duration: 0.8, ease: "elastic.out(1.1, 0.3)" });
+      } else {
+        // Off the rim: it kicks out sideways and a little toward the room, losing most of its
+        // pace, so each one comes down somewhere different round the bin's foot
+        const out = tmpV.set(paper.side, 0, 0).applyQuaternion(bin.quaternion);
+        vel.set(out.x * (0.6 + Math.random() * 0.9) + 0.2, 2 + Math.random(), 0.5 + Math.random() * 0.8);
+        spin.multiplyScalar(-1.4);
+        sfx.clank({ strength: 0.5 });
+        gsap.fromTo(hoop.rotation, { x: 0.18, z: paper.side * 0.12 }, { x: 0, z: 0, duration: 0.9, ease: "elastic.out(1, 0.25)" });
+        gsap.fromTo(net.scale, { x: 1.15, y: 0.85 }, { x: 1, y: 1, duration: 0.6, ease: "elastic.out(1, 0.3)" });
+        streak = 0;
+        binSay("BRICK!", "#ffdd00");
+        paper.state = "loose";
+      }
+    }
+    if (paper.state === "flying") {
+      if (paper.swish && paper.t > paper.at && p.y < binTop() - 0.35) scored(paper);
+      else if (!paper.swish || paper.t < paper.at) ball.rotateOnAxis(tmpV.copy(spin).normalize(), spin.length() * dt);
+      return;
+    }
+    // Loose: the bin's side (a tapered cylinder), the shelf, the wall and the floor
+    tmpV.set(p.x - bin.position.x, 0, p.z - bin.position.z);
+    const h = THREE.MathUtils.clamp((p.y - bin.position.y) / (BIN_H * bin.scale.y), 0, 1);
+    const binR = (0.4 + 0.15 * h) * bin.scale.x + PAPER_R;
+    const d = tmpV.length();
+    if (p.y < binTop() + PAPER_R * 0.5 && d < binR && d > 1e-4) {
+      tmpV.divideScalar(d);
+      p.x = bin.position.x + tmpV.x * binR;
+      p.z = bin.position.z + tmpV.z * binR;
+      const into = vel.x * tmpV.x + vel.z * tmpV.z;
+      if (into < 0) {
+        vel.x -= (1 + BOUNCE) * into * tmpV.x;
+        vel.z -= (1 + BOUNCE) * into * tmpV.z;
+      }
+    }
+    if (p.y < SHELF_BOX.y1 && p.x > SHELF_BOX.x0 - PAPER_R && p.x < SHELF_BOX.x1 + PAPER_R && p.z > SHELF_BOX.z0 - PAPER_R && p.z < SHELF_BOX.z1 + PAPER_R) {
+      // Out through whichever face it's nearest
+      const pushes = [
+        [SHELF_BOX.x1 + PAPER_R - p.x, "x", 1], [p.x - (SHELF_BOX.x0 - PAPER_R), "x", -1], [SHELF_BOX.z1 + PAPER_R - p.z, "z", 1],
+      ].sort((a, b) => a[0] - b[0]);
+      const [depth, axis, dir] = pushes[0];
+      p[axis] += depth * dir;
+      if (vel[axis] * dir < 0) vel[axis] *= -BOUNCE;
+    }
+    const wallFace = WALL_Z + 0.12 + PAPER_R;
+    if (p.z < wallFace) {
+      p.z = wallFace;
+      if (vel.z < 0) vel.z *= -BOUNCE;
+    }
+    // Kept close to the bin: any further into the room and the shelf close-up's near plane
+    // would slice it open (it'd show as a black disc)
+    if (p.z > LITTER_FRONT) {
+      p.z = LITTER_FRONT;
+      if (vel.z > 0) vel.z *= -BOUNCE;
+    }
+    // Balls already on the floor are bumped, not passed through, so they spread out
+    papers.forEach((other) => {
+      if (other === paper || other.state !== "litter") return;
+      tmpV.set(p.x - other.ball.position.x, 0, p.z - other.ball.position.z);
+      const gap = tmpV.length();
+      if (p.y > FLOOR_Y + PAPER_R * 3 || gap >= PAPER_R * 2 || gap < 1e-4) return;
+      tmpV.divideScalar(gap);
+      p.x += tmpV.x * (PAPER_R * 2 - gap);
+      p.z += tmpV.z * (PAPER_R * 2 - gap);
+      const into = vel.x * tmpV.x + vel.z * tmpV.z;
+      if (into < 0) {
+        vel.x -= (1 + BOUNCE) * into * tmpV.x;
+        vel.z -= (1 + BOUNCE) * into * tmpV.z;
+      }
+    });
+    const floor = FLOOR_Y + PAPER_R;
+    let grounded = false;
+    if (p.y <= floor) {
+      p.y = floor;
+      grounded = true;
+      if (vel.y < -1.2) {
+        sfx.flop({ strength: Math.min(0.5, -vel.y / 14) });
+        vel.y *= -BOUNCE;
+        vel.x *= 0.8;
+        vel.z *= 0.8;
+      } else vel.y = 0;
+    }
+    if (grounded && vel.y === 0) {
+      // Rolling: friction slows it, and it turns about the axis across its path
+      const fade = Math.exp(-2.2 * dt);
+      vel.x *= fade;
+      vel.z *= fade;
+      const speed = Math.hypot(vel.x, vel.z);
+      if (speed < 0.06) return settle(paper);
+      tmpQ.setFromAxisAngle(tmpV.set(vel.z, 0, -vel.x).divideScalar(speed), (speed / PAPER_R) * dt);
+      ball.quaternion.premultiply(tmpQ);
+    } else ball.rotateOnAxis(tmpV.copy(spin).normalize(), spin.length() * dt);
+  }
+  function updatePapers(dt) {
+    const step = Math.min(dt, 0.05) / 3;
+    papers.forEach((paper) => {
+      for (let i = 0; i < 3 && (paper.state === "flying" || paper.state === "loose"); i++) stepPaper(paper, step);
+    });
+  }
+  papers.forEach((paper) => register(paper.ball, {
+    onHover: (on) => {
+      if (!on || paper.state !== "litter") return;
+      gsap.fromTo(paper.ball.position, { y: FLOOR_Y + PAPER_R + 0.12 }, { y: FLOOR_Y + PAPER_R, duration: 0.4, ease: "bounce.out" });
+    },
+    onClick: () => paper.state === "litter" && shoot(paper),
+  }));
+  register(bin, {
+    // Hovered, it perks up: a little hop and the hoop's net sways, as if it's ready for a pass
+    onHover: (on) => {
+      if (!on) return;
+      gsap.fromTo(binBody.position, { y: 0 }, { keyframes: [{ y: 0.12, duration: 0.14, ease: "power2.out" }, { y: 0, duration: 0.2, ease: "power2.in" }] });
+      gsap.fromTo(hoop.rotation, { z: 0.08 }, { z: 0, duration: 0.8, ease: "elastic.out(1, 0.3)" });
+    },
+    onClick: () => shoot(),
+  });
 
   // ---------- monitor + terminal ----------
   const monitor = new THREE.Group();
@@ -7949,6 +8309,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       handheldScreen.userData.tex.redraw(now / 1000);
     }
     updateButterfly(dt, now);
+    updatePapers(dt);
     if (!mouseRunning) {
       mouse.position.x += (mouseAim.x - mouse.position.x) * 0.18;
       mouse.position.z += (mouseAim.z - mouse.position.z) * 0.18;
@@ -8038,6 +8399,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
       trophyCelebration?.kill();
       gsap.killTweensOf(trophyHalo.material);
       confetti.forEach((bit) => gsap.killTweensOf(bit.material));
+      papers.forEach(({ ball }) => gsap.killTweensOf(ball.scale));
+      clearTimeout(binBadgeTimer);
       gsap.killTweensOf([cam, stringVibration, stringMat.color, windowGlare.material, glareTex.texture.offset, panelEdge.material.color]);
       boardPinGlints.forEach((glint) => gsap.killTweensOf(glint.material));
       ro.disconnect();

@@ -7208,6 +7208,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   cat.add(tailCurl, tailUp);
   const HEAD_CURLED = new THREE.Vector3(1.0, 0.55, 0.42);
   const HEAD_UP = new THREE.Vector3(1.25, 1.55, 0);
+  // Awake but still lying down (a loaf): head up and out in front of her body over her white
+  // chest, rather than lifted straight up onto her back
+  const HEAD_LOAF = new THREE.Vector3(1.2, 0.95, 0.3);
   catHead.position.copy(HEAD_CURLED);
   catHead.rotation.set(0.15, 0.35, 0.1);
 
@@ -7381,14 +7384,16 @@ export function createDeskScene({ container, projects, experiences, dark = false
     sfx.meow({ short: true, delay: 0.2 });
     catWatchAt = (out) => mouse.getWorldPosition(out);
     catWatchUntil = performance.now() + 4300;
-    // Up off her paws into an alert loaf: head raised and level, chest lifted a little
-    gsap.to(catHead.position, { y: HEAD_CURLED.y + 0.38, z: HEAD_CURLED.z - 0.08, duration: 0.35, ease: "power2.out", overwrite: true });
+    // Up off her paws into an alert loaf: head raised, level and forward over her chest, chest
+    // lifted a little
+    catChest.visible = true;
+    gsap.to(catHead.position, { ...HEAD_LOAF, duration: 0.35, ease: "power2.out", overwrite: true });
     gsap.to(catHead.rotation, { x: 0, z: 0, duration: 0.35, ease: "power2.out", overwrite: true });
     gsap.to(catBody.position, { y: 0.08, duration: 0.35, ease: "power2.out", overwrite: true });
     gsap.fromTo(tailCurl.rotation, { y: -0.12 }, { y: 0.12, duration: 0.3, yoyo: true, repeat: 13, ease: "sine.inOut", onComplete: () => (tailCurl.rotation.y = 0) });
     timers.push(catFidget = setTimeout(() => {
-      // ...and settles back down onto her paws
-      gsap.to(catHead.position, { ...HEAD_CURLED, duration: 0.7, ease: "power2.inOut" });
+      // ...and settles back down onto her paws, chin over her chest again
+      gsap.to(catHead.position, { ...HEAD_CURLED, duration: 0.7, ease: "power2.inOut", onComplete: () => (catChest.visible = false) });
       gsap.to(catHead.rotation, { x: 0.15, y: 0.35, z: 0.1, duration: 0.7, ease: "power2.inOut" });
       gsap.to(catBody.position, { y: 0, duration: 0.7, ease: "power2.inOut" });
       catEyes(false);
@@ -7471,11 +7476,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
       .to(tail.rotation, { y: 0.12, duration: 0.45, yoyo: true, repeat: Math.round(seconds / 0.45) - 1, ease: "sine.inOut" })
       .set(tail.rotation, { y: 0 });
   }
-  // A yawn: eyes screwed shut, head tipped back, mouth wide, then a little shake of the head
+  // A yawn: eyes screwed shut, head up over her chest and tipped back, mouth wide, then a
+  // little shake of the head (the stretch that follows stands her up from there)
   function catYawn(tl) {
-    tl.call(() => catEyes(false))
+    tl.call(() => {
+      catEyes(false);
+      catChest.visible = true;
+    })
       .to(catHead.rotation, { x: -0.5, duration: 0.45, ease: "sine.out" })
-      .to(catHead.position, { y: HEAD_CURLED.y + 0.25, duration: 0.45, ease: "sine.out" }, "<")
+      .to(catHead.position, { x: HEAD_LOAF.x, y: HEAD_LOAF.y - 0.05, z: HEAD_LOAF.z, duration: 0.45, ease: "sine.out" }, "<")
       .to(catMouth.scale, { x: 1.3, y: 1.7, z: 0.7, duration: 0.35, ease: "back.out(2)" }, "<0.1")
       .to(catTongue.scale, { x: 1, y: 0.7, z: 0.8, duration: 0.35, ease: "back.out(2)" }, "<")
       .to([catMouth.scale, catTongue.scale], { x: 0.001, y: 0.001, z: 0.001, duration: 0.2, ease: "power2.in" }, "+=0.7")
@@ -7819,10 +7828,22 @@ export function createDeskScene({ container, projects, experiences, dark = false
   let catClicks = 0;
   const catBubble = speechBubble(3.0, 1.6, { size: 46, tail: "left", style: "manga" });
   const catBubbleAt = new THREE.Vector3();
-  // The bubble rides along above her (she may be trotting across the keyboard)
-  const placeCatBubble = () => {
-    cat.getWorldPosition(catBubbleAt);
-    catBubble.sprite.position.copy(catBubbleAt).add(new THREE.Vector3(1.7, 2.6, 0.4));
+  const catBubbleTip = new THREE.Vector3();
+  const catBubbleRight = new THREE.Vector3();
+  const catBubbleUp = new THREE.Vector3();
+  const [CAT_TIP_X, CAT_TIP_Y] = BUBBLE_TAILS.left.tip;
+  // The bubble rides along above her head (she may be sitting up, standing, or trotting across
+  // the keyboard), its tail pointing down at her with a clear gap above her ears. `blend`: 1
+  // jumps straight there; less eases it after her head, so a quick bob doesn't jiggle it.
+  const placeCatBubble = (blend = 1) => {
+    catHead.getWorldPosition(catBubbleAt);
+    catBubbleRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
+    catBubbleUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
+    catBubbleAt.addScaledVector(catBubbleUp, 1.0).addScaledVector(catBubbleRight, 0.15);
+    catBubbleTip.lerp(catBubbleAt, blend);
+    catBubble.sprite.position.copy(catBubbleTip)
+      .addScaledVector(catBubbleRight, (0.5 - CAT_TIP_X) * 3.0)
+      .addScaledVector(catBubbleUp, (CAT_TIP_Y - 0.5) * 1.6);
   };
   function catSay(text) {
     placeCatBubble();
@@ -7879,7 +7900,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
       if (++catClicks % 3 === 0) return catKeyboardRun();
       catBusy = true;
       catEyes(true);
-      gsap.fromTo(catHead.position, { y: catHead.position.y }, { y: catHead.position.y + 0.25, duration: 0.25, yoyo: true, repeat: 1, ease: "power2.out" });
+      // her head pops up over her chest and drops back
+      catChest.visible = true;
+      gsap.fromTo(catHead.position, { ...catHead.position }, { ...HEAD_LOAF, duration: 0.25, yoyo: true, repeat: 1, ease: "power2.out", onComplete: () => (catChest.visible = false) });
       gsap.fromTo(tailCurl.rotation, { y: 0 }, { y: 0.15, duration: 0.2, yoyo: true, repeat: 5, ease: "sine.inOut" });
       sfx.meow();
       catSay(CAT_LINES[catLine++ % CAT_LINES.length]);
@@ -9660,7 +9683,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     }
     if (shelfBubbleTarget === trophy && shelfBubble.sprite.scale.x > 0.01) placeTrophyBubble();
     if (trophyCelebrating) trophy.localToWorld(trophyHalo.position.set(0, 0.9, -0.2));
-    if (catBubble.sprite.scale.x > 0.01) placeCatBubble();
+    if (catBubble.sprite.scale.x > 0.01) placeCatBubble(1 - Math.exp(-10 * dt));
     // The desktop animates (windows, dock, the player's visualizer) at about 30 fps
     if ((desktop.busy() || lofi.playing) && now - screenDrawnAt > 33) redrawScreen();
     // The typing dots bounce while a reply hasn't started arriving

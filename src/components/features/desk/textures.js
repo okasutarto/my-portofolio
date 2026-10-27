@@ -593,6 +593,68 @@ export function drawCaseBack(c, w, h, project, { inside = false, index = 0, kind
     c.font = `600 30px 'Caveat', cursive`;
     c.fillText(`re: ${project.title}`, 30, 120);
     c.fillText("handle with care ✦", 30, 160);
+    // a sticky note slapped on the inside, a little crooked, with a hard shadow
+    c.save();
+    c.translate(w * 0.62, h * 0.1);
+    c.rotate(0.06);
+    const note = h * 0.38;
+    c.fillStyle = "#000";
+    c.fillRect(7, 7, note, note);
+    c.fillStyle = "#ffdd00";
+    c.fillRect(0, 0, note, note);
+    c.lineWidth = 3;
+    c.strokeRect(0, 0, note, note);
+    c.fillStyle = "rgba(0,0,0,.08)";
+    c.fillRect(0, 0, note, note * 0.14);
+    c.fillStyle = "#111";
+    c.font = `700 ${Math.round(note * 0.2)}px 'Caveat', cursive`;
+    c.fillText("notes:", note * 0.1, note * 0.36);
+    c.fillText("ship it! ✓", note * 0.1, note * 0.6);
+    c.fillText("— O.", note * 0.45, note * 0.85);
+    c.restore();
+    // a rubber stamp, inked a bit unevenly
+    c.save();
+    c.translate(w * 0.24, h * 0.72);
+    c.rotate(-0.14);
+    c.globalAlpha = 0.8;
+    c.strokeStyle = "#d62828";
+    c.lineWidth = 6;
+    c.beginPath();
+    c.roundRect(-w * 0.17, -h * 0.08, w * 0.34, h * 0.16, 10);
+    c.stroke();
+    c.lineWidth = 2;
+    c.beginPath();
+    c.roundRect(-w * 0.155, -h * 0.065, w * 0.31, h * 0.13, 7);
+    c.stroke();
+    c.fillStyle = "#d62828";
+    c.font = `800 ${Math.round(h * 0.075)}px ${DISPLAY}`;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText("ON FILE", 0, 2);
+    c.textAlign = "left";
+    c.textBaseline = "alphabetic";
+    c.restore();
+    // a coffee ring, and a marker doodle by the signature line
+    c.globalAlpha = 1;
+    c.strokeStyle = "rgba(90,50,20,.22)";
+    c.lineWidth = 7;
+    c.beginPath();
+    c.arc(w * 0.78, h * 0.78, h * 0.12, 0.4, Math.PI * 1.8);
+    c.stroke();
+    c.strokeStyle = "#111";
+    c.lineWidth = 3;
+    c.beginPath();
+    c.moveTo(30, h * 0.92);
+    c.lineTo(w * 0.42, h * 0.92);
+    c.stroke();
+    c.font = `600 26px 'Caveat', cursive`;
+    c.fillStyle = "#111";
+    c.fillText("signed:", 30, h * 0.9);
+    c.beginPath();
+    c.moveTo(120, h * 0.9);
+    c.bezierCurveTo(150, h * 0.83, 165, h * 0.95, 190, h * 0.88);
+    c.bezierCurveTo(205, h * 0.84, 215, h * 0.92, 245, h * 0.87);
+    c.stroke();
     c.lineWidth = 6;
     c.strokeStyle = "#000";
     c.strokeRect(3, 3, w - 6, h - 6);
@@ -1084,19 +1146,142 @@ export function drawPostcardBack(c, w, h, card, { caret = false } = {}) {
 
 // ---------- pinned About board (same content as the 2D sticker board) ----------
 export function drawAboutBoard(c, w, h) {
+  // Cork: a warm base, then granules in a few shades, big and small, so it reads as pressed cork
   c.fillStyle = "#cb9b67";
   c.fillRect(0, 0, w, h);
-  c.fillStyle = "rgba(70, 40, 15, 0.14)";
-  for (let i = 0; i < 300; i++) {
-    const x = (Math.sin(i * 99) * 0.5 + 0.5) * w;
-    const y = (Math.cos(i * 33) * 0.5 + 0.5) * h;
-    c.fillRect(x, y, (i % 3) + 1, (i % 2) + 1);
+  let r = 4111;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  const GRAINS = ["rgba(70,40,15,.2)", "rgba(70,40,15,.12)", "rgba(255,230,190,.22)", "rgba(140,85,40,.25)"];
+  for (let i = 0; i < (w * h) / 55; i++) {
+    c.fillStyle = GRAINS[i % GRAINS.length];
+    const s = 1 + rand() * (i % 7 === 0 ? 4 : 2);
+    c.beginPath();
+    c.ellipse(rand() * w, rand() * h, s, s * (0.5 + rand() * 0.6), rand() * Math.PI, 0, Math.PI * 2);
+    c.fill();
   }
+  // Old pin holes from notes long gone
+  for (let i = 0; i < 26; i++) {
+    const x = rand() * w;
+    const y = h * 0.12 + rand() * h * 0.85;
+    c.fillStyle = "rgba(40,20,5,.55)";
+    c.beginPath();
+    c.arc(x, y, w * 0.0022, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = "rgba(255,235,200,.35)";
+    c.beginPath();
+    c.arc(x + 1, y + 1.5, w * 0.002, 0, Math.PI);
+    c.fill();
+  }
+  // A faded coffee ring
+  c.strokeStyle = "rgba(90,50,20,.18)";
+  c.lineWidth = w * 0.006;
+  c.beginPath();
+  c.arc(w * 0.47, h * 0.9, w * 0.045, 0.3, Math.PI * 1.85);
+  c.stroke();
+
+  // Stickers slapped on the cork: flat colour, a thick black edge and a hard shadow
+  const sticker = (x, y, turn, draw) => {
+    c.save();
+    c.translate(w * x, h * y);
+    c.rotate(turn);
+    c.fillStyle = "#000";
+    c.save();
+    c.translate(w * 0.004, w * 0.004);
+    draw(true);
+    c.restore();
+    draw(false);
+    c.restore();
+  };
+  const u = w / 100;
+  const shape = (path, fill) => (shadow) => {
+    c.beginPath();
+    path();
+    c.fillStyle = shadow ? "#000" : fill;
+    c.fill();
+    if (!shadow) {
+      c.lineWidth = u * 0.35;
+      c.strokeStyle = "#000";
+      c.stroke();
+    }
+  };
+  // a code bracket badge
+  sticker(0.7, 0.075, -0.2, (shadow) => {
+    shape(() => c.roundRect(-u * 3.4, -u * 2, u * 6.8, u * 4, u * 1.2), "#00e0c6")(shadow);
+    if (shadow) return;
+    c.fillStyle = "#000";
+    c.font = `900 ${Math.round(u * 2.6)}px ${DISPLAY}`;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText("</>", 0, u * 0.2);
+  });
+  // a lightning bolt
+  sticker(0.355, 0.13, 0.25, shape(() => {
+    c.moveTo(u * 0.6, -u * 3);
+    c.lineTo(-u * 1.8, u * 0.4);
+    c.lineTo(-u * 0.1, u * 0.4);
+    c.lineTo(-u * 0.8, u * 3);
+    c.lineTo(u * 1.9, -u * 0.6);
+    c.lineTo(u * 0.2, -u * 0.6);
+    c.closePath();
+  }, "#ffdd00"));
+  // a star
+  sticker(0.965, 0.93, 0.3, shape(() => {
+    for (let i = 0; i < 10; i++) {
+      const rr = i % 2 ? u * 1.1 : u * 2.5;
+      const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+      if (i) c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+      else c.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    c.closePath();
+  }, "#ff90e8"));
+  // a round "hello" sticker
+  sticker(0.62, 0.95, -0.15, (shadow) => {
+    shape(() => c.arc(0, 0, u * 2.4, 0, Math.PI * 2), "#ff6b6b")(shadow);
+    if (shadow) return;
+    c.fillStyle = "#fffdf5";
+    c.font = `900 ${Math.round(u * 1.2)}px ${DISPLAY}`;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText("HELLO!", 0, u * 0.1);
+  });
+
+  // A marker smiley on the cork
+  c.strokeStyle = "rgba(17,17,17,.75)";
+  c.lineWidth = u * 0.3;
+  c.lineCap = "round";
+  c.beginPath();
+  c.arc(w * 0.83, h * 0.12, u * 1.6, 0, Math.PI * 2);
+  c.moveTo(w * 0.83 - u * 0.9, h * 0.12 + u * 0.3);
+  c.quadraticCurveTo(w * 0.83, h * 0.12 + u * 1.2, w * 0.83 + u * 0.9, h * 0.12 + u * 0.3);
+  c.stroke();
+  c.fillStyle = "rgba(17,17,17,.75)";
+  [-0.5, 0.5].forEach((dx) => c.fillRect(w * 0.83 + dx * u - u * 0.15, h * 0.12 - u * 0.6, u * 0.3, u * 0.6));
+
+  // The heading on a strip of masking tape, torn at both ends
+  const tw = w * 0.24;
+  const th = h * 0.085;
+  c.save();
+  c.translate(w / 2, h * 0.07);
+  c.rotate(-0.025);
+  c.fillStyle = "rgba(0,0,0,.25)";
+  c.fillRect(-tw / 2 + 4, -th / 2 + 4, tw, th);
+  c.beginPath();
+  c.moveTo(-tw / 2, -th / 2);
+  c.lineTo(tw / 2, -th / 2);
+  for (let i = 0; i <= 6; i++) c.lineTo(tw / 2 + (i % 2 ? -1 : 1) * u * 0.5, -th / 2 + (th * i) / 6);
+  c.lineTo(-tw / 2, th / 2);
+  for (let i = 6; i >= 0; i--) c.lineTo(-tw / 2 + (i % 2 ? 1 : -1) * u * 0.5, -th / 2 + (th * i) / 6);
+  c.closePath();
+  c.fillStyle = "#f3e7c4";
+  c.fill();
   c.fillStyle = "#111";
-  c.font = `900 ${Math.round(h * 0.06)}px ${DISPLAY}`;
+  c.font = `900 ${Math.round(h * 0.055)}px ${DISPLAY}`;
   c.textAlign = "center";
-  c.fillText("ABOUT ME", w / 2, h * 0.075);
+  c.textBaseline = "middle";
+  c.fillText("ABOUT ME", 0, th * 0.06);
+  c.restore();
   c.textAlign = "left";
+  c.textBaseline = "alphabetic";
 }
 
 // Each paper on the board is its own kind of stationery: a page torn from a lined notebook, sticky
@@ -1619,22 +1804,135 @@ export function drawClockFace(c, w, h) {
   c.textBaseline = "alphabetic";
 }
 
-// The guitar's top, laid out in the body outline's own units (x -1..1 across, y -0.95..1.92):
-// a soft sunburst from honey to darker edges, and one cream ring round the soundhole
+// The guitar's top, laid out in the body outline's own units (x -1..1 across, y -0.95..1.92),
+// in the room's neo-brutalist style: one flat colour, a faint halftone, a teal pickguard,
+// thick black and white rings round the soundhole, and a few stickers with hard shadows
 export function drawGuitarTop(c, w, h) {
   const toX = (x) => ((x + 1) / 2) * w;
   const toY = (y) => (1 - (y + 0.95) / 2.87) * h;
-  const burst = c.createRadialGradient(toX(0), toY(0.1), w * 0.12, toX(0), toY(0.3), w * 0.62);
-  burst.addColorStop(0, "#f7a556");
-  burst.addColorStop(0.6, "#e98a3d");
-  burst.addColorStop(1, "#a8521e");
-  c.fillStyle = burst;
+  const ux = w / 2;
+  const line = w * 0.018;
+  c.fillStyle = "#ffdd00";
   c.fillRect(0, 0, w, h);
-  c.strokeStyle = "#fffdf5";
-  c.lineWidth = w * 0.035;
+  // halftone dots, heavier toward the lower edge
+  for (let y = 0; y < h; y += w * 0.035) {
+    for (let x = (Math.round(y / (w * 0.035)) % 2) * w * 0.0175; x < w; x += w * 0.035) {
+      const k = Math.max(0, (y / h - 0.55) / 0.45);
+      if (!k) continue;
+      c.fillStyle = "rgba(230,140,0,.55)";
+      c.beginPath();
+      c.arc(x, y, w * 0.007 * k, 0, Math.PI * 2);
+      c.fill();
+    }
+  }
+  // the pickguard: a teal crescent tucked against the rosette's lower right, its inner edge
+  // following the ring and its outer edge sweeping round toward the waist
+  const cx = toX(0);
+  const cy = toY(1.15);
+  const ringR = 0.5 * ux;
   c.beginPath();
-  c.ellipse(toX(0), toY(1.15), (0.38 / 2) * w, (0.38 / 2.87) * h, 0, 0, Math.PI * 2);
+  c.arc(cx, cy, ringR, 1.9, -0.25, true);
+  c.bezierCurveTo(toX(0.78), toY(1.12), toX(0.86), toY(0.78), toX(0.6), toY(0.6));
+  c.bezierCurveTo(toX(0.4), toY(0.48), toX(0.02), toY(0.52), cx + Math.cos(1.9) * ringR, cy + Math.sin(1.9) * ringR);
+  c.closePath();
+  c.fillStyle = "#00e0c6";
+  c.fill();
+  c.lineWidth = line * 0.8;
+  c.strokeStyle = "#000";
   c.stroke();
+  // rosette: black, white, black
+  [[0.5, "#1a1714", 0.09], [0.43, "#fffdf5", 0.05], [0.38, "#1a1714", 0.03]].forEach(([r, color, t]) => {
+    c.strokeStyle = color;
+    c.lineWidth = t * ux;
+    c.beginPath();
+    c.ellipse(toX(0), toY(1.15), r * ux, (r / 2.87) * 2 * h / 2, 0, 0, Math.PI * 2);
+    c.stroke();
+  });
+  // stickers
+  const sticker = (x, y, turn, path, fill, label) => {
+    c.save();
+    c.translate(toX(x), toY(y));
+    c.rotate(turn);
+    c.translate(line * 0.8, line * 0.8);
+    path();
+    c.fillStyle = "#000";
+    c.fill();
+    c.translate(-line * 0.8, -line * 0.8);
+    path();
+    c.fillStyle = fill;
+    c.fill();
+    c.lineWidth = line * 0.6;
+    c.strokeStyle = "#000";
+    c.stroke();
+    if (label) {
+      c.fillStyle = "#000";
+      c.font = `900 ${Math.round(ux * 0.13)}px 'Lexend Mega', sans-serif`;
+      c.textAlign = "center";
+      c.textBaseline = "middle";
+      c.fillText(label, 0, ux * 0.01);
+    }
+    c.restore();
+  };
+  const r = ux * 0.15;
+  sticker(-0.5, 0.1, -0.25, () => {
+    c.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const rr = i % 2 ? r * 0.45 : r;
+      const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+      if (i) c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+      else c.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    c.closePath();
+  }, "#ff90e8");
+  sticker(0.15, -0.45, 0.12, () => {
+    c.beginPath();
+    c.roundRect(-r * 1.5, -r * 0.75, r * 3, r * 1.5, r * 0.5);
+  }, "#00e0c6", "</>");
+  sticker(-0.42, 1.55, 0.3, () => {
+    c.beginPath();
+    c.moveTo(r * 0.25, -r);
+    c.lineTo(-r * 0.6, r * 0.15);
+    c.lineTo(-r * 0.05, r * 0.15);
+    c.lineTo(-r * 0.3, r);
+    c.lineTo(r * 0.65, -r * 0.2);
+    c.lineTo(r * 0.05, -r * 0.2);
+    c.closePath();
+  }, "#ff6b6b");
+}
+
+// The room's painted walls: a faint dot grid (the same grid as the site's loading screen) over a
+// soft paint-roller grain, both low enough to stay a texture, not a pattern. Tiles seamlessly.
+export function drawWallPaint(c, w, h) {
+  c.fillStyle = "#ffffff";
+  c.fillRect(0, 0, w, h);
+  let r = 7331;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  // roller grain: short soft streaks running up and down, a shade either way of the paint
+  for (let i = 0; i < (w * h) / 40; i++) {
+    c.fillStyle = rand() < 0.5 ? "rgba(26,23,20,.04)" : "rgba(255,255,255,.6)";
+    const x = rand() * w;
+    const y = rand() * h;
+    c.fillRect(x, y, 1 + rand() * 1.5, 3 + rand() * 9);
+  }
+  // roller laps: two broad, barely-there bands where the paint went on a touch thicker
+  [0.18, 0.66].forEach((k) => {
+    const lap = c.createLinearGradient(w * k, 0, w * (k + 0.22), 0);
+    lap.addColorStop(0, "rgba(26,23,20,0)");
+    lap.addColorStop(0.5, "rgba(26,23,20,.018)");
+    lap.addColorStop(1, "rgba(26,23,20,0)");
+    c.fillStyle = lap;
+    c.fillRect(0, 0, w, h);
+  });
+  // the dot grid
+  const step = w / 6;
+  c.fillStyle = "rgba(26,23,20,.16)";
+  for (let y = step / 2; y < h; y += step) {
+    for (let x = step / 2; x < w; x += step) {
+      c.beginPath();
+      c.arc(x, y, w * 0.011, 0, Math.PI * 2);
+      c.fill();
+    }
+  }
 }
 
 // Woven straw: rows of plaited strands, each a little lighter in the middle
@@ -2282,6 +2580,13 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   const sy = h * look.sun[1];
   const sr = w * 0.085;
   const sunColor = look.sun[2];
+  // A soft halo round it, breathing a little
+  const halo = c.createRadialGradient(sx, sy, sr, sx, sy, sr * (dark ? 2.6 : 3.2) * (1 + 0.04 * Math.sin(t * 1.3)));
+  halo.addColorStop(0, dark ? "rgba(255,253,245,.28)" : "rgba(255,255,230,.5)");
+  halo.addColorStop(1, "rgba(255,255,255,0)");
+  c.globalAlpha = 1 - rain * 0.9;
+  c.fillStyle = halo;
+  c.fillRect(sx - sr * 4, sy - sr * 4, sr * 8, sr * 8);
   c.globalAlpha = 1 - rain * 0.85;
   if (!dark) {
     c.save();
@@ -2330,6 +2635,39 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
     c.globalAlpha = 1;
   }
 
+  // A hot-air balloon drifting slowly across, by day when it's dry
+  if (!dark && rain < 0.3) {
+    const hx = wrapX(w * 0.15 + t * u * 1.6, u * 12);
+    const hy = h * 0.2 + Math.sin(t * 0.5) * u * 1.5;
+    const r = u * 4.2;
+    c.beginPath();
+    c.moveTo(hx - r * 0.55, hy + r * 0.85);
+    c.lineTo(hx - r * 0.3, hy + r * 1.75);
+    c.moveTo(hx + r * 0.55, hy + r * 0.85);
+    c.lineTo(hx + r * 0.3, hy + r * 1.75);
+    stroke(line * 0.5);
+    blob([[hx - r * 0.35, hy + r * 1.7, 0, r * 0.7, r * 0.5]], "#8b5a2b", 0);
+    blob([[hx, hy, r], [hx - r * 0.55, hy + r * 0.45, 0, r * 1.1, r * 0.45]], "#ff6b6b", 0);
+    c.save();
+    c.beginPath();
+    c.arc(hx, hy, r, 0, Math.PI * 2);
+    c.clip();
+    c.fillStyle = "#ffdd00";
+    c.fillRect(hx - r * 0.28, hy - r, r * 0.56, r * 2);
+    c.fillStyle = "#fffdf5";
+    c.fillRect(hx - r, hy - r * 0.12, r * 2, r * 0.24);
+    c.restore();
+  }
+
+  // A far range, paler and softer-edged, the haze between it and the near peaks
+  c.beginPath();
+  c.moveTo(-line, h * 0.6);
+  [[0, 0.42], [0.08, 0.36], [0.2, 0.41], [0.36, 0.3], [0.52, 0.4], [0.68, 0.31], [0.86, 0.39], [1, 0.33]].forEach(([x, y]) => c.lineTo(w * x, h * y));
+  c.lineTo(w + line, h * 0.6);
+  c.closePath();
+  c.fillStyle = grey(mixHex(dark ? "#3b3570" : time === "evening" ? "#9b7fd4" : "#c4b5fd", SKY[2], 0.55));
+  c.fill();
+  stroke(line * 0.6, "rgba(0,0,0,.45)");
   // Mountains behind the lake
   c.beginPath();
   c.moveTo(-line, h * 0.6);
@@ -2352,6 +2690,96 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
     c.fill();
     stroke(line * 0.8);
   });
+
+  // The far shore: a low green bank with round bushes, a few houses (lit up at night, smoke
+  // curling from a chimney) and a lighthouse on the point, its beam sweeping after dark
+  const bank = h * 0.58;
+  c.beginPath();
+  c.moveTo(-line, bank + line);
+  for (let x = 0; x <= 1.001; x += 0.05) c.lineTo(w * x, bank - h * (0.012 + 0.01 * Math.sin(x * 17)));
+  c.lineTo(w + line, bank + line);
+  c.closePath();
+  c.fillStyle = grey(dark ? "#245239" : "#5fbf6a");
+  c.fill();
+  stroke(line * 0.8);
+  [0.04, 0.11, 0.17, 0.42, 0.5, 0.84, 0.9].forEach((x, i) => blob([[w * x, bank - h * 0.018, u * (1.6 + (i % 3) * 0.5)]], grey(dark ? "#1f5c3a" : "#2f9e57"), 0));
+  [[0.56, "#ff6b6b"], [0.615, "#3b82f6"], [0.67, "#ffb35c"]].forEach(([x, roof], i) => {
+    const hx = w * x;
+    const hw = u * (3.4 + (i % 2) * 0.6);
+    const hh = u * 2.6;
+    const base = bank - h * 0.008;
+    c.beginPath();
+    c.rect(hx - hw / 2, base - hh, hw, hh);
+    c.fillStyle = grey("#fffdf5");
+    c.fill();
+    stroke(line * 0.7);
+    c.beginPath();
+    c.moveTo(hx - hw * 0.62, base - hh);
+    c.lineTo(hx, base - hh - u * 2.2);
+    c.lineTo(hx + hw * 0.62, base - hh);
+    c.closePath();
+    c.fillStyle = grey(roof);
+    c.fill();
+    stroke(line * 0.7);
+    c.fillStyle = dark ? "#ffdd00" : "#30437f";
+    c.fillRect(hx - u * 0.6, base - hh * 0.7, u * 1.2, u * 1.1);
+    if (i === 1) {
+      c.fillStyle = "#000";
+      c.fillRect(hx + hw * 0.18, base - hh - u * 2.1, u * 0.9, u * 1.4);
+      for (let k = 0; k < 3; k++) {
+        const life = (t * 0.35 + k / 3) % 1;
+        c.globalAlpha = (1 - life) * (dark ? 0.35 : 0.7);
+        c.beginPath();
+        c.arc(hx + hw * 0.22 + Math.sin(t + k * 2) * u * 0.8 + life * u * 3, base - hh - u * 2.4 - life * u * 7, u * (0.6 + life * 1.1), 0, Math.PI * 2);
+        c.fillStyle = "#fffdf5";
+        c.fill();
+      }
+      c.globalAlpha = 1;
+    }
+  });
+  const lx = w * 0.755;
+  const lBase = bank - h * 0.012;
+  const lTop = lBase - u * 8.5;
+  if (dark) {
+    const sweep = Math.sin(t * 0.9);
+    c.save();
+    c.globalAlpha = 0.28 * (1 - rain * 0.5);
+    c.fillStyle = "#fff6b0";
+    c.beginPath();
+    c.moveTo(lx, lTop + u * 0.8);
+    c.lineTo(lx + sweep * w * 0.32, lTop - u * 3);
+    c.lineTo(lx + sweep * w * 0.32, lTop + u * 4.5);
+    c.closePath();
+    c.fill();
+    c.restore();
+  }
+  c.beginPath();
+  c.moveTo(lx - u * 1.5, lBase);
+  c.lineTo(lx - u * 1, lTop + u * 1.6);
+  c.lineTo(lx + u * 1, lTop + u * 1.6);
+  c.lineTo(lx + u * 1.5, lBase);
+  c.closePath();
+  c.fillStyle = grey("#fffdf5");
+  c.fill();
+  c.save();
+  c.clip();
+  c.fillStyle = grey("#e5484d");
+  [0.25, 0.6].forEach((k) => c.fillRect(lx - u * 2, lBase - (lBase - lTop) * k - u * 0.7, u * 4, u * 1.4));
+  c.restore();
+  stroke(line * 0.7);
+  c.beginPath();
+  c.rect(lx - u * 0.9, lTop + u * 0.2, u * 1.8, u * 1.4);
+  c.fillStyle = dark ? "#fff6b0" : "#ffdd00";
+  c.fill();
+  stroke(line * 0.6);
+  c.beginPath();
+  c.moveTo(lx - u * 1.2, lTop + u * 0.2);
+  c.lineTo(lx, lTop - u * 1);
+  c.lineTo(lx + u * 1.2, lTop + u * 0.2);
+  c.closePath();
+  c.fillStyle = grey("#e5484d");
+  c.fill();
+  stroke(line * 0.6);
 
   // The lake: ripples sliding, the sun/moon's reflection wobbling, a little sailboat
   const lakeTop = h * 0.58;
@@ -2419,6 +2847,28 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   if (dark) blob([[-u * 3.2, -u * 1.4, u * 1]], "#ffdd00", 0);
   c.restore();
 
+  // A mother duck and two ducklings paddling along, by day
+  if (!dark) {
+    const dx = wrapX(w * 0.62 - t * u * 1.8, u * 14);
+    const dy = lakeTop + (lakeBottom - lakeTop) * 0.7;
+    [[0, 1], [u * 4.2, 0.65], [u * 7.4, 0.65]].forEach(([off, k], i) => {
+      const x = dx + off;
+      const y = dy + Math.sin(t * 3 + i) * u * 0.3;
+      blob([[x, y, u * 1.5 * k], [x - u * 1.3 * k, y - u * 1.4 * k, u * 0.95 * k]], k < 1 ? "#ffdd00" : "#fffdf5", 0);
+      c.beginPath();
+      c.moveTo(x - u * 2.1 * k, y - u * 1.5 * k);
+      c.lineTo(x - u * 3 * k, y - u * 1.2 * k);
+      c.lineTo(x - u * 2.1 * k, y - u * 1 * k);
+      c.closePath();
+      c.fillStyle = "#ff7a1a";
+      c.fill();
+      c.beginPath();
+      c.moveTo(x - u * 2.3 * k, y + u * 1.1 * k);
+      c.lineTo(x + u * 2.3 * k, y + u * 1.1 * k);
+      stroke(line * 0.6, "#cdf6ff");
+    });
+  }
+
   // Grass, flowers, and trees swaying on the near shore
   c.fillStyle = grey(dark ? "#2f6b45" : "#8fd694");
   c.fillRect(0, lakeBottom, w, h - lakeBottom);
@@ -2426,13 +2876,138 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   c.moveTo(0, lakeBottom);
   c.lineTo(w, lakeBottom);
   stroke();
-  [[0.38, 0.86, "#ff90e8"], [0.47, 0.92, "#ffdd00"], [0.62, 0.88, "#fffdf5"], [0.7, 0.95, "#ff90e8"], [0.31, 0.95, "#ffdd00"]].forEach(([x, y, color], i) => {
-    const fx = w * x + Math.sin(t * 1.5 + i) * u * 0.3;
+  // A sandy path winding down to a little wooden pier
+  c.beginPath();
+  c.moveTo(w * 0.47, h + line);
+  c.bezierCurveTo(w * 0.44, h * 0.9, w * 0.6, h * 0.86, w * 0.53, lakeBottom);
+  c.lineTo(w * 0.58, lakeBottom);
+  c.bezierCurveTo(w * 0.66, h * 0.86, w * 0.52, h * 0.92, w * 0.57, h + line);
+  c.closePath();
+  c.fillStyle = grey(dark ? "#8a7a5a" : "#f3d9a4");
+  c.fill();
+  stroke(line * 0.7);
+  const pierTop = lakeBottom - (lakeBottom - lakeTop) * 0.34;
+  [0.535, 0.575].forEach((x) => {
     c.beginPath();
-    c.moveTo(w * x, h * y + u * 2.4);
-    c.lineTo(fx, h * y);
-    stroke(line * 0.7, dark ? "#14532d" : "#166534");
-    blob([[fx, h * y, u * 1.1]], dark ? "#7c6b9e" : color, 0);
+    c.rect(w * x - u * 0.45, pierTop, u * 0.9, (lakeBottom - pierTop) + u);
+    c.fillStyle = "#6b4a2a";
+    c.fill();
+    stroke(line * 0.6);
+  });
+  c.beginPath();
+  c.moveTo(w * 0.525, lakeBottom + u * 0.4);
+  c.lineTo(w * 0.532, pierTop);
+  c.lineTo(w * 0.578, pierTop);
+  c.lineTo(w * 0.585, lakeBottom + u * 0.4);
+  c.closePath();
+  c.fillStyle = grey("#b8743c");
+  c.fill();
+  stroke(line * 0.7);
+  for (let k = 1; k < 4; k++) {
+    const y = pierTop + (lakeBottom - pierTop) * (k / 4);
+    c.beginPath();
+    c.moveTo(w * 0.53, y);
+    c.lineTo(w * 0.58, y);
+    stroke(line * 0.4, "#6b4a2a");
+  }
+  // Reeds and cattails at the water's edge, swaying
+  [0.24, 0.255, 0.27, 0.285, 0.72, 0.735, 0.75].forEach((x, i) => {
+    const sway = Math.sin(t * 1.4 + i) * u * 0.6;
+    const top = lakeBottom - u * (4 + (i % 3) * 1.4);
+    c.beginPath();
+    c.moveTo(w * x, lakeBottom + u * 1.5);
+    c.quadraticCurveTo(w * x, top + u * 2, w * x + sway, top);
+    stroke(line * 0.6, dark ? "#14532d" : "#166534");
+    if (i % 2 === 0) {
+      c.save();
+      c.translate(w * x + sway, top + u * 0.4);
+      c.beginPath();
+      c.roundRect(-u * 0.55, -u * 0.6, u * 1.1, u * 2.4, u * 0.5);
+      c.fillStyle = "#8b5a2b";
+      c.fill();
+      stroke(line * 0.5);
+      c.restore();
+    }
+  });
+  // Flowers on the near shore, each on a swaying stem with a leaf or two: daisies (a ring of
+  // petals round a yellow eye), tulips (a cupped head of three petals) and round blooms
+  const stemColor = dark ? "#14532d" : "#166534";
+  const leaf = (x, y, side, size) => {
+    c.save();
+    c.translate(x, y);
+    c.rotate(side * 0.9);
+    c.beginPath();
+    c.moveTo(0, 0);
+    c.quadraticCurveTo(size * 0.6, -size * 0.45, size * 1.2, 0);
+    c.quadraticCurveTo(size * 0.6, size * 0.45, 0, 0);
+    c.fillStyle = dark ? "#1f5c3a" : "#2f9e57";
+    c.fill();
+    stroke(line * 0.5);
+    c.restore();
+  };
+  const FLOWERS = [
+    [0.36, 0.86, "#ff90e8", "daisy"], [0.43, 0.93, "#ffdd00", "tulip"], [0.62, 0.885, "#fffdf5", "daisy"],
+    [0.69, 0.95, "#ff6b6b", "tulip"], [0.3, 0.95, "#ffdd00", "round"], [0.75, 0.86, "#c4b5fd", "round"], [0.4, 0.99, "#fffdf5", "daisy"],
+  ];
+  FLOWERS.forEach(([x, y, color, kind], i) => {
+    // big enough to read their petals in the window close-up
+    const fu = u * 1.7;
+    const sway = Math.sin(t * 1.5 + i) * fu * 0.4;
+    const bx = w * x;
+    const by = h * y + fu * 3.4;
+    const fx = bx + sway;
+    const fy = h * y;
+    const petal = dark ? mixHex(color, "#3b3570", 0.45) : color;
+    c.beginPath();
+    c.moveTo(bx, by);
+    c.quadraticCurveTo(bx, (by + fy) / 2, fx, fy);
+    stroke(line * 0.7, stemColor);
+    leaf(bx + sway * 0.3, by - fu * 1.3, i % 2 ? 1 : -1, fu * 1.6);
+    if (kind === "daisy") {
+      for (let k = 0; k < 7; k++) {
+        const a = (k / 7) * Math.PI * 2 + t * 0.2 + i;
+        c.save();
+        c.translate(fx + Math.cos(a) * fu * 0.95, fy + Math.sin(a) * fu * 0.95);
+        c.rotate(a);
+        c.beginPath();
+        c.ellipse(0, 0, fu * 0.85, fu * 0.42, 0, 0, Math.PI * 2);
+        c.fillStyle = petal;
+        c.fill();
+        stroke(line * 0.45);
+        c.restore();
+      }
+      blob([[fx, fy, fu * 0.6]], dark ? "#b8a24a" : "#ffb35c", 0);
+    } else if (kind === "tulip") {
+      c.save();
+      c.translate(fx, fy);
+      c.rotate(sway / (fu * 8));
+      c.beginPath();
+      c.moveTo(-fu * 1.1, -fu * 0.6);
+      c.lineTo(-fu * 0.55, -fu * 1.5);
+      c.lineTo(0, -fu * 0.75);
+      c.lineTo(fu * 0.55, -fu * 1.5);
+      c.lineTo(fu * 1.1, -fu * 0.6);
+      c.quadraticCurveTo(fu * 1.1, fu * 0.8, 0, fu * 0.8);
+      c.quadraticCurveTo(-fu * 1.1, fu * 0.8, -fu * 1.1, -fu * 0.6);
+      c.closePath();
+      c.fillStyle = petal;
+      c.fill();
+      stroke(line * 0.55);
+      c.beginPath();
+      c.moveTo(0, -fu * 0.6);
+      c.lineTo(0, fu * 0.5);
+      stroke(line * 0.35, "rgba(0,0,0,.35)");
+      c.restore();
+    } else {
+      // a round bloom: five petals of overlapping circles, a darker heart
+      const parts = [];
+      for (let k = 0; k < 5; k++) {
+        const a = (k / 5) * Math.PI * 2 - Math.PI / 2;
+        parts.push([fx + Math.cos(a) * fu * 0.7, fy + Math.sin(a) * fu * 0.7, fu * 0.7]);
+      }
+      blob(parts, petal, 0);
+      blob([[fx, fy, fu * 0.4]], dark ? "#2a2f45" : "#1a1714", 0);
+    }
   });
   const tree = (x, scale, i, round) => {
     const base = h * 0.97;
@@ -3719,6 +4294,78 @@ function paintPetal(c, cx, cy, len, wid, line) {
   c.quadraticCurveTo(cx + wid * 0.12, cy - len * 0.5, cx, cy - len * 0.78);
   c.stroke();
 }
+// Sandai Kitetsu's embers: a little diamond spark, black-edged so it shows on the white wall,
+// crimson with a hot yellow heart
+export function drawEmber(c, w, h) {
+  c.clearRect(0, 0, w, h);
+  const spark = (k) => {
+    c.beginPath();
+    c.moveTo(w / 2, h * (0.5 - 0.42 * k));
+    c.lineTo(w * (0.5 + 0.26 * k), h / 2);
+    c.lineTo(w / 2, h * (0.5 + 0.42 * k));
+    c.lineTo(w * (0.5 - 0.26 * k), h / 2);
+    c.closePath();
+  };
+  spark(1);
+  c.fillStyle = "#e11d48";
+  c.fill();
+  c.lineWidth = w * 0.07;
+  c.strokeStyle = "#1a1714";
+  c.stroke();
+  spark(0.45);
+  c.fillStyle = "#ffdd00";
+  c.fill();
+}
+// Enma's hellfire: a licking flame, black-edged like everything in the room, purple outside,
+// violet-pink within and a pale heart
+export function drawHellFlame(c, w, h) {
+  c.clearRect(0, 0, w, h);
+  const flame = (k) => {
+    const fw = w * 0.42 * k;
+    const base = h * 0.94;
+    const top = h * (1 - 0.9 * k);
+    c.beginPath();
+    c.moveTo(w / 2, top);
+    c.bezierCurveTo(w / 2 + fw * 0.35, top + h * 0.2 * k, w / 2 + fw * 1.1, base - h * 0.32 * k, w / 2 + fw * 0.7, base - h * 0.08 * k);
+    c.quadraticCurveTo(w / 2, base + h * 0.03, w / 2 - fw * 0.7, base - h * 0.08 * k);
+    c.bezierCurveTo(w / 2 - fw * 1.05, base - h * 0.36 * k, w / 2 - fw * 0.1, top + h * 0.34 * k, w / 2 - fw * 0.15, top + h * 0.16 * k);
+    c.quadraticCurveTo(w / 2 - fw * 0.05, top + h * 0.06 * k, w / 2, top);
+    c.closePath();
+  };
+  flame(1);
+  c.fillStyle = "#6b21a8";
+  c.fill();
+  c.lineWidth = w * 0.045;
+  c.strokeStyle = "#1a1714";
+  c.stroke();
+  flame(0.68);
+  c.fillStyle = "#c084fc";
+  c.fill();
+  flame(0.36);
+  c.fillStyle = "#f5e8ff";
+  c.fill();
+}
+// Black lightning (Haki crackling off Enma): a jagged bolt in black with a red-violet rim
+export function drawBlackBolt(c, w, h) {
+  c.clearRect(0, 0, w, h);
+  const pts = [[0.55, 0], [0.42, 0.22], [0.58, 0.3], [0.38, 0.55], [0.55, 0.6], [0.3, 1]];
+  const branch = [[0.42, 0.55], [0.22, 0.7], [0.3, 0.78]];
+  const path = (list) => {
+    c.beginPath();
+    list.forEach(([x, y], i) => (i ? c.lineTo(x * w, y * h) : c.moveTo(x * w, y * h)));
+  };
+  c.lineCap = "round";
+  c.lineJoin = "round";
+  [[w * 0.16, "rgba(225,29,72,.85)"], [w * 0.09, "#1a1714"]].forEach(([lw, color]) => {
+    c.lineWidth = lw;
+    c.strokeStyle = color;
+    path(pts);
+    c.stroke();
+    c.lineWidth = lw * 0.6;
+    path(branch);
+    c.stroke();
+  });
+}
 export function drawSakuraPetal(c, w, h) {
   c.clearRect(0, 0, w, h);
   paintPetal(c, w / 2, h * 0.92, h * 0.84, w * 0.36, w * 0.05);
@@ -3953,80 +4600,95 @@ const BOOK_TITLES = [
   ["NODE.JS", "DESIGN"], ["UX BASICS", "A PRIMER"], ["TYPESCRIPT", "DEEP DIVE"], ["ONE PIECE", "VOL. 105"],
   ["SKETCHBOOK", "2026"], ["COFFEE", "BREWING"], ["GIT POCKET", "GUIDE"], ["PIXEL ART", "STUDIO"],
 ];
-const darken = (hex, k) => {
-  const n = parseInt(hex.slice(1), 16);
-  const ch = (s) => Math.round(((n >> s) & 255) * (1 - k));
-  return `rgb(${ch(16)},${ch(8)},${ch(0)})`;
-};
-// A hardback's spine (drawn upright, long side vertical): the cover cloth with a faint weave,
-// dark bands top and bottom ruled in gilt, the title running up the spine with its subtitle,
-// and a little publisher's mark at the foot. `i` picks the title and the band style.
+// A hardback's spine (drawn upright, long side vertical), neo-brutalist: one flat colour, black
+// bands top and bottom, the title on a white label with a thick black edge and a hard offset
+// shadow, and a sticker near the foot that changes from book to book
 export function drawBookSpine(c, w, h, { color, i = 0 }) {
   const [title, sub] = BOOK_TITLES[i % BOOK_TITLES.length];
   const ink = "#1a1714";
-  const light = parseInt(color.slice(1, 3), 16) + parseInt(color.slice(3, 5), 16) + parseInt(color.slice(5, 7), 16) > 560;
-  const gilt = "#f2c94c";
+  const line = Math.max(3, w * 0.06);
   c.fillStyle = color;
   c.fillRect(0, 0, w, h);
-  // weave and a soft roundness across the spine
-  c.globalAlpha = 0.08;
-  c.fillStyle = "#000";
-  for (let y = 0; y < h; y += 4) c.fillRect(0, y, w, 1);
-  c.globalAlpha = 1;
-  const round = c.createLinearGradient(0, 0, w, 0);
-  round.addColorStop(0, "rgba(0,0,0,.22)");
-  round.addColorStop(0.35, "rgba(255,255,255,.12)");
-  round.addColorStop(1, "rgba(0,0,0,.25)");
-  c.fillStyle = round;
-  c.fillRect(0, 0, w, h);
-  // bands
-  const band = h * (0.07 + (i % 3) * 0.015);
-  c.fillStyle = darken(color, 0.55);
-  c.fillRect(0, h * 0.05, w, band);
-  c.fillRect(0, h * 0.95 - band, w, band);
-  c.fillStyle = gilt;
-  [h * 0.05 - w * 0.06, h * 0.05 + band + w * 0.03, h * 0.95 - band - w * 0.09, h * 0.95 + w * 0.03].forEach((y) => c.fillRect(w * 0.08, y, w * 0.84, Math.max(2, w * 0.05)));
-  if (i % 2) {
-    // a little gilt diamond in the top band
-    c.beginPath();
-    c.moveTo(w / 2, h * 0.05 + band * 0.2);
-    c.lineTo(w * 0.62, h * 0.05 + band / 2);
-    c.lineTo(w / 2, h * 0.05 + band * 0.8);
-    c.lineTo(w * 0.38, h * 0.05 + band / 2);
-    c.closePath();
-    c.fill();
+  // chunky black bands, with a stripe of the cover colour left between on some
+  const band = h * (0.045 + (i % 3) * 0.012);
+  c.fillStyle = ink;
+  c.fillRect(0, h * 0.04, w, band);
+  c.fillRect(0, h * 0.96 - band, w, band);
+  if (i % 2 === 0) {
+    c.fillStyle = color;
+    c.fillRect(0, h * 0.04 + band * 0.4, w, band * 0.2);
+    c.fillRect(0, h * 0.96 - band * 0.6, w, band * 0.2);
   }
-  // title up the spine, the subtitle beside it
+  // the label: white, black-edged, its shadow hard and offset, a touch crooked
+  const labelTop = h * 0.04 + band + h * 0.05;
+  const labelH = h * 0.62;
+  const labelW = w * 0.74;
   c.save();
-  c.translate(w / 2, h / 2);
+  c.translate(w / 2, labelTop + labelH / 2);
+  c.rotate(((i % 3) - 1) * 0.015);
+  c.fillStyle = ink;
+  c.fillRect(-labelW / 2 + line, -labelH / 2 + line, labelW, labelH);
+  c.fillStyle = "#fffdf5";
+  c.fillRect(-labelW / 2, -labelH / 2, labelW, labelH);
+  c.lineWidth = line * 0.7;
+  c.strokeStyle = ink;
+  c.strokeRect(-labelW / 2, -labelH / 2, labelW, labelH);
+  // title up the label, the subtitle in a small black tab beside it
   c.rotate(-Math.PI / 2);
-  const room = h * 0.95 - band * 2 - h * 0.14;
-  let size = Math.round(w * 0.36);
+  let size = Math.round(labelW * 0.42);
   c.font = `900 ${size}px 'Lexend Mega', sans-serif`;
-  while (c.measureText(title).width > room * 0.82 && size > 8) {
+  while (c.measureText(title).width > labelH * 0.86 && size > 8) {
     size -= 1;
     c.font = `900 ${size}px 'Lexend Mega', sans-serif`;
   }
   c.textAlign = "center";
   c.textBaseline = "middle";
-  c.fillStyle = light ? ink : "#fffdf5";
-  c.fillText(title, 0, -w * 0.1);
-  c.font = `700 ${Math.round(size * 0.55)}px 'Space Grotesk', sans-serif`;
-  c.globalAlpha = 0.8;
-  c.fillText(sub, 0, w * 0.24);
-  c.globalAlpha = 1;
+  c.fillStyle = ink;
+  c.fillText(title, 0, -labelW * 0.1);
+  c.font = `800 ${Math.round(size * 0.5)}px 'Space Grotesk', sans-serif`;
+  c.fillStyle = color;
+  const subW = Math.min(labelH * 0.8, c.measureText(sub).width + size * 0.6);
+  c.fillRect(-subW / 2, labelW * 0.12, subW, size * 0.62);
+  c.strokeRect(-subW / 2, labelW * 0.12, subW, size * 0.62);
+  c.fillStyle = ink;
+  c.fillText(sub, 0, labelW * 0.12 + size * 0.33);
   c.restore();
-  // publisher's mark: a small roundel above the bottom band
-  c.beginPath();
-  c.arc(w / 2, h * 0.95 - band - w * 0.38, w * 0.16, 0, Math.PI * 2);
-  c.fillStyle = gilt;
+  // the sticker: a star, a dot or a bolt, in a colour that isn't the cover's
+  const STICKERS = ["#ffdd00", "#ff6b6b", "#00e0c6", "#ff90e8", "#fffdf5"];
+  const sticker = STICKERS[(i + 2) % STICKERS.length] === color ? "#fffdf5" : STICKERS[(i + 2) % STICKERS.length];
+  const sy = h * 0.96 - band - h * 0.085;
+  const sr = w * 0.2;
+  const shape = (dx) => {
+    c.beginPath();
+    if (i % 3 === 0) {
+      for (let k = 0; k < 10; k++) {
+        const r = k % 2 ? sr * 0.45 : sr;
+        const a = (k / 10) * Math.PI * 2 - Math.PI / 2;
+        c.lineTo(w / 2 + dx + Math.cos(a) * r, sy + dx + Math.sin(a) * r);
+      }
+    } else if (i % 3 === 1) {
+      c.arc(w / 2 + dx, sy + dx, sr * 0.8, 0, Math.PI * 2);
+    } else {
+      c.moveTo(w / 2 + dx + sr * 0.2, sy + dx - sr);
+      c.lineTo(w / 2 + dx - sr * 0.6, sy + dx + sr * 0.15);
+      c.lineTo(w / 2 + dx, sy + dx + sr * 0.15);
+      c.lineTo(w / 2 + dx - sr * 0.25, sy + dx + sr);
+      c.lineTo(w / 2 + dx + sr * 0.6, sy + dx - sr * 0.2);
+      c.lineTo(w / 2 + dx + sr * 0.05, sy + dx - sr * 0.2);
+    }
+    c.closePath();
+  };
+  shape(line * 0.6);
+  c.fillStyle = ink;
   c.fill();
-  c.lineWidth = Math.max(1.5, w * 0.03);
-  c.strokeStyle = darken(color, 0.55);
+  shape(0);
+  c.fillStyle = sticker;
+  c.fill();
+  c.lineWidth = line * 0.5;
   c.stroke();
-  // a thin ink edge where it meets the covers
-  c.strokeStyle = "rgba(0,0,0,.6)";
-  c.lineWidth = Math.max(2, w * 0.04);
+  // a heavy ink edge where it meets the covers
+  c.strokeStyle = ink;
+  c.lineWidth = line;
   c.strokeRect(0, 0, w, h);
 }
 

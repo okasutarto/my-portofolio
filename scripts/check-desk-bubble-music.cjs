@@ -50,7 +50,10 @@ for (const amount of [0.16, 0.6, 1]) {
   place();
   const tip = sprite.position.clone()
     .add(new THREE.Vector3((tails.left.tip[0]-0.5)*sprite.scale.x, (0.5-tails.left.tip[1])*sprite.scale.y, 0).applyQuaternion(camera.quaternion));
-  assert.ok(tip.distanceTo(hat.localToWorld(new THREE.Vector3(0, 0, -0.65))) < 1e-8, 'tail must follow upper brim');
+  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+  const expected = hat.localToWorld(new THREE.Vector3(0, 0, -0.86)).addScaledVector(up, 0.45).addScaledVector(right, 0.27);
+  assert.ok(tip.distanceTo(expected) < 1e-8, 'tail must follow the hat, just clear of its upper brim');
 }
 
 // Exercise playback against a small WebAudio fake; music must not start a noise loop.

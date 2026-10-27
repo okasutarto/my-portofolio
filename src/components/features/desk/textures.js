@@ -4428,55 +4428,28 @@ function paintPetal(c, cx, cy, len, wid, line) {
   c.quadraticCurveTo(cx + wid * 0.12, cy - len * 0.5, cx, cy - len * 0.78);
   c.stroke();
 }
-// Sandai Kitetsu's embers: a little diamond spark, black-edged so it shows on the white wall,
-// crimson with a hot yellow heart
-export function drawEmber(c, w, h) {
+// A spark thrown off Sandai Kitetsu: a streak pointing along +x, a round hot head and a tail
+// thinning behind it, black-edged so it shows on the white wall
+export function drawSparkStreak(c, w, h, { color = "#e11d48", core = "#ffdd00" } = {}) {
   c.clearRect(0, 0, w, h);
-  const spark = (k) => {
+  const streak = (k) => {
+    const r = h * 0.36 * k;
+    const head = w - h * 0.5;
     c.beginPath();
-    c.moveTo(w / 2, h * (0.5 - 0.42 * k));
-    c.lineTo(w * (0.5 + 0.26 * k), h / 2);
-    c.lineTo(w / 2, h * (0.5 + 0.42 * k));
-    c.lineTo(w * (0.5 - 0.26 * k), h / 2);
+    c.moveTo(w * (1 - k) + h * 0.1, h / 2);
+    c.quadraticCurveTo(head - r * 2, h / 2 - r, head, h / 2 - r);
+    c.arc(head, h / 2, r, -Math.PI / 2, Math.PI / 2);
+    c.quadraticCurveTo(head - r * 2, h / 2 + r, w * (1 - k) + h * 0.1, h / 2);
     c.closePath();
   };
-  spark(1);
-  c.fillStyle = "#e11d48";
+  streak(0.95);
+  c.fillStyle = color;
   c.fill();
-  c.lineWidth = w * 0.07;
+  c.lineWidth = h * 0.12;
   c.strokeStyle = "#1a1714";
   c.stroke();
-  spark(0.45);
-  c.fillStyle = "#ffdd00";
-  c.fill();
-}
-// Enma's hellfire: a licking flame, black-edged like everything in the room, purple outside,
-// violet-pink within and a pale heart
-export function drawHellFlame(c, w, h) {
-  c.clearRect(0, 0, w, h);
-  const flame = (k) => {
-    const fw = w * 0.42 * k;
-    const base = h * 0.94;
-    const top = h * (1 - 0.9 * k);
-    c.beginPath();
-    c.moveTo(w / 2, top);
-    c.bezierCurveTo(w / 2 + fw * 0.35, top + h * 0.2 * k, w / 2 + fw * 1.1, base - h * 0.32 * k, w / 2 + fw * 0.7, base - h * 0.08 * k);
-    c.quadraticCurveTo(w / 2, base + h * 0.03, w / 2 - fw * 0.7, base - h * 0.08 * k);
-    c.bezierCurveTo(w / 2 - fw * 1.05, base - h * 0.36 * k, w / 2 - fw * 0.1, top + h * 0.34 * k, w / 2 - fw * 0.15, top + h * 0.16 * k);
-    c.quadraticCurveTo(w / 2 - fw * 0.05, top + h * 0.06 * k, w / 2, top);
-    c.closePath();
-  };
-  flame(1);
-  c.fillStyle = "#6b21a8";
-  c.fill();
-  c.lineWidth = w * 0.045;
-  c.strokeStyle = "#1a1714";
-  c.stroke();
-  flame(0.68);
-  c.fillStyle = "#c084fc";
-  c.fill();
-  flame(0.36);
-  c.fillStyle = "#f5e8ff";
+  streak(0.5);
+  c.fillStyle = core;
   c.fill();
 }
 // Black lightning (Haki crackling off Enma): a jagged bolt in black with a red-violet rim

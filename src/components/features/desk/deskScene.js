@@ -51,8 +51,7 @@ import {
   drawWindowView,
   drawWallPaint,
   drawFur,
-  drawEmber,
-  drawHellFlame,
+  drawSparkStreak,
   drawBlackBolt,
   drawGameSpine,
   drawGameCover,
@@ -3201,28 +3200,209 @@ export function createDeskScene({ container, projects, experiences, dark = false
   });
 
   // Each sword leaves its own mark: Wado its sakura (above); Sandai Kitetsu, the cursed blade,
-  // a few sparks drifting up; Enma licks of purple hellfire rising along the cut and black
-  // lightning cracking round it
-  const emberTex = canvasTexture(64, 64);
-  track(emberTex.texture);
-  drawEmber(emberTex.ctx, 64, 64);
-  const embers = Array.from({ length: 10 }, () => {
-    const ember = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: emberTex.texture, transparent: true, depthWrite: false })));
-    ember.visible = false;
-    ember.raycast = noRaycast;
-    scene.add(ember);
-    return ember;
-  });
-  const flameTex = canvasTexture(128, 160);
-  track(flameTex.texture);
-  drawHellFlame(flameTex.ctx, 128, 160);
-  const flames = Array.from({ length: 5 }, () => {
-    const flame = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: flameTex.texture, transparent: true, depthWrite: false })));
-    flame.visible = false;
-    flame.raycast = noRaycast;
-    scene.add(flame);
-    return flame;
-  });
+  // sets its cut ablaze in crimson and throws sparks; Enma's purple hellfire roars up along the
+  // cut, with black lightning cracking round it.
+  // The fire is one sheet standing on the arc the blade cut, done the way stylised game fire
+  // is: rising noise, shaped thick at the base and thin at the tips, with an "erosion" level
+  // cut away from it. Erosion first clears along the cut (the fire catching, end to end), then
+  // climbs back, so the sheet breaks into tongues and loose licks that burn off on their own.
+  // Cut at hard steps (ink, outer, middle, heart) it reads as cel-drawn fire, and its time is
+  // held for two frames at a time, so it boils on twos like hand-drawn fire in anime.
+  const FIRE_COLORS = {
+    kitetsu: { outer: "#e11d48", mid: "#ff7a1a", core: "#ffdd00", spark: "#e11d48", sparkCore: "#ffdd00" },
+    enma: { outer: "#7e22ce", mid: "#c084fc", core: "#f5e8ff", spark: "#a855f7", sparkCore: "#f5e8ff" },
+  };
+  const FIRE_SEGMENTS = 64;
+  const fireGeo = track(new THREE.PlaneGeometry(1, 1, FIRE_SEGMENTS, 1));
+  const fireUniforms = {
+    time: { value: 0 },
+    life: { value: 1 },
+    span: { value: 6 },
+    seed: { value: 0 },
+    outer: { value: new THREE.Color() },
+    mid: { value: new THREE.Color() },
+    core: { value: new THREE.Color() },
+    ink: { value: new THREE.Color("#1a1714") },
+  };
+  const fire = new THREE.Mesh(fireGeo, track(new THREE.ShaderMaterial({
+    uniforms: fireUniforms,
+    // over the crescent of the cut it stands on (transparent, so it's drawn after it)
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `
+      uniform float time;
+      uniform float life;
+      uniform float span;
+      uniform float seed;
+      uniform vec3 outer;
+      uniform vec3 mid;
+      uniform vec3 core;
+      uniform vec3 ink;
+      varying vec2 vUv;
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float noise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        vec2 u = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+      }
+      float fbm(vec2 p) {
+        float v = 0.0;
+        float a = 0.55;
+        for (int i = 0; i < 4; i++) {
+          v += a * noise(p);
+          p = p * 2.07 + 13.1;
+          a *= 0.5;
+        }
+        return v;
+      }
+      void main() {
+        // on twos: twelve drawings a second
+        float t = floor(time * 12.0) / 12.0;
+        // x along the cut and y up from it, in the sheet's own height; licks lean into the swing
+        vec2 p = vec2(vUv.x * span + vUv.y * vUv.y * 0.5, vUv.y);
+        // the cut carries about eight tongues, how high each reaches jumping as it boils:
+        // ridged noise, so its crests come to sharp points, the tips of the flames
+        float ridge = 1.0 - abs(noise(vec2(vUv.x * 8.0 + vUv.y * vUv.y * 0.5 + seed, t * 1.6)) * 2.0 - 1.0);
+        float reach = (0.18 + 0.82 * pow(ridge, 2.2)) * (0.35 + 0.65 * smoothstep(0.0, 0.14, vUv.x) * smoothstep(1.0, 0.86, vUv.x));
+        // rising noise bites C-shapes into the sides and tears licks off the tips, more so
+        // the higher up
+        float bites = fbm(vec2(p.x * 2.6 - seed, p.y * 2.2 - t * 3.2)) - 0.5;
+        float v = reach - vUv.y + bites * (0.15 + 0.6 * vUv.y);
+        // catches along the cut first, then burns itself out from the tips down
+        float caught = smoothstep(vUv.x * 0.3, vUv.x * 0.3 + 0.12, life);
+        v -= (1.0 - caught) + smoothstep(0.6, 1.0, life) * 0.85;
+        // inked along its base too, where it stands on the cut
+        v = min(v, vUv.y * 4.0);
+        if (v < 0.0) discard;
+        vec3 color = v < 0.035 ? ink : v < 0.17 ? outer : v < 0.36 ? mid : core;
+        gl_FragColor = vec4(color, 1.0);
+      }`,
+  })));
+  fire.raycast = noRaycast;
+  fire.frustumCulled = false;
+  fire.renderOrder = 12;
+  fire.visible = false;
+  scene.add(fire);
+  // Light it along the arc just cut: its base a little under the arc, standing up in the
+  // camera's plane, `height` tall
+  function igniteCut(style, { height, duration }) {
+    const colors = FIRE_COLORS[style];
+    fireUniforms.outer.value.set(colors.outer);
+    fireUniforms.mid.value.set(colors.mid);
+    fireUniforms.core.value.set(colors.core);
+    fireUniforms.seed.value = Math.random() * 50;
+    const pos = fireGeo.attributes.position;
+    let length = 0;
+    const last = new THREE.Vector3();
+    for (let ix = 0; ix <= FIRE_SEGMENTS; ix++) {
+      const base = alongCut(ix / FIRE_SEGMENTS).addScaledVector(camUp, -height * 0.12);
+      if (ix) length += base.distanceTo(last);
+      last.copy(base);
+      // PlaneGeometry's first row is its top (uv.y = 1), the second its bottom
+      pos.setXYZ(ix, base.x + camUp.x * height, base.y + camUp.y * height, base.z + camUp.z * height);
+      pos.setXYZ(FIRE_SEGMENTS + 1 + ix, base.x, base.y, base.z);
+    }
+    pos.needsUpdate = true;
+    fireUniforms.span.value = length / height;
+    fire.visible = true;
+    gsap.killTweensOf(fireUniforms.life);
+    gsap.fromTo(fireUniforms.life, { value: 0 }, { value: 1, duration, ease: "none", onComplete: () => (fire.visible = false) });
+  }
+  const sparkTex = Object.fromEntries(Object.entries(FIRE_COLORS).map(([style, { spark, sparkCore }]) => {
+    const tex = canvasTexture(128, 32);
+    track(tex.texture);
+    drawSparkStreak(tex.ctx, 128, 32, { color: spark, core: sparkCore });
+    return [style, tex.texture];
+  }));
+
+  // Sparks share a pool of sprites. Each is posed every frame by updateFx from its own age, by
+  // its own little rule, until its life is up.
+  const fxPool = [];
+  const liveFx = [];
+  function spawnFx({ map, life, delay = 0, order = 13, step }) {
+    let sprite = fxPool.pop();
+    if (!sprite) {
+      sprite = new THREE.Sprite(track(new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false })));
+      sprite.raycast = noRaycast;
+      scene.add(sprite);
+    }
+    sprite.material.map = map;
+    sprite.material.opacity = 1;
+    sprite.material.rotation = 0;
+    sprite.renderOrder = order;
+    sprite.visible = false;
+    liveFx.push({ sprite, life, age: -delay, step });
+  }
+  function updateFx(dt) {
+    if (fire.visible) fireUniforms.time.value += dt;
+    for (let i = liveFx.length - 1; i >= 0; i--) {
+      const fx = liveFx[i];
+      fx.age += dt;
+      if (fx.age < 0) continue;
+      if (fx.age >= fx.life) {
+        fx.sprite.visible = false;
+        fxPool.push(fx.sprite);
+        liveFx.splice(i, 1);
+        continue;
+      }
+      fx.sprite.visible = true;
+      fx.step(fx, fx.age / fx.life);
+    }
+  }
+  // A point on the arc the blade cut through, t running from one end to the other: the
+  // crescent drawSlash paints, as big and as turned as showCut leaves it, in the camera's plane
+  const camRight = new THREE.Vector3();
+  const camUp = new THREE.Vector3();
+  function alongCut(t, inset = 0.9) {
+    const a = Math.PI * (1.08 + t * 0.84);
+    const lx = Math.cos(a) * 0.46 * 4.6 * inset;
+    const ly = (-0.45 - 0.85 * Math.sin(a) * inset) * 2.3;
+    const turn = 0.35;
+    camRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
+    camUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
+    return cutAt.clone()
+      .addScaledVector(camRight, lx * Math.cos(turn) - ly * Math.sin(turn))
+      .addScaledVector(camUp, lx * Math.sin(turn) + ly * Math.cos(turn));
+  }
+  // Sparks flung out and up from a point, slowing in the air and falling: each a streak
+  // pointing the way it flies, stretched by its speed
+  const SPARK_DRAG = 2.4;
+  const SPARK_G = -12;
+  function sparkBurst(style, at, count, { delay = 0 } = {}) {
+    for (let i = 0; i < count; i++) {
+      const angle = Math.PI * (0.08 + Math.random() * 0.84);
+      const speed = 3.5 + Math.random() * 3.5;
+      const vx = Math.cos(angle) * speed;
+      const vy0 = Math.sin(angle) * speed;
+      const terminal = SPARK_G / SPARK_DRAG;
+      spawnFx({
+        map: sparkTex[style],
+        life: 0.4 + Math.random() * 0.35,
+        delay: delay + Math.random() * 0.06,
+        step: (fx, t) => {
+          // in closed form, so a slow frame never throws one off course
+          const fade = Math.exp(-SPARK_DRAG * fx.age);
+          const k = (1 - fade) / SPARK_DRAG;
+          const vxNow = vx * fade;
+          const vyNow = terminal + (vy0 - terminal) * fade;
+          const shrink = t > 0.7 ? 1 - (t - 0.7) / 0.3 : 1;
+          fx.sprite.center.set(0.85, 0.5);
+          fx.sprite.scale.set((0.12 + Math.hypot(vxNow, vyNow) * 0.045) * shrink, 0.075 * shrink, 1);
+          fx.sprite.position.copy(at).addScaledVector(camRight, vx * k).addScaledVector(camUp, terminal * fx.age + (vy0 - terminal) * k);
+          fx.sprite.material.rotation = Math.atan2(vyNow, vxNow);
+        },
+      });
+    }
+  }
   const boltTex = canvasTexture(128, 256);
   track(boltTex.texture);
   drawBlackBolt(boltTex.ctx, 128, 256);
@@ -3252,49 +3432,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
       gsap.to(petal.material, { opacity: 0, delay: fall - 0.4 + i * 0.03, duration: 0.4, onComplete: () => (petal.visible = false) });
     });
   }
-  function emberSpray() {
-    embers.forEach((ember, i) => {
-      gsap.killTweensOf([ember.position, ember.material, ember.scale]);
-      const x = katanaWorld.x - 2.2 + Math.random() * 2.8;
-      const y = katanaWorld.y - 0.1 + Math.random() * 0.5;
-      const z = katanaWorld.z + 0.1 + Math.random() * 0.4;
-      const size = 0.09 + Math.random() * 0.1;
-      const rise = 1.1 + Math.random() * 0.7;
-      const delay = i * 0.04;
-      ember.position.set(x, y, z);
-      ember.scale.set(size, size, 1);
-      ember.material.opacity = 0;
-      ember.visible = true;
-      gsap.to(ember.position, { y: y + 0.8 + Math.random() * 0.6, x: x + (Math.random() - 0.3) * 0.5, duration: rise, delay, ease: "sine.out" });
-      gsap.to(ember.scale, { x: size * 0.3, y: size * 0.3, duration: rise, delay, ease: "power1.in" });
-      // flickering as it goes, then out
-      gsap.timeline({ delay })
-        .to(ember.material, { opacity: 1, duration: 0.08 })
-        .to(ember.material, { opacity: 0.45, duration: 0.07, yoyo: true, repeat: Math.round(rise / 0.14) - 2, ease: "none" })
-        .to(ember.material, { opacity: 0, duration: 0.2, onComplete: () => (ember.visible = false) });
-    });
+  // Sandai Kitetsu: crimson fire catching along the cut, and sparks thrown off it
+  function cursedFire() {
+    igniteCut("kitetsu", { height: 1.3, duration: 1.4 });
+    [0.25, 0.5, 0.75].forEach((t, i) => sparkBurst("kitetsu", alongCut(t), 6, { delay: i * 0.05 }));
   }
+  // Enma: a tall wall of purple hellfire along the cut, a few sparks off it, and black lightning
   function hellfire() {
-    flames.forEach((flame, i) => {
-      gsap.killTweensOf([flame.position, flame.material, flame.scale]);
-      // along the line of the cut, rising and narrowing as they burn out
-      const x = katanaWorld.x - 2.2 + (i / (flames.length - 1)) * 3 + (Math.random() - 0.5) * 0.3;
-      const y = katanaWorld.y - 0.35 + Math.random() * 0.3;
-      const z = katanaWorld.z + 0.15 + Math.random() * 0.3;
-      const size = 0.28 + Math.random() * 0.18;
-      const burn = 0.7 + Math.random() * 0.4;
-      const delay = i * 0.05 + Math.random() * 0.08;
-      flame.position.set(x, y, z);
-      flame.scale.set(size * 0.8, size, 1);
-      flame.material.opacity = 0;
-      flame.material.rotation = (Math.random() - 0.5) * 0.3;
-      flame.visible = true;
-      gsap.to(flame.position, { y: y + 0.5 + Math.random() * 0.3, duration: burn, delay, ease: "power1.out" });
-      gsap.to(flame.scale, { keyframes: [{ x: size * 0.95, y: size * 1.3, duration: burn * 0.35 }, { x: size * 0.2, y: size * 0.5, duration: burn * 0.65, ease: "power2.in" }], delay });
-      gsap.timeline({ delay })
-        .to(flame.material, { opacity: 1, duration: 0.1 })
-        .to(flame.material, { opacity: 0, duration: 0.3, delay: burn - 0.4, onComplete: () => (flame.visible = false) });
-    });
+    igniteCut("enma", { height: 2.1, duration: 1.9 });
+    [0.3, 0.7].forEach((t, i) => sparkBurst("enma", alongCut(t), 4, { delay: 0.1 + i * 0.08 }));
     // black lightning: two bolts cracking round the blade, a quick flash each
     bolts.forEach((bolt, i) => {
       gsap.killTweensOf(bolt.material);
@@ -3344,6 +3490,136 @@ export function createDeskScene({ container, projects, experiences, dark = false
     else if (centre.x - halfX < -0.96) dx = -0.96 - (centre.x - halfX);
     // back from screen units to world units along the camera's axes
     sprite.position.addScaledVector(upW, (dy * (h / 2)) / halfY).addScaledVector(rightW, (dx * (w / 2)) / halfX);
+  }
+
+  // The smear a cut leaves, as anime draws it: the strip of air the blade swept through in the
+  // last instant, solid at the front and thinning away behind, white along its cutting edge
+  const TRAIL_SAMPLES = 48;
+  const TRAIL_LIFE = 0.14;
+  const TRAIL_COLORS = { wado: "#bfe9ff", kitetsu: "#e11d48", enma: "#7e22ce" };
+  const trailGeo = track(new THREE.BufferGeometry());
+  trailGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(TRAIL_SAMPLES * 6), 3));
+  trailGeo.setAttribute("age", new THREE.BufferAttribute(new Float32Array(TRAIL_SAMPLES * 2), 1));
+  trailGeo.setAttribute("side", new THREE.BufferAttribute(new Float32Array(TRAIL_SAMPLES * 2), 1));
+  trailGeo.setIndex(Array.from({ length: TRAIL_SAMPLES - 1 }, (_, i) => [2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 1, 2 * i + 3, 2 * i + 2]).flat());
+  const trailColor = { value: new THREE.Color() };
+  const trail = new THREE.Mesh(trailGeo, track(new THREE.ShaderMaterial({
+    uniforms: { color: trailColor, ink: { value: new THREE.Color("#1a1714") } },
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    vertexShader: `
+      attribute float age;
+      attribute float side;
+      varying float vAge;
+      varying float vSide;
+      void main() {
+        vAge = age;
+        vSide = side;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `
+      uniform vec3 color;
+      uniform vec3 ink;
+      varying float vAge;
+      varying float vSide;
+      void main() {
+        // older stretches thin away toward the tip's edge
+        float inner = vAge * 0.85;
+        if (vSide < inner) discard;
+        vec3 c = vSide > 0.86 ? vec3(1.0) : vSide < inner + 0.05 ? ink : color;
+        gl_FragColor = vec4(c, 1.0);
+      }`,
+  })));
+  trail.raycast = noRaycast;
+  trail.frustumCulled = false;
+  trail.renderOrder = 12;
+  trail.visible = false;
+  scene.add(trail);
+  const trailSamples = [];
+  let trailSword = null;
+  let trailClock = 0;
+  // where the blade was last frame: its hand, and the inner and outer ends of the smear
+  const trailLast = { hand: new THREE.Vector3(), base: new THREE.Vector3(), tip: new THREE.Vector3(), at: 0, set: false };
+  const trailNow = { hand: new THREE.Vector3(), base: new THREE.Vector3(), tip: new THREE.Vector3() };
+  function startTrail(sword) {
+    trailSword = sword;
+    trailSamples.length = 0;
+    trailLast.set = false;
+    trailColor.value.set(TRAIL_COLORS[sword.style]);
+  }
+  function stopTrail() {
+    trailSword = null;
+  }
+  const armFrom = new THREE.Vector3();
+  const armTo = new THREE.Vector3();
+  const armTurn = new THREE.Quaternion();
+  const noTurn = new THREE.Quaternion();
+  const armPart = new THREE.Quaternion();
+  const handAt = new THREE.Vector3();
+  // A point k of the way between last frame and this one, swung round the hand rather than
+  // cut straight across, so a fast cut still sweeps a true arc
+  function swungPoint(from, to, k, out) {
+    armFrom.subVectors(from, trailLast.hand);
+    armTo.subVectors(to, trailNow.hand);
+    const fromLength = armFrom.length();
+    const toLength = armTo.length();
+    armTurn.setFromUnitVectors(armFrom.normalize(), armTo.normalize());
+    armPart.slerpQuaternions(noTurn, armTurn, k);
+    return out.copy(armFrom).applyQuaternion(armPart).multiplyScalar(fromLength + (toLength - fromLength) * k)
+      .add(handAt.lerpVectors(trailLast.hand, trailNow.hand, k));
+  }
+  const TRAIL_STEPS = 4;
+  // Each frame: where the blade is (the outer half of it, out to the tip) while it's cutting,
+  // with in-between samples back to last frame, and the strip rebuilt from the samples still
+  // young enough to show
+  function updateTrail(dt) {
+    const before = trailClock;
+    trailClock += dt;
+    if (trailSword) {
+      const blade = trailSword.bladeGroup;
+      blade.localToWorld(trailNow.hand.set(-TSUKA_L / 2, 0, 0));
+      blade.localToWorld(trailNow.base.set(BLADE_L * 0.5, bow(BLADE_L * 0.5), 0));
+      blade.localToWorld(trailNow.tip.set(BLADE_L + 0.12, bow(BLADE_L) + 0.02, 0));
+      for (let step = trailLast.set ? 1 : TRAIL_STEPS; step <= TRAIL_STEPS; step++) {
+        const k = step / TRAIL_STEPS;
+        const sample = trailSamples.length >= TRAIL_SAMPLES ? trailSamples.pop() : { base: new THREE.Vector3(), tip: new THREE.Vector3() };
+        if (k < 1) {
+          swungPoint(trailLast.base, trailNow.base, k, sample.base);
+          swungPoint(trailLast.tip, trailNow.tip, k, sample.tip);
+        } else {
+          sample.base.copy(trailNow.base);
+          sample.tip.copy(trailNow.tip);
+        }
+        sample.at = before + dt * k;
+        trailSamples.unshift(sample);
+      }
+      trailLast.hand.copy(trailNow.hand);
+      trailLast.base.copy(trailNow.base);
+      trailLast.tip.copy(trailNow.tip);
+      trailLast.set = true;
+    }
+    while (trailSamples.length && trailClock - trailSamples[trailSamples.length - 1].at > TRAIL_LIFE) trailSamples.pop();
+    trail.visible = trailSamples.length > 1;
+    if (!trail.visible) return;
+    const pos = trailGeo.attributes.position;
+    const age = trailGeo.attributes.age;
+    const side = trailGeo.attributes.side;
+    for (let i = 0; i < TRAIL_SAMPLES; i++) {
+      // past the samples there are, repeat the oldest: those triangles are empty
+      const s = trailSamples[Math.min(i, trailSamples.length - 1)];
+      const a = Math.min(1, (trailClock - s.at) / TRAIL_LIFE);
+      pos.setXYZ(2 * i, s.base.x, s.base.y, s.base.z);
+      pos.setXYZ(2 * i + 1, s.tip.x, s.tip.y, s.tip.z);
+      age.setX(2 * i, a);
+      age.setX(2 * i + 1, a);
+      side.setX(2 * i, 0);
+      side.setX(2 * i + 1, 1);
+    }
+    pos.needsUpdate = true;
+    age.needsUpdate = true;
+    side.needsUpdate = true;
   }
 
   function tossKitetsu(sword, restY) {
@@ -3418,21 +3694,27 @@ export function createDeskScene({ container, projects, experiences, dark = false
         sfx.shing();
         kickTassels(sword.sayaGroup, 1);
       })
-      .to(sword.drawPivot.rotation, { z: out, duration: 0.45, ease: "power2.in" })
-      // Straight up past the handle end, out in front, then over above the whole rack: it
-      // never passes across a saya
-      .to(sword.bladeGroup.position, { y: home + aboveRack, z: -0.7, duration: 0.25, ease: "power2.out" })
-      .to(sword.bladeGroup.position, { x: 1.9, duration: 0.2, ease: "power2.inOut" })
-      .to(sword.bladeGroup.rotation, { z: 0.35, duration: 0.2, ease: "power2.out" }, "<")
-      .to(sword.bladeGroup.rotation, { z: 1.1, duration: 0.25, ease: "power2.inOut" })
-      .to(sword.bladeGroup.position, { x: 1.6, duration: 0.25, ease: "power2.inOut" }, "<")
-      .to(sword.bladeGroup.rotation, { z: -0.3, duration: 0.16, ease: "power4.in" })
-      .to(sword.bladeGroup.position, { x: 2.3, duration: 0.16, ease: "power4.in" }, "<")
+      .to(sword.drawPivot.rotation, { z: out, duration: 0.42, ease: "power2.in" })
+      // Up past the handle end and over above the whole rack in one curve (rising fast while
+      // it's slow to move over), never passing across a saya
+      .to(sword.bladeGroup.position, { y: home + aboveRack, duration: 0.38, ease: "power3.out" })
+      .to(sword.bladeGroup.position, { z: -0.7, duration: 0.2, ease: "power2.out" }, "<")
+      .to(sword.bladeGroup.position, { x: 1.9, duration: 0.38, ease: "power2.in" }, "<")
+      .to(sword.bladeGroup.rotation, { z: 0.35, duration: 0.3, ease: "power2.inOut" }, "<0.08")
+      // Wind-up: cocked back, easing into a held beat
+      .to(sword.bladeGroup.rotation, { z: 1.15, duration: 0.24, ease: "power2.out" })
+      .to(sword.bladeGroup.position, { x: 1.55, duration: 0.24, ease: "power2.out" }, "<")
+      .call(() => startTrail(sword))
+      .to({}, { duration: 0.06 })
+      // The cut: down through an arc, fast
+      .to(sword.bladeGroup.rotation, { z: -0.45, duration: 0.13, ease: "power4.in" })
+      .to(sword.bladeGroup.position, { x: 2.35, duration: 0.13, ease: "power3.in" }, "<")
+      .to(sword.bladeGroup.position, { y: "-=0.25", duration: 0.13, ease: "sine.in" }, "<")
       .call(() => {
         sword.bladeGroup.getWorldPosition(katanaWorld);
         // Effects stay in the sword's own plane: the close-up clips anything well in front of
         // the rack, which hid them
-        cutAt.set(katanaWorld.x - 0.9, katanaWorld.y + 0.2, katanaWorld.z + 0.2);
+        cutAt.set(katanaWorld.x - 0.9, katanaWorld.y + 0.5, katanaWorld.z + 0.2);
         playTechnique(technique, sword.style);
         sfx.whoosh({ duration: 0.25, up: false });
         if (FLYING.has(technique)) sfx.whooshAway({ delay: 0.1 });
@@ -3444,14 +3726,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
           gsap.fromTo(glint.scale, { x: 0.1, y: 0.1 }, { x: 0.9, y: 0.9, duration: 0.14, yoyo: true, repeat: 1, ease: "power2.out", onComplete: () => (glint.visible = false) });
           gsap.fromTo(glint.material, { rotation: 0 }, { rotation: 0.8, duration: 0.28 });
         }
-        if (sword.style === "enma") {
-          // the Haki shakes the camera a moment
-          const tx = cam.tx;
-          const ty = cam.ty;
-          gsap.timeline()
-            .to(cam, { tx: tx + 0.07, ty: ty - 0.04, duration: 0.035, yoyo: true, repeat: 9, ease: "none" })
-            .set(cam, { tx, ty });
-        }
+        // The hit jolts the camera; Enma's Haki shakes it a good while
+        const tx = cam.tx;
+        const ty = cam.ty;
+        const enma = sword.style === "enma";
+        gsap.timeline()
+          .to(cam, { tx: tx + (enma ? 0.07 : 0.03), ty: ty - (enma ? 0.04 : 0.02), duration: 0.035, yoyo: true, repeat: enma ? 9 : 3, ease: "none" })
+          .set(cam, { tx, ty });
         drawShout(shoutTex.ctx, 640, 320, technique);
         shoutTex.texture.needsUpdate = true;
         // Well clear of the blade: up and out to its left, beyond its tip
@@ -3462,21 +3743,34 @@ export function createDeskScene({ container, projects, experiences, dark = false
         clearTimeout(shoutTimer);
         shoutTimer = setTimeout(() => gsap.to(shout.scale, { x: 0.001, y: 0.001, duration: 0.2, ease: "power2.in", overwrite: true }), 2200);
         if (sword.style === "wado") sakuraFall();
-        else if (sword.style === "kitetsu") emberSpray();
+        else if (sword.style === "kitetsu") cursedFire();
         else hellfire();
       })
-      // Back the same way: level out and over to the handle end, down, then in to the rack
-      .to(sword.bladeGroup.rotation, { z: 0, duration: 0.35, ease: "power2.inOut" }, "+=0.6")
-      .to(sword.bladeGroup.position, { x: 0, duration: 0.35, ease: "power2.inOut" }, "<")
-      .to(sword.bladeGroup.position, { y: home, duration: 0.3, ease: "power2.inOut" })
+      // Hit-stop: the blade holds dead still a beat as it bites, then follows through
+      .to({}, { duration: 0.07 })
+      .to(sword.bladeGroup.rotation, { z: -0.75, duration: 0.2, ease: "power2.out" })
+      .to(sword.bladeGroup.position, { x: 2.55, y: "-=0.1", duration: 0.2, ease: "power2.out" }, "<")
+      .call(stopTrail)
+      // Chiburi: a held beat, then a sharp flick to throw the blade clean
+      .to(sword.bladeGroup.rotation, { z: -0.35, duration: 0.18, ease: "power2.inOut" }, "+=0.25")
+      .to(sword.bladeGroup.rotation, { z: -0.95, duration: 0.09, ease: "power3.in" })
+      .call(() => sfx.whoosh({ duration: 0.15, up: false }))
+      .to(sword.bladeGroup.rotation, { z: -0.8, duration: 0.15, ease: "power2.out" })
+      // Back the way it came: level out and over to the handle end, dropping only once it's
+      // clear of the other swords, then in to the rack
+      .to(sword.bladeGroup.rotation, { z: 0, duration: 0.4, ease: "power2.inOut" }, "+=0.1")
+      .to(sword.bladeGroup.position, { x: 0, duration: 0.4, ease: "power2.inOut" }, "<")
+      .to(sword.bladeGroup.position, { y: home, duration: 0.3, ease: "power2.in" }, "<0.2")
       .to(sword.bladeGroup.position, { z: 0, duration: 0.15, ease: "power2.in" })
+      // Noto: slid home slowly most of the way, then the last of it snaps in with a click
+      .to(sword.drawPivot.rotation, { z: out * 0.12, duration: 0.5, ease: "sine.inOut" })
+      .to(sword.drawPivot.rotation, { z: 0, duration: 0.07, ease: "power4.in" })
       .call(() => {
         sfx.sheathe();
         kickTassels(sword.sayaGroup, 0.8);
+        sword.steel.visible = false;
         if (sword.style === "enma") gsap.to(haki.material, { opacity: 0, duration: 0.5, ease: "sine.in", onComplete: () => (haki.visible = false) });
       })
-      .to(sword.drawPivot.rotation, { z: 0, duration: 0.3, ease: "power2.in" })
-      .call(() => (sword.steel.visible = false))
       .fromTo(katanaRack.scale, { y: KATANA_SCALE * 0.94 }, { y: KATANA_SCALE, duration: 0.3, ease: "back.out(3)" });
   }
 
@@ -8941,6 +9235,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     lastTick = now;
     updateTicketHover(dt);
     updateTassels(dt);
+    updateFx(dt);
+    updateTrail(dt);
     poseFolders();
     const pointerBlend = 1 - Math.pow(0.94, dt * 60);
     parallax.x += (parallax.tx - parallax.x) * pointerBlend;

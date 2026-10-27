@@ -46,6 +46,7 @@ import {
   PAINTING_COUNT,
   drawWindowView,
   drawWallPaint,
+  drawFur,
   drawEmber,
   drawHellFlame,
   drawBlackBolt,
@@ -5341,6 +5342,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // her stripes and white bits vanish; there her fur gives off a little of its own colour, so
   // she reads as well as she does under the lamp. Out of the shade it fades back off.
   const FUR_MATS = [fur, furDark, furLight];
+  // a soft brushed texture over her orange coat and stripes
+  const furTex = canvasTexture(128, 128);
+  track(furTex.texture);
+  drawFur(furTex.ctx, 128, 128);
+  furTex.texture.wrapS = furTex.texture.wrapT = THREE.RepeatWrapping;
+  furTex.texture.repeat.set(3, 2);
+  [fur, furDark].forEach((mat) => (mat.map = furTex.texture));
   FUR_MATS.forEach((mat) => mat.emissive.copy(mat.color));
   function catShade(inShade, duration = 0.6) {
     FUR_MATS.forEach((mat) => gsap.to(mat, { emissiveIntensity: inShade ? 0.38 : 0, duration, overwrite: true }));
@@ -5384,7 +5392,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
     return stripe;
   }
   [[-0.62, 0.07, 2.0, 1], [-0.3, 0.085, 2.3, 2], [0.02, 0.075, 2.1, 3], [0.33, 0.06, 1.8, 4]].forEach(([x, width, reach, seed]) => belly.add(tabbyStripe(x, width, reach, seed)));
-  catBody.add(at(mesh(new THREE.SphereGeometry(0.42, 16, 12), furLight, { outline: 0.015 }), 0.85, 0.55, 0.15));
+  // her white chest: shown when she's up, tucked away (hidden) when she's curled asleep, where
+  // it only showed as a white patch at her neck
+  const catChest = at(mesh(new THREE.SphereGeometry(0.42, 16, 12), furLight, { outline: 0.015 }), 0.85, 0.55, 0.15);
+  catChest.visible = false;
+  catBody.add(catChest);
   // Legs, shown only when she stands; paws tucked in front when she's curled
   const catLegs = [[0.62, 0.32], [0.62, -0.32], [-0.62, 0.32], [-0.62, -0.32]].map(([x, z]) => {
     const leg = new THREE.Group();
@@ -5486,6 +5498,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // `overwrite`: "auto" inside one of her routines, so it doesn't cancel the moves queued after it
   function catPose(standing, duration = 0.3, overwrite = true) {
     catLegs.forEach((leg) => (leg.visible = standing));
+    catChest.visible = standing;
     paws.visible = !standing;
     tailCurl.visible = !standing;
     tailUp.visible = standing;
@@ -5861,6 +5874,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     tl.call(() => {
       frontL.visible = frontR.visible = true;
       rearL.visible = rearR.visible = !on;
+      catChest.visible = true;
       haunches.forEach((thigh) => (thigh.visible = on));
       paws.visible = false;
       tailCurl.visible = on;

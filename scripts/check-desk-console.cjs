@@ -14,6 +14,8 @@ const THREE = require('three');
   const model = vm.runInNewContext(source.slice(source.indexOf('  // Level 0: a PS5 Pro'), source.indexOf('  // A hardback,')) + '; ({ ps5, consoleBody, pad1, pad2, led })', {
     THREE, toon, at, group, shelf, printed: (w,h) => new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshBasicMaterial()), black: toon('#1a1714'), white: toon('#fffdf5'), shelfMat: toon('#f3d3b0'),
     track: (value) => value, mesh: (geometry, material) => new THREE.Mesh(geometry, material),
+    neonLight: (color, intensity) => new THREE.PointLight(color, intensity),
+    canvasTexture: () => ({ ctx: {}, texture: new THREE.Texture() }), drawSatinFinish() {}, drawLeatherGrain() {},
     rbox: (w, h, d, r = 0.08) => new RoundedBoxGeometry(w, h, d, 2, Math.min(r, Math.min(w,h,d)/2 - 1e-3)),
     standOn: () => 0,
     addItem: (obj, sound) => { shelf.add(obj); items.push({obj, sound}); return obj; },
@@ -35,12 +37,22 @@ const THREE = require('three');
   }
   const padBody = model.pad2.children[1].children[0];
   assert.equal(padBody.material.color.getHexString(), 'fffdf5', 'second controller is white');
+  const darkPadBody = model.pad1.children[1].children[0];
+  assert.equal(darkPadBody.material.color.getHexString(), '1a1714', 'first controller is black');
+  assert.ok(darkPadBody.material.map && padBody.material.map, 'both controllers have a textured shell');
+  for (const modelPad of [model.pad1, model.pad2]) {
+    assert.ok(modelPad.children[1].children.every((part) => part.geometry?.type !== 'ShapeGeometry'),
+      'controller handles remain continuous plastic without applied grip patches');
+  }
+  assert.ok(darkPadBody.material.emissiveIntensity > 0 && darkPadBody.material.emissiveIntensity < 0.2,
+    'a small material fill keeps the black shell visible in shelf shadows');
   const face = new THREE.Vector3(0, 1, 0).applyQuaternion(model.pad2.children[1].getWorldQuaternion(new THREE.Quaternion()));
   assert.ok(face.z > 0.75, 'controls face the visitor on their stand');
   assert.equal(model.pad1.userData.moves, model.pad1.children[1], 'a click moves the pad, not its stand');
   assert.deepEqual(items.slice(0, 3).map(({sound}) => sound), ['console','controller','controller'], 'console and controllers keep their interactions');
   const trophyModel = vm.runInNewContext(source.slice(source.indexOf('  const trophyGold ='), source.indexOf('  const handheld =')) + '; ({ trophy, cup })', {
     THREE, toon, at, group, black: toon('#171717'),
+    neonLight: (color, intensity) => new THREE.PointLight(color, intensity),
     mesh: (geometry, material) => new THREE.Mesh(geometry, material),
     rbox: (w,h,d) => new THREE.BoxGeometry(w,h,d),
     printed: (w,h) => new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshBasicMaterial()),

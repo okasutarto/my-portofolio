@@ -806,13 +806,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const windowFrame = mesh(new THREE.BoxGeometry(4.4, 4.5, 0.18), frameWood, { cast: false, outline: 0.03 });
   // The view outside is animated (see drawWindowView): redrawn from the render loop, often
   // while it's zoomed in on, a few times a second otherwise
-  // The sky matches the room: night while the room is dark, and while it's light the visitor's
-  // own time of day (morning, day or evening, with a late dusk standing in for night, so the
-  // lamp and the view always agree). Now and then it rains.
+  // Start at a random daylight mood, then cycle in order with the room lighting.
+  // Night joins the cycle and switches on the room's lamps automatically.
   const outside = { t: 0, flockAt: -99, starAt: -99, drawnAt: 0, rain: 0, rainTarget: 0, clicks: [], night: dark };
-  const clockPart = (hour = new Date().getHours() + new Date().getMinutes() / 60) =>
-    hour >= 5 && hour < 10 ? "morning" : hour >= 10 && hour < 16 ? "day" : "evening";
-  const dayPart = (hour) => (outside.night ? "night" : clockPart(hour));
+  const daylightParts = ["morning", "day", "evening", "night"];
+  let daylightPart = dark ? "night" : daylightParts[Math.floor(Math.random() * 3)];
+  const dayPart = () => (outside.night ? "night" : daylightPart);
   const windowView = printed(4.0, 4.1, 220, (c, w, h) => drawWindowView(c, w, h, { ...outside, time: dayPart() }), { unlit: true });
   windowView.position.z = 0.105;
   windowGroup.add(windowFrame, windowView);
@@ -1345,7 +1344,23 @@ export function createDeskScene({ container, projects, experiences, dark = false
   paintingTurn.position.y = -PAINTING_DROP;
   paintingHang.add(paintingTurn);
   // The frame casts onto the wall's shadow catcher
-  const paintingFrame = mesh(new THREE.BoxGeometry(4.0, 2.9, 0.16), toon("#1a1714"), { outline: 0.055, cast: true });
+  const paintingWood = toon("#9a704e");
+  paintingWood.map = windowWood.texture;
+  const paintingFrame = mesh(rbox(4.0, 2.9, 0.16, 0.035), paintingWood, { outline: 0.035, cast: true });
+  // Raised walnut moulding, a recessed print and a fine brass inner lip.
+  const frameGrain = track(windowWood.texture.clone());
+  frameGrain.center.set(0.5, 0.5);
+  frameGrain.rotation = Math.PI / 2;
+  frameGrain.needsUpdate = true;
+  const uprightWood = toon("#896142");
+  uprightWood.map = frameGrain;
+  const frameLip = toon("#bc995d");
+  [-1, 1].forEach((side) => {
+    paintingTurn.add(at(mesh(rbox(4, 0.14, 0.1, 0.025), paintingWood, { outline: 0.012 }), 0, side * 1.38, 0.085));
+    paintingTurn.add(at(mesh(rbox(0.14, 2.64, 0.1, 0.025), uprightWood, { outline: 0.012 }), side * 1.93, 0, 0.085));
+    paintingTurn.add(at(mesh(new THREE.BoxGeometry(3.74, 0.018, 0.015), frameLip, { outline: 0 }), 0, side * 1.315, 0.105));
+    paintingTurn.add(at(mesh(new THREE.BoxGeometry(0.018, 2.62, 0.015), frameLip, { outline: 0 }), side * 1.865, 0, 0.105));
+  });
   let paintingArt = 0;
   const painting = printed(3.75, 2.65, 220, (c, w, h) => drawPainting(c, w, h, { art: paintingArt }));
   painting.position.z = 0.09;
@@ -1952,7 +1967,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // black lip, an off-white mat round the photo, a brushed brass plate on the bottom rail and
   // corner keys, on a black easel leg.
   const familyFrame = new THREE.Group();
-  familyFrame.position.set(-4.55, 0, -3.05);
+  // The tilted easel's rear edge extends below its local origin.
+  familyFrame.position.set(-4.55, 0.034, -3.05);
   familyFrame.scale.setScalar(0.8);
   familyFrame.rotation.set(-0.08, 0.08, 0);
   const FY = 1.08;
@@ -2618,6 +2634,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const ps5 = addItem(at(group(psFoot, consoleBody), -1.5, standOn(0), 0.05), "console");
   // Turned three-quarters on to the room, so its white side shows as well as its front
   ps5.rotation.y = -0.5;
+  const padFinish = canvasTexture(128, 128);
+  track(padFinish.texture);
+  drawSatinFinish(padFinish.ctx, 128, 128, { grain: 0.06 });
+  padFinish.texture.wrapS = padFinish.texture.wrapT = THREE.RepeatWrapping;
+  padFinish.texture.repeat.set(4, 4);
   const controller = (color) => {
     // One continuous silhouette, with tapered grips instead of overlapping blocks.
     const outline = new THREE.Shape();
@@ -2635,15 +2656,36 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const bodyGeo = new THREE.ExtrudeGeometry(outline, { depth: 0.12, bevelEnabled: true, bevelSize: 0.025, bevelThickness: 0.025, bevelSegments: 3, curveSegments: 16, steps: 1 });
     bodyGeo.translate(0, 0, -0.06);
     bodyGeo.rotateX(-Math.PI / 2);
-    const light = color !== "#1a1714";
+    const light = color === "#fffdf5";
     const body = toon(color);
+    body.map = padFinish.texture;
+    if (!light) {
+      body.emissive.set("#4a4d55");
+      body.emissiveIntensity = 0.12;
+    }
     const pad = group(mesh(bodyGeo, body, { outline: 0.016 }));
+    const seamMat = toon(light ? "#a6adb5" : "#42464e");
+    const seamGeo = bodyGeo.clone();
+    seamGeo.scale(1.012, 0.055, 1.012);
+    pad.add(mesh(seamGeo, seamMat, { outline: 0, cast: false }));
     // Modern-gamepad layout (as in the reference): offset sticks, the left one up top beside a
     // d-pad below; colour-coded face buttons; a round home button and three small ones between
     const TOP = 0.087;
+    const controlPlastic = toon(light ? "#43474e" : "#45484e");
+    controlPlastic.map = padFinish.texture;
+    const screwSlot = toon(light ? "#535860" : "#8b929c");
+    // Small casing screws sit in the continuous moulded-plastic shell.
+    [-1, 1].forEach((side) => {
+      const screw = mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.005, 12), seamMat, { outline: 0, cast: false });
+      screw.position.set(side * 0.27, TOP, 0.16);
+      const slot = mesh(new THREE.BoxGeometry(0.018, 0.002, 0.003), screwSlot, { outline: 0, cast: false });
+      slot.position.set(side * 0.27, TOP + 0.0035, 0.16);
+      pad.add(screw, slot);
+    });
     // Sticks and d-pad in a contrasting grey on each pad, so they read at shelf distance
-    const knob = toon(light ? "#43474e" : "#4a4f57");
-    const well = toon(light ? "#9aa1ab" : "#0b0c0e");
+    const knob = toon(light ? "#43474e" : "#5a6069");
+    knob.map = padFinish.texture;
+    const well = toon(light ? "#9aa1ab" : "#313740");
     const stick = (x, z) => {
       pad.add(at(mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.01, 28), well, { outline: 0 }), x, TOP + 0.004, z));
       pad.add(at(mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.05, 16), knob, { outline: 0.006 }), x, TOP + 0.03, z));
@@ -2651,6 +2693,16 @@ export function createDeskScene({ container, projects, experiences, dark = false
       const rim = mesh(new THREE.TorusGeometry(0.056, 0.012, 8, 28), toon(light ? "#2a2d32" : "#6b717a"), { outline: 0 });
       rim.rotation.x = Math.PI / 2;
       pad.add(at(rim, x, TOP + 0.076, z));
+      const thumb = mesh(new THREE.CylinderGeometry(0.043, 0.043, 0.003, 24), controlPlastic, { outline: 0, cast: false });
+      pad.add(at(thumb, x, TOP + 0.076, z));
+      const ribGeo = new THREE.BoxGeometry(0.008, 0.004, 0.013);
+      for (let i = 0; i < 12; i++) {
+        const angle = i * Math.PI / 6;
+        const rib = mesh(ribGeo, knob, { outline: 0, cast: false });
+        rib.position.set(x + Math.sin(angle) * 0.059, TOP + 0.087, z + Math.cos(angle) * 0.059);
+        rib.rotation.y = angle;
+        pad.add(rib);
+      }
     };
     stick(-0.3, -0.04);
     stick(0.14, 0.11);
@@ -2686,7 +2738,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     pad.add(at(mesh(rbox(0.054, 0.016, 0.028, 0.008), small, { outline: 0.008 }), 0, TOP + 0.008, 0.0));
     // bumpers along the top edge, the body's colour
     [-0.34, 0.34].forEach((x) => {
-      const bumper = at(mesh(rbox(0.26, 0.07, 0.08, 0.03), toon(light ? "#e7e9ec" : "#202226"), { outline: 0.008 }), x, 0.02, -0.235);
+      const bumper = at(mesh(rbox(0.26, 0.07, 0.08, 0.03), controlPlastic, { outline: 0.008 }), x, 0.02, -0.235);
       bumper.rotation.y = -Math.sign(x) * 0.18;
       pad.add(bumper);
     });
@@ -4743,6 +4795,21 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const glove = toon("#d4a234");
   const gloveDark = toon("#8a6416");
   const gloveLight = toon("#f1c95b");
+  const gauntletMetal = canvasTexture(128, 128);
+  track(gauntletMetal.texture);
+  drawBrushedMetal(gauntletMetal.ctx, 128, 128);
+  gauntletMetal.texture.wrapS = gauntletMetal.texture.wrapT = THREE.RepeatWrapping;
+  gauntletMetal.texture.repeat.set(2, 3);
+  const gauntletGrain = canvasTexture(128, 128);
+  track(gauntletGrain.texture);
+  drawSatinFinish(gauntletGrain.ctx, 128, 128, { grain: 0.12 });
+  gauntletGrain.texture.wrapS = gauntletGrain.texture.wrapT = THREE.RepeatWrapping;
+  gauntletGrain.texture.repeat.set(3, 3);
+  [glove, gloveDark, gloveLight].forEach((material) => {
+    material.map = gauntletMetal.texture;
+    material.bumpMap = gauntletGrain.texture;
+    material.bumpScale = 0.003;
+  });
   // Plinth with a little gold plaque
   gauntlet.add(
     at(mesh(rbox(0.85, 0.2, 0.65, 0.05), toon("#1a1714"), { outline: 0.02 }), 0, 0.1, 0),
@@ -4765,6 +4832,19 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const ridge = at(mesh(rbox(0.14, 0.52, 0.05, 0.02), gloveDark, { outline: 0.012 }), 0, 0.5, 0.215);
   ridge.rotation.x = -0.1;
   glovePart.add(ridge);
+  // Raised side armour leaves dark seams around the central engraved ridge.
+  const rivetGeo = track(new THREE.SphereGeometry(0.012, 10, 8));
+  [-1, 1].forEach((side) => {
+    const panel = at(mesh(rbox(0.09, 0.44, 0.025, 0.012), gloveLight, { outline: 0.006 }), side * 0.14, 0.51, 0.193);
+    panel.rotation.x = -0.1;
+    panel.rotation.z = side * 0.09;
+    glovePart.add(panel);
+    [0.33, 0.69].forEach((y) => {
+      const rivet = new THREE.Mesh(rivetGeo, gloveDark);
+      rivet.position.set(side * 0.14, y, 0.22 - (y - 0.5) * 0.1);
+      glovePart.add(rivet);
+    });
+  });
   [0.34, 0.46, 0.58, 0.7].forEach((y) => [-1, 1].forEach((side) => {
     const chevron = at(mesh(rbox(0.075, 0.018, 0.02, 0.005), gloveLight, { outline: 0, cast: false }), side * 0.03, y, 0.243 - (y - 0.5) * 0.1, side * 0.55);
     glovePart.add(chevron);
@@ -4788,10 +4868,16 @@ export function createDeskScene({ container, projects, experiences, dark = false
     body.scale.z = 0.88;
     body.position.y = length / 2;
     part.add(body);
+    const armour = at(mesh(rbox(radius * 1.25, length * 0.48, 0.015, 0.008), gloveLight, { outline: 0 }), 0, length * 0.58, radius * 0.88);
+    part.add(armour);
     if (ring) {
       const band = mesh(new THREE.CylinderGeometry(radius * 1.12, radius * 1.12, 0.026, 18), gloveDark, { outline: 0.008 });
       band.scale.z = 0.9;
       part.add(band);
+      const lip = mesh(new THREE.CylinderGeometry(radius * 1.13, radius * 1.13, 0.007, 18), gloveLight, { outline: 0 });
+      lip.scale.z = 0.9;
+      lip.position.y = 0.016;
+      part.add(lip);
     }
     return part;
   };
@@ -4837,23 +4923,33 @@ export function createDeskScene({ container, projects, experiences, dark = false
   flashTex.ctx.fillRect(0, 0, 128, 128);
   // Stones in raised gold settings, each with a coloured halo that brightens on hover and at
   // the snap (the halo adds light, so it reads as a glow even on the flat toon shading)
-  const stoneGeo = new THREE.SphereGeometry(1, 16, 12);
+  const stoneGeo = new THREE.IcosahedronGeometry(1, 1);
   const stone = (color, parent, x, y, z, r, tall = 1) => {
     const setting = mesh(new THREE.CylinderGeometry(r * 1.35, r * 1.35, 0.03, 18), gloveDark, { outline: 0.008 });
     setting.rotation.x = Math.PI / 2;
     setting.scale.z = tall;
     setting.position.set(x, y, z - 0.01);
-    const gem = new THREE.Mesh(stoneGeo, track(new THREE.MeshBasicMaterial({ color })));
+    const gemMat = toon(color);
+    gemMat.emissive.set(color);
+    gemMat.emissiveIntensity = 0.45;
+    gemMat.flatShading = true;
+    const gem = new THREE.Mesh(stoneGeo, gemMat);
     gem.scale.set(r, r * tall, r * 0.6);
     gem.position.set(x, y, z + 0.008);
     gem.userData.size = gem.scale.clone();
+    const bezel = mesh(new THREE.TorusGeometry(r * 1.15, r * 0.12, 6, 24), gloveLight, { outline: 0 });
+    bezel.scale.y = tall;
+    bezel.position.set(x, y, z + 0.003);
+    const glint = new THREE.Mesh(track(new THREE.OctahedronGeometry(0.12)), track(new THREE.MeshBasicMaterial({ color: "#fff8d8" })));
+    glint.position.set(-0.25, 0.3, 0.95);
+    gem.add(glint);
     const halo = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: flashTex.texture, color, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })));
     halo.position.set(x, y, z + 0.03);
     halo.scale.setScalar(r * 5);
     halo.raycast = noRaycast;
     gem.userData.halo = halo;
     gem.userData.r = r;
-    parent.add(setting, gem, halo);
+    parent.add(setting, bezel, gem, halo);
     return gem;
   };
   // Soul, reality, space and power across the knuckles; mind at the centre; time on the thumb
@@ -5227,21 +5323,81 @@ export function createDeskScene({ container, projects, experiences, dark = false
   gym.rotation.y = -0.15;
   scene.add(gym);
   const HEAD_R = 0.27;
-  // Hex heads lie flat on a face: a six-sided cylinder turned onto its side
+  const HEAD_BAND_R = HEAD_R + 0.005;
+  const ironTexture = canvasTexture(128, 128);
+  track(ironTexture.texture);
+  drawSatinFinish(ironTexture.ctx, 128, 128, { grain: 0.22 });
+  ironTexture.texture.wrapS = ironTexture.texture.wrapT = THREE.RepeatWrapping;
+  ironTexture.texture.repeat.set(3, 2);
+  const steelTexture = canvasTexture(128, 128);
+  track(steelTexture.texture);
+  drawBrushedMetal(steelTexture.ctx, 128, 128);
+  const steel = toon("#d0d4d8");
+  steel.map = steelTexture.texture;
+  const knurlTexture = canvasTexture(128, 128);
+  track(knurlTexture.texture);
+  drawBrushedMetal(knurlTexture.ctx, 128, 128);
+  knurlTexture.ctx.strokeStyle = "rgba(25,30,35,.4)";
+  knurlTexture.ctx.lineWidth = 1.5;
+  knurlTexture.ctx.beginPath();
+  for (let x = -128; x < 256; x += 12) {
+    knurlTexture.ctx.moveTo(x, 0);
+    knurlTexture.ctx.lineTo(x + 128, 128);
+    knurlTexture.ctx.moveTo(x, 0);
+    knurlTexture.ctx.lineTo(x - 128, 128);
+  }
+  knurlTexture.ctx.stroke();
+  knurlTexture.texture.wrapS = knurlTexture.texture.wrapT = THREE.RepeatWrapping;
+  knurlTexture.texture.repeat.set(2, 2);
+  const knurledSteel = toon("#aeb5bc");
+  knurledSteel.map = knurlTexture.texture;
+  knurledSteel.bumpMap = knurlTexture.texture;
+  knurledSteel.bumpScale = 0.003;
+  const ironRim = toon("#41464d");
+  ironRim.map = ironTexture.texture;
+  // Round cast-iron heads with bevelled rims, inset end caps and a knurled steel handle.
+  const headProfile = [[0, -0.15], [HEAD_R - 0.035, -0.15], [HEAD_R, -0.115],
+    [HEAD_R, 0.115], [HEAD_R - 0.035, 0.15], [0, 0.15]].map(([r, y]) => new THREE.Vector2(r, y));
   const dumbbell = (color, x, z, turn) => {
     const db = new THREE.Group();
-    const bar = mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.66, 12), toon("#9ca3af"), { outline: 0.015 });
-    const grip = mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.34, 12), toon("#1a1714"), { outline: 0.015 });
+    const headMat = toon(color);
+    headMat.map = headMat.bumpMap = ironTexture.texture;
+    headMat.bumpScale = 0.006;
+    const bar = mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.66, 24), steel, { outline: 0.01 });
+    const grip = mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.34, 32), knurledSteel, { outline: 0.008 });
     db.add(bar, grip);
     [-1, 1].forEach((side) => {
-      const head = mesh(new THREE.CylinderGeometry(HEAD_R, HEAD_R, 0.3, 6), toon(color), { outline: 0.025 });
+      const head = mesh(new THREE.LatheGeometry(headProfile, 48), headMat, { outline: 0.018 });
       head.position.y = side * 0.42;
-      const band = mesh(new THREE.CylinderGeometry(HEAD_R + 0.005, HEAD_R + 0.005, 0.06, 6), toon("#1a1714"), { outline: 0, cast: false });
+      const band = mesh(new THREE.CylinderGeometry(HEAD_BAND_R, HEAD_BAND_R, 0.025, 48), ironRim, { outline: 0, cast: false });
       band.position.y = side * 0.42;
-      db.add(head, band);
+      const collar = mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.045, 24), steel, { outline: 0.006 });
+      collar.position.y = side * 0.245;
+      const cap = mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.008, 40), ironRim, { outline: 0, cast: false });
+      cap.position.y = side * 0.574;
+      const rim = mesh(new THREE.TorusGeometry(0.205, 0.008, 8, 40), steel, { outline: 0, cast: false });
+      rim.rotation.x = Math.PI / 2;
+      rim.position.y = side * 0.574;
+      const weight = printed(0.24, 0.24, 900, (c, w, h) => {
+        c.clearRect(0, 0, w, h);
+        c.fillStyle = "#d5d8d8";
+        c.textAlign = "center";
+        c.textBaseline = "middle";
+        c.font = `800 ${w * 0.5}px 'Space Grotesk', sans-serif`;
+        c.fillText("8", w / 2, h * 0.36);
+        c.font = `700 ${w * 0.16}px 'Space Grotesk', sans-serif`;
+        c.fillText("KG", w / 2, h * 0.76);
+      });
+      weight.material.transparent = true;
+      weight.material.alphaTest = 0.1;
+      weight.rotation.x = -side * Math.PI / 2;
+      weight.rotateZ(-Math.PI / 2);
+      weight.position.y = side * 0.58;
+      db.add(head, band, collar, cap, rim, weight);
     });
     db.rotation.set(0, turn, Math.PI / 2, "YXZ");
-    db.position.set(x, HEAD_R * 0.866, z);
+    // Support the outer band, with a little clearance for its screen-space outline.
+    db.position.set(x, HEAD_BAND_R + 0.025, z);
     db.userData.restY = db.position.y;
     gym.add(db);
     return db;
@@ -5753,7 +5909,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   riserLegMat.color.multiplyScalar(RISER_LEG_SHADE);
   riserLegMat.map = riserWood;
   [-3.0, 3.0].forEach((x) => {
-    const leg = mesh(rbox(0.36, RISER_TOP - RISER_BOARD, 1.7, 0.04), riserLegMat, { outline: 0.04 });
+    // A thinner outline keeps the short wooden legs readable at their original height.
+    const leg = mesh(rbox(0.36, RISER_TOP - RISER_BOARD, 1.7, 0.04), riserLegMat, { outline: 0.018 });
     leg.position.set(x, (RISER_TOP - RISER_BOARD) / 2, 0);
     riser.add(leg);
   });
@@ -5762,19 +5919,22 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const monitor = new THREE.Group();
   monitor.position.set(-0.2, RISER_TOP, -2.75);
   scene.add(monitor);
-  // Nearly bezelless, in black: a thin slab that stops just short of the screen's edges, a
-  // slim chin below it, on a flat foot with a slanted plate for a stand (a few near-blacks, so
-  // it keeps its shape). The stand is brushed dark aluminium.
+  // Silver aluminium body and stand, with a dark inset bezel like the classic silver iMac.
   const brushed = canvasTexture(128, 128);
   track(brushed.texture);
   drawBrushedMetal(brushed.ctx, 128, 128);
-  const aluminium = toon("#34363b");
+  // Soften the existing grain so it reads as a finish rather than broad painted stripes.
+  brushed.ctx.fillStyle = "rgba(255,255,255,0.82)";
+  brushed.ctx.fillRect(0, 0, 128, 128);
+  brushed.texture.wrapS = brushed.texture.wrapT = THREE.RepeatWrapping;
+  brushed.texture.repeat.set(2, 3);
+  brushed.texture.needsUpdate = true;
+  const aluminium = toon("#c8cbce");
   aluminium.map = brushed.texture;
-  // The foot stands on two rubber strips, a thick plate in a lighter grey than the stand, so
-  // it reads as sitting on the riser: thin and dark, in the riser's shade, it looked sunk in
+  // A slightly brighter silver foot rests on two dark rubber strips.
   const FOOT_LIFT = 0.04;
   const FOOT_H = 0.12;
-  const footMat = toon("#55595f");
+  const footMat = toon("#e0e1e2");
   footMat.map = brushed.texture;
   const base = mesh(rbox(1.75, FOOT_H, 1.3, 0.04), footMat, { outline: 0.03 });
   base.position.set(0, FOOT_LIFT + FOOT_H / 2, -0.15);
@@ -5804,7 +5964,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   monitor.add(hinge, mount, ...footStrips);
   // The screen runs from x -2.0 to 2.0 and y 1.43 to 3.83; the body is only 0.11 wider each
   // side and 0.09 taller, with the chin below from 1.0
-  const body = mesh(rbox(4.22, 2.92, 0.14, 0.08), toon("#1f2125"), { outline: 0.06 });
+  const silverMat = toon("#d9dbdd");
+  silverMat.map = brushed.texture;
+  const body = mesh(rbox(4.22, 2.92, 0.14, 0.08), silverMat, { outline: 0.06 });
   body.position.set(0, 2.46, 0);
   const bezel = mesh(rbox(4.16, 2.5, 0.02, 0.05), toon("#141518"), { outline: 0, cast: false });
   bezel.position.set(0, 2.63, 0.075);
@@ -6605,10 +6767,41 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // Level with the painting across the room
   aboutBoard.position.set(4.6, 5.8, -4.28); // on the wall: WALL_Z + 0.3
   scene.add(aboutBoard);
-  const boardFrame = mesh(rbox(6.8, 4.2, 0.16, 0.06), toon("#9c6230"), { outline: 0.06 });
+  const boardWood = toon("#b98550");
+  boardWood.map = windowWood.texture;
+  const boardFrame = mesh(rbox(6.8, 4.2, 0.16, 0.04), boardWood, { outline: 0.045 });
   const boardFace = printed(6.55, 3.95, 170, drawAboutBoard);
   boardFace.position.z = 0.09;
   aboutBoard.add(boardFrame, boardFace);
+  // Raised oak rails with grain following their length, around a recessed cork face.
+  const boardUprightGrain = track(windowWood.texture.clone());
+  boardUprightGrain.center.set(0.5, 0.5);
+  boardUprightGrain.rotation = Math.PI / 2;
+  boardUprightGrain.needsUpdate = true;
+  const boardUprightWood = toon("#aa7745");
+  boardUprightWood.map = boardUprightGrain;
+  const boardInnerWood = toon("#795333");
+  boardInnerWood.map = windowWood.texture;
+  [-1, 1].forEach((side) => {
+    [[6.8, 0.14, 0, side * 2.03, boardWood], [0.14, 3.92, side * 3.33, 0, boardUprightWood],
+      [6.52, 0.025, 0, side * 1.965, boardInnerWood], [0.025, 3.91, side * 3.265, 0, boardInnerWood]].forEach(([w, h, x, y, material]) => {
+      const rail = mesh(rbox(w, h, 0.1, 0.012), material, { outline: 0 });
+      rail.position.set(x, y, 0.085);
+      aboutBoard.add(rail);
+    });
+  });
+  // Fine mitre joints and inset corner pins break up the otherwise continuous frame.
+  const boardJointMat = toon("#67452f");
+  const boardPinGeo = track(new THREE.SphereGeometry(0.018, 8, 6));
+  const boardPinMat = toon("#a6a39a");
+  for (const x of [-1, 1]) for (const y of [-1, 1]) {
+    const joint = mesh(new THREE.BoxGeometry(0.18, 0.008, 0.005), boardJointMat, { outline: 0, cast: false });
+    joint.position.set(x * 3.33, y * 2.03, 0.138);
+    joint.rotation.z = x * y * Math.PI / 4;
+    const pin = new THREE.Mesh(boardPinGeo, boardPinMat);
+    pin.position.set(x * 3.31, y * 2.01, 0.14);
+    aboutBoard.add(joint, pin);
+  }
   const noteLayout = {
     who: [-1.95, 0.5, 2.35, 1.85],
     years: [-0.1, 0.9, 0.9, 1.0],
@@ -9120,8 +9313,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const clockTimer = setInterval(() => {
     badgeFront.userData.tex.redraw();
     updateRoomClock();
-    // the room's sun moves on with the clock, as the view outside does
-    if (!darkNow) applyDaylight();
   }, 60000);
 
   // ---------- theme ----------
@@ -9161,8 +9352,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     shadowFill.color.set(p.shadow);
     if (!isDark) applyDaylight();
   }
-  // By day the room follows the visitor's clock, like the view outside: a low warm sun through
-  // the window in the morning, the white midday sun, and a long amber light in the evening
+  // Match the randomly selected sky: warm morning, bright midday or amber evening.
   const DAYLIGHT = {
     morning: { sun: "#ffd6a0", sunAt: [-14, 6, 7], sunPower: 1.35, sky: "#fff1dc", skyPower: 1.25, ambient: 0.62, pane: "#ffd59a", panePower: 80 },
     day: { sun: "#fff1cc", sunAt: [-13, 9.5, 4.5], sunPower: 1.6, sky: "#fffaf0", skyPower: 1.45, ambient: 0.65, pane: "#ffe5ad", panePower: 70 },
@@ -9171,7 +9361,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     evening: { sun: "#ff9e66", sunAt: [-14, 4.5, -4], sunPower: 1.25, sky: "#ffe0c4", skyPower: 1.1, ambient: 0.55, pane: "#ffb27a", panePower: 85 },
   };
   function applyDaylight() {
-    const light = DAYLIGHT[clockPart()];
+    const light = DAYLIGHT[daylightPart];
     sun.color.set(light.sun);
     sun.position.set(...light.sunAt);
     sun.intensity = light.sunPower;
@@ -9182,8 +9372,19 @@ export function createDeskScene({ container, projects, experiences, dark = false
     windowLight.intensity = light.panePower;
   }
   setTheme(dark);
+  let nextDaylightAt = performance.now() + 60000 + Math.random() * 60000;
+  function updateDaylight(now) {
+    if (now < nextDaylightAt) return;
+    daylightPart = daylightParts[(daylightParts.indexOf(daylightPart) + 1) % daylightParts.length];
+    const wasDark = darkNow;
+    setRoomTheme(daylightPart === "night");
+    if (wasDark !== darkNow) onEvent("nightShift", { dark: darkNow });
+    nextDaylightAt = now + 60000 + Math.random() * 60000;
+  }
   // The monitor's desktop follows the room
   const setRoomTheme = (isDark) => {
+    if (isDark) daylightPart = "night";
+    else if (daylightPart === "night") daylightPart = "morning";
     setTheme(isDark);
     outside.night = isDark;
     windowView.userData.tex.redraw();
@@ -9891,6 +10092,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     updateCatLife(now);
     updateCatNeck();
     updateSecondHand();
+    updateDaylight(now);
     outside.t += dt;
     outside.rain += (outside.rainTarget - outside.rain) * Math.min(1, dt * 0.35);
     if (Math.abs(outside.rain - (outside.heard ?? -1)) > 0.02) {

@@ -22,7 +22,8 @@ assert.equal(entry.focus, 'family', 'photo is registered for camera zoom');
 scene.updateMatrixWorld(true);
 const bounds = new THREE.Box3().setFromObject(family.familyFrame);
 assert.ok(bounds.min.x > -5.4 && bounds.max.x < -3.525, 'frame fits between lamp base and left speaker');
-assert.ok(bounds.min.y > -0.06 && bounds.max.y < 1.8, 'frame stands on desk');
+assert.ok(bounds.min.y >= 0 && bounds.min.y < 0.01 && bounds.max.y < 1.8,
+  'tilted easel rests above the tabletop without sinking or floating');
 const shotStart = source.indexOf('    family: () => {');
 const shot = vm.runInNewContext('({' + source.slice(shotStart, source.indexOf('    // Face-on to the phone', shotStart)) + '}).family()', {
   familyFrame: family.familyFrame, screenPos: new THREE.Vector3(), screenNormal: new THREE.Vector3(),

@@ -1845,13 +1845,33 @@ export function drawClockFace(c, w, h) {
 // The guitar's top, laid out in the body outline's own units (x -1..1 across, y -0.95..1.92),
 // in the room's neo-brutalist style: one flat colour, a faint halftone, a teal pickguard,
 // thick black and white rings round the soundhole, and a few stickers with hard shadows
-export function drawGuitarTop(c, w, h) {
+export function drawGuitarTop(c, w, h, { halfWidth = null } = {}) {
   const toX = (x) => ((x + 1) / 2) * w;
   const toY = (y) => (1 - (y + 0.95) / 2.87) * h;
   const ux = w / 2;
   const line = w * 0.018;
+  let seed = 3907;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   // A natural spruce top, warm but quiet next to the room's brights
   c.fillStyle = "#e6c38f";
+  c.fillRect(0, 0, w, h);
+  // its grain: fine straight lines running the length of the top, a little uneven in weight
+  // and spacing, each wavering faintly
+  for (let x = 0; x < w; x += 3 + rand() * 5) {
+    c.strokeStyle = `rgba(150,95,40,${0.08 + rand() * 0.14})`;
+    c.lineWidth = 0.6 + rand() * 1.2;
+    const sway = rand() * 2;
+    c.beginPath();
+    c.moveTo(x, 0);
+    c.bezierCurveTo(x + sway, h * 0.33, x - sway, h * 0.66, x + sway * 0.5, h);
+    c.stroke();
+  }
+  // a soft sunburst: the lower bout's middle stays pale, its edges warming to amber
+  const burst = c.createRadialGradient(toX(0), toY(0.1), ux * 0.35, toX(0), toY(0.4), ux * 1.25);
+  burst.addColorStop(0, "rgba(160,80,20,0)");
+  burst.addColorStop(0.7, "rgba(160,80,20,.12)");
+  burst.addColorStop(1, "rgba(110,50,10,.42)");
+  c.fillStyle = burst;
   c.fillRect(0, 0, w, h);
   // halftone dots, heavier toward the lower edge
   for (let y = 0; y < h; y += w * 0.035) {
@@ -1879,6 +1899,35 @@ export function drawGuitarTop(c, w, h) {
   c.lineWidth = line * 0.8;
   c.strokeStyle = "#000";
   c.stroke();
+  // tortoiseshell: warm amber flecks through the dark, kept inside the guard
+  c.save();
+  c.clip();
+  for (let i = 0; i < 40; i++) {
+    c.fillStyle = rand() < 0.5 ? "rgba(180,95,30,.35)" : "rgba(20,10,5,.35)";
+    c.beginPath();
+    c.ellipse(toX(0.1 + rand() * 0.8), toY(0.5 + rand() * 0.7), ux * (0.02 + rand() * 0.05), ux * (0.01 + rand() * 0.03), rand() * Math.PI, 0, Math.PI * 2);
+    c.fill();
+  }
+  c.restore();
+  // binding round the edge: a cream band just inside the outline with a fine dark purfling
+  // line inside it
+  if (halfWidth) {
+    const trace = (inset) => {
+      c.beginPath();
+      const ys = Array.from({ length: 121 }, (_, k) => -0.95 + (k / 120) * 2.87);
+      ys.forEach((y, k) => (k ? c.lineTo(toX(halfWidth(y) - inset), toY(y)) : c.moveTo(toX(halfWidth(y) - inset), toY(y))));
+      [...ys].reverse().forEach((y) => c.lineTo(toX(-halfWidth(y) + inset), toY(y)));
+      c.closePath();
+    };
+    trace(0.03);
+    c.strokeStyle = "#fffdf5";
+    c.lineWidth = ux * 0.05;
+    c.stroke();
+    trace(0.065);
+    c.strokeStyle = "rgba(40,20,10,.7)";
+    c.lineWidth = ux * 0.012;
+    c.stroke();
+  }
   // rosette: black, white, black
   [[0.5, "#1a1714", 0.09], [0.43, "#fffdf5", 0.05], [0.38, "#1a1714", 0.03]].forEach(([r, color, t]) => {
     c.strokeStyle = color;
@@ -2037,6 +2086,228 @@ export function drawCarbonWeave(c, w, h) {
       c.fillStyle = sheen;
       c.fillRect(col * s + 1, row * s + 1, s - 2, s - 2);
     }
+  }
+}
+
+// Brushed metal, as a light tile its material tints: fine streaks drawn across in slightly
+// different greys, with a broad soft sheen through the middle. Tiles across.
+export function drawBrushedMetal(c, w, h) {
+  let r = 6151;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  c.fillStyle = "#c8c8c8";
+  c.fillRect(0, 0, w, h);
+  for (let i = 0; i < h * 3; i++) {
+    const tone = 170 + Math.floor(rand() * 85);
+    c.fillStyle = `rgba(${tone},${tone},${tone},.5)`;
+    c.fillRect(rand() * w - w * 0.5, rand() * h, w * (0.3 + rand() * 0.9), 0.6 + rand() * 0.8);
+  }
+  const sheen = c.createLinearGradient(0, 0, 0, h);
+  sheen.addColorStop(0, "rgba(255,255,255,0)");
+  sheen.addColorStop(0.5, "rgba(255,255,255,.18)");
+  sheen.addColorStop(1, "rgba(255,255,255,0)");
+  c.fillStyle = sheen;
+  c.fillRect(0, 0, w, h);
+}
+
+// A satin-painted cabinet, as a light tile its material tints: a fine even stipple with a
+// faint grain running along it, so a flat panel reads as a finished surface. Tiles both ways.
+export function drawSatinFinish(c, w, h, { grain = 0.06 } = {}) {
+  let r = 2713;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  c.fillStyle = "#d4d4d4";
+  c.fillRect(0, 0, w, h);
+  for (let y = 0; y < h; y += 2) {
+    c.fillStyle = `rgba(${rand() < 0.5 ? "255,255,255" : "0,0,0"},${rand() * grain})`;
+    c.fillRect(0, y, w, 1 + rand());
+  }
+  for (let i = 0; i < (w * h) / 6; i++) {
+    c.fillStyle = rand() < 0.5 ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.14)";
+    c.fillRect(rand() * w, rand() * h, 1, 1);
+  }
+}
+
+// A speaker cone's surface on its lathe's uv (up the canvas is from the rim in to the centre):
+// pressed concentric ribs, and fine fibres radiating out through the paper
+export function drawConeRibs(c, w, h) {
+  let r = 811;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  c.fillStyle = "#e4e4e4";
+  c.fillRect(0, 0, w, h);
+  for (let x = 0; x < w; x += 1.5) {
+    c.fillStyle = `rgba(${rand() < 0.5 ? "255,255,255" : "0,0,0"},${rand() * 0.12})`;
+    c.fillRect(x, 0, 1, h);
+  }
+  for (let k = 1; k < 6; k++) {
+    const y = h * (0.22 + k * 0.11);
+    c.fillStyle = "rgba(0,0,0,.22)";
+    c.fillRect(0, y, w, h * 0.025);
+    c.fillStyle = "rgba(255,255,255,.3)";
+    c.fillRect(0, y + h * 0.025, w, h * 0.02);
+  }
+}
+
+// The chair's leatherette, as a light tile the leather's colour tints dark: soft mottling, then
+// a pebbled grain of small rounded cells, each lit a little on top and creased dark round its
+// edge, tiling seamlessly. `perforated` adds the staggered rows of tiny breathing holes the
+// centre panel has.
+export function drawLeatherGrain(c, w, h, { perforated = false } = {}) {
+  let r = 9241;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  // every mark is drawn again across each edge it crosses, so the tile repeats without seams
+  const wrapped = (x, y, reach, draw) => {
+    for (const dx of [-w, 0, w]) for (const dy of [-h, 0, h]) if (Math.abs(x + dx - w / 2) < w / 2 + reach && Math.abs(y + dy - h / 2) < h / 2 + reach) draw(x + dx, y + dy);
+  };
+  c.fillStyle = "#969696";
+  c.fillRect(0, 0, w, h);
+  for (let i = 0; i < 26; i++) {
+    const x = rand() * w;
+    const y = rand() * h;
+    const size = w * (0.1 + rand() * 0.18);
+    const tone = rand() < 0.5 ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)";
+    wrapped(x, y, size, (px, py) => {
+      const g = c.createRadialGradient(px, py, 0, px, py, size);
+      g.addColorStop(0, tone);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      c.fillStyle = g;
+      c.fillRect(px - size, py - size, size * 2, size * 2);
+    });
+  }
+  const cells = Math.round((w * h) / 70);
+  for (let i = 0; i < cells; i++) {
+    const x = rand() * w;
+    const y = rand() * h;
+    const rx = w * (0.012 + rand() * 0.014);
+    const ry = rx * (0.7 + rand() * 0.5);
+    const turn = rand() * Math.PI;
+    const light = 215 + Math.floor(rand() * 40);
+    wrapped(x, y, rx * 1.5, (px, py) => {
+      const g = c.createRadialGradient(px - rx * 0.25, py - ry * 0.3, 0, px, py, Math.max(rx, ry));
+      g.addColorStop(0, `rgb(${light},${light},${light})`);
+      g.addColorStop(0.75, `rgb(${light - 40},${light - 40},${light - 40})`);
+      g.addColorStop(1, "rgba(150,150,150,0)");
+      c.fillStyle = g;
+      c.beginPath();
+      c.ellipse(px, py, rx, ry, turn, 0, Math.PI * 2);
+      c.fill();
+    });
+  }
+  // a few longer fine creases, as the leather has where it flexes
+  c.lineCap = "round";
+  for (let i = 0; i < 14; i++) {
+    const x = rand() * w;
+    const y = rand() * h;
+    const len = w * (0.05 + rand() * 0.1);
+    const a = rand() * Math.PI;
+    c.strokeStyle = "rgba(70,70,70,.55)";
+    c.lineWidth = 0.8 + rand() * 0.6;
+    wrapped(x, y, len, (px, py) => {
+      c.beginPath();
+      c.moveTo(px, py);
+      c.quadraticCurveTo(px + Math.cos(a + 0.4) * len * 0.5, py + Math.sin(a + 0.4) * len * 0.5, px + Math.cos(a) * len, py + Math.sin(a) * len);
+      c.stroke();
+    });
+  }
+  if (!perforated) return;
+  const pitch = w / 12;
+  for (let row = 0; row < 12; row++) {
+    for (let col = 0; col < 12; col++) {
+      const x = (col + (row % 2) * 0.5 + 0.25) * pitch;
+      const y = (row + 0.5) * pitch;
+      c.fillStyle = "rgba(255,255,255,.5)";
+      c.beginPath();
+      c.arc(x + 0.6, y + 0.8, pitch * 0.17, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = "#3a3a3a";
+      c.beginPath();
+      c.arc(x, y, pitch * 0.15, 0, Math.PI * 2);
+      c.fill();
+    }
+  }
+}
+
+// A plant leaf, laid out on its own uv: across the canvas is across the blade, edge to edge at
+// every height, and up the canvas is from its base to its tip. Darker at the base and lighter
+// toward the tip and the margins, with a pale midrib and a few faint side veins arching out
+// toward the edge.
+export function drawPlantLeaf(c, w, h, { base = "#15803d", tip = "#4ade80", vein = "#bbf7d0" } = {}) {
+  const along = c.createLinearGradient(0, h, 0, 0);
+  along.addColorStop(0, base);
+  along.addColorStop(1, tip);
+  c.fillStyle = along;
+  c.fillRect(0, 0, w, h);
+  const across = c.createLinearGradient(0, 0, w, 0);
+  across.addColorStop(0, "rgba(255,255,255,.16)");
+  across.addColorStop(0.2, "rgba(255,255,255,0)");
+  across.addColorStop(0.45, "rgba(0,0,0,.1)");
+  across.addColorStop(0.55, "rgba(0,0,0,.1)");
+  across.addColorStop(0.8, "rgba(255,255,255,0)");
+  across.addColorStop(1, "rgba(255,255,255,.16)");
+  c.fillStyle = across;
+  c.fillRect(0, 0, w, h);
+  c.strokeStyle = vein;
+  c.lineCap = "round";
+  // side veins, from the midrib up and out, thinning toward the edge
+  for (let k = 0; k < 4; k++) {
+    const y = h * (0.8 - k * 0.17);
+    const rise = h * (0.1 + k * 0.006);
+    for (const side of [-1, 1]) {
+      c.globalAlpha = 0.3;
+      c.lineWidth = 2 - k * 0.2;
+      c.beginPath();
+      c.moveTo(w / 2, y);
+      c.quadraticCurveTo(w / 2 + side * w * 0.22, y - rise * 0.35, w / 2 + side * w * 0.43, y - rise);
+      c.stroke();
+    }
+  }
+  c.globalAlpha = 1;
+  // the midrib, broad at the base and tapering to the tip
+  c.fillStyle = vein;
+  c.beginPath();
+  c.moveTo(w / 2 - 4, h);
+  c.lineTo(w / 2 + 4, h);
+  c.lineTo(w / 2 + 0.8, 0);
+  c.lineTo(w / 2 - 0.8, 0);
+  c.closePath();
+  c.fill();
+}
+
+// A glazed terracotta pot on a lathe's uv: speckled clay all over; up its outer wall (between
+// `wall`'s two heights, 0 at the foot) the faint rings left by the wheel and a darker
+// water-stain band near the foot; its rim's face (`rim`) a touch lighter.
+export function drawTerracotta(c, w, h, { base = "#ff7a1a", wall = [0, 1], rim = null } = {}) {
+  let r = 7331;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  const y = (v) => h * (1 - v);
+  c.fillStyle = base;
+  c.fillRect(0, 0, w, h);
+  const [w0, w1] = wall;
+  const stain = c.createLinearGradient(0, y(w0), 0, y(w0 + (w1 - w0) * 0.35));
+  stain.addColorStop(0, "rgba(90,30,0,.28)");
+  stain.addColorStop(1, "rgba(90,30,0,0)");
+  c.fillStyle = stain;
+  c.fillRect(0, y(w1), w, y(w0) - y(w1));
+  // a soft glaze sheen down the upper wall
+  const sheen = c.createLinearGradient(0, y(w0), 0, y(w1));
+  sheen.addColorStop(0.55, "rgba(255,255,255,0)");
+  sheen.addColorStop(0.85, "rgba(255,230,200,.14)");
+  sheen.addColorStop(1, "rgba(255,255,255,0)");
+  c.fillStyle = sheen;
+  c.fillRect(0, y(w1), w, y(w0) - y(w1));
+  for (let k = 1; k < 9; k++) {
+    const ring = y(w0 + ((w1 - w0) * k) / 9 + (rand() - 0.5) * 0.004);
+    c.fillStyle = k % 2 ? "rgba(120,40,0,.07)" : "rgba(255,220,180,.06)";
+    c.fillRect(0, ring, w, 1.5);
+  }
+  if (rim) {
+    c.fillStyle = "rgba(255,235,210,.14)";
+    c.fillRect(0, y(rim[1]), w, y(rim[0]) - y(rim[1]));
+    c.fillStyle = "rgba(90,30,0,.25)";
+    c.fillRect(0, y(rim[0]) - 2, w, 2);
+  }
+  for (let i = 0; i < (w * h) / 180; i++) {
+    const dark = rand() < 0.6;
+    c.fillStyle = dark ? `rgba(110,40,0,${0.15 + rand() * 0.25})` : `rgba(255,236,210,${0.2 + rand() * 0.3})`;
+    c.fillRect(rand() * w, rand() * h, 1 + rand() * 1.4, 1 + rand() * 1.4);
   }
 }
 
@@ -2392,7 +2663,8 @@ export const BUBBLE_TAILS = {
   "side-left": { oval: [0.56, 0.5, 0.4, 0.42], angle: Math.PI, tip: [0.03, 0.5] },
   "side-right": { oval: [0.44, 0.5, 0.4, 0.42], angle: 0, tip: [0.97, 0.5] },
 };
-function drawMangaBubble(c, w, h, quote, size, tailSide) {
+// `by`: the attribution's size as a share of the quote's
+function drawMangaBubble(c, w, h, quote, size, tailSide, by = 0.75) {
   const shape = BUBBLE_TAILS[tailSide] || BUBBLE_TAILS.right;
   const cx = w * shape.oval[0];
   const cy = h * shape.oval[1];
@@ -2416,23 +2688,23 @@ function drawMangaBubble(c, w, h, quote, size, tailSide) {
   const lead = size * 1.2;
   c.font = `italic 700 ${size}px ${BODY}`;
   const lines = wrap(c, quote.text.toUpperCase(), rx * 1.45, 4);
-  const byH = size * 0.9;
+  const byH = size * by * 1.2;
   const top = cy - (lines.length * lead + byH) / 2 + lead / 2;
   c.fillStyle = "#000";
   c.textAlign = "center";
   c.textBaseline = "middle";
   lines.forEach((line, i) => c.fillText(line, cx, top + i * lead));
-  c.font = `600 ${Math.round(size * 0.75)}px 'Caveat', cursive`;
+  c.font = `600 ${Math.round(size * by)}px 'Caveat', cursive`;
   c.fillStyle = "rgba(0,0,0,.6)";
   c.fillText(`— ${quote.by}`, cx, top + lines.length * lead + byH * 0.2);
   c.textAlign = "left";
   c.textBaseline = "alphabetic";
 }
 
-export function drawQuoteBubble(c, w, h, quote, { size = 32, tail: tailSide = "right", style } = {}) {
+export function drawQuoteBubble(c, w, h, quote, { size = 32, tail: tailSide = "right", style, by } = {}) {
   c.clearRect(0, 0, w, h);
   if (!quote) return;
-  if (style === "manga") return drawMangaBubble(c, w, h, quote, size, tailSide);
+  if (style === "manga") return drawMangaBubble(c, w, h, quote, size, tailSide, by);
   const tail = 46;
   const box = { x: 14, y: 14, w: w - 40, h: h - tail - 40 };
   // hard shadow, then the bubble with its tail pointing down to the speaker: from the lower

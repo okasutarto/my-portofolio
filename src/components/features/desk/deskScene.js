@@ -83,6 +83,12 @@ import {
   drawGuitarTop,
   drawStraw,
   drawCarbonWeave,
+  drawLeatherGrain,
+  drawBrushedMetal,
+  drawSatinFinish,
+  drawConeRibs,
+  drawPlantLeaf,
+  drawTerracotta,
   drawChairCrest,
   drawWoodFloor,
   drawRug,
@@ -1029,7 +1035,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // the outline's own units; the sides and back are plain
   const guitarTop = canvasTexture(512, 740);
   track(guitarTop.texture);
-  drawGuitarTop(guitarTop.ctx, 512, 740);
+  drawGuitarTop(guitarTop.ctx, 512, 740, { halfWidth });
   guitarTop.texture.repeat.set(0.5, 1 / 2.87);
   guitarTop.texture.offset.set(0.5, 0.95 / 2.87);
   const guitarTopMat = toon("#ffffff");
@@ -1132,7 +1138,44 @@ export function createDeskScene({ container, projects, experiences, dark = false
     str.position.set(-0.085 + k * 0.034, 1.925, 0.23);
     return str;
   }));
-  guitarParts.add(guitarBody, soundHole, bridge, guitarNeck, fretboard, ...frets, ...inlays, headstock, nut, trussCover, headStar, ...pegs, ...posts, ...strings);
+  // On the bridge, a bone saddle the strings break over and a cream pin for each string behind
+  // it; a strap button at the foot of the body; and a yellow pick tucked under the strings
+  // up by the nut, ready to hand
+  const saddle = mesh(rbox(0.3, 0.025, 0.03, 0.008), toon("#fffdf5"), { outline: 0.008, cast: false });
+  saddle.position.set(0, -0.11, 0.245);
+  const bridgePins = Array.from({ length: 6 }, (_, k) => flat(new THREE.CircleGeometry(0.014, 12), "#f1e6cf", -0.085 + k * 0.034, -0.19, 0.237));
+  const strapButton = mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.07, 14), toon("#f1e6cf"), { outline: 0.01, cast: false });
+  strapButton.position.set(0, -1.0, 0);
+  const pickShape = new THREE.Shape();
+  pickShape.moveTo(0, -0.07);
+  pickShape.quadraticCurveTo(0.075, 0.02, 0.06, 0.055);
+  pickShape.quadraticCurveTo(0, 0.08, -0.06, 0.055);
+  pickShape.quadraticCurveTo(-0.075, 0.02, 0, -0.07);
+  const guitarPick = mesh(new THREE.ShapeGeometry(pickShape, 8), toon("#ffdd00"), { outline: 0.01, cast: false });
+  guitarPick.position.set(0.03, 3.62, 0.215);
+  guitarPick.rotation.z = -0.35;
+  // A woven strap, tied on behind the nut and run down to the strap button, hanging slack in a
+  // loop beside the body: red with yellow and teal bands woven down its length
+  const guitarStrapTex = canvasTexture(64, 16);
+  track(guitarStrapTex.texture);
+  [["#d62828", 0, 64], ["#ffdd00", 6, 4], ["#00a99d", 14, 6], ["#ffdd00", 24, 4], ["#fffdf5", 40, 3], ["#00a99d", 50, 6]].forEach(([color, x, w]) => {
+    guitarStrapTex.ctx.fillStyle = color;
+    guitarStrapTex.ctx.fillRect(x, 0, w, 16);
+  });
+  guitarStrapTex.ctx.fillStyle = "rgba(0,0,0,.18)";
+  for (let y = 0; y < 16; y += 4) guitarStrapTex.ctx.fillRect(0, y, 64, 1);
+  guitarStrapTex.texture.wrapS = THREE.RepeatWrapping;
+  const guitarStrapPath = new THREE.CatmullRomCurve3([
+    [-0.1, 3.94, -0.06], [-0.32, 3.4, -0.1], [-0.62, 2.4, -0.12], [-1.05, 1.0, -0.12],
+    [-1.12, -0.2, -0.12], [-0.85, -0.95, -0.1], [-0.35, -1.12, -0.06], [0, -1.02, 0],
+  ].map(([x, y, z]) => new THREE.Vector3(x, y, z)));
+  guitarStrapTex.texture.repeat.set(Math.round(guitarStrapPath.getLength() / 0.9), 1);
+  const guitarStrapMat = toon("#ffffff");
+  guitarStrapMat.map = guitarStrapTex.texture;
+  const guitarStrap = mesh(new THREE.TubeGeometry(guitarStrapPath, 80, 0.06, 6), guitarStrapMat, { outline: 0.015, cast: false });
+  // flattened into a band lying against the wall
+  guitarStrap.scale.z = 0.35;
+  guitarParts.add(guitarBody, soundHole, bridge, saddle, guitarStrap, ...bridgePins, strapButton, guitarNeck, fretboard, ...frets, ...inlays, headstock, nut, trussCover, headStar, ...pegs, ...posts, ...strings, guitarPick);
   // The hook: a plate on the wall and two arms the headstock rests on
   const hookMat = toon("#1a1714");
   const hookPlate = mesh(rbox(0.34, 0.5, 0.06, 0.02), hookMat, { outline: 0.02 });
@@ -1354,7 +1397,23 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // leatherette: a tall reclined back with the headrest built in, a raised centre panel
   // between carbon-weave wings, fine dark red stitching along every seam, gold badges, a thick
   // padded seat, recline hubs, 4D armrests and a flat-legged base.
-  const leather = toon("#2a2725");
+  // The leatherette: a pebbled grain tile, tinted dark, that also bumps the toon shading so
+  // the grain catches the light; the centre panel's is perforated. The pads' uv run in world
+  // units (a tile to a unit), the boxes' 0 to 1 a face, so theirs repeat more.
+  const leatherTile = (perforated, repeat) => {
+    const tex = canvasTexture(256, 256);
+    track(tex.texture);
+    drawLeatherGrain(tex.ctx, 256, 256, { perforated });
+    tex.texture.wrapS = tex.texture.wrapT = THREE.RepeatWrapping;
+    tex.texture.repeat.set(repeat, repeat);
+    const mat = toon("#35312e");
+    mat.map = mat.bumpMap = tex.texture;
+    mat.bumpScale = 2.2;
+    return mat;
+  };
+  const leather = leatherTile(false, 1);
+  const leatherPanel = leatherTile(true, 1.6);
+  const leatherBox = leatherTile(false, 3.5);
   const CHAIR_STITCH = "#7a1a24";
   // Stitching is a fine dashed thread: a dash, a gap, along every seam
   const dashTex = canvasTexture(16, 4);
@@ -1386,7 +1445,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   };
 
   // A deep cushion under it, so the seat reads thick, and the tilt mechanism under that
-  const seatBase = mesh(rbox(4.5, 0.5, 4.0, 0.2), leather, { outline: 0.04 });
+  const seatBase = mesh(rbox(4.5, 0.5, 4.0, 0.2), leatherBox, { outline: 0.04 });
   seatBase.position.y = -2.55;
   const mechanism = mesh(rbox(1.9, 0.34, 2.2, 0.08), chairFrameMat, { outline: 0.03 });
   mechanism.position.set(0, -2.95, 0.2);
@@ -1537,7 +1596,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const CENTRE_H = BACK_H - 0.35;
   const centrePad = pillow((y) => Math.min(y < 3.9 ? BOLSTER_IN - 0.02 : bolsterInner(y) - 0.02, backWidth(y) - 0.22), CENTRE_H, 0.24, { cols: 28, rows: 110 });
   const CENTRE_Z = -BACK_DEPTH / 2 + 0.04;
-  chairBack.add(mesh(bent(centrePad.geo, BACK_Y + 0.12, CENTRE_Z), leather, { outline: 0.03 }), stitched(centrePad, 0.1, -1, BACK_Y + 0.12, CENTRE_Z));
+  chairBack.add(mesh(bent(centrePad.geo, BACK_Y + 0.12, CENTRE_Z), leatherPanel, { outline: 0.03 }), stitched(centrePad, 0.1, -1, BACK_Y + 0.12, CENTRE_Z));
 
   // The seat: one thick padded cushion as wide as the back, a touch wider at the front, its
   // top stitched round in red. Built standing up like the back's
@@ -1552,14 +1611,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
   chairSeat.rotation.x = -Math.PI / 2;
   chairSeat.position.y = -1.77 - SEAT_DEPTH / 2;
   chairSeat.add(mesh(seatPad.geo, leather, { outline: 0.06 }), stitched(seatPad, 0.2, 1, -SEAT_L / 2, 0, () => 0));
-  // Gold: a small badge high on the headrest, front and back, and a larger one on the chest
-  // just under the shoulders
+  // Gold: a small badge high on the headrest, front and back
   const crestTex = canvasTexture(128, 128);
   track(crestTex.texture);
   drawChairCrest(crestTex.ctx, 128, 128);
   const crestMat = printMaterial(crestTex.texture, { transparent: true });
   const CREST_FRONT = CENTRE_Z - 0.12 - 0.04;
-  [[0.55, BACK_H / 2 - 0.85, CREST_FRONT, Math.PI], [0.75, 0.75, CREST_FRONT, Math.PI], [0.6, BACK_H / 2 - 0.95, BACK_DEPTH / 2 + 0.03, 0]].forEach(([size, y, z, turn]) => {
+  [[0.55, BACK_H / 2 - 0.85, CREST_FRONT, Math.PI], [0.6, BACK_H / 2 - 0.95, BACK_DEPTH / 2 + 0.03, 0]].forEach(([size, y, z, turn]) => {
     const crest = new THREE.Mesh(track(new THREE.PlaneGeometry(size, size)), crestMat);
     crest.position.set(0, y, z);
     crest.rotation.y = turn;
@@ -1612,7 +1670,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     bracket.position.set(x * 0.72, -3.05, 0.6);
     const stem = mesh(rbox(0.3, 2.65, 0.46, 0.1), chairFrameMat, { outline: 0.03 });
     stem.position.set(x, -1.78, 0.6);
-    const pad = mesh(rbox(0.55, 0.24, 2.7, 0.1), leather, { outline: 0.03 });
+    const pad = mesh(rbox(0.55, 0.24, 2.7, 0.1), leatherBox, { outline: 0.03 });
     pad.position.set(x, -0.4, 0.4);
     chairTop.add(bracket, stem, pad);
   }
@@ -1633,17 +1691,54 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // Click it for a spin: the gas lift sinks with a hiss and springs back, the seat whirls round
   // on its post and the whole chair rolls back a little on its casters and back again
   let chairBusy = false;
+  // Dragged sideways, the seat turns on its post with the hand, and let go it carries on
+  // spinning with the hand's speed, slowing to a stop. It keeps whatever way it ends up facing.
+  const CHAIR_TURN_PER_PX = 0.012;
+  function grabChair(drag) {
+    gsap.killTweensOf(chairTop.rotation);
+    Object.assign(drag, { turned: 0, speed: 0, lastX: drag.startX, lastTime: performance.now(), lastSound: 0 });
+  }
+  function turnChair(drag, x, time) {
+    const turn = (x - drag.lastX) * CHAIR_TURN_PER_PX;
+    const dt = Math.max(1, time - drag.lastTime);
+    // radians a millisecond, smoothed so one jittery event doesn't fling it
+    drag.speed = drag.speed * 0.6 + (turn / dt) * 0.4;
+    drag.lastX = x;
+    drag.lastTime = time;
+    drag.turned += turn;
+    chairTop.rotation.y += turn;
+    if (Math.abs(turn) > 0.02 && time - drag.lastSound > 260) {
+      sfx.creak();
+      drag.lastSound = time;
+    }
+  }
+  function releaseChair(drag) {
+    // a hand that stopped before letting go leaves it still
+    const speed = performance.now() - drag.lastTime > 90 ? 0 : THREE.MathUtils.clamp(drag.speed, -0.03, 0.03);
+    const coast = speed * 500;
+    if (Math.abs(drag.turned + coast) > Math.PI) discover("chair");
+    if (Math.abs(coast) < 0.02) return;
+    gsap.to(chairTop.rotation, { y: chairTop.rotation.y + coast, duration: 0.6 + Math.abs(speed) * 60, ease: "power3.out" });
+    if (Math.abs(coast) > 1.5) sfx.patter({ duration: 0.4 });
+  }
   register(chair, {
-    onHover: (on) => on && gsap.fromTo(chairTop.rotation, { y: 0.08 }, { y: 0, duration: 0.9, ease: "elastic.out(1, 0.3)" }),
+    grabTurn: true,
+    onHover: (on) => {
+      if (!on || chairBusy || gsap.isTweening(chairTop.rotation)) return;
+      const y = chairTop.rotation.y;
+      gsap.fromTo(chairTop.rotation, { y: y + 0.08 }, { y, duration: 0.9, ease: "elastic.out(1, 0.3)" });
+    },
     onClick: () => {
       if (chairBusy) return;
       chairBusy = true;
       discover("chair");
       const z = chair.position.z;
+      gsap.killTweensOf(chairTop.rotation);
+      const y = chairTop.rotation.y;
       gsap.timeline({ onComplete: () => (chairBusy = false) })
         .to(chairTop.position, { y: -0.35, duration: 0.18, ease: "power2.in" })
         .to(chairTop.position, { y: 0, duration: 0.7, ease: "elastic.out(1.1, 0.35)" })
-        .fromTo(chairTop.rotation, { y: 0 }, { y: Math.PI * 2, duration: 1.5, ease: "power3.out" }, 0.12)
+        .fromTo(chairTop.rotation, { y }, { y: y + Math.PI * 2, duration: 1.5, ease: "power3.out" }, 0.12)
         .to(chair.position, { z: z + 0.5, duration: 0.5, ease: "power2.out" }, 0.1)
         .to(chair.position, { z, duration: 0.9, ease: "power2.inOut" }, 0.7);
       sfx.hiss();
@@ -1934,40 +2029,99 @@ export function createDeskScene({ container, projects, experiences, dark = false
     [0.5, 1.0],
     [0, 1.0],
   ].map(([x, y]) => new THREE.Vector2(x, y));
-  const pot = mesh(new THREE.LatheGeometry(potProfile, 28), toon("#ff7a1a"), { outline: 0.045 });
+  // The pot: speckled glazed terracotta, wheel rings up its wall, standing in a shallow saucer.
+  // The lathe's uv runs one step of the profile to each seventh: its wall is the second, the
+  // rim's outer face the fourth.
+  const potTex = canvasTexture(256, 256);
+  track(potTex.texture);
+  drawTerracotta(potTex.ctx, 256, 256, { wall: [1 / 7, 2 / 7], rim: [3 / 7, 4 / 7] });
+  potTex.texture.wrapS = THREE.RepeatWrapping;
+  potTex.texture.repeat.set(3, 1);
+  const potMat = toon("#ffffff");
+  potMat.map = potTex.texture;
+  const pot = mesh(new THREE.LatheGeometry(potProfile, 36), potMat, { outline: 0.045 });
+  pot.position.y = 0.03;
+  const saucerProfile = [[0, 0], [0.62, 0], [0.7, 0.12], [0.64, 0.12], [0.57, 0.035], [0, 0.035]].map(([x, y]) => new THREE.Vector2(x, y));
+  const saucer = mesh(new THREE.LatheGeometry(saucerProfile, 36), toon("#e0631a"), { outline: 0.03 });
   const soil = mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.04, 24), toon("#3b2a1a"), { outline: 0, cast: false });
-  soil.position.y = 1.02;
+  soil.position.y = 1.05;
   const foliage = new THREE.Group();
-  foliage.position.y = 1.02;
-  plant.add(pot, soil, foliage);
+  foliage.position.y = 1.05;
+  // a touch smaller than the pot would grow it, so the leaves clear the wall behind
+  foliage.scale.setScalar(0.85);
+  plant.add(saucer, pot, soil, foliage);
   const stemMat = toon("#166534");
-  const leafMats = [toon("#16a34a"), toon("#8fd694")];
-  const veinMat = toon("#166534");
-  // Teardrop leaves, each on its own stem: the stem runs from the soil to the leaf's base, and the
-  // leaf leans out from there toward its heading. [heading°, base height, lean, length, width]
-  const leafShape = (length, width) => {
-    const shape = new THREE.Shape();
-    shape.moveTo(0, 0);
-    shape.bezierCurveTo(width * 0.62, length * 0.12, width * 0.58, length * 0.68, 0, length);
-    shape.bezierCurveTo(-width * 0.58, length * 0.68, -width * 0.62, length * 0.12, 0, 0);
-    const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.03, bevelEnabled: false, curveSegments: 12 });
-    geo.translate(0, 0, -0.015);
+  // Each leaf colouring is its own painted texture: [base, tip, vein]; the last is the young
+  // leaves' fresh lime
+  const leafMats = [
+    ["#166534", "#22c55e", "#a7f3c0"], ["#15803d", "#4ade80", "#bbf7d0"], ["#2f7d43", "#8fd694", "#dcfce7"], ["#4d9c2f", "#a3e66b", "#ecfccb"],
+  ].map(([base, tip, vein]) => {
+    const tex = canvasTexture(256, 256);
+    track(tex.texture);
+    drawPlantLeaf(tex.ctx, 256, 256, { base, tip, vein });
+    const material = toon("#ffffff");
+    material.map = tex.texture;
+    return material;
+  });
+  // A leaf blade as a thin solid: a teardrop outline, folded up a little either side of its
+  // midrib, arching back so its tip droops. Built along +y with its
+  // upper face toward -z; uv runs edge to edge across it and base to tip along it.
+  const leafGeo = (length, width, { fold = 0.3, arch = 0.22 } = {}) => {
+    const ROWS = 22;
+    const COLS = 10;
+    const THICK = 0.012;
+    const halfWidth = (t) => (width / 2) * Math.sin(Math.PI * t ** 0.72);
+    const position = [];
+    const uv = [];
+    const index = [];
+    for (const side of [-1, 1]) {
+      for (let j = 0; j <= ROWS; j++) {
+        const t = j / ROWS;
+        for (let i = 0; i <= COLS; i++) {
+          const u = (i / COLS) * 2 - 1;
+          const x = u * halfWidth(t);
+          const z = -fold * Math.abs(x) + arch * length * t * t;
+          position.push(x, t * length, z + side * THICK);
+          uv.push((u + 1) / 2, t);
+        }
+      }
+    }
+    const at = (side, i, j) => (side < 0 ? 0 : (ROWS + 1) * (COLS + 1)) + j * (COLS + 1) + i;
+    for (let j = 0; j < ROWS; j++) {
+      for (let i = 0; i < COLS; i++) {
+        // the upper face looks toward -z, the lower toward +z
+        index.push(at(-1, i, j), at(-1, i, j + 1), at(-1, i + 1, j), at(-1, i + 1, j), at(-1, i, j + 1), at(-1, i + 1, j + 1));
+        index.push(at(1, i, j), at(1, i + 1, j), at(1, i, j + 1), at(1, i + 1, j), at(1, i + 1, j + 1), at(1, i, j + 1));
+      }
+      // its thin edges either side
+      index.push(at(-1, 0, j), at(1, 0, j), at(-1, 0, j + 1), at(1, 0, j), at(1, 0, j + 1), at(-1, 0, j + 1));
+      index.push(at(-1, COLS, j), at(-1, COLS, j + 1), at(1, COLS, j), at(1, COLS, j), at(-1, COLS, j + 1), at(1, COLS, j + 1));
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(position, 3));
+    geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+    geo.setIndex(index);
+    geo.computeVertexNormals();
     return geo;
   };
+  // Teardrop leaves, each on its own stem: the stem runs from the soil to the leaf's base, and the
+  // leaf leans out from there toward its heading, rolled a little about its own length. The big
+  // ones, then a few small young ones in the middle, more upright.
+  // [heading°, base height, lean, length, width, colouring]
   [
-    [20, 0.3, 0.85, 1.5, 0.62], [100, 0.4, 0.8, 1.6, 0.6], [170, 0.5, 0.7, 1.5, 0.58], [250, 0.35, 0.85, 1.6, 0.62],
-    [320, 0.55, 0.65, 1.4, 0.56], [60, 0.7, 0.45, 1.35, 0.52], [210, 0.8, 0.4, 1.35, 0.52],
-  ].forEach(([heading, height, lean, length, width], i) => {
+    [20, 0.3, 0.85, 1.5, 0.62, 0], [100, 0.4, 0.8, 1.6, 0.6, 1], [170, 0.5, 0.7, 1.5, 0.58, 2], [250, 0.35, 0.85, 1.6, 0.62, 0],
+    [320, 0.55, 0.65, 1.4, 0.56, 1], [60, 0.7, 0.45, 1.35, 0.52, 2], [210, 0.8, 0.4, 1.35, 0.52, 1],
+    [140, 0.9, 0.3, 0.7, 0.3, 3], [290, 0.95, 0.32, 0.65, 0.28, 3], [30, 1.05, 0.22, 0.55, 0.25, 3],
+  ].forEach(([heading, height, lean, length, width, colouring], i) => {
     const angle = THREE.MathUtils.degToRad(heading);
+    const young = length < 1;
     const base = new THREE.Vector3(Math.sin(angle) * 0.16, height, Math.cos(angle) * 0.16);
-    foliage.add(rod(new THREE.Vector3(0, 0, 0), base, 0.035, stemMat, 0.015));
+    foliage.add(rod(new THREE.Vector3(0, 0, 0), base, young ? 0.024 : 0.035, stemMat, 0.015));
     const leaf = new THREE.Group();
     leaf.position.copy(base);
-    leaf.rotation.set(lean, angle, 0, "YXZ");
-    const blade = mesh(leafShape(length, width), leafMats[i % 2], { outline: 0.025 });
-    const vein = mesh(new THREE.BoxGeometry(0.025, length * 0.78, 0.04), veinMat, { outline: 0, cast: false });
-    vein.position.y = length * 0.42;
-    leaf.add(blade, vein);
+    leaf.rotation.set(lean, angle, (((i * 37) % 7) - 3) * 0.07, "YXZ");
+    const shape = young ? { fold: 0.45, arch: 0.08 } : { fold: 0.25 + (i % 3) * 0.05, arch: 0.18 + (i % 4) * 0.03 };
+    leaf.add(mesh(leafGeo(length, width, shape), leafMats[colouring], { outline: young ? 0.018 : 0.025 }));
     foliage.add(leaf);
   });
   // Each click wiggles it and opens one of three flowers: they stand on their own stems above the
@@ -5610,13 +5764,44 @@ export function createDeskScene({ container, projects, experiences, dark = false
   scene.add(monitor);
   // Nearly bezelless, in black: a thin slab that stops just short of the screen's edges, a
   // slim chin below it, on a flat foot with a slanted plate for a stand (a few near-blacks, so
-  // it keeps its shape)
-  const aluminium = toon("#2b2d31");
-  const base = mesh(rbox(1.75, 0.07, 1.3, 0.03), aluminium, { outline: 0.03 });
-  base.position.set(0, 0.035, -0.15);
+  // it keeps its shape). The stand is brushed dark aluminium.
+  const brushed = canvasTexture(128, 128);
+  track(brushed.texture);
+  drawBrushedMetal(brushed.ctx, 128, 128);
+  const aluminium = toon("#34363b");
+  aluminium.map = brushed.texture;
+  // The foot stands on two rubber strips, a thick plate in a lighter grey than the stand, so
+  // it reads as sitting on the riser: thin and dark, in the riser's shade, it looked sunk in
+  const FOOT_LIFT = 0.04;
+  const FOOT_H = 0.12;
+  const footMat = toon("#55595f");
+  footMat.map = brushed.texture;
+  const base = mesh(rbox(1.75, FOOT_H, 1.3, 0.04), footMat, { outline: 0.03 });
+  base.position.set(0, FOOT_LIFT + FOOT_H / 2, -0.15);
   const neck = mesh(rbox(1.3, 1.75, 0.09, 0.03), aluminium, { outline: 0.03 });
   neck.position.set(0, 0.9, -0.42);
   neck.rotation.x = 0.16;
+  // A hinge barrel where the neck meets the foot, with a dark seam either end, and a mount
+  // block joining its top to the screen's back
+  const hingeMat = toon("#1c1d21");
+  const hinge = mesh(new THREE.CylinderGeometry(0.075, 0.075, 1.22, 24), aluminium, { outline: 0.015 });
+  hinge.rotation.z = Math.PI / 2;
+  hinge.position.set(0, FOOT_LIFT + FOOT_H + 0.05, -0.55);
+  [-0.42, 0.42].forEach((x) => {
+    const seam = mesh(new THREE.CylinderGeometry(0.078, 0.078, 0.02, 24), hingeMat, { outline: 0, cast: false });
+    seam.rotation.z = Math.PI / 2;
+    seam.position.set(x, FOOT_LIFT + FOOT_H + 0.05, -0.55);
+    seam.raycast = noRaycast;
+    monitor.add(seam);
+  });
+  const mount = mesh(rbox(0.95, 0.62, 0.2, 0.04), hingeMat, { outline: 0.02 });
+  mount.position.set(0, 1.72, -0.17);
+  const footStrips = [0.4, -0.7].map((z) => {
+    const strip = mesh(rbox(1.55, FOOT_LIFT, 0.09, 0.008), hingeMat, { outline: 0.008, cast: false });
+    strip.position.set(0, FOOT_LIFT / 2, z);
+    return strip;
+  });
+  monitor.add(hinge, mount, ...footStrips);
   // The screen runs from x -2.0 to 2.0 and y 1.43 to 3.83; the body is only 0.11 wider each
   // side and 0.09 taller, with the chin below from 1.0
   const body = mesh(rbox(4.22, 2.92, 0.14, 0.08), toon("#1f2125"), { outline: 0.06 });
@@ -5764,17 +5949,33 @@ export function createDeskScene({ container, projects, experiences, dark = false
     gsap.fromTo(speaker.dustCap.position, { z: speaker.dustCap.userData.restZ + 0.018 * strength }, { z: speaker.dustCap.userData.restZ, duration: 0.18, ease: "power2.out", overwrite: true });
     gsap.fromTo(speaker.group.scale, { x: 1.02, y: 0.98, z: 1.02 }, { x: 1, y: 1, z: 1, duration: 0.22, ease: "power2.out", overwrite: true });
   }
+  // Satin-painted cabinets and baffles and ribbed paper cones, shared by both
+  const satin = canvasTexture(128, 128);
+  track(satin.texture);
+  drawSatinFinish(satin.ctx, 128, 128);
+  const cabinetMat = toon("#2b313a");
+  cabinetMat.map = satin.texture;
+  const baffleMat = toon("#181d24");
+  baffleMat.map = satin.texture;
+  const ribs = canvasTexture(256, 64);
+  track(ribs.texture);
+  drawConeRibs(ribs.ctx, 256, 64);
+  const coneMat = toon("#88a8e2");
+  coneMat.map = ribs.texture;
   [-3.05, 2.55].forEach((x) => {
     const speaker = new THREE.Group();
-    speaker.position.set(x, RISER_TOP, -3.55);
+    // on a foam isolation pad
+    speaker.position.set(x, RISER_TOP + 0.1, -3.55);
     scene.add(speaker);
-    const cabinet = mesh(rbox(0.95, 1.75, 0.85, 0.065), toon("#252a31"), { outline: 0.028 });
+    const pad = mesh(rbox(0.99, 0.1, 0.89, 0.035), toon("#3b4048"), { outline: 0.015 });
+    pad.position.y = -0.05;
+    const cabinet = mesh(rbox(0.95, 1.75, 0.85, 0.065), cabinetMat, { outline: 0.028 });
     cabinet.position.y = 0.875;
-    const baffle = mesh(rbox(0.83, 1.58, 0.035, 0.045), toon("#14181e"), { outline: 0.009 });
+    const baffle = mesh(rbox(0.83, 1.58, 0.035, 0.045), baffleMat, { outline: 0.009 });
     baffle.position.set(0, 0.9, 0.431);
     // A recessed cone meets its rubber surround; the centre cap sits inside the cone.
     const coneProfile = [[0.278, 0.018], [0.26, 0.012], [0.13, -0.035], [0.09, -0.035]].map(([r, depth]) => new THREE.Vector2(r, depth));
-    const woofer = mesh(new THREE.LatheGeometry(coneProfile, 48), toon("#7f9fd8"), { outline: 0 });
+    const woofer = mesh(new THREE.LatheGeometry(coneProfile, 48), coneMat, { outline: 0 });
     woofer.rotation.x = Math.PI / 2;
     woofer.position.set(0, 0.62, 0.49);
     const basket = mesh(new THREE.TorusGeometry(0.322, 0.014, 10, 48), toon("#454e5d"), { outline: 0 });
@@ -5819,7 +6020,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     knob.position.set(0.26, 0.18, 0.465);
     const knobMark = mesh(new THREE.BoxGeometry(0.006, 0.02, 0.004), toon("#f1f1ed"), { outline: 0 });
     knobMark.position.set(0.26, 0.194, 0.485);
-    speaker.add(cabinet, baffle, basket, surround, woofer, dustCap, waveguide, tweeter, tweeterRim, ledHousing, led, port, portRim, knob, knobMark);
+    // a small silver nameplate between the port and the knob
+    const nameplate = mesh(rbox(0.17, 0.035, 0.01, 0.004), toon("#8a9099"), { outline: 0, cast: false });
+    nameplate.position.set(0, 0.18, 0.453);
+    speaker.add(pad, nameplate, cabinet, baffle, basket, surround, woofer, dustCap, waveguide, tweeter, tweeterRim, ledHousing, led, port, portRim, knob, knobMark);
     const entry = { group: speaker, woofer, dustCap, tweeter };
     speakers.push(entry);
     register(speaker, {
@@ -7208,6 +7412,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   cat.add(tailCurl, tailUp);
   const HEAD_CURLED = new THREE.Vector3(1.0, 0.55, 0.42);
   const HEAD_UP = new THREE.Vector3(1.25, 1.55, 0);
+  // Awake but still lying down (a loaf): head up and out in front of her body over her white
+  // chest, rather than lifted straight up onto her back
+  const HEAD_LOAF = new THREE.Vector3(1.2, 0.95, 0.3);
   catHead.position.copy(HEAD_CURLED);
   catHead.rotation.set(0.15, 0.35, 0.1);
 
@@ -7381,14 +7588,16 @@ export function createDeskScene({ container, projects, experiences, dark = false
     sfx.meow({ short: true, delay: 0.2 });
     catWatchAt = (out) => mouse.getWorldPosition(out);
     catWatchUntil = performance.now() + 4300;
-    // Up off her paws into an alert loaf: head raised and level, chest lifted a little
-    gsap.to(catHead.position, { y: HEAD_CURLED.y + 0.38, z: HEAD_CURLED.z - 0.08, duration: 0.35, ease: "power2.out", overwrite: true });
+    // Up off her paws into an alert loaf: head raised, level and forward over her chest, chest
+    // lifted a little
+    catChest.visible = true;
+    gsap.to(catHead.position, { ...HEAD_LOAF, duration: 0.35, ease: "power2.out", overwrite: true });
     gsap.to(catHead.rotation, { x: 0, z: 0, duration: 0.35, ease: "power2.out", overwrite: true });
     gsap.to(catBody.position, { y: 0.08, duration: 0.35, ease: "power2.out", overwrite: true });
     gsap.fromTo(tailCurl.rotation, { y: -0.12 }, { y: 0.12, duration: 0.3, yoyo: true, repeat: 13, ease: "sine.inOut", onComplete: () => (tailCurl.rotation.y = 0) });
     timers.push(catFidget = setTimeout(() => {
-      // ...and settles back down onto her paws
-      gsap.to(catHead.position, { ...HEAD_CURLED, duration: 0.7, ease: "power2.inOut" });
+      // ...and settles back down onto her paws, chin over her chest again
+      gsap.to(catHead.position, { ...HEAD_CURLED, duration: 0.7, ease: "power2.inOut", onComplete: () => (catChest.visible = false) });
       gsap.to(catHead.rotation, { x: 0.15, y: 0.35, z: 0.1, duration: 0.7, ease: "power2.inOut" });
       gsap.to(catBody.position, { y: 0, duration: 0.7, ease: "power2.inOut" });
       catEyes(false);
@@ -7471,11 +7680,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
       .to(tail.rotation, { y: 0.12, duration: 0.45, yoyo: true, repeat: Math.round(seconds / 0.45) - 1, ease: "sine.inOut" })
       .set(tail.rotation, { y: 0 });
   }
-  // A yawn: eyes screwed shut, head tipped back, mouth wide, then a little shake of the head
+  // A yawn: eyes screwed shut, head up over her chest and tipped back, mouth wide, then a
+  // little shake of the head (the stretch that follows stands her up from there)
   function catYawn(tl) {
-    tl.call(() => catEyes(false))
+    tl.call(() => {
+      catEyes(false);
+      catChest.visible = true;
+    })
       .to(catHead.rotation, { x: -0.5, duration: 0.45, ease: "sine.out" })
-      .to(catHead.position, { y: HEAD_CURLED.y + 0.25, duration: 0.45, ease: "sine.out" }, "<")
+      .to(catHead.position, { x: HEAD_LOAF.x, y: HEAD_LOAF.y - 0.05, z: HEAD_LOAF.z, duration: 0.45, ease: "sine.out" }, "<")
       .to(catMouth.scale, { x: 1.3, y: 1.7, z: 0.7, duration: 0.35, ease: "back.out(2)" }, "<0.1")
       .to(catTongue.scale, { x: 1, y: 0.7, z: 0.8, duration: 0.35, ease: "back.out(2)" }, "<")
       .to([catMouth.scale, catTongue.scale], { x: 0.001, y: 0.001, z: 0.001, duration: 0.2, ease: "power2.in" }, "+=0.7")
@@ -7817,12 +8030,38 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const CAT_LINES = ["mrrp?", "meow~", "purrr…", "zzz…", "feed me 🐟", "5 more minutes"];
   let catLine = 0;
   let catClicks = 0;
-  const catBubble = speechBubble(3.0, 1.6, { size: 46, tail: "left", style: "manga" });
+  // Her bubble keeps the same size on screen however far out the camera is (from the whole
+  // room on a phone to a close-up), so what she says, and her name nearly as large under it,
+  // stay readable. Built at 1 world unit per CAT_BUBBLE_PX; a holder scales it to fit.
+  const CAT_BUBBLE_W = 3.6;
+  const CAT_BUBBLE_H = 1.92;
+  const CAT_BUBBLE_PX = 300;
+  const catBubble = speechBubble(CAT_BUBBLE_W, CAT_BUBBLE_H, { size: 72, by: 0.9, tail: "left", style: "manga" });
+  const catBubbleHolder = new THREE.Group();
+  scene.add(catBubbleHolder);
+  catBubbleHolder.add(catBubble.sprite);
   const catBubbleAt = new THREE.Vector3();
-  // The bubble rides along above her (she may be trotting across the keyboard)
-  const placeCatBubble = () => {
-    cat.getWorldPosition(catBubbleAt);
-    catBubble.sprite.position.copy(catBubbleAt).add(new THREE.Vector3(1.7, 2.6, 0.4));
+  const catBubbleTip = new THREE.Vector3();
+  const catBubbleRight = new THREE.Vector3();
+  const catBubbleUp = new THREE.Vector3();
+  const [CAT_TIP_X, CAT_TIP_Y] = BUBBLE_TAILS.left.tip;
+  // The bubble rides along above her head (she may be sitting up, standing, or trotting across
+  // the keyboard), its tail pointing down at her with a clear gap above her ears. `blend`: 1
+  // jumps straight there; less eases it after her head, so a quick bob doesn't jiggle it.
+  const placeCatBubble = (blend = 1) => {
+    // world units per screen pixel, then the scale that makes it CAT_BUBBLE_PX wide (at most
+    // about half a narrow screen, so it doesn't run off the side of a phone)
+    const unitsPerPixel = viewH / camera.zoom / container.clientHeight;
+    const k = Math.min(CAT_BUBBLE_PX, container.clientWidth * 0.55) * unitsPerPixel / CAT_BUBBLE_W;
+    catBubbleHolder.scale.setScalar(k);
+    catHead.getWorldPosition(catBubbleAt);
+    catBubbleRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
+    catBubbleUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
+    catBubbleAt.addScaledVector(catBubbleUp, 1.0).addScaledVector(catBubbleRight, 0.15);
+    catBubbleTip.lerp(catBubbleAt, blend);
+    catBubbleHolder.position.copy(catBubbleTip)
+      .addScaledVector(catBubbleRight, (0.5 - CAT_TIP_X) * CAT_BUBBLE_W * k)
+      .addScaledVector(catBubbleUp, (CAT_TIP_Y - 0.5) * CAT_BUBBLE_H * k);
   };
   function catSay(text) {
     placeCatBubble();
@@ -7879,7 +8118,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
       if (++catClicks % 3 === 0) return catKeyboardRun();
       catBusy = true;
       catEyes(true);
-      gsap.fromTo(catHead.position, { y: catHead.position.y }, { y: catHead.position.y + 0.25, duration: 0.25, yoyo: true, repeat: 1, ease: "power2.out" });
+      // her head pops up over her chest and drops back
+      catChest.visible = true;
+      gsap.fromTo(catHead.position, { ...catHead.position }, { ...HEAD_LOAF, duration: 0.25, yoyo: true, repeat: 1, ease: "power2.out", onComplete: () => (catChest.visible = false) });
       gsap.fromTo(tailCurl.rotation, { y: 0 }, { y: 0.15, duration: 0.2, yoyo: true, repeat: 5, ease: "sine.inOut" });
       sfx.meow();
       catSay(CAT_LINES[catLine++ % CAT_LINES.length]);
@@ -8671,71 +8912,70 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const handle = mesh(new THREE.TorusGeometry(0.28, 0.08, 10, 20, Math.PI), mugMat, { outline: 0.04 });
   handle.rotation.z = -Math.PI / 2;
   handle.position.set(0.46, 0.58, 0);
-  // Steam: three cartoon squiggles rising off the coffee, redrawn as they go. Each one is a
-  // wavy white stroke with a soft grey edge that curls up out of the cup, sways as it climbs
-  // and thins away at the top, staggered so the next is always on its way.
-  const STEAM_W = 128;
+  // Steam: little cartoon puffs rising off the coffee, inked like everything else on the desk.
+  // Each puff is a lumpy cloud that buds small at the surface, swells as it climbs, leans off
+  // to the right (away from the phone behind the mug) and shrinks away near the top. All the
+  // ink goes down first and the fills over it, so puffs that touch merge into one outlined
+  // cloud, with a grey underside for a toon shade.
+  const STEAM_W = 256;
   const STEAM_H = 256;
+  const STEAM_SCALE = { x: 1.9, y: 1.9 };
+  const STEAM_SCALE_HOVER = { x: 2.15, y: 2.15 };
   const steamTex = canvasTexture(STEAM_W, STEAM_H);
   track(steamTex.texture);
   const steam = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: steamTex.texture, transparent: true, depthWrite: false })));
   steam.raycast = noRaycast;
   steam.center.set(0.5, 0);
-  steam.scale.set(0.8, 1.6, 1);
-  steam.position.set(0, 1.08, 0);
+  steam.scale.set(STEAM_SCALE.x, STEAM_SCALE.y, 1);
+  steam.position.set(0, 0.9, 0);
   mug.add(steam);
   const puffs = [steam];
-  const WISPS = [{ x: 0.3, phase: 0 }, { x: 0.52, phase: 0.36 }, { x: 0.72, phase: 0.7 }];
-  const STEAM_PERIOD = 2.6;
+  const STEAM_PERIOD = 5.5;
+  const STEAM_PUFFS = 4;
+  // where puffs bud (a share of the width), how far right they've drifted by the top, and how
+  // big they get (a share of the width)
+  const STEAM_FROM = 0.42;
+  const STEAM_LEAN = 0.52;
+  const STEAM_R = 0.1;
+  const STEAM_INK = 6;
+  // the lumps of one puff: offset and radius, as shares of its size
+  const PUFF_LOBES = [[0, 0, 1], [-0.62, 0.22, 0.68], [0.6, 0.28, 0.62], [0.08, -0.5, 0.6]];
   let steamDrawnAt = 0;
-  // Each wisp is drawn solid here, then laid onto the texture at its own opacity
-  const wispLayer = document.createElement("canvas");
-  wispLayer.width = STEAM_W;
-  wispLayer.height = STEAM_H;
-  const wc = wispLayer.getContext("2d");
-  wc.lineCap = "round";
-  wc.lineJoin = "round";
   function updateSteam(now) {
     if (!steam.visible || now - steamDrawnAt < 33) return;
     steamDrawnAt = now;
     const c = steamTex.ctx;
     c.clearRect(0, 0, STEAM_W, STEAM_H);
-    c.lineCap = "round";
-    c.lineJoin = "round";
     const t = now / 1000;
-    WISPS.forEach(({ x, phase }) => {
-      const p = (t / STEAM_PERIOD + phase) % 1;
-      // The stroke spans a window that climbs the canvas: born at the cup, gone at the top
-      const head = p * 1.3;
-      const tail = Math.max(0, head - 0.55);
-      if (tail >= 1) return;
-      const points = [];
-      for (let f = tail; f <= Math.min(1, head); f += 0.02) {
-        const sway = Math.sin(f * 9 - t * 3 + phase * 7) * (0.06 + f * 0.1);
-        points.push([(x + sway) * STEAM_W, (1 - f) * STEAM_H]);
-      }
-      if (points.length < 2) return;
-      // fades in near the cup and out toward the top
-      const alpha = Math.min(1, p / 0.15) * Math.min(1, (1 - tail) / 0.45);
-      // Segment by segment, so the stroke swells in the middle and tapers at both ends
-      const trace = (color, extra) => {
-        wc.strokeStyle = color;
-        for (let i = 1; i < points.length; i++) {
-          const k = i / (points.length - 1);
-          wc.lineWidth = 4 + Math.sin(k * Math.PI) * 11 + extra;
-          wc.beginPath();
-          wc.moveTo(points[i - 1][0], points[i - 1][1]);
-          wc.lineTo(points[i][0], points[i][1]);
-          wc.stroke();
-        }
-      };
-      wc.clearRect(0, 0, STEAM_W, STEAM_H);
-      trace("#b4bcc6", 5);
-      trace("#ffffff", 0);
-      c.globalAlpha = alpha * 0.92;
-      c.drawImage(wispLayer, 0, 0);
-    });
-    c.globalAlpha = 1;
+    const lumps = [];
+    for (let i = 0; i < STEAM_PUFFS; i++) {
+      const p = (t / STEAM_PERIOD + i / STEAM_PUFFS) % 1;
+      // buds, swells, then shrinks away as it nears the top
+      const size = STEAM_R * STEAM_W * Math.min(1, 0.35 + p / 0.25) * Math.min(1, (1 - p) / 0.4);
+      if (size < 1) continue;
+      // drifting off to the right more and more as it rises, a curl rather than a slant
+      const x = (STEAM_FROM + p * p * STEAM_LEAN + Math.sin(p * 5 + i * 2.1) * 0.03) * STEAM_W;
+      const y = STEAM_H - size - 4 - p * (STEAM_H - 2 * STEAM_R * STEAM_W);
+      // each puff turns a little as it rises, so its lumps don't sit still
+      const spin = i * 1.7 + p * 1.2;
+      PUFF_LOBES.forEach(([dx, dy, r]) => {
+        const cos = Math.cos(spin * 0.4);
+        const sin = Math.sin(spin * 0.4);
+        lumps.push([x + (dx * cos - dy * sin) * size, y + (dx * sin + dy * cos) * size, r * size]);
+      });
+    }
+    const fill = (color, grow, shift) => {
+      c.fillStyle = color;
+      lumps.forEach(([x, y, r]) => {
+        c.beginPath();
+        c.arc(x + shift * r, y + shift * r, Math.max(0, r + grow * (shift ? r : 1)), 0, Math.PI * 2);
+        c.fill();
+      });
+    };
+    fill("#1a1714", STEAM_INK, 0);
+    fill("#cfd6df", 0, 0);
+    // the lit part, nudged up and left, leaves the grey showing on the underside
+    fill("#ffffff", -0.18, -0.12);
     steamTex.texture.needsUpdate = true;
   }
 
@@ -8808,7 +9048,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     onHover: (on) => {
       if (sipping) return;
       gsap.to(mug.position, { y: on ? MUG_Y + 0.06 : MUG_Y, duration: 0.3, ease: "power2.out", overwrite: true });
-      gsap.to(steam.scale, { x: on ? 1 : 0.8, y: on ? 1.95 : 1.6, duration: 0.4, overwrite: true });
+      gsap.to(steam.scale, { ...(on ? STEAM_SCALE_HOVER : STEAM_SCALE), duration: 0.4, overwrite: true });
       if (on) gsap.fromTo(crema.rotation, { z: -0.12 }, { z: 0, duration: 0.7, ease: "elastic.out(1, 0.4)", overwrite: true });
     },
     onArrive: sip,
@@ -8974,13 +9214,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const viewPoint = new THREE.Vector3();
   // (nor the gauntlet while it's put away for the swords' close-up: hidden, it's still there
   // for the ray)
-  const inGauntlet = (object) => {
-    for (let o = object; o; o = o.parent) if (o === gauntlet) return true;
+  // (nor the chair, put away for the tickets' close-up)
+  const inside = (object, group) => {
+    for (let o = object; o; o = o.parent) if (o === group) return true;
     return false;
   };
   const visibleHits = () => raycaster.intersectObjects(pickables, true)
     .filter((h) => -viewPoint.copy(h.point).applyMatrix4(camera.matrixWorldInverse).z >= camera.near)
-    .filter((h) => gauntlet.visible || !inGauntlet(h.object));
+    .filter((h) => (gauntlet.visible || !inside(h.object, gauntlet)) && (chair.visible || !inside(h.object, chair)));
   const pick = (e) => {
     rayFromPointer(e);
     const hit = visibleHits()[0];
@@ -9006,7 +9247,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     hovered?.onHover?.(false);
     hovered = entry;
     hovered?.onHover?.(true);
-    renderer.domElement.style.cursor = entry?.sticky || (entry?.note && focus.name === "about") ? "grab" : entry ? "pointer" : "default";
+    renderer.domElement.style.cursor = entry?.sticky || entry?.grabTurn || (entry?.note && focus.name === "about") ? "grab" : entry ? "pointer" : "default";
   };
   let shelfDrag = null;
   function browseShelf(y, instant = false) {
@@ -9066,6 +9307,18 @@ export function createDeskScene({ container, projects, experiences, dark = false
       stickyDrag.sticky.position.x = THREE.MathUtils.clamp(point.x - stickyDrag.offsetX, -2.3, 2.3);
       stickyDrag.sticky.position.y = THREE.MathUtils.clamp(point.y - stickyDrag.offsetY, 1.3, 3.7);
       renderer.domElement.style.cursor = "grabbing";
+      e.preventDefault();
+      return;
+    }
+    if (chairDrag) {
+      if (e.pointerId !== chairDrag.pointerId) return;
+      if (!chairDrag.moved && Math.hypot(e.clientX - chairDrag.startX, e.clientY - chairDrag.startY) < 4) return;
+      if (!chairDrag.moved) {
+        chairDrag.moved = true;
+        grabChair(chairDrag);
+        renderer.domElement.style.cursor = "grabbing";
+      }
+      turnChair(chairDrag, e.clientX, performance.now());
       e.preventDefault();
       return;
     }
@@ -9139,6 +9392,17 @@ export function createDeskScene({ container, projects, experiences, dark = false
     return point ? lanyardAt(point, badgeHit) : null;
   }
   let lanyardDrag = null;
+  // The gaming chair, turned on its post by a sideways drag
+  let chairDrag = null;
+  function finishChairDrag(pointerId = null) {
+    if (!chairDrag || (pointerId !== null && pointerId !== chairDrag.pointerId)) return null;
+    const drag = chairDrag;
+    chairDrag = null;
+    if (drag.moved) releaseChair(drag);
+    if (renderer.domElement.hasPointerCapture(drag.pointerId)) renderer.domElement.releasePointerCapture(drag.pointerId);
+    renderer.domElement.style.cursor = "grab";
+    return drag;
+  }
   // The straw hat, held and pulled on its cord
   let hatDrag = null;
   function finishHatDrag(pointerId = null) {
@@ -9161,7 +9425,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   }
   const onPointerDown = (e) => {
     responsiveUntil = performance.now() + 2000;
-    if (shelfDrag || stickyDrag || noteDrag || lanyardDrag || hatDrag || e.button !== 0) return;
+    if (shelfDrag || stickyDrag || noteDrag || lanyardDrag || hatDrag || chairDrag || e.button !== 0) return;
     downAt = { x: e.clientX, y: e.clientY };
     if (focus.name === "shelf") {
       shelfDrag = {
@@ -9184,6 +9448,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
       };
       renderer.domElement.setPointerCapture(e.pointerId);
       renderer.domElement.style.cursor = "grabbing";
+      e.preventDefault();
+      return;
+    }
+    if (stickyEntry?.grabTurn && !chairBusy) {
+      chairDrag = { entry: stickyEntry, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moved: false };
+      renderer.domElement.setPointerCapture(e.pointerId);
       e.preventDefault();
       return;
     }
@@ -9245,6 +9515,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     finishNoteDrag(e.pointerId);
     if (lanyardDrag?.pointerId === e.pointerId) finishLanyardDrag();
     finishHatDrag(e.pointerId);
+    finishChairDrag(e.pointerId);
   };
   const onWindowBlur = () => {
     setHover(null);
@@ -9253,6 +9524,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     finishNoteDrag();
     finishLanyardDrag();
     finishHatDrag();
+    finishChairDrag();
   };
   const onPointerUp = (e) => {
     if (shelfDrag) {
@@ -9263,6 +9535,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
     if (stickyDrag) {
       if (e.pointerId !== stickyDrag.pointerId) return;
       const drag = finishStickyDrag(e.pointerId);
+      if (!drag.moved) handleClick(drag.entry);
+      return;
+    }
+    if (chairDrag && e.pointerId === chairDrag.pointerId) {
+      const drag = finishChairDrag(e.pointerId);
+      downAt = null;
       if (!drag.moved) handleClick(drag.entry);
       return;
     }
@@ -9304,7 +9582,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     else back();
   };
   const onPointerLeave = () => {
-    if (shelfDrag || noteDrag || stickyDrag) return;
+    if (shelfDrag || noteDrag || stickyDrag || chairDrag) return;
     setHover(null);
     parallax.tx = parallax.ty = 0;
   };
@@ -9584,6 +9862,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     updateFx(dt);
     updateTrail(dt);
     updateSpotlight(dt);
+    // the chair stands between the camera and the tickets' close-up, so it's put away for it
+    chair.visible = focus.name !== "experience";
     poseFolders();
     const pointerBlend = 1 - Math.pow(0.94, dt * 60);
     parallax.x += (parallax.tx - parallax.x) * pointerBlend;
@@ -9650,6 +9930,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       // Ambient occlusion now darkens the contact itself; this only softens it under a prop
       // and carries the shadow while the prop is lifted
       plane.material.opacity = (darkNow ? 0.22 : 0.28) * strength / (1 + lift * 3);
+      plane.visible = object.visible;
     }
     if (now - lastBlink > 530) {
       lastBlink = now;
@@ -9660,7 +9941,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     }
     if (shelfBubbleTarget === trophy && shelfBubble.sprite.scale.x > 0.01) placeTrophyBubble();
     if (trophyCelebrating) trophy.localToWorld(trophyHalo.position.set(0, 0.9, -0.2));
-    if (catBubble.sprite.scale.x > 0.01) placeCatBubble();
+    if (catBubble.sprite.scale.x > 0.01) placeCatBubble(1 - Math.exp(-10 * dt));
     // The desktop animates (windows, dock, the player's visualizer) at about 30 fps
     if ((desktop.busy() || lofi.playing) && now - screenDrawnAt > 33) redrawScreen();
     // The typing dots bounce while a reply hasn't started arriving

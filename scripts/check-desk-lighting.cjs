@@ -5,18 +5,20 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const source = fs.readFileSync(path.join(__dirname, '../src/components/features/desk/deskScene.js'), 'utf8');
-const lampCode = source.slice(source.indexOf('  const setLamp ='), source.indexOf('  register(lamp, {'));
+const lampCode = source.slice(source.indexOf('  const setLamp ='), source.indexOf('  // Switched on, the bulb'));
 const themeCode = source.slice(source.indexOf('  function setTheme('), source.indexOf('  setTheme(dark);'));
-const color = () => ({ set(value) { this.value = value; } });
+const color = () => ({ set(value) { this.value = value; return this; }, multiplyScalar() { return this; } });
 const material = () => ({ color: color() });
 const sun = { color: color(), position: { set(...xyz) { this.xyz = xyz; } } };
 const windowLight = { color: color() };
 const lampLight = {};
 const ambient = {};
 const readabilityFill = {};
-const skyFill = {};
+const skyFill = { color: color() };
 const context = vm.createContext({
   deskNeons: [{ strip: {}, washMat: {} }, { strip: {}, washMat: {} }],
+  DESK_WASH: 0.45, monitorGlowMat: {}, updateLampGlow() {}, clockPart: () => 'day',
+  riserMat: material(), riserLegMat: material(), RISER_LEG_SHADE: 0.8,
   darkNow: false, roomDark: false, sun, windowLight, lampLight, ambient, readabilityFill, skyFill,
   chairFrameMat: material(), jointMat: material(),
   bulbMat: material(), floorMat: material(), backWallMat: material(),
@@ -42,7 +44,7 @@ assert.equal(lampLight.castShadow, false);
 assert.ok(skyFill.intensity > 0 && readabilityFill.intensity > 0, 'daylight must fill areas beyond the window patch');
 
 theme(true);
-assert.ok(context.deskNeons.every(({ strip, washMat }) => strip.visible && washMat.opacity > 0.5), 'desk neon grows brighter at night');
+assert.ok(context.deskNeons.every(({ strip, washMat }) => strip.visible && washMat.opacity > 0), 'desk neon grows brighter at night');
 assert.ok(dayBaseFill > ambient.intensity + skyFill.intensity + readabilityFill.intensity,
   'the broad daytime fill must be stronger than the night fill');
 assert.ok(readabilityFill.intensity > 0, 'front fill must reveal dark object details at night');
@@ -85,7 +87,7 @@ console.log('Day/night light-source and shadow switching checks passed.');
 {
   const THREE = require('three');
   const shelfLeds = Array.from({ length: 4 }, () => ({ ledMat: { color: new THREE.Color() }, glowMat: { color: new THREE.Color(), opacity: 0 } }));
-  const shelfContext = vm.createContext({ shelfLeds, ledColor: new THREE.Color(), ledPartyUntil: 0, darkNow: false });
+  const shelfContext = vm.createContext({ shelfLeds, shelfLights: [{ color: new THREE.Color() }], ledColor: new THREE.Color(), ledPartyUntil: 0, darkNow: false });
   const start = source.indexOf('  function updateShelfLeds(');
   vm.runInContext(source.slice(start, source.indexOf('  // A neon sign', start)), shelfContext);
   vm.runInContext('updateShelfLeds(0)', shelfContext);

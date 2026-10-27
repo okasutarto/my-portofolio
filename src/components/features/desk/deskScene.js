@@ -13,6 +13,10 @@ import * as THREE from "three";
 import gsap from "gsap";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import emailjs from "@emailjs/browser";
 import { sfx, GROOVE_BEAT, setRainLevel } from "@/composables/useSfx";
 import { ABOUT_NOTES } from "@/data/about";
@@ -101,6 +105,91 @@ const PALETTES = {
 // Props that stand for a section of the 2D site
 export const SECTIONS = ["hero", "about", "experience", "projects", "contact"];
 
+// Contact-hardening soft shadows (PCSS): crisp where a prop meets the surface, spreading wider
+// the further the shadow falls from it. Swapped in for three's fixed-width PCF soft filter, for
+// the sun, window and lamp and for the neons' point lights alike; each light's `shadow.radius`
+// is its widest blur, in texels.
+if (!THREE.ShaderChunk.shadowmap_pars_fragment.includes("pcssShadow")) {
+  const pcss = `
+    // a quick search for what's in the way, then a finer filter sized by how far it is
+    #define PCSS_SEARCH 8
+    #define PCSS_SAMPLES 12
+    // Five taps across the widest blur first: all lit, or all blocked, means this pixel is
+    // nowhere near a shadow's edge, and only the edges (a sliver of the screen) pay for the rest
+    const vec2 PCSS_PROBES[ 4 ] = vec2[]( vec2( 1.0, 0.0 ), vec2( -1.0, 0.0 ), vec2( 0.0, 1.0 ), vec2( 0.0, -1.0 ) );
+    // how far (in shadow-map depth) a shadow must fall before it's fully spread
+    #define PCSS_RANGE 0.03
+    // A Vogel disk: evenly spread samples, turned per pixel so the banding turns to fine grain
+    vec2 pcssDisk( int i, int count, float spin ) {
+      float a = spin + float( i ) * 2.39996;
+      return vec2( cos( a ), sin( a ) ) * sqrt( ( float( i ) + 0.5 ) / float( count ) );
+    }
+    float pcssShadow( sampler2D shadowMap, vec2 shadowMapSize, float shadowRadius, vec4 coord ) {
+      vec2 texel = 1.0 / shadowMapSize;
+      float probe = texture2DCompare( shadowMap, coord.xy, coord.z );
+      for ( int i = 0; i < 4; i ++ ) probe += texture2DCompare( shadowMap, coord.xy + PCSS_PROBES[ i ] * shadowRadius * texel, coord.z );
+      if ( probe == 5.0 ) return 1.0;
+      if ( probe == 0.0 ) return 0.0;
+      float spin = rand( coord.xy ) * PI2;
+      float blockers = 0.0;
+      float blockerDepth = 0.0;
+      for ( int i = 0; i < PCSS_SEARCH; i ++ ) {
+        float d = unpackRGBAToDepth( texture2D( shadowMap, coord.xy + pcssDisk( i, PCSS_SEARCH, spin ) * shadowRadius * texel ) );
+        if ( d < coord.z ) { blockers += 1.0; blockerDepth += d; }
+      }
+      if ( blockers == 0.0 ) return 1.0;
+      float spread = smoothstep( 0.0, PCSS_RANGE, coord.z - blockerDepth / blockers );
+      float radius = mix( 1.0, shadowRadius, spread );
+      float lit = 0.0;
+      for ( int i = 0; i < PCSS_SAMPLES; i ++ ) {
+        lit += texture2DCompare( shadowMap, coord.xy + pcssDisk( i, PCSS_SAMPLES, spin ) * radius * texel, coord.z );
+      }
+      return lit / float( PCSS_SAMPLES );
+    }
+  `;
+  // Point lights store linear distance, so the penumbra follows the real PCSS ratio: fully
+  // spread once the surface is twice as far from the light as the thing in the way
+  const pcssPoint = `
+    float pcssPointShadow( sampler2D shadowMap, float texelY, float shadowRadius, vec3 dir, float dp ) {
+      vec3 side = normalize( cross( dir, abs( dir.y ) < 0.99 ? vec3( 0.0, 1.0, 0.0 ) : vec3( 1.0, 0.0, 0.0 ) ) );
+      vec3 up = cross( side, dir );
+      float probe = texture2DCompare( shadowMap, cubeToUV( dir, texelY ), dp );
+      for ( int i = 0; i < 4; i ++ ) {
+        vec2 o = PCSS_PROBES[ i ] * shadowRadius * texelY;
+        probe += texture2DCompare( shadowMap, cubeToUV( dir + side * o.x + up * o.y, texelY ), dp );
+      }
+      if ( probe == 5.0 ) return 1.0;
+      if ( probe == 0.0 ) return 0.0;
+      float spin = rand( dir.xy + dir.z ) * PI2;
+      float blockers = 0.0;
+      float blockerDepth = 0.0;
+      for ( int i = 0; i < PCSS_SEARCH; i ++ ) {
+        vec2 o = pcssDisk( i, PCSS_SEARCH, spin ) * shadowRadius * texelY;
+        float d = unpackRGBAToDepth( texture2D( shadowMap, cubeToUV( dir + side * o.x + up * o.y, texelY ) ) );
+        if ( d < dp ) { blockers += 1.0; blockerDepth += d; }
+      }
+      if ( blockers == 0.0 ) return 1.0;
+      blockerDepth /= blockers;
+      float spread = smoothstep( 0.0, 1.0, ( dp - blockerDepth ) / max( blockerDepth, 1e-3 ) );
+      float radius = mix( 1.0, shadowRadius, spread ) * texelY;
+      float lit = 0.0;
+      for ( int i = 0; i < PCSS_SAMPLES; i ++ ) {
+        vec2 o = pcssDisk( i, PCSS_SAMPLES, spin ) * radius;
+        lit += texture2DCompare( shadowMap, cubeToUV( dir + side * o.x + up * o.y, texelY ), dp );
+      }
+      return lit / float( PCSS_SAMPLES );
+    }
+  `;
+  THREE.ShaderChunk.shadowmap_pars_fragment = THREE.ShaderChunk.shadowmap_pars_fragment
+    .replace("float getShadow(", `${pcss}\n\tfloat getShadow(`)
+    .replace("#elif defined( SHADOWMAP_TYPE_PCF_SOFT )", "#elif defined( SHADOWMAP_TYPE_PCF_SOFT )\n\t\t\treturn pcssShadow( shadowMap, shadowMapSize, shadowRadius, shadowCoord );")
+    .replace("float getPointShadow(", `${pcssPoint}\n\tfloat getPointShadow(`)
+    .replace(
+      "#if defined( SHADOWMAP_TYPE_PCF ) || defined( SHADOWMAP_TYPE_PCF_SOFT ) || defined( SHADOWMAP_TYPE_VSM )",
+      "#if defined( SHADOWMAP_TYPE_PCF_SOFT )\n\t\t\treturn pcssPointShadow( shadowMap, texelSize.y, shadowRadius, bd3D, dp );\n\t\t#elif defined( SHADOWMAP_TYPE_PCF ) || defined( SHADOWMAP_TYPE_VSM )",
+    );
+}
+
 // Smallest area of the scene that always stays in view (world units)
 const VIEW_W = 21.5;
 const VIEW_H = 14.5;
@@ -117,6 +206,58 @@ export function createDeskScene({ container, projects, experiences, dark = false
 
   const scene = new THREE.Scene();
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
+
+  // Ambient occlusion: props darken where they meet the desk, the wall and each other. The
+  // composer renders into its own multisampled target, since the canvas's antialias no longer
+  // applies once a post pass sits in between. It keeps the frame's depth, which the occlusion
+  // reads (normals rebuilt from it) instead of drawing the whole room a second time.
+  const composer = new EffectComposer(
+    renderer,
+    new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4, depthTexture: new THREE.DepthTexture(1, 1) }),
+  );
+  composer.addPass(new RenderPass(scene, camera));
+  const aoPass = new GTAOPass(scene, camera, 1, 1);
+  // three r160 misspells this define in the constructor, so an orthographic camera would get
+  // the perspective depth maths
+  [aoPass.gtaoMaterial, aoPass.depthRenderMaterial].forEach((m) => {
+    m.defines.PERSPECTIVE_CAMERA = 0;
+    m.needsUpdate = true;
+  });
+  aoPass.updateGtaoMaterial({ radius: 1.2, thickness: 1, distanceExponent: 1.5, scale: 1.4, samples: 12 });
+  aoPass.updatePdMaterial({ radius: 6, samples: 12, rings: 2 });
+  // Occlusion is soft, so it's worked out at half resolution and blended up onto the full frame
+  const aoSetSize = aoPass.setSize.bind(aoPass);
+  aoPass.setSize = (width, height) => aoSetSize(Math.ceil(width / 2), Math.ceil(height / 2));
+  aoPass.blendIntensity = 0.85;
+  const useFrameDepth = () => aoPass.setGBuffer(composer.readBuffer.depthTexture);
+  useFrameDepth();
+  // the switch to depth-only changes the shaders' defines
+  [aoPass.gtaoMaterial, aoPass.pdMaterial].forEach((m) => (m.needsUpdate = true));
+  composer.addPass(aoPass);
+  composer.addPass(new OutputPass());
+  // Cards, labels and bubbles drawn over everything (no depth test) skip the composer and are
+  // laid on top afterwards, so the occlusion never shades them
+  const overlays = [];
+  const overlaySet = new Set();
+  function renderFrame() {
+    overlays.length = 0;
+    overlaySet.clear();
+    scene.traverseVisible((o) => {
+      if (o.material?.depthTest !== false) return;
+      for (let p = o.parent; p; p = p.parent) if (overlaySet.has(p)) return;
+      overlaySet.add(o);
+      overlays.push(o);
+    });
+    overlays.forEach((o) => (o.visible = false));
+    // the composer's targets swap during a frame; the scene always lands in its read buffer
+    useFrameDepth();
+    composer.render();
+    overlays.forEach((o) => (o.visible = true));
+    if (!overlays.length) return;
+    renderer.autoClear = false;
+    overlays.forEach((o) => renderer.render(o, camera));
+    renderer.autoClear = true;
+  }
 
   // Daylight enters from the upper panes of the left window, across the desk.
   const ambient = new THREE.AmbientLight(0xffffff, 1.15);
@@ -138,6 +279,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   Object.assign(sun.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20, near: 1, far: 60 });
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.02;
+  sun.shadow.radius = 14;
   scene.add(sun, sun.target);
 
   const timers = [];
@@ -259,12 +401,25 @@ export function createDeskScene({ container, projects, experiences, dark = false
     return obj;
   };
 
-  // A plane carrying a canvas texture, unlit so the print keeps its exact colours
+  // Paper, prints and labels: part self-lit so the print stays readable in any light, part toon
+  // shaded so it still takes shadows and the neons' colour
+  const PRINT_GLOW = 0.6;
+  const PRINT_LIT = 0.5;
+  const printMaterial = (map, options = {}) => {
+    const m = new THREE.MeshToonMaterial({ map, emissiveMap: map, gradientMap: gradient, ...options });
+    m.color.setScalar(PRINT_LIT);
+    m.emissive.setScalar(1);
+    m.emissiveIntensity = PRINT_GLOW;
+    return track(m);
+  };
+  // A plane carrying a canvas texture. Screens and views (`unlit`) keep their exact colours
   const redrawers = [];
-  function printed(w, h, px, draw) {
+  function printed(w, h, px, draw, { unlit = false } = {}) {
     const t = canvasTexture(Math.round(w * px), Math.round(h * px));
     track(t.texture);
-    const plane = new THREE.Mesh(track(new THREE.PlaneGeometry(w, h)), track(new THREE.MeshBasicMaterial({ map: t.texture })));
+    const material = unlit ? track(new THREE.MeshBasicMaterial({ map: t.texture })) : printMaterial(t.texture);
+    const plane = new THREE.Mesh(track(new THREE.PlaneGeometry(w, h)), material);
+    plane.receiveShadow = !unlit;
     t.redraw = (...args) => {
       t.hotspots = draw(t.ctx, t.canvas.width, t.canvas.height, ...args) || [];
       t.texture.needsUpdate = true;
@@ -533,6 +688,42 @@ export function createDeskScene({ container, projects, experiences, dark = false
   deskGlow.ctx.fillStyle = deskGlowGradient;
   deskGlow.ctx.fillRect(0, 0, 256, 128);
   const DESK_WASH = 0.45;
+  // Every neon also lights the room for real: a point light that follows its glow (fade, flicker,
+  // party), so the toon surfaces pick up the colour and the props throw coloured shadows
+  const neonLights = [];
+  // `tint` follows a material whose colour changes (a console's LED); `shadow` costs a texture
+  // unit in every lit shader, so it's kept to the lights whose shadows read (16 is the usual cap)
+  const neonLight = (color, max, level, { distance = 8, shadow = false, tint = null } = {}) => {
+    const light = new THREE.PointLight(color, 0, distance, 2);
+    if (shadow) {
+      light.castShadow = true;
+      light.shadow.mapSize.set(512, 512);
+      light.shadow.camera.near = 0.05;
+      light.shadow.bias = -0.002;
+      light.shadow.normalBias = 0.03;
+      light.shadow.radius = 6;
+      // A point light's shadow is six renders of the room; see updateNeonLights
+      light.shadow.autoUpdate = false;
+      light.shadow.needsUpdate = true;
+      shadowedNeons.push(light);
+    }
+    neonLights.push({ light, max, level, tint });
+    return light;
+  };
+  const shadowedNeons = [];
+  let neonShadowTurn = 0;
+  function updateNeonLights() {
+    neonLights.forEach(({ light, max, level, tint }) => {
+      light.intensity = max * level();
+      if (tint) light.color.copy(tint.color);
+    });
+    // The neons' shadows are refreshed in turn, one a frame and only while lit: the props they
+    // shade barely move between refreshes, and it spares five of every six cube renders
+    if (!shadowedNeons.length) return;
+    neonShadowTurn = (neonShadowTurn + 1) % shadowedNeons.length;
+    const light = shadowedNeons[neonShadowTurn];
+    if (light.intensity > 0) light.shadow.needsUpdate = true;
+  }
   const deskNeons = ["#00e0c6", "#ff90e8"].map((color, i) => {
     const x = i === 0 ? -3.5 : 3.5;
     const strip = new THREE.Mesh(
@@ -551,7 +742,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const wash = new THREE.Mesh(track(new THREE.PlaneGeometry(11, 3.6)), washMat);
     wash.position.set(x, 1.8, WALL_Z + 0.15);
     wash.raycast = noRaycast;
-    scene.add(strip, wash);
+    // Above the top's back edge: it washes the wall and the backs of the props, whose
+    // silhouettes rise up the wall in the strip's colour. Held a metre off the wall: any closer
+    // and the falloff burns a white hotspot onto it
+    const light = neonLight(color, 4, () => washMat.opacity / DESK_WASH, { distance: 9, shadow: true });
+    light.position.set(x, 0.5, WALL_Z + 1.1);
+    scene.add(strip, wash, light);
     return { strip, washMat };
   });
 
@@ -577,9 +773,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // own time of day (morning, day or evening, with a late dusk standing in for night, so the
   // lamp and the view always agree). Now and then it rains.
   const outside = { t: 0, flockAt: -99, starAt: -99, drawnAt: 0, rain: 0, rainTarget: 0, clicks: [], night: dark };
-  const dayPart = (hour = new Date().getHours() + new Date().getMinutes() / 60) =>
-    outside.night ? "night" : hour >= 5 && hour < 10 ? "morning" : hour >= 10 && hour < 16 ? "day" : "evening";
-  const windowView = printed(4.0, 4.1, 220, (c, w, h) => drawWindowView(c, w, h, { ...outside, time: dayPart() }));
+  const clockPart = (hour = new Date().getHours() + new Date().getMinutes() / 60) =>
+    hour >= 5 && hour < 10 ? "morning" : hour >= 10 && hour < 16 ? "day" : "evening";
+  const dayPart = (hour) => (outside.night ? "night" : clockPart(hour));
+  const windowView = printed(4.0, 4.1, 220, (c, w, h) => drawWindowView(c, w, h, { ...outside, time: dayPart() }), { unlit: true });
   windowView.position.z = 0.105;
   windowGroup.add(windowFrame, windowView);
   // The reveal: wooden linings round the opening (the frame's wood), from the frame out to the wall's face
@@ -607,7 +804,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     side.addColorStop(1, "rgba(40,30,60,0)");
     c.fillStyle = side;
     c.fillRect(w * 0.86, 0, w * 0.14, h);
-  });
+  }, { unlit: true });
   revealShade.material.transparent = true;
   revealShade.material.depthWrite = false;
   revealShade.position.z = 0.125;
@@ -964,6 +1161,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   windowLight.shadow.mapSize.set(1024, 1024);
   windowLight.shadow.bias = -0.0002;
   windowLight.shadow.normalBias = 0.03;
+  windowLight.shadow.radius = 6;
   scene.add(windowLight, windowLight.target);
 
   // Wall clock and a small print give the empty upper area a purpose.
@@ -984,7 +1182,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const dial = canvasTexture(512, 512);
   track(dial.texture);
   drawClockFace(dial.ctx, 512, 512);
-  const clockFace = new THREE.Mesh(track(new THREE.CircleGeometry(0.76, 48)), track(new THREE.MeshBasicMaterial({ map: dial.texture })));
+  const clockFace = new THREE.Mesh(track(new THREE.CircleGeometry(0.76, 48)), printMaterial(dial.texture));
   clockFace.position.z = 0.09;
   const clockHandMat = toon("#000000");
   const hourHand = new THREE.Group();
@@ -1181,7 +1379,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const quilt = canvasTexture(512, 680);
   track(quilt.texture);
   drawChairQuilt(quilt.ctx, 512, 680, { accent: CHAIR_ACCENT });
-  const quiltPanel = new THREE.Mesh(track(new THREE.PlaneGeometry(2.7, 3.6)), track(new THREE.MeshBasicMaterial({ map: quilt.texture, transparent: true, depthWrite: false })));
+  const quiltPanel = new THREE.Mesh(track(new THREE.PlaneGeometry(2.7, 3.6)), printMaterial(quilt.texture, { transparent: true, depthWrite: false }));
   quiltPanel.position.set(0, -0.45, 0.309);
   chairBack.add(quiltPanel);
   [-0.55, 0.55].forEach((x) => {
@@ -1192,7 +1390,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const emblemTex = canvasTexture(256, 256);
   track(emblemTex.texture);
   drawChairEmblem(emblemTex.ctx, 256, 256, { accent: CHAIR_ACCENT });
-  const emblem = new THREE.Mesh(track(new THREE.PlaneGeometry(0.7, 0.7)), track(new THREE.MeshBasicMaterial({ map: emblemTex.texture, transparent: true })));
+  const emblem = new THREE.Mesh(track(new THREE.PlaneGeometry(0.7, 0.7)), printMaterial(emblemTex.texture, { transparent: true }));
   emblem.position.set(0, 1.45, 0.313);
   chairBack.add(emblem);
   const piping = new THREE.CatmullRomCurve3(
@@ -1311,46 +1509,114 @@ export function createDeskScene({ container, projects, experiences, dark = false
   });
 
   // ---------- desk lamp (back-left): a light switch for the night shift ----------
+  // An Edison bulb lamp: a round walnut base, a black pole that rises from its back and hooks
+  // over toward the desk, and a bare amber globe bulb hanging from a black socket, its filament
+  // glowing when it's on.
   const lamp = new THREE.Group();
   scene.add(lamp);
-  const lampMat = toon("#ffdd00");
   const jointMat = toon("#1a1714");
-  const LAMP_BASE = new THREE.Vector3(-6.0, 0, -3.45);
-  const ELBOW = new THREE.Vector3(-5.55, 3.1, -3.45);
-  const WRIST = new THREE.Vector3(-4.45, 3.75, -3.1);
+  const LAMP_BASE = new THREE.Vector3(-5.8, 0, -3.3);
+  // Where the socket hangs, over the right of the base
+  const SOCKET = new THREE.Vector3(-5.25, 3.35, -3.2);
   const AIM = new THREE.Vector3(-1.8, 0, 0.8);
-  const lampBase = mesh(new THREE.CylinderGeometry(0.5, 0.6, 0.2, 24), jointMat, { outline: 0.04 });
-  lampBase.position.copy(LAMP_BASE).setY(0.1);
-  lamp.add(lampBase, rod(LAMP_BASE.clone().setY(0.2), ELBOW, 0.08, lampMat), rod(ELBOW, WRIST, 0.08, lampMat));
-  [ELBOW, WRIST].forEach((p) => {
-    const joint = mesh(new THREE.SphereGeometry(0.15, 14, 10), jointMat, { outline: 0.025 });
-    joint.position.copy(p);
-    lamp.add(joint);
-  });
-  // The head looks at the desk; the shade opens toward it (+z after lookAt)
+  const lampBrass = toon("#c9a24a");
+  const lampWood = toon("#8b5a34");
+  lampWood.map = windowWood.texture;
+  // The base: a thick walnut puck with a chamfered top edge, on a thin black felt pad
+  const lampBase = mesh(new THREE.CylinderGeometry(0.6, 0.62, 0.18, 36), lampWood, { outline: 0.04 });
+  lampBase.position.copy(LAMP_BASE).setY(0.11);
+  const lampBaseTop = mesh(new THREE.CylinderGeometry(0.52, 0.6, 0.06, 36), lampWood, { outline: 0.02 });
+  lampBaseTop.position.copy(LAMP_BASE).setY(0.23);
+  const lampFelt = mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.02, 36), jointMat, { outline: 0.01, cast: false });
+  lampFelt.position.copy(LAMP_BASE).setY(0.01);
+  // The pole: straight up from the back of the base, a rounded bend over the top, and down to
+  // the socket
+  const POLE_X = LAMP_BASE.x - 0.4;
+  const poleTop = SOCKET.y + 0.45;
+  const polePath = new THREE.CurvePath();
+  polePath.add(new THREE.LineCurve3(new THREE.Vector3(POLE_X, 0.24, SOCKET.z), new THREE.Vector3(POLE_X, poleTop - 0.35, SOCKET.z)));
+  polePath.add(new THREE.QuadraticBezierCurve3(new THREE.Vector3(POLE_X, poleTop - 0.35, SOCKET.z), new THREE.Vector3(POLE_X, poleTop, SOCKET.z), new THREE.Vector3(POLE_X + 0.35, poleTop, SOCKET.z)));
+  polePath.add(new THREE.LineCurve3(new THREE.Vector3(POLE_X + 0.35, poleTop, SOCKET.z), new THREE.Vector3(SOCKET.x - 0.22, poleTop, SOCKET.z)));
+  polePath.add(new THREE.QuadraticBezierCurve3(new THREE.Vector3(SOCKET.x - 0.22, poleTop, SOCKET.z), new THREE.Vector3(SOCKET.x, poleTop, SOCKET.z), new THREE.Vector3(SOCKET.x, poleTop - 0.22, SOCKET.z)));
+  const pole = mesh(new THREE.TubeGeometry(polePath, 96, 0.055, 12), jointMat, { outline: 0.025 });
+  // a lampBrass flange where the pole meets the wood, and a lampBrass ferrule where it meets the socket
+  const poleFoot = mesh(new THREE.CylinderGeometry(0.1, 0.13, 0.06, 18), lampBrass, { outline: 0.012 });
+  poleFoot.position.set(POLE_X, 0.29, SOCKET.z);
+  const poleFerrule = mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.1, 16), lampBrass, { outline: 0.01 });
+  poleFerrule.position.set(SOCKET.x, poleTop - 0.24, SOCKET.z);
+  // The switch: a small black rocker on the base's rim
+  const lampButton = at(mesh(rbox(0.12, 0.05, 0.08, 0.02), toon("#2a2523"), { outline: 0.01 }), LAMP_BASE.x + 0.4, 0.2, LAMP_BASE.z + 0.33);
+  lamp.add(lampFelt, lampBase, lampBaseTop, pole, poleFoot, poleFerrule, lampButton);
+  // The head hangs from the end of the pole: it holds the socket, the bulb and the light, and
+  // swings from the pole on hover
   const lampHead = new THREE.Group();
-  lampHead.position.copy(WRIST);
-  lampHead.lookAt(AIM);
-  const shade = mesh(new THREE.ConeGeometry(0.6, 0.85, 28, 1, true), lampMat, { outline: 0.04 });
-  shade.rotation.x = -Math.PI / 2;
-  shade.position.z = 0.35;
-  // The shade's white lining, which glows warm once the bulb is on, and a rolled rim
-  const liningMat = track(new THREE.MeshBasicMaterial({ color: "#d8cfa0", side: THREE.BackSide }));
-  const lining = new THREE.Mesh(track(new THREE.ConeGeometry(0.58, 0.82, 28, 1, true)), liningMat);
-  lining.rotation.x = -Math.PI / 2;
-  lining.position.z = 0.36;
-  lining.raycast = noRaycast;
-  const rim = mesh(new THREE.TorusGeometry(0.6, 0.035, 8, 32), toon("#e0b800"), { outline: 0.012 });
-  rim.position.z = 0.775;
-  // a cap and a little knob at the back of the shade
-  const cap = at(mesh(new THREE.CylinderGeometry(0.13, 0.16, 0.14, 18), jointMat, { outline: 0.016 }), 0, 0, -0.1);
-  cap.rotation.x = Math.PI / 2;
-  const knob = at(mesh(new THREE.SphereGeometry(0.07, 12, 8), jointMat, { outline: 0.01 }), 0, 0, -0.2);
-  const bulbMat = track(new THREE.MeshBasicMaterial({ color: "#d9d4c7" }));
-  const bulb = new THREE.Mesh(track(new THREE.SphereGeometry(0.22, 16, 12)), bulbMat);
-  bulb.position.z = 0.62;
-  // The glow: a halo round the bulb, a soft beam down to the desk and a warm pool where it
-  // lands. Their strength follows the light's, so they flicker with it as it comes on.
+  lampHead.position.copy(SOCKET);
+  // A ribbed black socket with a lampBrass turn-key on its side and a lampBrass collar the bulb's
+  // neck screws into
+  const socket = mesh(new THREE.CylinderGeometry(0.15, 0.14, 0.42, 20), jointMat, { outline: 0.016 });
+  const socketRibs = [0.12, 0.04, -0.04, -0.12].map((y) => {
+    const rib = mesh(new THREE.TorusGeometry(0.152, 0.014, 6, 24), toon("#2c2826"), { outline: 0 });
+    rib.rotation.x = Math.PI / 2;
+    rib.position.y = y;
+    return rib;
+  });
+  const turnKeyStem = mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.1, 10), lampBrass, { outline: 0.008 });
+  turnKeyStem.rotation.z = Math.PI / 2;
+  turnKeyStem.position.set(0.19, 0.05, 0);
+  const turnKey = mesh(rbox(0.03, 0.12, 0.09, 0.015), lampBrass, { outline: 0.01 });
+  turnKey.position.set(0.25, 0.05, 0);
+  const bulbCollar = mesh(new THREE.CylinderGeometry(0.11, 0.1, 0.12, 18), lampBrass, { outline: 0.01 });
+  bulbCollar.position.y = -0.27;
+  const collarThreads = [-0.24, -0.29].map((y) => {
+    const thread = mesh(new THREE.TorusGeometry(0.108, 0.01, 6, 20), toon("#9c7a2e"), { outline: 0 });
+    thread.rotation.x = Math.PI / 2;
+    thread.position.y = y;
+    return thread;
+  });
+  // A G95 globe: a big round bulb on a short neck. The profile is traced from the tip up, so
+  // the lathe's faces point outward.
+  const BULB_Y = -0.86;
+  const BULB_R = 0.5;
+  const bulbProfile = [[0, -1.36], [0.17, -1.33], [0.33, -1.24], [0.45, -1.09], [0.5, -0.9], [0.46, -0.72], [0.33, -0.56], [0.17, -0.45], [0.11, -0.4], [0.1, -0.33]].map(([r, y]) => new THREE.Vector2(r, y));
+  // Amber glass, flat-shaded like everything else; it brightens when the bulb is on
+  const bulbMat = track(new THREE.MeshBasicMaterial({ color: "#ecd3a3" }));
+  const bulb = mesh(new THREE.LatheGeometry(bulbProfile, 40), bulbMat, { outline: 0.02, cast: false });
+  // A soft white glint across the upper left of the glass
+  const glintMat = track(new THREE.MeshBasicMaterial({ color: "#fffaf0", transparent: true, opacity: 0.85 }));
+  const bulbGlint = new THREE.Mesh(track(new THREE.TorusGeometry(Math.sqrt(BULB_R ** 2 - 0.36 ** 2), 0.022, 6, 20, 0.9)), glintMat);
+  bulbGlint.position.set(0, BULB_Y, 0.36);
+  bulbGlint.rotation.z = 1.85;
+  bulbGlint.raycast = noRaycast;
+  // Inside, drawn over the glass so they show through it: a clear glass stem up the middle and
+  // a squirrel-cage filament, six wavy strands strung between a top and a bottom ring
+  const filamentMat = track(new THREE.MeshBasicMaterial({ color: "#a8742c", depthTest: false }));
+  const bulbStemMat = track(new THREE.MeshBasicMaterial({ color: "#f6ead0", depthTest: false, transparent: true, opacity: 0.8 }));
+  const filament = new THREE.Group();
+  const bulbStem = new THREE.Mesh(track(new THREE.CylinderGeometry(0.025, 0.04, 0.5, 10)), bulbStemMat);
+  bulbStem.position.y = -0.62;
+  filament.add(bulbStem);
+  const CAGE = { top: -0.62, bottom: -1.08, r: 0.16 };
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const points = Array.from({ length: 9 }, (_, k) => {
+      const t = k / 8;
+      const wobble = Math.sin(t * Math.PI * 4) * 0.025;
+      return new THREE.Vector3(Math.cos(a) * (CAGE.r + wobble), CAGE.top + (CAGE.bottom - CAGE.top) * t, Math.sin(a) * (CAGE.r + wobble));
+    });
+    filament.add(new THREE.Mesh(track(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 32, 0.01, 4)), filamentMat));
+  }
+  [CAGE.top, CAGE.bottom].forEach((y) => {
+    const ring = new THREE.Mesh(track(new THREE.TorusGeometry(CAGE.r, 0.008, 4, 24)), filamentMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = y;
+    filament.add(ring);
+  });
+  filament.children.forEach((part) => {
+    part.renderOrder = 2;
+    part.raycast = noRaycast;
+  });
+  // The glow: a halo round the bulb and a warm pool where its light lands on the desk. Their
+  // strength follows the light's, so they flicker with it as it comes on.
   const radial = (stops) => {
     const tex = canvasTexture(128, 128);
     track(tex.texture);
@@ -1360,25 +1626,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     tex.ctx.fillRect(0, 0, 128, 128);
     return tex.texture;
   };
-  const halo = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: radial([[0, "rgba(255,246,200,1)"], [0.35, "rgba(255,214,120,0.55)"], [1, "rgba(255,200,90,0)"]]), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 })));
-  halo.scale.set(1.3, 1.3, 1);
-  halo.position.z = 0.7;
+  const halo = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: radial([[0, "rgba(255,240,190,1)"], [0.3, "rgba(255,206,110,0.55)"], [1, "rgba(255,190,90,0)"]]), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 })));
+  halo.scale.set(2.6, 2.6, 1);
+  halo.position.y = BULB_Y;
   halo.raycast = noRaycast;
-  const BEAM_L = 4.2;
-  const beamTex = canvasTexture(8, 128);
-  track(beamTex.texture);
-  const beamGrad = beamTex.ctx.createLinearGradient(0, 0, 0, 128);
-  beamGrad.addColorStop(0, "rgba(255,226,150,0.9)");
-  beamGrad.addColorStop(1, "rgba(255,226,150,0)");
-  beamTex.ctx.fillStyle = beamGrad;
-  beamTex.ctx.fillRect(0, 0, 8, 128);
-  const beam = new THREE.Mesh(
-    track(new THREE.ConeGeometry(1.75, BEAM_L, 32, 1, true)),
-    track(new THREE.MeshBasicMaterial({ map: beamTex.texture, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, opacity: 0 })),
-  );
-  beam.rotation.x = -Math.PI / 2;
-  beam.position.z = 0.75 + BEAM_L / 2;
-  beam.raycast = noRaycast;
   const pool = new THREE.Mesh(
     track(new THREE.PlaneGeometry(4.2, 3.4)),
     track(new THREE.MeshBasicMaterial({ map: radial([[0, "rgba(255,214,130,0.75)"], [0.55, "rgba(255,200,110,0.25)"], [1, "rgba(255,190,100,0)"]]), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 })),
@@ -1389,31 +1640,30 @@ export function createDeskScene({ container, projects, experiences, dark = false
   scene.add(pool);
   function updateLampGlow() {
     const k = Math.min(1, lampLight.intensity / 55);
-    // Kept soft, so the head reads as a lamp rather than a white blowout
-    halo.material.opacity = 0.4 * k;
-    beam.material.opacity = 0.12 * k;
+    // Kept soft, so the bulb reads as a lamp rather than a white blowout
+    halo.material.opacity = 0.55 * k;
     pool.material.opacity = 0.5 * k;
-    liningMat.color.setRGB(0.85 + 0.1 * k, 0.81 + 0.06 * k, 0.63 - 0.05 * k);
+    bulbMat.color.setRGB(0.93 + 0.07 * k, 0.83 + 0.06 * k, 0.64 - 0.06 * k);
+    filamentMat.color.setRGB(0.66 + 0.34 * k, 0.45 + 0.5 * k, 0.17 + 0.55 * k);
   }
-  // The actual bulb lights the work surface and casts shadows away from the lamp.
-  // Place it beyond the shade opening so its own housing cannot block the beam.
-  const lampLight = new THREE.SpotLight(0xffd394, 0, 22, 0.7, 0.4, 2);
-  lampLight.position.z = 0.86;
-  lampLight.target.position.z = WRIST.distanceTo(AIM);
+  // The bulb lights the work surface and casts shadows away from the lamp. It sits just below
+  // the glass, so the socket can't block it, and looks across at the desk.
+  const lampLight = new THREE.SpotLight(0xffd394, 0, 22, 0.95, 0.6, 2);
+  lampLight.position.y = BULB_Y - 0.55;
+  lampLight.target.position.copy(AIM);
+  scene.add(lampLight.target);
   lampLight.shadow.mapSize.set(1024, 1024);
   lampLight.shadow.camera.near = 0.2;
   lampLight.shadow.camera.far = 22;
   lampLight.shadow.bias = -0.0002;
   lampLight.shadow.normalBias = 0.02;
-  lampHead.add(shade, lining, rim, cap, knob, bulb, halo, beam, lampLight, lampLight.target);
-  // a round rocker switch on the base
-  const lampButton = at(mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.06, 16), toon("#ff6b6b"), { outline: 0.01 }), LAMP_BASE.x + 0.28, 0.22, LAMP_BASE.z + 0.18);
-  lamp.add(lampButton);
+  lampLight.shadow.radius = 9;
+  lampHead.add(socket, ...socketRibs, turnKeyStem, turnKey, bulbCollar, ...collarThreads, bulb, bulbGlint, filament, halo, lampLight);
   lamp.add(lampHead);
   const setLamp = (on) => {
-    bulbMat.color.set(on ? "#ffe39a" : "#d9d4c7");
     lampLight.intensity = on ? 55 : 0;
     lampLight.castShadow = on;
+    updateLampGlow();
   };
   // Switched on, the bulb stutters a couple of times before it settles
   function lampSwitch(on) {
@@ -1427,15 +1677,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
       .to(lampLight, { intensity: 2, duration: 0.08 })
       .to(lampLight, { intensity: 55, duration: 0.2, delay: 0.12 });
   }
-  // Like a desk lamp with a mind of its own: on hover it cocks its shade toward you; on a
-  // click it crouches, hops, nods, and only then throws the switch
+  // Like a desk lamp with a mind of its own: on hover the bulb swings on its pole; on a click
+  // the lamp crouches, hops, nods its bulb, and only then throws the switch
   const lampHeadRest = lampHead.rotation.clone();
   let lampHopping = false;
   register(lamp, {
     onHover: (on) => {
       if (lampHopping) return;
-      // Articulate the shade; the heavy base and metal arms keep their proportions.
-      gsap.to(lampHead.rotation, { x: lampHeadRest.x + (on ? -0.16 : 0), z: lampHeadRest.z + (on ? 0.24 : 0), duration: on ? 0.32 : 0.45, ease: "power2.out", overwrite: true });
+      // Swing the hanging bulb; the base and the pole stay put
+      gsap.to(lampHead.rotation, { x: lampHeadRest.x + (on ? 0.12 : 0), z: lampHeadRest.z + (on ? 0.22 : 0), duration: on ? 0.32 : 0.6, ease: on ? "power2.out" : "elastic.out(1, 0.4)", overwrite: true });
     },
     onClick: () => {
       if (lampHopping) return;
@@ -1760,12 +2010,21 @@ export function createDeskScene({ container, projects, experiences, dark = false
     shelf.add(channel, strip, glow);
     shelfLeds.push({ ledMat, glowMat });
   });
+  // The LEDs' colour on the shelves, party hues included: one light per two compartments, set in
+  // the board between them (every light is paid for on every pixel, so they're kept few)
+  const shelfLights = [LEVELS[1], LEVELS[3]].map((y) => {
+    const light = neonLight("#70e5e0", 3.2, () => shelfLeds[0].glowMat.opacity / 0.5, { distance: 3.6 });
+    light.position.set(0, y, 0.1);
+    shelf.add(light);
+    return light;
+  });
   const ledColor = new THREE.Color();
   let ledPartyUntil = 0;
   function updateShelfLeds(now) {
     const party = now < ledPartyUntil;
     ledColor.set(party ? "#ff90e8" : "#70e5e0");
     if (party) ledColor.setHSL((now / 1000) % 1, 0.8, 0.65);
+    shelfLights.forEach((light) => light.color.copy(ledColor));
     shelfLeds.forEach(({ ledMat, glowMat }) => {
       ledMat.color.set(darkNow || party ? ledColor : "#c4cece");
       glowMat.color.copy(ledColor);
@@ -1829,6 +2088,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
     plane.raycast = noRaycast;
     shelf.add(plane);
   });
+  // The sign's magenta-violet spill: on the console and the shelf, with the shelf's things
+  // casting back onto the panel
+  const signLight = neonLight("#d86bff", 3.5, () => neonOn.material.opacity, { distance: 4, shadow: true });
+  signLight.position.set(0.1, neonOn.position.y, neonOn.position.z + 0.45);
+  shelf.add(signLight);
   // Night: a couple of stuttering flickers, then on. Day: off.
   function setNeon(on, instant = false) {
     gsap.killTweensOf(neonOn.material);
@@ -2012,6 +2276,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     strip.position.set(side * (CORE_T / 2 - 0.012), PS_H * 0.48, PS_D * 0.45 - 0.004);
     led.add(strip);
   });
+  // The LED's glow on the shelf round the console, blue in standby and brighter once it boots
+  const consoleLight = neonLight("#4f6bff", 0.6, () => (darkNow ? 1 : 0.4), { distance: 1.8, tint: ledMat });
+  consoleLight.position.set(0, PS_H * 0.5, PS_D * 0.45 + 0.2);
+  led.add(consoleLight);
   consoleBody.add(led);
   // PlayStation logo, small, near the top front of the left panel
   const psLogo = printed(0.075, 0.075, 1200, (c, w, h) => {
@@ -2445,6 +2713,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const trophyProfile = [[0, 0.52], [0.12, 0.53], [0.24, 0.65], [0.34, 0.87], [0.37, 1.12], [0.32, 1.12], [0.3, 0.9], [0.2, 0.71], [0.08, 0.65], [0, 0.65]].map(([r, y]) => new THREE.Vector2(r, y));
   // A hollow bowl, rounded rim and continuous loop handles sit on a separate stem.
   const cup = mesh(new THREE.LatheGeometry(trophyProfile, 40), trophyGold, { outline: 0.012 });
+  // While the trophy celebrates, its glow lights the shelf around it
+  const trophyLight = neonLight("#ffc94d", 3, () => trophyGold.emissive.r / 0.6, { distance: 3 });
+  trophyLight.position.set(0, 0.9, 0.4);
+  cup.add(trophyLight);
   // The plate on its plinth keeps score of the room's secrets found so far
   const trophyPlate = printed(0.4, 0.13, 700, (c, w, h) => {
     c.fillStyle = "#ffd34d";
@@ -2491,7 +2763,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   );
   // a little pixel scene on its screen, and speaker holes
   // its screen plays a little space-invaders loop (redrawn from the render loop)
-  const handheldScreen = printed(0.4, 0.32, 520, (c, w, h, t) => drawInvaders(c, w, h, t));
+  const handheldScreen = printed(0.4, 0.32, 520, (c, w, h, t) => drawInvaders(c, w, h, t), { unlit: true });
   handheldScreen.position.set(0, 0.2, 0.084);
   let handheldDrawnAt = 0;
   handheld.add(handheldScreen);
@@ -3670,7 +3942,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     c.fillStyle = "#fffdf5";
     c.font = `800 ${Math.round(h * 0.08)}px 'Space Grotesk', sans-serif`;
     c.fillText("save point reached ✓", w / 2, h * 0.68);
-  });
+  }, { unlit: true });
   const leftCon = at(joyCon("#00b4e6", -1), -0.68, 0, 0);
   const rightCon = at(joyCon("#ff4554", 1), 0.68, 0, 0);
   const switchConsole = group(
@@ -3898,6 +4170,19 @@ export function createDeskScene({ container, projects, experiences, dark = false
     stone("#ffdd00", glovePart, 0, 1.1, 0.112, 0.07, 1.35),
     stone("#22c55e", thumb, 0, 0.09, 0.07, 0.036),
   ];
+  // One glow on the glove for all six: the colour of whichever stone burns brightest, faint at
+  // rest (the mind stone) and flaring with it
+  const stoneTint = { color: new THREE.Color() };
+  const stoneLight = neonLight("#ffdd00", 0.9, () => {
+    let brightest = stones[4];
+    stones.forEach((gem) => {
+      if (gem.userData.halo.material.opacity > brightest.userData.halo.material.opacity) brightest = gem;
+    });
+    stoneTint.color.copy(brightest.material.color);
+    return brightest.userData.halo.material.opacity;
+  }, { distance: 1.6, tint: stoneTint });
+  stoneLight.position.set(0, 1.22, 0.35);
+  glovePart.add(stoneLight);
   // Light a stone up: the gem swells and its halo flares, then both settle
   const flare = (gem, delay = 0, strength = 1) => {
     const { size, halo, r } = gem.userData;
@@ -4049,7 +4334,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
           [[monitor], ["#c2c6cc", "#1a1714", "#8fd694"]],
           [[speakers[0].group], ["#1a1714", "#7fb2ff", "#ffdd00"]],
           [[speakers[1].group], ["#1a1714", "#7fb2ff", "#ffdd00"]],
-          [[lamp], ["#ffdd00", "#1a1714"]],
+          [[lamp], ["#8b5a34", "#1a1714", "#efd9ae"]],
           [[chair], ["#45474d", "#1a1714"]],
           [[guitar], ["#e6c38f", "#6b4428", "#1a1714"]],
           [[paintingHang], ["#ff90e8", "#ffdd00", "#00e0c6", "#1a1714"]],
@@ -4382,7 +4667,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   drawBinLabel(binLabelTex.ctx, 560, 200);
   const binLabel = new THREE.Mesh(
     track(new THREE.CylinderGeometry(binRadius(LABEL_Y[1]) + 0.01, binRadius(LABEL_Y[0]) + 0.01, LABEL_Y[1] - LABEL_Y[0], 24, 1, true, -LABEL_ARC / 2, LABEL_ARC)),
-    track(new THREE.MeshBasicMaterial({ map: binLabelTex.texture, transparent: true })),
+    printMaterial(binLabelTex.texture, { transparent: true }),
   );
   binLabel.position.y = (LABEL_Y[0] + LABEL_Y[1]) / 2;
   binLabel.raycast = noRaycast;
@@ -4811,6 +5096,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
   monitorGlow.position.set(monitor.position.x, RISER_TOP + 2.7, WALL_Z + 0.16);
   monitorGlow.raycast = noRaycast;
   scene.add(monitorGlow);
+  // The bias strip lights the wall for real too: cyan on the left, pink on the right
+  [["#00e0c6", -1.6], ["#ff90e8", 1.6]].forEach(([color, dx]) => {
+    const light = neonLight(color, 2.5, () => monitorGlowMat.opacity / 0.7, { distance: 6 });
+    light.position.set(monitor.position.x + dx, RISER_TOP + 2.6, WALL_Z + 1.2);
+    scene.add(light);
+  });
   // Sticky notes on the right of the bezel, each with a hard little shadow behind it
   const noteShadowMat = track(new THREE.MeshBasicMaterial({ color: "#000000" }));
   [
@@ -5042,6 +5333,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
   screen.position.set(0, 2.63, 0.09);
   screen.userData.tex = screenTex;
   monitor.add(screen);
+  // The screen's own spill: a cool light over the keyboard and desk, faint by day, and the
+  // props in front of it throw shadows towards the visitor at night
+  const screenLight = neonLight("#c4d4ff", 2.2, () => (darkNow ? 1 : 0.25), { distance: 7, shadow: true });
+  screenLight.position.set(0, 2.5, 0.9);
+  monitor.add(screenLight);
   const desktop = createDesktop({
     terminal: term,
     player: lofi,
@@ -5219,7 +5515,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // plane cuts away the monitor in front of it (see the hero shot's depth).
   const BADGE_PIN = new THREE.Vector3(1.4, 7.55, WALL_Z + 0.48);
   const BADGE_CLIP = new THREE.Vector3(1.4, 5.85, WALL_Z + 0.58); // straight below the pin: the rope's resting shape
-  const strapMat = toon("#ffdd00");
+  // Blue: it stands off the yellow badge, the red pin and the cork
+  const strapMat = toon("#3b82f6");
   // Where the pin is now: drag it to re-pin the badge anywhere on this stretch of wall
   const badgePin = BADGE_PIN.clone();
   const PIN_BOUNDS = { minX: 0.3, maxX: 8.0, minY: 4.9 + WALL_LIFT, maxY: 9.0 + WALL_LIFT };
@@ -5280,19 +5577,28 @@ export function createDeskScene({ container, projects, experiences, dark = false
     }
   }
   // Two strands meeting at the pin and the clip, spread into a V along the way
-  const strandGeo = new THREE.CylinderGeometry(0.05, 0.05, 1, 8);
-  const strands = [-1, 1].map(() => Array.from({ length: ROPE_SEGMENTS }, () => {
-    const piece = mesh(strandGeo, strapMat, { outline: 0.03 });
-    scene.add(piece);
-    return piece;
-  }));
-  const strandA = new THREE.Vector3();
-  const strandB = new THREE.Vector3();
-  const strandDir = new THREE.Vector3();
   const strandPoint = (i, side, out) => {
     const t = i / ROPE_SEGMENTS;
     return out.set(rope[i].x + side * 0.17 * Math.sin(Math.PI * t), rope[i].y, rope[i].z + 0.02);
   };
+  // Each strand is one smooth tube through the rope's points, reshaped every frame as the rope
+  // moves; its outline hull shares the tube, so the line runs on unbroken from pin to clip
+  const STRAND_STEPS = 48;
+  const STRAND_RADIUS = 0.05;
+  const strands = [-1, 1].map((side) => {
+    const curve = new THREE.CatmullRomCurve3(rope.map((_, i) => strandPoint(i, side, new THREE.Vector3())));
+    const geo = track(new THREE.TubeGeometry(curve, STRAND_STEPS, STRAND_RADIUS, 8));
+    const tube = new THREE.Mesh(geo, strapMat);
+    tube.castShadow = true;
+    tube.receiveShadow = true;
+    const hull = new THREE.Mesh(geo, outlineMat(0.03));
+    hull.raycast = noRaycast;
+    // the pin can be dragged anywhere on the wall, past the tube's first bounds
+    tube.frustumCulled = hull.frustumCulled = false;
+    tube.add(hull);
+    scene.add(tube);
+    return { side, curve, tube };
+  });
   const strapPin = mesh(new THREE.SphereGeometry(0.11, 14, 10), toon("#e11d48"), { outline: 0.025 });
   strapPin.position.copy(BADGE_PIN).add(new THREE.Vector3(0, 0, 0.06));
   scene.add(strapPin);
@@ -5366,17 +5672,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
       stepRope(STEP);
       ropeClock -= STEP;
     }
-    [-1, 1].forEach((side, s) =>
-      strands[s].forEach((piece, i) => {
-        strandPoint(i, side, strandA);
-        strandPoint(i + 1, side, strandB);
-        strandDir.subVectors(strandB, strandA);
-        const length = strandDir.length();
-        piece.position.copy(strandA).addScaledVector(strandDir, 0.5);
-        piece.quaternion.setFromUnitVectors(UP, strandDir.normalize());
-        piece.scale.set(1, length + 0.04, 1);
-      }),
-    );
+    strands.forEach(({ side, curve, tube }) => {
+      curve.points.forEach((point, i) => strandPoint(i, side, point));
+      const shape = new THREE.TubeGeometry(curve, STRAND_STEPS, STRAND_RADIUS, 8);
+      const { position, normal } = tube.geometry.attributes;
+      position.array.set(shape.attributes.position.array);
+      normal.array.set(shape.attributes.normal.array);
+      position.needsUpdate = normal.needsUpdate = true;
+      shape.dispose();
+    });
     const end = rope[ROPE_SEGMENTS];
     const before = rope[ROPE_SEGMENTS - 2];
     badge.position.set(end.x, end.y, BADGE_CLIP.z);
@@ -5392,7 +5696,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
       p.px -= amount * 0.09 * reach * reach;
     });
   };
-  const clip = mesh(rbox(0.22, 0.16, 0.08, 0.03), toon("#888888"), { outline: 0.025 });
+  // Deep enough to close round both strands' ends (they meet at its centre, 0.05 thick and
+  // 0.02 proud of the badge), so neither pokes out through its face
+  const clip = mesh(rbox(0.22, 0.16, 0.17, 0.03), toon("#888888"), { outline: 0.025 });
+  clip.position.z = 0.02;
   const badgeCard = new THREE.Group();
   // About the size of a real ID card on a lanyard (it was reading as a clipboard)
   badgeCard.position.y = -0.74;
@@ -6901,7 +7208,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const phoneTrim = toon("#5e1a27");
   const PHONE_W = 0.95;
   const PHONE_H = 1.95;
-  const phoneScreen = printed(0.87, 1.87, 700, (c, w, h) => drawChatScreen(c, w, h, chat, { unread, caret: caretOn && chat.active }));
+  const phoneScreen = printed(0.87, 1.87, 700, (c, w, h) => drawChatScreen(c, w, h, chat, { unread, caret: caretOn && chat.active }), { unlit: true });
   // A rounded screen, its UVs spread over the whole print so the chat's hotspots line up
   {
     const sw = 0.87, sh = 1.87;
@@ -6913,6 +7220,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     phoneScreen.geometry = track(geo);
   }
   phoneScreen.position.z = 0.059;
+  // The chat's glow on the desk and the mug in front of it, at night
+  const phoneLight = neonLight("#fff1dc", 0.5, () => (darkNow ? 1 : 0), { distance: 1.6 });
+  phoneLight.position.z = 0.35;
+  phoneScreen.add(phoneLight);
   const phoneBezel = mesh(phoneSlab(0.91, 1.91, 0.02, 0.13), toon("#0d0d0f"), { outline: 0, cast: false });
   phoneBezel.position.z = 0.047;
   const phoneBody = mesh(phoneSlab(PHONE_W, PHONE_H, 0.09, 0.16), phoneFinish, { outline: 0.035 });
@@ -7857,6 +8168,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const clockTimer = setInterval(() => {
     badgeFront.userData.tex.redraw();
     updateRoomClock();
+    // the room's sun moves on with the clock, as the view outside does
+    if (!darkNow) applyDaylight();
   }, 60000);
 
   // ---------- theme ----------
@@ -7894,6 +8207,27 @@ export function createDeskScene({ container, projects, experiences, dark = false
     riserMat.color.set(p.desk);
     riserLegMat.color.set(p.desk).multiplyScalar(RISER_LEG_SHADE);
     shadowFill.color.set(p.shadow);
+    if (!isDark) applyDaylight();
+  }
+  // By day the room follows the visitor's clock, like the view outside: a low warm sun through
+  // the window in the morning, the white midday sun, and a long amber light in the evening
+  const DAYLIGHT = {
+    morning: { sun: "#ffd6a0", sunAt: [-14, 6, 7], sunPower: 1.35, sky: "#fff1dc", skyPower: 1.25, ambient: 0.62, pane: "#ffd59a", panePower: 80 },
+    day: { sun: "#fff1cc", sunAt: [-13, 9.5, 4.5], sunPower: 1.6, sky: "#fffaf0", skyPower: 1.45, ambient: 0.65, pane: "#ffe5ad", panePower: 70 },
+    // the view's sun rises on the front side of the window and sets on the back side, so the
+    // room's evening sun comes in from behind
+    evening: { sun: "#ff9e66", sunAt: [-14, 4.5, -4], sunPower: 1.25, sky: "#ffe0c4", skyPower: 1.1, ambient: 0.55, pane: "#ffb27a", panePower: 85 },
+  };
+  function applyDaylight() {
+    const light = DAYLIGHT[clockPart()];
+    sun.color.set(light.sun);
+    sun.position.set(...light.sunAt);
+    sun.intensity = light.sunPower;
+    skyFill.color.set(light.sky);
+    skyFill.intensity = light.skyPower;
+    ambient.intensity = light.ambient;
+    windowLight.color.set(light.pane);
+    windowLight.intensity = light.panePower;
   }
   setTheme(dark);
   // The monitor's desktop follows the room
@@ -8410,7 +8744,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
   function resize() {
     const w = container.clientWidth || 1;
     const h = container.clientHeight || 1;
-    renderer.setPixelRatio(pixelRatio());
+    const density = pixelRatio();
+    // A new density is usually the window moving to another screen (a Retina laptop and a 1080p
+    // monitor, say), which may refresh at another rate too: start the quality over for it
+    if (density !== renderer.getPixelRatio()) resetQuality();
+    renderer.setPixelRatio(density);
     const aspect = w / h;
     // Keep desk props large enough to tap while the room fills the rest of the screen.
     viewH = Math.max(VIEW_H, (aspect < 1 ? 18 : VIEW_W) / aspect);
@@ -8420,8 +8758,143 @@ export function createDeskScene({ container, projects, experiences, dark = false
     camera.bottom = -viewH / 2;
     camera.updateProjectionMatrix();
     renderer.setSize(w, h, false);
+    sizeComposer();
     outlineResolution.value.set(w, h);
     if (!intro?.isActive()) applyShot(true);
+  }
+
+  // Adaptive quality. The display's own refresh rate is the target (a 120Hz Mac shows a frame
+  // every 8.3ms, and settling for 60 there reads as judder), learnt from the quickest frames in
+  // the first seconds. Decisions go on the median of the last frames, so a camera flight or a
+  // shader compiling doesn't count, only a steady shortfall. Sharpness is the last to give:
+  // first the ambient occlusion, then the neons' shadows, then the post passes' density (up to
+  // 2×, upscaled onto the canvas, never under one pass pixel per screen pixel). With headroom it
+  // climbs back a step; a step that falls behind again waits longer before the next try.
+  const QUALITY_LEVELS = [
+    { ao: true, neonShadows: true, density: 1 },
+    { ao: false, neonShadows: true, density: 1 },
+    { ao: false, neonShadows: false, density: 1 },
+    { ao: false, neonShadows: false, density: 0.875 },
+    { ao: false, neonShadows: false, density: 0.75 },
+    { ao: false, neonShadows: false, density: 0.625 },
+    { ao: false, neonShadows: false, density: 0.5 },
+  ];
+  let qualityLevel = 0;
+  let quality = 1;
+  let refreshMs = 1000 / 60;
+  const warmup = [];
+  const recentFrames = [];
+  let frameMs = 16;
+  // the first seconds compile shaders and load textures, which says nothing about steady frames;
+  // they still show how often the display refreshes
+  let warmupUntil = performance.now() + 5000;
+  let qualityCheckAt = warmupUntil;
+  let slowSince = null;
+  let easySince = null;
+  // per level: when climbing back to it may be tried again, and how long the next wait is
+  let retryAt = [];
+  let retryWait = [];
+  let climbedAt = -Infinity;
+  const postDensity = () => Math.max(1, Math.min(renderer.getPixelRatio(), 2) * quality);
+  function sizeComposer() {
+    composer.setPixelRatio(postDensity());
+    composer.setSize(container.clientWidth || 1, container.clientHeight || 1);
+  }
+  function applyQuality() {
+    const level = QUALITY_LEVELS[qualityLevel];
+    quality = level.density;
+    aoPass.enabled = level.ao;
+    // the shaders recompile when the six-sided shadow lookups come or go, so only on a change
+    if (shadowedNeons.some((light) => light.castShadow !== level.neonShadows)) {
+      shadowedNeons.forEach((light) => (light.castShadow = level.neonShadows));
+    }
+    sizeComposer();
+    recentFrames.length = 0;
+    slowSince = easySince = null;
+  }
+  // a lower step that changes nothing here (density already at the 1× floor) isn't a step
+  const lowestUseful = () => {
+    let last = 2;
+    let density = Math.max(1, Math.min(renderer.getPixelRatio(), 2));
+    QUALITY_LEVELS.forEach((level, i) => {
+      const next = Math.max(1, Math.min(renderer.getPixelRatio(), 2) * level.density);
+      if (next < density) last = i;
+      density = next;
+    });
+    return last;
+  };
+  function resetQuality() {
+    qualityLevel = 0;
+    retryAt = [];
+    retryWait = [];
+    slowSince = easySince = null;
+    climbedAt = -Infinity;
+    refreshMs = 1000 / 60;
+    warmup.length = 0;
+    recentFrames.length = 0;
+    warmupUntil = qualityCheckAt = performance.now() + 3000;
+    applyQuality();
+  }
+  function adaptQuality(now, ms) {
+    // a long gap is a background tab or a hitch, not the cost of a frame
+    if (document.hidden || ms > 100) {
+      recentFrames.length = 0;
+      slowSince = easySince = null;
+      return;
+    }
+    frameMs += (ms - frameMs) * 0.05;
+    recentFrames.push(ms);
+    if (recentFrames.length > 90) recentFrames.shift();
+    if (now < warmupUntil) {
+      warmup.push(ms);
+      return;
+    }
+    if (now < qualityCheckAt) return;
+    qualityCheckAt = now + 1000;
+    if (warmup.length) {
+      // snapped to the nearest common rate, since frame timings jitter either side of it
+      warmup.sort((a, b) => a - b);
+      const hz = 1000 / warmup[Math.floor(warmup.length * 0.25)];
+      refreshMs = 1000 / [60, 75, 90, 120, 144, 165].reduce((best, rate) => (Math.abs(rate - hz) < Math.abs(best - hz) ? rate : best));
+      warmup.length = 0;
+    }
+    if (recentFrames.length < 90) return;
+    const median = [...recentFrames].sort((a, b) => a - b)[recentFrames.length >> 1];
+    if (median > refreshMs * 1.2) {
+      easySince = null;
+      if (slowSince === null) slowSince = now;
+      if (now - slowSince < 2000 || qualityLevel >= lowestUseful()) return;
+      // falling behind soon after a climb: that step is too much for now
+      if (slowSince - climbedAt < 4000) {
+        retryWait[qualityLevel] = Math.min(8 * 60000, (retryWait[qualityLevel] || 15000) * 2);
+        retryAt[qualityLevel] = now + retryWait[qualityLevel];
+      }
+      climbedAt = -Infinity;
+      qualityLevel++;
+      applyQuality();
+    } else {
+      slowSince = null;
+      if (median > refreshMs * 1.05) {
+        easySince = null;
+        return;
+      }
+      if (easySince === null) easySince = now;
+      if (now - easySince < 10000 || qualityLevel === 0) return;
+      if (now < (retryAt[qualityLevel - 1] || 0)) return;
+      qualityLevel--;
+      climbedAt = now;
+      applyQuality();
+    }
+  }
+  // `?perf` in the address shows the frame rate and what the quality has settled on
+  const perfReadout = new URLSearchParams(window.location.search).has("perf") ? document.createElement("div") : null;
+  if (perfReadout) {
+    perfReadout.style.cssText = "position:absolute;right:8px;bottom:8px;z-index:50;padding:4px 8px;font:12px/1.4 ui-monospace,monospace;color:#fff;background:rgba(0,0,0,.7);border-radius:4px;pointer-events:none;white-space:pre";
+    container.appendChild(perfReadout);
+    timers.push(setInterval(() => {
+      const neonShadows = shadowedNeons.some((light) => light.castShadow);
+      perfReadout.textContent = `${(1000 / frameMs).toFixed(0)} fps (display ${(1000 / refreshMs).toFixed(0)}Hz) · step ${qualityLevel}\npost ${postDensity().toFixed(2)}× · AO ${aoPass.enabled ? "on" : "off"} · neon shadows ${neonShadows ? "on" : "off"}`;
+    }, 500));
   }
 
   let frame = null;
@@ -8434,6 +8907,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     frame = requestAnimationFrame(tick);
     // Step size for the springs, capped so a background tab doesn't fling them on return
     const dt = Math.min(0.05, lastTick ? (now - lastTick) / 1000 : 0.016);
+    if (lastTick) adaptQuality(now, now - lastTick);
     lastTick = now;
     updateTicketHover(dt);
     updateTassels(dt);
@@ -8498,7 +8972,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
       plane.position.z = object.position.z;
       plane.rotation.z = -object.rotation.y;
       plane.scale.setScalar(1 + lift * 0.3);
-      plane.material.opacity = (darkNow ? 0.5 : 0.65) * strength / (1 + lift * 3);
+      // Ambient occlusion now darkens the contact itself; this only softens it under a prop
+      // and carries the shadow while the prop is lifted
+      plane.material.opacity = (darkNow ? 0.22 : 0.28) * strength / (1 + lift * 3);
     }
     if (now - lastBlink > 530) {
       lastBlink = now;
@@ -8523,7 +8999,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
       chatDirty = false;
       redrawChat();
     }
-    renderer.render(scene, camera);
+    updateNeonLights();
+    renderFrame();
     if (firstFrame) {
       firstFrame = false;
       onEvent("ready");
@@ -8537,6 +9014,18 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // Zooming changes the pixel density without always resizing the container
   window.addEventListener("resize", resize);
   window.visualViewport?.addEventListener("resize", resize);
+  // Moving the window to a screen of another density doesn't always fire a resize
+  let densityQuery = null;
+  const watchDensity = () => {
+    densityQuery?.removeEventListener("change", onDensityChange);
+    densityQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+    densityQuery.addEventListener("change", onDensityChange);
+  };
+  function onDensityChange() {
+    resize();
+    watchDensity();
+  }
+  watchDensity();
   resize();
   const settledZoom = cam.zoom;
   cam.zoom = settledZoom * 1.08;
@@ -8582,7 +9071,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
       gsap.killTweensOf([cam, stringVibration, stringMat.color, windowGlare.material, glareTex.texture.offset, panelEdge.material.color]);
       boardPinGlints.forEach((glint) => gsap.killTweensOf(glint.material));
       ro.disconnect();
+      perfReadout?.remove();
       window.removeEventListener("resize", resize);
+      densityQuery?.removeEventListener("change", onDensityChange);
       window.visualViewport?.removeEventListener("resize", resize);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keydown", onKonami);
@@ -8603,6 +9094,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
       sun.shadow.dispose();
       windowLight.shadow.dispose();
       lampLight.shadow.dispose();
+      neonLights.forEach(({ light }) => light.shadow?.dispose());
+      composer.passes.forEach((pass) => pass.dispose?.());
+      composer.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     },

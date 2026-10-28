@@ -12,10 +12,10 @@ Click anything. Play a game on the console. Repaint the walls. Just don't try to
 ![Three.js](https://img.shields.io/badge/Three.js-r161-000000?style=flat-square&logo=threedotjs&logoColor=white)
 ![GSAP](https://img.shields.io/badge/GSAP-3-88ce02?style=flat-square&logo=greensock&logoColor=black)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-38bdf8?style=flat-square&logo=tailwindcss&logoColor=white)
-![Web Audio](https://img.shields.io/badge/Web_Audio-synthesized-ff90e8?style=flat-square)
+![Web Audio](https://img.shields.io/badge/Web_Audio-synths_%2B_samples-ff90e8?style=flat-square)
 ![Vercel](https://img.shields.io/badge/Vercel-deployed-000000?style=flat-square&logo=vercel&logoColor=white)
 
-<img src="public/readme-desk.jpg" alt="The Desk: a neo-brutalist 3D room with graphite walls, an oak desk, monitor, About board, game shelf, katana and the Infinity Gauntlet" width="100%" />
+<img src="public/readme-desk.jpg" alt="The Desk in the morning: a neo-brutalist 3D room with an oak desk, monitor, About board, game shelf, katana and the Infinity Gauntlet" width="100%" />
 
 </div>
 
@@ -32,7 +32,7 @@ Prefer a classic page? The same content lives at [`/2d`](https://okasp.dev/2d).
 
 ### ✨ At a glance
 
-- 🧭 **30-odd props to poke**, each with its own close-up, sound and secret
+- 🧭 **30-odd props to poke**, with close-ups, sounds and 20 hidden discoveries around the room
 - 🖥️ **A real little desktop** on the monitor: dock, terminal, music player, Snake and an AI chat
 - 🏴‍☠️ **A whole shoot-'em-up** on the console: *Straw Hat Strike*, Going Merry vs. the Marines
 - 🌦️ **A living room**: morning to moonlight, rain, neon and a sleepy cat
@@ -47,7 +47,8 @@ Prefer a classic page? The same content lives at [`/2d`](https://okasp.dev/2d).
 | 🪪 **ID badge** | Flips to reveal the links. Drag its pin to re-pin it anywhere on the wall, or pull the lanyard and let it swing. |
 | 📌 **About board** | Notes about me, pinned up. Drag them around and they pin back in place. |
 | 🖥️ **Monitor** | A tiny desktop with a draggable dock: a working terminal (`help`, `whoami`, `projects`, `sudo hire oka`), the Spotifree lo-fi player, VS Kode, Snake and more. |
-| ⌨️ **Keyboard** | Every key on your keyboard presses the same key on the desk. Keys `1`–`5` jump between sections. |
+| ⌨️ **Keyboard** | A Halo75 V2-inspired board with sculpted keycaps, a ribbed lower shell and a tilted chassis. Physical keys animate their matching modeled keys; `1`–`5` jump between sections. |
+| 🖥️ **Mac mini** | Powers the monitor desktop off or starts its boot sequence, with a green power LED and startup chime. |
 | 🗂️ **Drawer** | Project files: flip through the tabs, pull one out and turn its pages. |
 | 🎫 **Boarding passes** | My experience, one pass per job. Hold one up, flip it for the itinerary. |
 | 📱 **Phone** | Chat with my AI twin (answers come from my CV, streamed). |
@@ -125,11 +126,11 @@ night shift trades the daylight for cyan and pink neon.
 
 <table>
   <tr>
-    <td width="50%"><img src="public/readme-desk.jpg" alt="Day shift: sunlight through the window across the desk" width="100%" /></td>
+    <td width="50%"><img src="public/readme-desk.jpg" alt="Morning: warm sunlight through the window across the desk" width="100%" /></td>
     <td width="50%"><img src="public/readme-desk-night.jpg" alt="Night shift: cyan and pink LEDs behind the desk and monitor" width="100%" /></td>
   </tr>
   <tr>
-    <td align="center"><strong>☀️ Day shift</strong><br />Warm wood, graphite walls, window light and crisp shadows.</td>
+    <td align="center"><strong>☀️ Morning</strong><br />Warm wood, window light and crisp shadows.</td>
     <td align="center"><strong>🌙 Night shift</strong><br />Neon, a glowing screen and a quiet desk lamp.</td>
   </tr>
 </table>
@@ -156,7 +157,8 @@ Broad, overlapping light samples approximate the desk and monitor LED strips; th
 sources follow its movement. Shelf lighting is independent. A dim point light sits inside the
 exposed bulb, while the monitor lightbar illuminates the work surface.
 
-Full-resolution GTAO and contact shadows give objects depth in every phase. A broad shadowed
+GTAO at CSS-pixel resolution and contact shadows give objects depth in every phase. The AO is
+composited onto the higher-density frame. A broad shadowed
 room fill complements the direct lights, and PCSS softens cast shadows with separation. This
 is an artistic diorama setup, rather than a physical daylight or global-illumination simulation.
 
@@ -170,23 +172,28 @@ part of the scene, not a video playing behind the page.
 | | What makes it work |
 | --- | --- |
 | 🎨 **Drawn at runtime** | Canvas textures paint the notes, tickets, terminal, landscape, artwork and every wood grain. The portrait uses a supplied image. |
-| 🎛️ **Sound without audio files** | Web Audio synthesizes guitar chords, paper riffles, coffee slurps and the lo-fi player. |
+| 🎛️ **Synths and recorded detail** | Web Audio synthesizes guitar chords, UI sounds and the lo-fi player; short `.m4a` samples add steel, paper, object impacts and swallowing, with synthesized fallbacks. |
 | ✒️ **Lines that stay sharp** | Screen-space outlines keep their weight as you zoom in. Rendering follows device density, up to 3×. |
 | 🎬 **Every prop gets a close-up** | GSAP moves between framed camera shots; foreground props clip out of the way so they don't block the view or clicks. |
 | 🧩 **Small things, shared draws** | Compatible toon meshes and simpler shadow proxies are batched. Original meshes still handle picking and animation. |
 | 🚪 **The room starts before the scene** | An HTML boot loader appears before JavaScript, then fades into the desk. |
 
+Audio respects the shared mute setting. The app tries to start Web Audio automatically;
+when the browser blocks autoplay, a user gesture unlocks it. Recorded layers and their
+licenses live in `public/sfx/`; the lo-fi music is generated in the browser.
+
 <details>
 <summary><strong>⚙️ Rendering details and tradeoffs</strong></summary>
 
-- **Stable sharpness.** Postprocessing follows the canvas resolution. Slow frames do not lower
-  image density. Active camera moves and interactions follow browser frames.
+- **Stable sharpness.** The main scene and final composite follow the canvas resolution;
+  GTAO runs at CSS-pixel resolution and is blended up. Slow frames do not lower image density.
+  Active camera moves and interactions follow browser frames.
 - **Reuse work while idle.** AO and shadow maps are cached and refreshed on schedules, with
   more frequent updates while things move. Unsupported batching falls back to original meshes.
 - **Keep material detail visible.** Shadow maps share GPU texture slots with printed surfaces,
   bump maps, toon ramps and the window projection. The budget prioritizes active key lights;
   some secondary lights can stay lit without their own shadow map when slots are scarce.
-- **Quality has a cost.** Full-resolution AO, high pixel density and multiple shadows can be
+- **Quality has a cost.** AO, high pixel density and multiple shadows can be
   demanding. Use the profiling controls below to compare costs on the target browser and device.
 
 </details>
@@ -197,9 +204,11 @@ part of the scene, not a video playing behind the page.
 | --- | --- |
 | Front end | Vue 3, Vue Router, Tailwind CSS, VueUse |
 | 3D & motion | Three.js, GSAP |
-| Sound | Web Audio API (synthesized, no files) |
+| Sound | Web Audio API: synthesis plus local `.m4a` samples in `public/sfx/` |
 | Contact | EmailJS |
 | AI chat | Node.js + Express API (`my-portfolio-api/`), OpenAI, server-sent events |
+| Live weather | Open-Meteo forecast API, fetched by the browser |
+| Analytics | Vercel Analytics / Speed Insights and PostHog |
 | Hosting | Vercel |
 
 ## Getting started
@@ -215,6 +224,9 @@ npm run dev
 
 The site runs at `http://localhost:8080`: the desk at `/`, the classic page at `/2d`.
 
+Postcard delivery uses the configuration in `src/config/emailjs.js`. Replace its service,
+template and public key with your own EmailJS configuration when reusing the project.
+
 ### The AI chat (optional)
 
 The phone and the 2D chatbot talk to a small API in `my-portfolio-api/`.
@@ -222,12 +234,22 @@ The phone and the 2D chatbot talk to a small API in `my-portfolio-api/`.
 ```bash
 cd my-portfolio-api
 npm install
-echo "OPENAI_API_KEY=sk-..." > .env
+# Create my-portfolio-api/.env with your own OPENAI_API_KEY.
 node index.js            # listens on port 3000
 ```
 
 Point the site at it with `VUE_APP_API_URL` in a `.env` at the project root (it defaults to
 `http://localhost:3000`).
+
+For local chat, run the frontend with `npm run dev -- --port 8081`: the backend's current
+CORS allowlist includes `http://localhost:8081`, but not the default frontend port 8080.
+If you use another origin, update `allowedOrigins` in `my-portfolio-api/index.js`.
+Restart the frontend after changing its environment variables. The API reads its CV context
+from `my-portfolio-api/assets/OkaSutartoCV.txt`; replace that file for your own assistant.
+Text chat uses `GET /api/chat/stream` through `EventSource`. The backend validates the
+request, loads the CV context and streams reply tokens as server-sent events. Its Express
+middleware applies Helmet headers, an origin allowlist and an API rate limit of 100 requests
+per 15 minutes per IP. Frontend-only setup does not verify this external API or mail delivery.
 
 ## Scripts
 
@@ -241,6 +263,7 @@ Point the site at it with `VUE_APP_API_URL` in a `.env` at the project root (it 
 | `node scripts/check-desk-toon-batch.cjs` | Batching, transforms, visibility, picking and material fallbacks |
 | `node scripts/check-desk-lightbar.cjs` | Task-light geometry, direction, output and night fade |
 | `node scripts/check-desk-guitar-sword-lighting.cjs` | Lit guitar strings and independent sword focus lighting |
+| `node scripts/check-desk-keyboard.cjs` | Keyboard layout, keycap geometry, picking, travel clearance and legend fitting |
 
 Other `scripts/check-*.cjs` files exercise individual props, layout and audio. Run each with
 Node; `node scripts/check-*.cjs` does not run every matched file as separate programs. To run
@@ -251,6 +274,11 @@ for check in scripts/check-*.cjs; do
   node "$check" || exit $?
 done
 ```
+
+These are focused Node checks, many of which execute extracted scene code with mocked
+dependencies; they do not replace browser or device testing. In the current checkout,
+`check-desk-lighting.cjs` and `check-desk-quality.cjs` fail because their mocks lack
+`wallColor` and `screenPower`, respectively. The loop above stops at its first failure.
 
 ### Development previews and profiling
 
@@ -264,6 +292,7 @@ These phase/weather controls are **development-only**; open them on the dev serv
 | `/?time=night` | Hold the night phase |
 | `/?time=day&rain=1` | Seed a fully rainy midday view; `rain` accepts 0–1 |
 | `/?preview=trophy` | Preview the final secret discovery and trophy celebration without changing saved progress |
+| `/?preview=secret` | Preview a discovery notification and its ding without changing saved progress; audio follows mute/autoplay settings |
 
 Without a valid `time` preview, the normal time cycle continues. Live weather and window
 interactions can still affect rain after the initial preview state.
@@ -282,8 +311,9 @@ the-desk/
 ├── public/
 │   ├── index.html                # Meta tags and the boot loader
 │   ├── og-image.png              # Link preview image
-│   ├── readme-desk.jpg           # Daylight README screenshot
-│   └── readme-desk-night.jpg     # Nighttime README screenshot
+│   ├── readme-desk.jpg           # Morning README screenshot
+│   ├── readme-desk-night.jpg     # Nighttime README screenshot
+│   └── sfx/                      # Recorded sound layers and their licenses
 ├── src/
 │   ├── views/
 │   │   ├── DeskPage.vue          # The 3D desk: HUD, hints and the settings panel
@@ -299,7 +329,7 @@ the-desk/
 │   │   │   └── lofi.js           # The synthesized lo-fi player
 │   │   ├── sections/             # 2D page sections
 │   │   └── features/             # Chatbot, file drawer, theme switch, …
-│   ├── composables/useSfx.js     # The synthesized sound effects
+│   ├── composables/useSfx.js     # Web Audio synthesis, sample loading and mute state
 │   ├── data/                     # About notes, experience, projects (shared by 2D and 3D)
 │   └── router/
 ├── my-portfolio-api/             # Express API for the AI chat

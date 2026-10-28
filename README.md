@@ -46,12 +46,12 @@ Prefer a classic page? The same content lives at [`/2d`](https://okasp.dev/2d).
 | --- | --- |
 | 🪪 **ID badge** | Flips to reveal the links. Drag its pin to re-pin it anywhere on the wall, or pull the lanyard and let it swing. |
 | 📌 **About board** | Notes about me, pinned up. Drag them around and they pin back in place. |
-| 🖥️ **Monitor** | A tiny desktop with a draggable dock: a working terminal (`help`, `whoami`, `projects`, `sudo hire oka`), the Spotifree lo-fi player, VS Kode, Snake and more. |
+| 🖥️ **Monitor** | A tiny desktop with a draggable dock: a working terminal (`help`, `whoami`, `projects`, `sudo hire oka`), the Spotifree lo-fi player, VS Kode, Snake, a picker of six cut-paper wallpapers and more. |
 | ⌨️ **Keyboard** | A Halo75 V2-inspired board with sculpted keycaps, a ribbed lower shell and a tilted chassis. Physical keys animate their matching modeled keys; `1`–`5` jump between sections. |
 | 🖥️ **Mac mini** | Powers the monitor desktop off or starts its boot sequence, with a green power LED and startup chime. |
 | 🗂️ **Drawer** | Project files: flip through the tabs, pull one out and turn its pages. |
 | 🎫 **Boarding passes** | My experience, one pass per job. Hold one up, flip it for the itinerary. |
-| 📱 **Phone** | Chat with my AI twin (answers come from my CV, streamed). |
+| 📱 **Phone** | Chat with my AI twin (answers come from my CV, streamed, and it remembers the last few turns). |
 | ✉️ **Envelope** | A postcard to write and send. It really sends. |
 | ☕ **Mug** | A sip and a quote. Finish the cup and the room switches to the night shift. |
 | 💡 **Lamp** | Day and night, by hand. |
@@ -60,7 +60,7 @@ Prefer a classic page? The same content lives at [`/2d`](https://okasp.dev/2d).
 | 🪟 **Window & blind** | Morning, midday, sunset and moonlight scenery with birds, stars and rain. Pull the blind or its chain; three quick knocks toggle rain. The weather card shows live Pontianak weather when available. |
 | 🪴 **Plant** | Each click blooms a flower. Three blooms call a butterfly. |
 | 🖱️ **Mouse** | Grows ears and a tail, and scampers off for a lap. |
-| 🪑 **Chair** | Spins and can be dragged, with a springy return. |
+| 🪑 **Chair** | A Titan Evo-inspired gaming chair, traced from photos. Click to spin it, or drag it round on its post. |
 | 🖼️ **Painting** | A small gallery: it flips to the next picture. |
 | 🕰️ **Clock** | Spins its hands round and chimes. |
 | 🎸 **Guitar** | Strums the next chord; its strings react to hover and vibration, and respond to the room lighting. |
@@ -95,13 +95,13 @@ Chain kills for a multiplier, and if you go down you get your own wanted poster.
 The ⚙️ gear next to **2D site** opens the room settings. Every pick applies instantly, by day
 and by night, and is remembered in your browser.
 
-| Part | Choices |
-| --- | --- |
-| 🧱 **Wall** | Seven house paints from white to graphite (the default), or any colour at all |
-| 🪵 **Desk** | Six woods × four cuts |
-| 🖥️ **Monitor riser** | Six woods × four cuts |
-| 🪟 **Window frame** | Six woods × four cuts |
-| 🎮 **Game shelf** | Six woods × four cuts |
+| Part | Choices | Default |
+| --- | --- | --- |
+| 🧱 **Wall** | Seven house paints from white to graphite, or any colour at all | Graphite |
+| 🪵 **Desk** | Six woods × four cuts | Cherry, butcher block |
+| 🖥️ **Monitor riser** | Six woods × four cuts | Cherry, cathedral |
+| 🪟 **Window frame** | Six woods × four cuts | Cherry, planks |
+| 🎮 **Game shelf** | Six woods × four cuts | Cherry, planks |
 
 **Woods:** Oak · Maple · White ash · Cherry · Walnut · Ebony stain
 **Cuts:** Planks · Cathedral · Knotty · Butcher block
@@ -203,6 +203,7 @@ licenses live in `public/sfx/`; the lo-fi music is generated in the browser.
 | Area | Tools |
 | --- | --- |
 | Front end | Vue 3, Vue Router, Tailwind CSS, VueUse |
+| Build | Vite |
 | 3D & motion | Three.js, GSAP |
 | Sound | Web Audio API: synthesis plus local `.m4a` samples in `public/sfx/` |
 | Contact | EmailJS |
@@ -246,10 +247,11 @@ CORS allowlist includes `http://localhost:8081`, but not the default frontend po
 If you use another origin, update `allowedOrigins` in `my-portfolio-api/index.js`.
 Restart the frontend after changing its environment variables. The API reads its CV context
 from `my-portfolio-api/assets/OkaSutartoCV.txt`; replace that file for your own assistant.
-Text chat uses `GET /api/chat/stream` through `EventSource`. The backend validates the
-request, loads the CV context and streams reply tokens as server-sent events. Its Express
-middleware applies Helmet headers, an origin allowlist and an API rate limit of 100 requests
-per 15 minutes per IP. Frontend-only setup does not verify this external API or mail delivery.
+Each question is sent with the conversation's last 8 turns to `POST /api/chat/stream`, and the
+reply is read as server-sent events from the response (a `GET` with the question in the query
+still works for a single turn). The backend validates the request and the history, loads the
+CV context and streams reply tokens. Its Express middleware applies Helmet headers, an origin
+allowlist and an API rate limit of 100 requests per 15 minutes per IP. Frontend-only setup does not verify this external API or mail delivery.
 
 ## Scripts
 
@@ -259,6 +261,7 @@ per 15 minutes per IP. Frontend-only setup does not verify this external API or 
 | `npm run build` | Production build into `dist/` |
 | `npm run preview` | Serve the production build locally |
 | `npm run lint` | ESLint |
+| `npm run check:desk` | Every desk check in turn, with a passed count at the end |
 | `node scripts/check-desk-lighting.cjs` | Time cycle, sky/light alignment, rain, transitions, strip lighting and shadow sampler limits |
 | `node scripts/check-desk-quality.cjs` | Resolution, frame scheduling and decorative shadow budgets |
 | `node scripts/check-desk-toon-batch.cjs` | Batching, transforms, visibility, picking and material fallbacks |
@@ -266,20 +269,12 @@ per 15 minutes per IP. Frontend-only setup does not verify this external API or 
 | `node scripts/check-desk-guitar-sword-lighting.cjs` | Lit guitar strings and independent sword focus lighting |
 | `node scripts/check-desk-keyboard.cjs` | Keyboard layout, keycap geometry, picking, travel clearance and legend fitting |
 
-Other `scripts/check-*.cjs` files exercise individual props, layout and audio. Run each with
-Node; `node scripts/check-*.cjs` does not run every matched file as separate programs. To run
-the complete set in a POSIX shell:
-
-```bash
-for check in scripts/check-*.cjs; do
-  node "$check" || exit $?
-done
-```
+Other `scripts/check-*.cjs` files exercise individual props, layout, scene wiring and audio.
+Run one on its own with Node, or all of them with `npm run check:desk`, which keeps going past a
+failure and exits non-zero if any failed.
 
 These are focused Node checks, many of which execute extracted scene code with mocked
-dependencies; they do not replace browser or device testing. In the current checkout,
-`check-desk-lighting.cjs` and `check-desk-quality.cjs` fail because their mocks lack
-`wallColor` and `screenPower`, respectively. The loop above stops at its first failure.
+dependencies; they do not replace browser or device testing.
 
 ### Development previews and profiling
 
@@ -309,8 +304,9 @@ measurements. The `time`/`rain` previews themselves do not override production b
 
 ```
 the-desk/
+├── index.html                    # Meta tags and the boot loader
+├── vite.config.js                # Vite build, the `@` alias and the env values the code reads
 ├── public/
-│   ├── index.html                # Meta tags and the boot loader
 │   ├── og-image.png              # Link preview image
 │   ├── readme-desk.jpg           # README hero screenshot
 │   ├── readme-desk-morning.jpg   # Morning README screenshot, paired with the night one
@@ -322,11 +318,19 @@ the-desk/
 │   │   └── HomePage.vue          # The classic 2D page at /2d
 │   ├── components/
 │   │   ├── features/desk/
-│   │   │   ├── deskScene.js      # Props, lighting, weather, interactions and camera shots
-│   │   │   ├── textures.js       # Canvas surfaces, wood grains and shared sky palettes
-│   │   │   ├── woods.js          # Woods, cuts and paintable parts for the settings panel
+│   │   │   ├── deskScene.js      # Assembles one scene from the factories in scene/
+│   │   │   ├── scene/            # One factory per prop, plus core, camera, pointer, touch,
+│   │   │   │                     #   theme, animation and lifecycle (see its README.md)
+│   │   │   ├── textures.js       # Gathers the canvas textures from textures/
+│   │   │   ├── textures/         # Canvas surfaces by section: badge, tickets, desk woods, …
+│   │   │   ├── woods.js          # Woods, cuts, paintable parts and their defaults
+│   │   │   ├── sceneConfig.js    # Shared palettes
+│   │   │   ├── sceneMeshes.js    # Shared mesh helpers
+│   │   │   ├── sceneShaders.js   # Shader patches such as the soft shadows
+│   │   │   ├── paperFlex.js      # Sheets, covers and passes that bend
 │   │   │   ├── toonBatch.js      # Toon batching, shadow proxies and picking fallback
 │   │   │   ├── desktop.js        # Interactive monitor desktop, dock and apps
+│   │   │   ├── wallpapers.js     # The desktop's cut-paper wallpapers
 │   │   │   ├── strawHatStrike.js # The console's shoot-'em-up
 │   │   │   └── lofi.js           # The synthesized lo-fi player
 │   │   ├── sections/             # 2D page sections
@@ -335,7 +339,7 @@ the-desk/
 │   ├── data/                     # About notes, experience, projects (shared by 2D and 3D)
 │   └── router/
 ├── my-portfolio-api/             # Express API for the AI chat
-└── scripts/                      # Logic checks for the desk
+└── scripts/                      # Logic checks for the desk (`npm run check:desk`)
 ```
 
 The content lives in `src/data/`, and both the 2D page and the desk read from it, so editing a

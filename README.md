@@ -15,7 +15,7 @@ Click anything. Just don't try to use the Infinity Gauntlet. 🫰
 ![Web Audio](https://img.shields.io/badge/Web_Audio-synthesized-ff90e8?style=flat-square)
 ![Vercel](https://img.shields.io/badge/Vercel-deployed-000000?style=flat-square&logo=vercel&logoColor=white)
 
-<img src="public/og-image.png" alt="The Desk: a neo-brutalist 3D room with a desk, monitor, About board, bookshelf, katana and the Infinity Gauntlet" width="100%" />
+<img src="public/readme-desk.jpg" alt="The Desk: a neo-brutalist 3D room with a desk, monitor, About board, bookshelf, katana and the Infinity Gauntlet" width="100%" />
 
 </div>
 
@@ -201,7 +201,8 @@ measurements. The `time`/`rain` previews themselves do not override production b
 the-desk/
 ├── public/
 │   ├── index.html                # Meta tags and the boot loader
-│   └── og-image.png              # Link preview image
+│   ├── og-image.png              # Link preview image
+│   └── readme-desk.jpg           # Current desk screenshot used above
 ├── src/
 │   ├── views/
 │   │   ├── DeskPage.vue          # The 3D desk: HUD and hints around the scene

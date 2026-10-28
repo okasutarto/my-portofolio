@@ -171,8 +171,11 @@ export function drawBadge(c, w, h, { back = false, now = new Date() } = {}) {
   h = 780;
   c.fillStyle = "#fffdf5";
   c.fillRect(0, 0, w, h);
+  stockGrain(c, w, h, { seed: back ? 21 : 20, density: 0.6, wear: 0.04 });
+  guilloche(c, 0, 130, w, 300, "rgba(36,91,215,.06)", { lines: 6, waves: 3 });
   c.fillStyle = "#ffdd00";
   c.fillRect(0, 0, w, 112);
+  guilloche(c, 0, 0, w, 108, "rgba(0,0,0,.08)", { lines: 6, waves: 4 });
   c.fillStyle = "#17243b";
   c.fillRect(0, 108, w, 6);
   c.textAlign = "left";
@@ -217,6 +220,25 @@ export function drawBadge(c, w, h, { back = false, now = new Date() } = {}) {
     c.fillStyle = "#17243b";
     c.fillRect(140, 150, 216, 264);
     drawPortrait(c, 132, 142, 216, 264, "#00e0c6");
+    // the card's contact chip: gold, its pads cut by inked lines
+    brutalBox(c, 40, 168, 66, 54, "#e2b53c", { shadow: 4, line: 3 });
+    c.strokeStyle = "#8a6514";
+    c.lineWidth = 2.5;
+    c.beginPath();
+    c.moveTo(73, 168);
+    c.lineTo(73, 222);
+    c.moveTo(40, 186);
+    c.lineTo(62, 186);
+    c.moveTo(84, 186);
+    c.lineTo(106, 186);
+    c.moveTo(40, 204);
+    c.lineTo(62, 204);
+    c.moveTo(84, 204);
+    c.lineTo(106, 204);
+    c.rect(62, 182, 22, 26);
+    c.stroke();
+    c.fillStyle = "rgba(255,255,255,.45)";
+    c.fillRect(43, 171, 60, 5);
     c.fillStyle = "#245bd7";
     c.fillRect(310, 370, 112, 36);
     c.fillStyle = "#fff";
@@ -288,6 +310,45 @@ export function drawTicket(c, w, h, exp) {
   c.fillRect(0, 0, stub, h);
   c.fillStyle = tone;
   c.fillRect(stub, 0, w - stub, h);
+  // card stock, security waves behind the route, and a big plane watermarked into the paper
+  stockGrain(c, w, h, { seed: exp.company.length + 5, wear: 0.06 });
+  guilloche(c, 30, 88, stub - 60, 120, "rgba(0,0,0,.07)", { lines: 8, waves: 5 });
+  c.save();
+  c.translate(stub * 0.55, h * 0.58);
+  c.rotate(-0.25);
+  c.fillStyle = "rgba(0,0,0,.045)";
+  c.font = `800 ${Math.round(h * 0.55)}px ${BODY}`;
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.fillText("✈", 0, 0);
+  c.restore();
+  // halftone dots down the stub
+  c.fillStyle = "rgba(0,0,0,.08)";
+  for (let y = 12; y < h; y += 14) for (let x = stub + 12 + ((y / 14) % 2) * 7; x < w; x += 14) c.fillRect(x, y, 3, 3);
+  // a holographic seal on the stub: flat bands of rainbow foil, inked round
+  c.save();
+  c.translate(w - 62, 205);
+  c.beginPath();
+  c.roundRect(-34, -24, 68, 48, 8);
+  c.clip();
+  ["#ff90e8", "#c4b5fd", "#7fdfff", "#8fd694", "#ffdd00"].forEach((color, i) => {
+    c.fillStyle = color;
+    c.beginPath();
+    c.moveTo(-60 + i * 22, 30);
+    c.lineTo(-38 + i * 22, 30);
+    c.lineTo(-8 + i * 22, -30);
+    c.lineTo(-30 + i * 22, -30);
+    c.closePath();
+    c.fill();
+  });
+  c.fillStyle = "rgba(255,255,255,.6)";
+  c.fillRect(-34, -24, 68, 6);
+  c.restore();
+  c.lineWidth = 3;
+  c.strokeStyle = "#000";
+  c.beginPath();
+  c.roundRect(w - 96, 181, 68, 48, 8);
+  c.stroke();
   c.textBaseline = "middle";
 
   // airline: initial + company
@@ -398,6 +459,8 @@ export function drawTicketBack(c, w, h, exp) {
   const color = toneFor(exp);
   c.fillStyle = "#fffdf5";
   c.fillRect(0, 0, w, h);
+  stockGrain(c, w, h, { seed: exp.company.length + 9, wear: 0.06 });
+  guilloche(c, 20, 120, w - 330, h - 200, "rgba(0,0,0,.035)", { lines: 6, waves: 7 });
   c.fillStyle = color;
   c.fillRect(0, 0, w, 64);
   c.fillStyle = "#000";
@@ -467,9 +530,14 @@ function fileText(c, text, x, y, width, { size = 25, lines = 4, weight = 500, in
 }
 function drawClip(c, x, y, w, h, api) {
   brutalBox(c, x, y, w, h, "#fffdf5", { shadow: 7, line: 4 });
-  c.strokeStyle = "#555";
-  c.lineWidth = 6;
-  c.strokeRect(x + 35, y - 18, 20, 58);
+  c.save();
+  c.beginPath();
+  c.rect(x + 2, y + 2, w - 4, h - 4);
+  c.clip();
+  c.translate(x, y);
+  stockGrain(c, w, h, { seed: x + y, wear: 0 });
+  c.restore();
+  paperclip(c, x + 45, y - 26, 82, 0.05);
   if (api) {
     fileText(c, api.request, x + 16, y + 35, w - 32, { size: 17, weight: 800, lines: 2 });
     fileText(c, api.status, x + 16, y + 95, w - 32, { size: 16, ink: "#166534", lines: 1 });
@@ -492,11 +560,43 @@ function drawFileMetrics(c, metrics, color, y = 630) {
     fileText(c, metric.label.toUpperCase(), x + 14, y + 49, 266, { size: 14, lines: 1, weight: 800 });
   });
 }
+// Three punched holes down a sheet's hinged edge, at `x` in the 1000-wide page
+function punchHoles(c, x) {
+  [190, 370, 550].forEach((y) => {
+    c.beginPath();
+    c.arc(x, y, 11, 0, Math.PI * 2);
+    c.fillStyle = "#3a3530";
+    c.fill();
+    c.lineWidth = 3;
+    c.strokeStyle = "#1a1714";
+    c.stroke();
+    c.beginPath();
+    c.arc(x + 2, y + 2, 7, Math.PI * 0.9, Math.PI * 1.9);
+    c.strokeStyle = "rgba(255,255,255,.25)";
+    c.stroke();
+  });
+}
+// The folder's board: coloured card with a fibre grain, a scored crease along the spine (the
+// hinged left edge), a rubber stamp and the faint ring of a mug once set down on it
+function folderBoard(c, color, index, creaseX = 20) {
+  c.fillStyle = color;
+  c.fillRect(0, 0, 1000, 740);
+  stockGrain(c, 1000, 740, { seed: index + 3, density: 1.2, wear: 0.07 });
+  c.fillStyle = "rgba(0,0,0,.14)";
+  c.fillRect(creaseX, 0, 5, 740);
+  c.fillStyle = "rgba(255,255,255,.3)";
+  c.fillRect(creaseX + 5, 0, 3, 740);
+}
 export function drawFolderCover(c, w, h, project, index = 0) {
   return fileCanvas(c, w, h, () => {
     const color = FOLDER_COLORS[index % FOLDER_COLORS.length];
-    c.fillStyle = color;
-    c.fillRect(0, 0, 1000, 740);
+    folderBoard(c, color, index);
+    rubberStamp(c, 160, 655, `CASE Nº ${String(index + 1).padStart(2, "0")}`, { color: "rgba(26,23,20,.55)", size: 26, angle: -0.08, seed: index + 1 });
+    c.strokeStyle = "rgba(60,30,10,.16)";
+    c.lineWidth = 7;
+    c.beginPath();
+    c.arc(560, 640, 62, 0.5, Math.PI * 1.75);
+    c.stroke();
     brutalBox(c, 42, 42, 245, 46, "#fff", { shadow: 5, line: 4 });
     fileText(c, project.type.toUpperCase(), 58, 53, 220, { size: 20, weight: 800, lines: 1 });
     const longestWord = project.title.toUpperCase().split(/\s+/).sort((a, b) => b.length - a.length)[0];
@@ -519,6 +619,8 @@ export function drawCaseSheet(c, w, h, project, kind, { index = 0 } = {}) {
     const cf = project.caseFile || {};
     c.fillStyle = "#fffdf5";
     c.fillRect(0, 0, 1000, 740);
+    stockGrain(c, 1000, 740, { seed: index * 7 + page + 1, wear: 0.05 });
+    punchHoles(c, 17);
     brutalBox(c, 35, 28, 58, 40, "#111", { shadow: 0, line: 0 });
     fileText(c, String(page + 1).padStart(2, "0"), 46, 36, 45, { size: 23, weight: 800, lines: 1, ink: "#ffdd00" });
     fileText(c, FILE_PAGES[page].title.toUpperCase(), 110, 34, 840, { size: 31, weight: 800, lines: 1 });
@@ -608,8 +710,11 @@ export function drawCaseBack(c, w, h, project, { inside = false, index = 0, kind
   c.rotate(Math.PI);
   let hotspots = [];
   if (inside) {
-    c.fillStyle = FOLDER_COLORS[index % FOLDER_COLORS.length];
-    c.fillRect(0, 0, w, h);
+    c.save();
+    c.scale(w / 1000, h / 740);
+    // drawn turned round, so the spine's crease is on the far side here
+    folderBoard(c, FOLDER_COLORS[index % FOLDER_COLORS.length], index + 11, 972);
+    c.restore();
     c.fillStyle = "#000";
     c.font = `800 30px ${DISPLAY}`;
     c.fillText(`CASE FILE #${String(index + 1).padStart(3, "0")}`, 30, 70);
@@ -686,6 +791,9 @@ export function drawCaseBack(c, w, h, project, { inside = false, index = 0, kind
     hotspots = fileCanvas(c, w, h, () => {
       c.fillStyle = "#fffdf5";
       c.fillRect(0, 0, 1000, 740);
+      stockGrain(c, 1000, 740, { seed: index * 7 + page + 40, wear: 0.05 });
+      // the holes go through: here they sit on the far side, which turns to the hinge
+      punchHoles(c, 983);
       // Same header as the right page, for the page this sheet holds
       brutalBox(c, 35, 28, 58, 40, "#111", { shadow: 0, line: 0 });
       fileText(c, String(page + 1).padStart(2, "0"), 46, 36, 45, { size: 23, weight: 800, lines: 1, ink: "#ffdd00" });
@@ -4255,42 +4363,6 @@ export function drawRepBadge(c, w, h, text, fill = "#ffdd00") {
   c.textBaseline = "alphabetic";
 }
 
-// The wastebasket's wrap-round sticker: a little basketball and "TRASH" on a white band, in the
-// same thick-lined, hard-shadow style as the rest of the room's print
-export function drawBinLabel(c, w, h) {
-  c.clearRect(0, 0, w, h);
-  brutalBox(c, 8, 8, w - 26, h - 26, "#fffdf5", { shadow: 10, line: 7 });
-  const r = h * 0.24;
-  const bx = 40 + r * 1.35;
-  const by = (h - 18) / 2;
-  c.fillStyle = "#ff7a1a";
-  c.strokeStyle = "#000";
-  c.lineWidth = 6;
-  c.beginPath();
-  c.arc(bx, by, r, 0, Math.PI * 2);
-  c.fill();
-  c.stroke();
-  c.lineWidth = 4;
-  c.beginPath();
-  c.moveTo(bx - r, by);
-  c.lineTo(bx + r, by);
-  c.moveTo(bx, by - r);
-  c.lineTo(bx, by + r);
-  c.stroke();
-  c.beginPath();
-  c.arc(bx - r * 1.25, by, r * 0.85, -0.85, 0.85);
-  c.stroke();
-  c.beginPath();
-  c.arc(bx + r * 1.25, by, r * 0.85, Math.PI - 0.85, Math.PI + 0.85);
-  c.stroke();
-  c.fillStyle = "#000";
-  c.textBaseline = "middle";
-  const left = bx + r + 22;
-  fitFont(c, "TRASH", 800, DISPLAY, Math.round(h * 0.4), w - left - 36);
-  c.fillText("TRASH", left, by + 4);
-  c.textBaseline = "alphabetic";
-}
-
 // A sheet that's been screwed up and thrown away, wrapped round a paper ball: a page torn from
 // a lined notebook (blue rules, a red margin, a few lines of pencil scrawl, a crossed-out bit) or
 // a printed page (grey type in blocks). Wrinkles are drawn in, a soft shadow along each crease
@@ -4608,8 +4680,54 @@ export function drawSayaLacquer(c, w, h, { color }) {
   }
 }
 
-// Fine longitudinal polishing lines follow the blade's curve and remain inside its edge.
+// Fine longitudinal polishing lines follow the blade's curve and remain inside its edge. Over
+// them, the steel in toon terms: the shinogi (the ridge line) inked along the blade, a bright
+// band of polished steel just under it and a burnished, darker one above, a hard white line
+// down the cutting edge, the yokote where the point begins, slanted bars of reflected light,
+// and the fine sparkle of nie scattered along the temper line.
 function drawBladePolish(c, w, h, { bow, length, width, yMin, yMax }) {
+  const row = (x, f) => {
+    const edge = bow(x) - 0.055 * (1 - 0.3 * x / length);
+    return (1 - (edge + (bow(x) + 0.05 - edge) * f - yMin) / (yMax - yMin)) * h;
+  };
+  const strip = (f0, f1, color) => {
+    c.beginPath();
+    for (let px = 0; px <= w; px += 4) {
+      const x = Math.min(px / w * width, length);
+      (px ? c.lineTo : c.moveTo).call(c, px, row(x, f0));
+    }
+    for (let px = w; px >= 0; px -= 4) c.lineTo(px, row(Math.min(px / w * width, length), f1));
+    c.closePath();
+    c.fillStyle = color;
+    c.fill();
+  };
+  strip(0.5, 0.6, "rgba(255,255,255,.42)");
+  strip(0.64, 0.86, "rgba(0,0,0,.16)");
+  strip(0.6, 0.64, "rgba(26,23,20,.55)");
+  strip(0.02, 0.07, "rgba(255,255,255,.75)");
+  const yx = (length / width) * w;
+  c.fillStyle = "rgba(26,23,20,.5)";
+  c.fillRect(yx - 1, row(length, 1), 2.5, row(length, 0) - row(length, 1));
+  // slanted bars of light: a broad one and a thin one, twice along the blade
+  c.fillStyle = "rgba(255,255,255,.28)";
+  [[0.28, 0.03], [0.32, 0.008], [0.66, 0.025], [0.695, 0.007]].forEach(([at, wd]) => {
+    c.beginPath();
+    c.moveTo(w * at, h);
+    c.lineTo(w * (at + wd), h);
+    c.lineTo(w * (at + wd + 0.03), 0);
+    c.lineTo(w * (at + 0.03), 0);
+    c.closePath();
+    c.fill();
+  });
+  let r = 4447;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  c.fillStyle = "rgba(255,255,255,.85)";
+  for (let i = 0; i < 260; i++) {
+    const px = rand() * w;
+    const x = px / w * width;
+    if (x > length) continue;
+    c.fillRect(px, row(x, 0.12 + rand() * 0.3), 1.5, 1.5);
+  }
   c.save();
   c.lineWidth = 0.6;
   for (let i = 1; i < 14; i++) {
@@ -6093,4 +6211,418 @@ export function drawInvaders(c, w, h, t = 0) {
     c.fillText("STAGE CLEAR!", w / 2, p * 22);
     c.textAlign = "left";
   }
+}
+
+// ---------- shared print details ----------
+// Card or paper stock: a fine scatter of flecks and a few short fibres, with the edges a shade
+// darker where hands have worn it. Flat, hard-edged marks, so it stays a printed toon surface.
+function stockGrain(c, w, h, { seed = 1, density = 1, fibre = "rgba(90,60,20,.09)", wear = 0.08 } = {}) {
+  let r = Math.abs(Math.round(seed * 9301 + 49297)) % 2147483646 + 1;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  const n = Math.round(((w * h) / 900) * density);
+  for (let i = 0; i < n; i++) {
+    c.fillStyle = rand() < 0.5 ? "rgba(0,0,0,.04)" : "rgba(255,255,255,.12)";
+    c.fillRect(rand() * w, rand() * h, 1 + rand() * 2, 1 + rand());
+  }
+  c.strokeStyle = fibre;
+  c.lineWidth = 1;
+  c.beginPath();
+  for (let i = 0; i < n / 30; i++) {
+    const x = rand() * w;
+    const y = rand() * h;
+    const a = rand() * Math.PI;
+    const l = 4 + rand() * 10;
+    c.moveTo(x, y);
+    c.quadraticCurveTo(x + Math.cos(a) * l * 0.5 + rand() * 3, y + Math.sin(a) * l * 0.5, x + Math.cos(a) * l, y + Math.sin(a) * l);
+  }
+  c.stroke();
+  if (wear) {
+    // a flat worn band round the edge, and the corners rubbed lighter
+    const band = Math.min(w, h) * 0.025;
+    c.fillStyle = `rgba(0,0,0,${wear})`;
+    c.fillRect(0, 0, w, band);
+    c.fillRect(0, h - band, w, band);
+    c.fillRect(0, 0, band, h);
+    c.fillRect(w - band, 0, band, h);
+    c.fillStyle = "rgba(255,255,255,.22)";
+    [[0, 0], [w, 0], [0, h], [w, h]].forEach(([x, y]) => {
+      c.beginPath();
+      c.arc(x, y, band * 2.2, 0, Math.PI * 2);
+      c.fill();
+    });
+  }
+}
+// Security-print waves (guilloche): fine sine lines weaving over each other
+function guilloche(c, x, y, w, h, color, { lines = 7, waves = 6 } = {}) {
+  c.save();
+  c.beginPath();
+  c.rect(x, y, w, h);
+  c.clip();
+  c.strokeStyle = color;
+  c.lineWidth = 1.2;
+  for (let k = 0; k < lines; k++) {
+    c.beginPath();
+    for (let px = 0; px <= w; px += 4) {
+      const a = (px / w) * Math.PI * 2 * waves;
+      const py = y + h / 2 + Math.sin(a + k * 0.9) * h * 0.32 + Math.sin(a * 0.5 - k * 1.3) * h * 0.12;
+      if (px === 0) c.moveTo(x + px, py);
+      else c.lineTo(x + px, py);
+    }
+    c.stroke();
+  }
+  c.restore();
+}
+// A rubber stamp, inked a little unevenly (gaps knocked out of the ink)
+function rubberStamp(c, x, y, text, { color = "#d62828", size = 30, angle = -0.12, seed = 1 } = {}) {
+  c.save();
+  c.translate(x, y);
+  c.rotate(angle);
+  c.font = `800 ${size}px ${DISPLAY}`;
+  const tw = c.measureText(text).width;
+  const pw = tw + size * 0.9;
+  const ph = size * 1.6;
+  c.strokeStyle = color;
+  c.fillStyle = color;
+  c.lineWidth = size * 0.14;
+  c.strokeRect(-pw / 2, -ph / 2, pw, ph);
+  c.lineWidth = size * 0.05;
+  c.strokeRect(-pw / 2 + size * 0.2, -ph / 2 + size * 0.2, pw - size * 0.4, ph - size * 0.4);
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.fillText(text, 0, size * 0.06);
+  c.globalCompositeOperation = "destination-out";
+  let r = seed * 7919 + 13;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 40; i++) c.fillRect((rand() - 0.5) * pw, (rand() - 0.5) * ph, 2 + rand() * 6, 1.5 + rand() * 2);
+  c.restore();
+}
+// A paperclip seen from above: one wire bent into nested loops, inked, with a bright line
+function paperclip(c, x, y, len, angle = 0) {
+  const W = len * 0.36;
+  const wire = () => {
+    c.beginPath();
+    c.moveTo(-0.15 * W, len * 0.62);
+    c.lineTo(-0.15 * W, len * 0.22);
+    c.arc(0, len * 0.22, 0.15 * W, Math.PI, 0);
+    c.lineTo(0.15 * W, len - 0.25 * W);
+    c.arc(-0.1 * W, len - 0.25 * W, 0.25 * W, 0, Math.PI);
+    c.lineTo(-0.35 * W, 0.35 * W);
+    c.arc(0, 0.35 * W, 0.35 * W, Math.PI, 0);
+    c.lineTo(0.35 * W, len * 0.78);
+  };
+  c.save();
+  c.translate(x, y);
+  c.rotate(angle);
+  c.lineCap = "round";
+  c.lineJoin = "round";
+  [[0.1, "#1a1714"], [0.055, "#b9c2cf"], [0.016, "#ffffff"]].forEach(([k, color]) => {
+    wire();
+    c.lineWidth = len * k;
+    c.strokeStyle = color;
+    c.stroke();
+  });
+  c.restore();
+}
+
+// ---------- mug, coffee and coaster ----------
+// The coffee's top, for a cylinder's cap: a ring of darker brew round the edge where it meets
+// the cup, the crema in two flat tones, a layered latte-art heart, a few bubbles at the rim and
+// a hard-edged sheen of the window across it
+export function drawCoffeeTop(c, w, h) {
+  const cx = w / 2;
+  const cy = h / 2;
+  const R = w / 2;
+  c.fillStyle = "#3b2412";
+  c.fillRect(0, 0, w, h);
+  c.beginPath();
+  c.arc(cx, cy, R * 0.9, 0, Math.PI * 2);
+  c.fillStyle = "#8a5428";
+  c.fill();
+  c.beginPath();
+  c.arc(cx, cy, R * 0.74, 0, Math.PI * 2);
+  c.fillStyle = "#a96b36";
+  c.fill();
+  // the art: a layered heart, as when milk is poured in a wobble and pulled through. Nested
+  // hearts alternate milk and crema, bunched toward the point the pour came from, and a thin
+  // pulled line runs down through them, dragging each ring into the point. Flat tones, the
+  // outermost lightly inked.
+  const milk = "#f8ecd8";
+  const ring = "#b47740";
+  const heart = (s, dy) => {
+    const k = R * s;
+    const y = cy + dy;
+    c.beginPath();
+    c.moveTo(cx, y + k * 0.62);
+    c.bezierCurveTo(cx - k * 1.05, y + k * 0.05, cx - k * 0.62, y - k * 0.82, cx, y - k * 0.34);
+    c.bezierCurveTo(cx + k * 0.62, y - k * 0.82, cx + k * 1.05, y + k * 0.05, cx, y + k * 0.62);
+    c.closePath();
+  };
+  // mottled crema round it, darker flecks where the espresso shows through
+  let seed = 7121;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  c.fillStyle = "#94592b";
+  for (let i = 0; i < 40; i++) {
+    const a = rand() * Math.PI * 2;
+    const d = R * (0.55 + rand() * 0.3);
+    c.beginPath();
+    c.ellipse(cx + Math.cos(a) * d, cy + Math.sin(a) * d, R * (0.015 + rand() * 0.03), R * (0.01 + rand() * 0.015), a, 0, Math.PI * 2);
+    c.fill();
+  }
+  heart(0.76, -R * 0.02);
+  c.lineWidth = w * 0.012;
+  c.strokeStyle = "#7a4a22";
+  c.stroke();
+  [[0.76, 0, milk], [0.61, 0.035, ring], [0.49, 0.065, milk], [0.37, 0.09, ring], [0.24, 0.115, milk]].forEach(([size, dy, color]) => {
+    heart(size, R * (dy - 0.02));
+    c.fillStyle = color;
+    c.fill();
+  });
+  c.beginPath();
+  // from the cleft at the top down to the point, no further
+  c.moveTo(cx - R * 0.022, cy - R * 0.29);
+  c.lineTo(cx + R * 0.022, cy - R * 0.29);
+  c.lineTo(cx + R * 0.005, cy + R * 0.44);
+  c.lineTo(cx - R * 0.005, cy + R * 0.44);
+  c.closePath();
+  c.fillStyle = milk;
+  c.fill();
+  // bubbles clinging to the rim
+  [[0.2, 0.06], [0.9, 0.05], [1.6, 0.07], [2.5, 0.045], [3.3, 0.06], [4.4, 0.05], [5.3, 0.065]].forEach(([a, s]) => {
+    const bx = cx + Math.cos(a) * R * 0.8;
+    const by = cy + Math.sin(a) * R * 0.8;
+    c.beginPath();
+    c.arc(bx, by, w * s * 0.5, 0, Math.PI * 2);
+    c.fillStyle = "#d9a875";
+    c.fill();
+    c.lineWidth = 2;
+    c.strokeStyle = "#5b3a1e";
+    c.stroke();
+    c.beginPath();
+    c.arc(bx - w * s * 0.12, by - w * s * 0.12, w * s * 0.12, 0, Math.PI * 2);
+    c.fillStyle = "#fff6e6";
+    c.fill();
+  });
+  // the window's sheen: a hard-edged crescent near the far rim
+  c.save();
+  c.beginPath();
+  c.arc(cx, cy, R * 0.96, 0, Math.PI * 2);
+  c.clip();
+  c.beginPath();
+  c.arc(cx - R * 0.15, cy - R * 0.2, R * 0.9, Math.PI * 1.08, Math.PI * 1.42);
+  c.lineWidth = w * 0.035;
+  c.strokeStyle = "rgba(255,255,255,.55)";
+  c.stroke();
+  c.restore();
+}
+// Cork: a warm ground packed with granules in three browns
+export function drawCork(c, w, h) {
+  c.fillStyle = "#c08b52";
+  c.fillRect(0, 0, w, h);
+  let r = 3331;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  const tones = ["#a8743f", "#d9a86d", "#8a5a2e", "#e6bd85"];
+  for (let i = 0; i < (w * h) / 40; i++) {
+    c.fillStyle = tones[Math.floor(rand() * tones.length)];
+    c.beginPath();
+    c.ellipse(rand() * w, rand() * h, 1 + rand() * 3, 1 + rand() * 2.2, rand() * 3, 0, Math.PI * 2);
+    c.fill();
+  }
+}
+
+// ---------- mushroom figure ----------
+// Its cap, on a hemisphere's uv (the canvas's top row is the crown, its bottom the rim): red,
+// with big white spots inked round, a pale lip at the rim and a lighter band of sheen
+export function drawMushroomCap(c, w, h) {
+  c.fillStyle = "#e11d48";
+  c.fillRect(0, 0, w, h);
+  // a band of sheen high on the cap, and the rim a shade deeper
+  c.fillStyle = "#f43f6a";
+  c.fillRect(0, h * 0.22, w, h * 0.12);
+  c.fillStyle = "#be123c";
+  c.fillRect(0, h * 0.9, w, h * 0.1);
+  // spots: sized on the cap, so stretched across the canvas the nearer they are to the crown
+  const spot = (u, v, a) => {
+    const theta = v * Math.PI / 2;
+    const ry = (a / (Math.PI / 2)) * h;
+    const rx = Math.min(w / 2, (a / (2 * Math.PI * Math.max(0.15, Math.sin(theta)))) * w);
+    [u * w - w, u * w, u * w + w].forEach((x) => {
+      c.beginPath();
+      c.ellipse(x, v * h, rx, ry, 0, 0, Math.PI * 2);
+      c.fillStyle = "#fffdf5";
+      c.fill();
+      c.lineWidth = 3;
+      c.strokeStyle = "#1a1714";
+      c.stroke();
+      c.beginPath();
+      c.ellipse(x - rx * 0.2, v * h + ry * 0.3, rx * 0.7, ry * 0.45, 0, 0, Math.PI);
+      c.fillStyle = "#e9e2d4";
+      c.fill();
+    });
+  };
+  // the crown spot covers the pole: a band across the top
+  c.fillStyle = "#fffdf5";
+  c.fillRect(0, 0, w, h * 0.17);
+  c.fillStyle = "#e9e2d4";
+  c.fillRect(0, h * 0.12, w, h * 0.05);
+  c.fillStyle = "#1a1714";
+  c.fillRect(0, h * 0.17, w, 3);
+  [[0.0, 0.6, 0.3], [0.25, 0.55, 0.26], [0.5, 0.62, 0.32], [0.75, 0.58, 0.27], [0.13, 0.85, 0.14], [0.62, 0.86, 0.13], [0.88, 0.84, 0.12]].forEach(([u, v, a]) => spot(u, v, a));
+}
+// The stem, on a cylinder's uv (u = 0 faces front): cream, with two tall eyes and a blush
+export function drawMushroomFace(c, w, h) {
+  c.fillStyle = "#fff6e6";
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = "#f1e2c6";
+  c.fillRect(0, h * 0.82, w, h * 0.18);
+  // the canvas squeezes the stem's width ~1.35x more than its height, so eyes are drawn wider
+  [-0.06, 0.06].forEach((u) => {
+    [u * w, u * w + w].forEach((x) => {
+      c.beginPath();
+      c.ellipse(x, h * 0.4, w * 0.018, h * 0.13, 0, 0, Math.PI * 2);
+      c.fillStyle = "#1a1714";
+      c.fill();
+      c.beginPath();
+      c.ellipse(x - w * 0.005, h * 0.33, w * 0.007, h * 0.04, 0, 0, Math.PI * 2);
+      c.fillStyle = "#ffffff";
+      c.fill();
+    });
+  });
+  c.fillStyle = "rgba(255,120,150,.55)";
+  [-0.11, 0.11].forEach((u) => [u * w, u * w + w].forEach((x) => {
+    c.beginPath();
+    c.ellipse(x, h * 0.6, w * 0.025, h * 0.06, 0, 0, Math.PI * 2);
+    c.fill();
+  }));
+}
+// The underside of the cap: gills fanning out from the stem
+export function drawMushroomGills(c, w, h) {
+  c.fillStyle = "#f3e2c4";
+  c.fillRect(0, 0, w, h);
+  c.strokeStyle = "#c9a874";
+  c.lineWidth = 2;
+  c.beginPath();
+  for (let i = 0; i < 48; i++) {
+    const a = (i / 48) * Math.PI * 2;
+    c.moveTo(w / 2 + Math.cos(a) * w * 0.12, h / 2 + Math.sin(a) * h * 0.12);
+    c.lineTo(w / 2 + Math.cos(a) * w * 0.49, h / 2 + Math.sin(a) * h * 0.49);
+  }
+  c.stroke();
+}
+
+// ---------- wastebasket and hoop ----------
+// Moulded plastic for the bin's lathe: upright ribs round it and a fine stipple, as a light tile
+// its material tints
+export function drawBinRibs(c, w, h) {
+  c.fillStyle = "#ffffff";
+  c.fillRect(0, 0, w, h);
+  const ribs = 28;
+  for (let i = 0; i < ribs; i++) {
+    const x = (i / ribs) * w;
+    c.fillStyle = "rgba(0,40,40,.13)";
+    c.fillRect(x, 0, w / ribs * 0.28, h);
+    c.fillStyle = "rgba(0,40,40,.06)";
+    c.fillRect(x + w / ribs * 0.28, 0, w / ribs * 0.12, h);
+  }
+  let r = 1777;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < (w * h) / 60; i++) {
+    c.fillStyle = rand() < 0.5 ? "rgba(0,0,0,.05)" : "rgba(255,255,255,.4)";
+    c.fillRect(rand() * w, rand() * h, 1.5, 1.5);
+  }
+  // the inside of the bin (the canvas's top half) a step darker
+  c.fillStyle = "rgba(0,30,40,.18)";
+  c.fillRect(0, 0, w, h * 0.43);
+}
+// The backboard's face: a yellow board with an inked border, the shooter's square over the
+// ring, the league's name, bolts in the corners and the scuffs of a hundred paper balls
+export function drawBackboard(c, w, h) {
+  const ink = "#1a1714";
+  c.fillStyle = "#ffdd00";
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = "#ffe94d";
+  c.fillRect(0, 0, w, h * 0.18);
+  c.lineWidth = w * 0.03;
+  c.strokeStyle = ink;
+  c.strokeRect(w * 0.05, h * 0.07, w * 0.9, h * 0.86);
+  c.fillStyle = "#ff7a1a";
+  c.fillRect(w * 0.06, h * 0.86, w * 0.88, h * 0.05);
+  c.strokeRect(w * 0.32, h * 0.42, w * 0.36, h * 0.38);
+  c.fillStyle = ink;
+  c.font = `800 ${Math.round(h * 0.12)}px ${DISPLAY}`;
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.fillText("DESK LEAGUE", w / 2, h * 0.25);
+  [[0.1, 0.13], [0.9, 0.13], [0.1, 0.8], [0.9, 0.8]].forEach(([x, y]) => {
+    c.beginPath();
+    c.arc(w * x, h * y, w * 0.018, 0, Math.PI * 2);
+    c.fillStyle = "#9aa3ad";
+    c.fill();
+    c.lineWidth = 2;
+    c.strokeStyle = ink;
+    c.stroke();
+  });
+  c.fillStyle = "rgba(60,50,30,.18)";
+  [[0.42, 0.55, 0.06], [0.6, 0.62, 0.05], [0.47, 0.7, 0.045], [0.55, 0.5, 0.035]].forEach(([x, y, s]) => {
+    c.beginPath();
+    c.ellipse(w * x, h * y, w * s, w * s * 0.8, 0.4, 0, Math.PI * 2);
+    c.fill();
+  });
+}
+// The net, for an open cylinder's uv: a diamond mesh of white cord, inked, on a clear ground
+export function drawHoopNet(c, w, h) {
+  c.clearRect(0, 0, w, h);
+  const cells = 6;
+  const rows = 3;
+  const cord = () => {
+    c.beginPath();
+    for (let i = -rows; i <= cells + rows; i++) {
+      const x = (i / cells) * w;
+      c.moveTo(x, 0);
+      c.lineTo(x + (rows / cells) * w, h);
+      c.moveTo(x, 0);
+      c.lineTo(x - (rows / cells) * w, h);
+    }
+    c.moveTo(0, 3);
+    c.lineTo(w, 3);
+  };
+  cord();
+  c.lineWidth = 7;
+  c.strokeStyle = "#1a1714";
+  c.stroke();
+  cord();
+  c.lineWidth = 3.5;
+  c.strokeStyle = "#fffdf5";
+  c.stroke();
+}
+
+// ---------- glossy overlays ----------
+// A hard-edged gloss for glass or a vinyl sleeve: two slanted streaks of light, nothing else
+export function drawGlassSheen(c, w, h, { strength = 0.22 } = {}) {
+  c.clearRect(0, 0, w, h);
+  c.fillStyle = `rgba(255,255,255,${strength})`;
+  [[0.08, 0.16], [0.3, 0.06]].forEach(([x, wd]) => {
+    c.beginPath();
+    c.moveTo(w * x, h);
+    c.lineTo(w * (x + wd), h);
+    c.lineTo(w * (x + wd + 0.55), 0);
+    c.lineTo(w * (x + 0.55), 0);
+    c.closePath();
+    c.fill();
+  });
+}
+// The shine that runs along a blade as it clears the saya: a bright slanted bar between two
+// thin ones, black around them (it's used as an emissive map)
+export function drawBladeGlint(c, w, h) {
+  c.fillStyle = "#000";
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = "#ffffff";
+  [[0.47, 0.035], [0.43, 0.008], [0.53, 0.008]].forEach(([x, wd]) => {
+    c.beginPath();
+    c.moveTo(w * (x - 0.03), h);
+    c.lineTo(w * (x - 0.03 + wd), h);
+    c.lineTo(w * (x + 0.03 + wd), 0);
+    c.lineTo(w * (x + 0.03), 0);
+    c.closePath();
+    c.fill();
+  });
 }

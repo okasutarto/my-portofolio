@@ -58,7 +58,7 @@ context.container.clientHeight = 800;
 // Clicking the top board centres the gauntlet/Switch display, including portrait screens.
 Object.assign(context, {
   focus: { name: 'overview' }, byFocus: new Map(), arriveTimer: null,
-  setHover() {}, stopTyping() {}, clearTimeout() {}, catSettle() {}, applyShot() {},
+  setHover() {}, stopTyping() {}, clearTimeout() {}, catSettle() {}, applyShot() {}, hideLamp() {}, timers: [], setTimeout() {},
   sfx: { whoosh() {} }, onEvent() {},
 });
 const lookStart = source.indexOf('  function shelfLookAt(');

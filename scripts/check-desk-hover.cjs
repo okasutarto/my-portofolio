@@ -11,7 +11,7 @@ const gsap = { to(target, values) {
 
 // Real spring integration: fast pointer sweeps, slow frames, held tickets, and full release.
 for (const dt of [1 / 120, 1 / 60, 0.05]) {
-  const ticketList = Array.from({ length: 5 }, () => ({ flipper: new THREE.Group() }));
+  const ticketList = Array.from({ length: 5 }, () => ({ flipper: new THREE.Group(), flex: { bend: 0 }, bendAnim: { bend: 0 }, hoverBend: 0, restBend: 0, idle: 0 }));
   const ctx = vm.createContext({ ticketList, heldTicket: null });
   vm.runInContext(section('  const TICKET_REVEAL', '  function holdTicket'), ctx);
   for (let sweep = 0; sweep < 10; sweep++) {

@@ -369,7 +369,7 @@ export function createChair(runtime) {
     drag.turned += turn;
     chairTop.rotation.y += turn;
     if (Math.abs(turn) > 0.02 && time - drag.lastSound > 260) {
-      sfx.swivel({ strength: 0.6 });
+      sfx.creak();
       drag.lastSound = time;
     }
   }
@@ -380,7 +380,7 @@ export function createChair(runtime) {
     if (Math.abs(drag.turned + coast) > Math.PI) runtime.secrets.discover("chair");
     if (Math.abs(coast) < 0.02) return;
     gsap.to(chairTop.rotation, { y: chairTop.rotation.y + coast, duration: 0.6 + Math.abs(speed) * 60, ease: "power3.out" });
-    if (Math.abs(coast) > 1.5) sfx.swivel({ duration: 0.8 });
+    if (Math.abs(coast) > 1.5) sfx.patter({ duration: 0.4 });
   }
   runtime.core.register(chair, {
     grabTurn: true,
@@ -403,8 +403,8 @@ export function createChair(runtime) {
         .to(chair.position, { z: z + 0.5, duration: 0.5, ease: "power2.out" }, 0.1)
         .to(chair.position, { z, duration: 0.9, ease: "power2.inOut" }, 0.7);
       sfx.hiss();
-      sfx.swivel({ duration: 1.1, delay: 0.12 });
-      sfx.casters({ duration: 0.9, delay: 0.1 });
+      sfx.creak({ delay: 0.15 });
+      sfx.patter({ duration: 0.5, delay: 0.1 });
     },
   });
 

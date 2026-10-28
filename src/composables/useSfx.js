@@ -58,6 +58,7 @@ const SAMPLE_FILES = {
   slice: ["blade-slice-1", "blade-slice-2"],
   pages: ["page-flip-1", "page-flip-2", "page-flip-3"],
   cover: ["cover-close-1"],
+  creak: ["creak-1", "creak-2"],
   // Kenney Impact Sounds (CC0), one set per object so a recording never lands on the wrong thing
   paw: ["paw-land-1", "paw-land-2", "paw-land-3"],
   mug: ["mug-down-1", "mug-down-2"],
@@ -578,19 +579,12 @@ const SOUNDS = {
     noise(t, { filter: "highpass", freq: 4200, to: 1800, q: 0.7, attack: 0.01, peak: 0.25, decay: 0.32 });
     tone(t, { freq: 120, to: 70, peak: 0.12, decay: 0.12 });
   },
-  // A gaming chair's seat turning on its post: a soft, airy whoosh of the back sweeping round,
-  // easing off over `duration`, over the low thump of its weight shifting. `strength` softens it
-  // for the small turns of a drag.
-  swivel(t, { duration = 0.35, strength = 1 } = {}) {
-    noise(t, { filter: "bandpass", freq: vary(900, 0.1), to: 420, q: 0.6, attack: 0.06, peak: 0.13 * strength, decay: duration });
-    tone(t, { freq: vary(95, 0.06), to: 70, attack: 0.01, peak: 0.15 * strength, decay: 0.12 });
-  },
-  // Its casters rolling a little way over the rug: a low rumble with the odd soft click of a
-  // wheel turning on its hood
-  casters(t, { duration = 0.6 } = {}) {
-    noise(t, { filter: "lowpass", freq: 200, to: 140, q: 0.7, attack: 0.08, peak: 0.12, decay: duration });
-    for (let at = 0.05; at < duration; at += 0.09 + Math.random() * 0.06) {
-      noise(t + at, { freq: vary(650, 0.2), q: 2, attack: 0.003, peak: 0.03, decay: 0.025 });
+  // A chair swivelling: a few dry creaks of the base, dropping in pitch as it slows
+  creak(t) {
+    // A recorded wooden creak replaces the sawtooth stand-in outright
+    if (sample(t, "creak", { peak: 0.35 })) return;
+    for (let i = 0; i < 4; i++) {
+      tone(t + i * 0.16 + i * i * 0.03, { type: "sawtooth", freq: vary(260 - i * 30, 0.08), to: 200 - i * 25, attack: 0.01, peak: 0.05, decay: 0.08 });
     }
   },
   // A dumbbell set down: a bright metallic clink over a heavy thump
@@ -876,7 +870,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { cheer: 2, applause: 4, meow: 0.3, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, rubber: 0.15, boing: 0.3, patter: 0.4, clockStrike: 1.2, hiss: 0.4, swivel: 0.25, casters: 0.4, clank: 0.12, dumbbell: 0.12, rackLand: 0.12, dock: 0.12, rimHit: 0.12, paperBounce: 0.05, swish: 0.2, wingFlap: 0.08, strap: 0.08, badgeClick: 0.12, shing: 0.5, koiguchi: 0.12, koiguchiShut: 0.12, slash: 0.15, sheathe: 0.4, whooshAway: 0.4, power: 1.4, ding: 0.3, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
+const MIN_GAP = { cheer: 2, applause: 4, meow: 0.3, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, rubber: 0.15, boing: 0.3, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, dumbbell: 0.12, rackLand: 0.12, dock: 0.12, rimHit: 0.12, paperBounce: 0.05, swish: 0.2, wingFlap: 0.08, strap: 0.08, badgeClick: 0.12, shing: 0.5, koiguchi: 0.12, koiguchiShut: 0.12, slash: 0.15, sheathe: 0.4, whooshAway: 0.4, power: 1.4, ding: 0.3, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || (ctx.state !== "running" && !resuming) || document.hidden) return;

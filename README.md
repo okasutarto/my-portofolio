@@ -44,6 +44,7 @@ Prefer a classic page? The same content lives at [`/2d`](https://okasp.dev/2d).
 | ✉️ **Envelope** | A postcard to write and send. It really sends. |
 | ☕ **Mug** | A sip and a quote. Finish the cup and the room switches to the night shift. |
 | 💡 **Lamp** | Day and night, by hand. |
+| 🔦 **Monitor lightbar** | Toggle the task light on or off during the night shift. |
 | 🔊 **Speakers** | Sound on or off, with a little groove when it comes on. |
 | 🪟 **Window & blind** | Morning, midday, sunset and moonlight scenery with birds, stars and rain. Pull the blind or its chain; three quick knocks toggle rain. The weather card shows live Pontianak weather when available. |
 | 🪴 **Plant** | Each click blooms a flower. Three blooms call a butterfly. |

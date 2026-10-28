@@ -6870,13 +6870,39 @@ export function createDeskScene({ container, projects, experiences, dark = false
   lightbarLight.shadow.radius = 4;
   lightbar.add(lightbarLight, lightbarLight.target);
   lightbar.traverse((part) => (part.raycast = noRaycast));
+  lightbarBody.raycast = THREE.Mesh.prototype.raycast;
+  lightbarButton.raycast = THREE.Mesh.prototype.raycast;
+  let lightbarOn = true;
+  const lightbarState = { power: 1 };
   function updateLightbar() {
     const night = roomLight.night;
+    const power = lightbarState.power;
     lightbarLight.color.copy(lampLight.color);
-    lightbarLight.intensity = 9 * night;
-    lightbarLight.castShadow = night > 0;
+    lightbarLight.intensity = 9 * night * power;
+    lightbarLight.castShadow = night > 0 && power > 0.05;
     lightbarDiffuserMat.emissive.copy(lampLight.color);
-    lightbarDiffuserMat.emissiveIntensity = 1.4 * night;
+    lightbarDiffuserMat.emissiveIntensity = 1.4 * night * power;
+  }
+  function toggleLightbar() {
+    const isNight = (typeof darkNow !== "undefined" && darkNow) || roomLight.night > 0.2;
+    if (typeof gsap !== "undefined") {
+      gsap.fromTo(lightbarButton.position, { y: 0.043 }, { y: 0.053, duration: 0.14, ease: "power2.out" });
+    }
+    if (typeof sfx !== "undefined") sfx.click();
+    if (!isNight) return;
+    lightbarOn = !lightbarOn;
+    if (typeof gsap !== "undefined") {
+      gsap.killTweensOf(lightbarState);
+      gsap.to(lightbarState, {
+        power: lightbarOn ? 1 : 0,
+        duration: 0.25,
+        ease: "power2.out",
+        onUpdate: updateLightbar,
+      });
+    } else {
+      lightbarState.power = lightbarOn ? 1 : 0;
+      updateLightbar();
+    }
   }
   // The monitor has the same cyan/pink bias strip. Broad rear-facing sources follow its
   // transform and overlap on the wall; they never paint over shadows with a glow plane.
@@ -7308,6 +7334,24 @@ export function createDeskScene({ container, projects, experiences, dark = false
       }
       if (e.key.length === 1 || e.key === "Enter" || e.key === "Backspace") showTerminal();
       return false;
+    },
+  });
+  register(lightbar, {
+    onClick: () => toggleLightbar(),
+    onHover: (on) => {
+      gsap.to(lightbarButton.scale, {
+        x: on ? 1.25 : 1,
+        y: on ? 1.25 : 1,
+        z: on ? 1.25 : 1,
+        duration: 0.2,
+        overwrite: true,
+      });
+      gsap.to(lightbarPowerMark.scale, {
+        x: on ? 1.25 : 1,
+        z: on ? 1.25 : 1,
+        duration: 0.2,
+        overwrite: true,
+      });
     },
   });
 
@@ -10296,6 +10340,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     sideWallMat.color.set(isDark ? "#c9c5dc" : "#ffffff");
     trimMat.color.set(isDark ? "#b8b1da" : "#ffffff");
     windowView.userData.tex.redraw();
+    if (typeof lightbarState !== "undefined" && isDark) {
+      lightbarOn = true;
+      lightbarState.power = 1;
+    }
     setLamp(isDark);
     updateLightbar();
     const p = isDark ? PALETTES.dark : PALETTES.light;

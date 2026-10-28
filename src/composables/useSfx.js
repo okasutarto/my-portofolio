@@ -579,18 +579,18 @@ const SOUNDS = {
     tone(t, { freq: 120, to: 70, peak: 0.12, decay: 0.12 });
   },
   // A gaming chair's seat turning on its post: a soft, airy whoosh of the back sweeping round,
-  // easing off over `duration`, over the low thump of its weight shifting. Quiet: a good chair
-  // barely makes a sound. `strength` softens it for the small turns of a drag.
+  // easing off over `duration`, over the low thump of its weight shifting. `strength` softens it
+  // for the small turns of a drag.
   swivel(t, { duration = 0.35, strength = 1 } = {}) {
-    noise(t, { filter: "bandpass", freq: vary(900, 0.1), to: 420, q: 0.6, attack: 0.06, peak: 0.04 * strength, decay: duration });
-    tone(t, { freq: vary(95, 0.06), to: 70, attack: 0.01, peak: 0.05 * strength, decay: 0.1 });
+    noise(t, { filter: "bandpass", freq: vary(900, 0.1), to: 420, q: 0.6, attack: 0.06, peak: 0.13 * strength, decay: duration });
+    tone(t, { freq: vary(95, 0.06), to: 70, attack: 0.01, peak: 0.15 * strength, decay: 0.12 });
   },
   // Its casters rolling a little way over the rug: a low rumble with the odd soft click of a
   // wheel turning on its hood
   casters(t, { duration = 0.6 } = {}) {
-    noise(t, { filter: "lowpass", freq: 200, to: 140, q: 0.7, attack: 0.08, peak: 0.05, decay: duration });
+    noise(t, { filter: "lowpass", freq: 200, to: 140, q: 0.7, attack: 0.08, peak: 0.12, decay: duration });
     for (let at = 0.05; at < duration; at += 0.09 + Math.random() * 0.06) {
-      noise(t + at, { freq: vary(650, 0.2), q: 2, attack: 0.003, peak: 0.012, decay: 0.025 });
+      noise(t + at, { freq: vary(650, 0.2), q: 2, attack: 0.003, peak: 0.03, decay: 0.025 });
     }
   },
   // A dumbbell set down: a bright metallic clink over a heavy thump

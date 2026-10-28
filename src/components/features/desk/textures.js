@@ -4576,88 +4576,357 @@ export function drawGameSpine(c, w, h, { platform, art, title, ink = "#000", i =
   c.textBaseline = "alphabetic";
 }
 
-// The cover of the one case standing face-out: platform band, a little pixel-art scene, the title
+// The cover of the one case standing face-out, as box art: the platform band with its logo, a
+// pixel-art race (a dithered sky, a setting sun, clouds, far mountains, mown hills, a kerbed
+// road and a kart roaring off with its driver), the title on a chequered-flag block, the rating
+// and player count, all under the case's clear sleeve: print grain, a scuff or two and a gloss.
 export function drawGameCover(c, w, h, { platform = "#e11d48", title = "PIXEL KART" } = {}) {
+  const k = w / 234; // line weights were tuned for a 234px-wide cover
   const band = h * 0.1;
-  // sky, sun, hills
-  c.fillStyle = "#7fdfff";
-  c.fillRect(0, 0, w, h);
-  c.fillStyle = "#ffdd00";
+  const px = w / 60; // one pixel of the box art
+  let seed = 3;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const snap = (v) => Math.round(v / px) * px;
+  const ink = (width) => {
+    c.lineWidth = width * k;
+    c.strokeStyle = "#000";
+    c.lineJoin = "round";
+  };
+  // a disc built from whole pixels
+  const pixelDisc = (cx, cy, r, color) => {
+    c.fillStyle = color;
+    for (let y = -r; y <= r; y += px)
+      for (let x = -r; x <= r; x += px) if (x * x + y * y <= r * r) c.fillRect(snap(cx + x), snap(cy + y), px + 0.5, px + 0.5);
+  };
+
+  // sky: flat bands of blue, a checker of dither pixels where each meets the next
+  const SKY = ["#3aa8f5", "#5bbcff", "#7fceff", "#a2dfff", "#c4ecff"];
+  const skyBottom = h * 0.72;
+  const step = (skyBottom - band) / SKY.length;
+  SKY.forEach((color, i) => {
+    c.fillStyle = color;
+    c.fillRect(0, band + i * step, w, step + 1);
+  });
+  SKY.slice(1).forEach((color, i) => {
+    const y = snap(band + (i + 1) * step);
+    c.fillStyle = color;
+    for (let x = 0; x < w; x += px * 2) {
+      c.fillRect(x, y - px * 2, px, px);
+      c.fillRect(x + px, y - px, px, px);
+    }
+  });
+  // the setting sun, with a darker rim and a row of glints
+  pixelDisc(w * 0.8, h * 0.52, w * 0.12, "#ff9f1c");
+  pixelDisc(w * 0.8, h * 0.52, w * 0.095, "#ffdd00");
+  c.fillStyle = "#fff7b0";
+  [[-2, -3], [-1, -3], [-3, -2]].forEach(([x, y]) => c.fillRect(snap(w * 0.8 + x * px), snap(h * 0.52 + y * px), px, px));
+  // pixel clouds: white puffs on a pale blue underside
+  [[0.08, 0.15, 1], [0.6, 0.14, 0.8], [0.12, 0.5, 0.9]].forEach(([x0, y0, s]) => {
+    const cx = snap(w * x0);
+    const cy = snap(h * y0);
+    const puffs = [[0, 2, 14, 3], [2, 0, 6, 3], [7, 1, 5, 2]];
+    c.fillStyle = "#9fd2f2";
+    puffs.forEach(([x, y, cw, ch]) => c.fillRect(cx + x * px * s, cy + (y + 1) * px * s, cw * px * s, ch * px * s));
+    c.fillStyle = "#ffffff";
+    puffs.forEach(([x, y, cw, ch]) => c.fillRect(cx + x * px * s, cy + y * px * s, cw * px * s, ch * px * s));
+  });
+  // far mountains, snow-capped
+  c.fillStyle = "#7a86c8";
   c.beginPath();
-  c.arc(w * 0.78, h * 0.3, w * 0.11, 0, Math.PI * 2);
-  c.fill();
-  c.lineWidth = 6;
-  c.strokeStyle = "#000";
-  c.stroke();
-  c.fillStyle = "#8fd694";
-  c.beginPath();
-  c.moveTo(0, h * 0.72);
-  c.quadraticCurveTo(w * 0.3, h * 0.5, w * 0.6, h * 0.68);
-  c.quadraticCurveTo(w * 0.85, h * 0.58, w, h * 0.66);
-  c.lineTo(w, h);
-  c.lineTo(0, h);
+  c.moveTo(0, h * 0.66);
+  [[0.12, 0.56], [0.24, 0.63], [0.4, 0.53], [0.56, 0.64], [0.7, 0.57], [0.86, 0.65], [1, 0.6]].forEach(([x, y]) => c.lineTo(w * x, h * y));
+  c.lineTo(w, h * 0.7);
+  c.lineTo(0, h * 0.7);
   c.closePath();
   c.fill();
+  ink(4);
   c.stroke();
-  // a road and a kart
-  c.fillStyle = "#3a3a3a";
-  c.beginPath();
-  c.moveTo(w * 0.35, h);
-  c.lineTo(w * 0.47, h * 0.7);
-  c.lineTo(w * 0.55, h * 0.7);
-  c.lineTo(w * 0.8, h);
-  c.closePath();
-  c.fill();
-  c.stroke();
-  const kx = w * 0.42;
-  const ky = h * 0.78;
-  const u = w / 40;
-  c.fillStyle = "#ff6b6b";
-  c.fillRect(kx, ky, u * 10, u * 4);
-  c.strokeRect(kx, ky, u * 10, u * 4);
-  c.fillStyle = "#ffdd00";
-  c.fillRect(kx + u * 3, ky - u * 4, u * 4, u * 4);
-  c.strokeRect(kx + u * 3, ky - u * 4, u * 4, u * 4);
-  c.fillStyle = "#000";
-  [kx + u * 1.5, kx + u * 8.5].forEach((x) => {
+  c.fillStyle = "#fffdf5";
+  [[0.12, 0.56], [0.4, 0.53], [0.7, 0.57]].forEach(([x, y]) => {
     c.beginPath();
-    c.arc(x, ky + u * 4.5, u * 1.6, 0, Math.PI * 2);
+    c.moveTo(w * x, h * y);
+    c.lineTo(w * x + w * 0.045, h * y + h * 0.028);
+    c.lineTo(w * x + w * 0.015, h * y + h * 0.022);
+    c.lineTo(w * x - w * 0.01, h * y + h * 0.03);
+    c.lineTo(w * x - w * 0.045, h * y + h * 0.026);
+    c.closePath();
     c.fill();
   });
-  // title block
+  // hills: a darker back row, then the front with mown stripes, pixel trees and flowers
+  const hill = (color, pts) => {
+    c.fillStyle = color;
+    c.beginPath();
+    c.moveTo(0, h * pts[0]);
+    c.quadraticCurveTo(w * 0.3, h * pts[1], w * 0.6, h * pts[2]);
+    c.quadraticCurveTo(w * 0.85, h * pts[3], w, h * pts[4]);
+    c.lineTo(w, h);
+    c.lineTo(0, h);
+    c.closePath();
+    c.fill();
+    ink(6);
+    c.stroke();
+  };
+  hill("#4fae5c", [0.68, 0.56, 0.66, 0.6, 0.64]);
+  hill("#8fd694", [0.75, 0.6, 0.72, 0.64, 0.7]);
   c.save();
-  c.translate(w / 2, h * 0.33);
-  c.rotate(-0.06);
+  c.clip();
+  c.fillStyle = "rgba(40,120,60,.18)";
+  for (let x = -h; x < w; x += px * 6) {
+    c.beginPath();
+    c.moveTo(x, h);
+    c.lineTo(x + px * 3, h);
+    c.lineTo(x + px * 3 + h * 0.5, h * 0.5);
+    c.lineTo(x + h * 0.5, h * 0.5);
+    c.closePath();
+    c.fill();
+  }
+  c.restore();
+  [[0.1, 0.72], [0.22, 0.69], [0.88, 0.69]].forEach(([x0, y0]) => {
+    const tx = snap(w * x0);
+    const ty = snap(h * y0);
+    c.fillStyle = "#6b3f1f";
+    c.fillRect(tx, ty, px, px * 3);
+    c.fillStyle = "#2f8a43";
+    c.fillRect(tx - px * 2, ty - px * 2, px * 5, px * 2);
+    c.fillRect(tx - px, ty - px * 4, px * 3, px * 2);
+    c.fillStyle = "#56c26a";
+    c.fillRect(tx - px, ty - px * 2, px, px);
+    c.fillRect(tx, ty - px * 4, px, px);
+  });
+  [[0.06, 0.86, "#fffdf5"], [0.16, 0.8, "#ff90e8"], [0.9, 0.82, "#ffdd00"], [0.95, 0.9, "#fffdf5"], [0.24, 0.93, "#ffdd00"]].forEach(([x0, y0, color]) => {
+    const fx = snap(w * x0);
+    const fy = snap(h * y0);
+    c.fillStyle = color;
+    c.fillRect(fx - px, fy, px * 3, px);
+    c.fillRect(fx, fy - px, px, px * 3);
+    c.fillStyle = "#ff9f1c";
+    c.fillRect(fx, fy, px, px);
+  });
+
+  // the road: speckled asphalt, red-and-white kerbs and a dashed centre line, all in perspective
+  const top = h * 0.7;
+  const L = (t) => [w * (0.47 - 0.15 * t), top + (h - top) * t];
+  const R = (t) => [w * (0.55 + 0.27 * t), top + (h - top) * t];
+  const road = () => {
+    c.beginPath();
+    c.moveTo(...L(1));
+    c.lineTo(...L(0));
+    c.lineTo(...R(0));
+    c.lineTo(...R(1));
+    c.closePath();
+  };
+  road();
+  c.fillStyle = "#3a3a3a";
+  c.fill();
+  c.save();
+  c.clip();
+  for (let i = 0; i < 260; i++) {
+    c.fillStyle = i % 2 ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.25)";
+    c.fillRect(rand() * w, top + rand() * (h - top), px * 0.5, px * 0.5);
+  }
+  // kerbs: blocks that grow toward the viewer
+  const ts = [0, 0.08, 0.18, 0.3, 0.45, 0.62, 0.8, 1];
+  ts.slice(1).forEach((t1, i) => {
+    const t0 = ts[i];
+    c.fillStyle = i % 2 ? "#fffdf5" : "#e11d48";
+    [[L, 0.045], [R, -0.06]].forEach(([edge, inset]) => {
+      const [x0, y0] = edge(t0);
+      const [x1, y1] = edge(t1);
+      c.beginPath();
+      c.moveTo(x0, y0);
+      c.lineTo(x1, y1);
+      c.lineTo(x1 + w * inset * (0.3 + t1), y1);
+      c.lineTo(x0 + w * inset * (0.3 + t0), y0);
+      c.closePath();
+      c.fill();
+    });
+  });
+  // dashed centre line
+  c.fillStyle = "#ffdd00";
+  [[0.05, 0.14], [0.26, 0.4], [0.58, 0.8]].forEach(([t0, t1]) => {
+    const mid = (t) => (L(t)[0] + R(t)[0]) / 2;
+    const half = (t) => w * (0.004 + 0.012 * t);
+    const y = (t) => top + (h - top) * t;
+    c.beginPath();
+    c.moveTo(mid(t0) - half(t0), y(t0));
+    c.lineTo(mid(t0) + half(t0), y(t0));
+    c.lineTo(mid(t1) + half(t1), y(t1));
+    c.lineTo(mid(t1) - half(t1), y(t1));
+    c.closePath();
+    c.fill();
+  });
+  c.restore();
+  road();
+  ink(6);
+  c.stroke();
+
+  // the kart from behind: speed lines, exhaust puffs, fat tyres, a numbered body and the driver
+  const u = w / 40;
+  const kx = w * 0.42;
+  const ky = h * 0.79;
+  c.strokeStyle = "rgba(255,255,255,.7)";
+  c.lineWidth = 2 * k;
+  [[-3, 0.5], [-4.5, 2], [-3.5, 3.5]].forEach(([dx, dy]) => {
+    c.beginPath();
+    c.moveTo(kx + dx * u, ky + dy * u);
+    c.lineTo(kx + (dx - 4) * u, ky + dy * u);
+    c.stroke();
+  });
+  [[-1.2, 5.6, 1], [-2.6, 6.4, 0.75], [-3.8, 7, 0.5]].forEach(([dx, dy, r]) => pixelDisc(kx + dx * u, ky + dy * u, r * u, "#d8d8d8"));
+  ink(4);
+  [kx + u * 1.5, kx + u * 8.5].forEach((x) => {
+    c.fillStyle = "#111";
+    c.fillRect(x - u * 1.6, ky + u * 2.4, u * 3.2, u * 3.6);
+    c.fillStyle = "#555";
+    c.fillRect(x - u * 1.6, ky + u * 3.2, u * 3.2, u * 0.5);
+    c.fillRect(x - u * 1.6, ky + u * 4.4, u * 3.2, u * 0.5);
+    c.strokeRect(x - u * 1.6, ky + u * 2.4, u * 3.2, u * 3.6);
+  });
+  c.fillStyle = "#ff6b6b";
+  c.fillRect(kx, ky, u * 10, u * 4);
+  c.fillStyle = "#c93c3c";
+  c.fillRect(kx, ky + u * 3, u * 10, u);
+  c.fillStyle = "#ffb3b3";
+  c.fillRect(kx + u * 0.5, ky + u * 0.5, u * 9, u * 0.5);
+  c.strokeRect(kx, ky, u * 10, u * 4);
+  // the spoiler and the number plate
+  c.fillStyle = "#1a1714";
+  c.fillRect(kx - u * 0.5, ky - u * 0.8, u * 11, u * 0.9);
+  c.fillStyle = "#fffdf5";
+  c.fillRect(kx + u * 3.6, ky + u * 1.2, u * 2.8, u * 1.8);
+  c.strokeRect(kx + u * 3.6, ky + u * 1.2, u * 2.8, u * 1.8);
   c.fillStyle = "#000";
-  c.fillRect(-w * 0.4 + 8, -h * 0.09 + 8, w * 0.8, h * 0.18);
+  c.font = `800 ${Math.round(u * 1.6)}px ${BODY}`;
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.fillText("1", kx + u * 5, ky + u * 2.15);
+  // tail lights
+  c.fillStyle = "#ffdd00";
+  c.fillRect(kx + u * 0.6, ky + u * 1.4, u, u);
+  c.fillRect(kx + u * 8.4, ky + u * 1.4, u, u);
+  // the driver: a yellow helmet with a stripe, a dark visor glint and shoulders
+  c.fillStyle = "#3b6fd6";
+  c.fillRect(kx + u * 2.4, ky - u * 1.6, u * 5.2, u * 1.6);
+  c.strokeRect(kx + u * 2.4, ky - u * 1.6, u * 5.2, u * 1.6);
+  c.fillStyle = "#ffdd00";
+  c.fillRect(kx + u * 3, ky - u * 5, u * 4, u * 3.6);
+  c.fillStyle = "#e11d48";
+  c.fillRect(kx + u * 4.6, ky - u * 5, u * 0.8, u * 3.6);
+  c.fillStyle = "#fff7b0";
+  c.fillRect(kx + u * 3.4, ky - u * 4.6, u * 0.8, u * 0.8);
+  c.strokeRect(kx + u * 3, ky - u * 5, u * 4, u * 3.6);
+
+  // title block: a drop shadow, the pink block, a chequered strip and a "GRAND PRIX" tag
+  c.save();
+  c.translate(w / 2, h * 0.31);
+  c.rotate(-0.06);
+  const bw = w * 0.8;
+  const bh = h * 0.16;
+  c.fillStyle = "#000";
+  c.fillRect(-bw / 2 + 8 * k, -bh / 2 + 8 * k, bw, bh + h * 0.035);
   c.fillStyle = "#ff90e8";
-  c.fillRect(-w * 0.4, -h * 0.09, w * 0.8, h * 0.18);
-  c.strokeRect(-w * 0.4, -h * 0.09, w * 0.8, h * 0.18);
+  c.fillRect(-bw / 2, -bh / 2, bw, bh);
+  c.fillStyle = "rgba(255,255,255,.35)";
+  c.fillRect(-bw / 2, -bh / 2, bw, bh * 0.18);
+  const sq = h * 0.0175;
+  for (let i = 0; i * sq < bw; i++)
+    for (let j = 0; j < 2; j++) {
+      c.fillStyle = (i + j) % 2 ? "#000" : "#fffdf5";
+      c.fillRect(-bw / 2 + i * sq, bh / 2 + j * sq, Math.min(sq, bw - i * sq), sq);
+    }
+  ink(6);
+  c.strokeRect(-bw / 2, -bh / 2, bw, bh + sq * 2);
   c.fillStyle = "#000";
   c.textAlign = "center";
   c.textBaseline = "middle";
-  fitFont(c, title, 800, DISPLAY, Math.round(h * 0.09), w * 0.7);
-  c.fillText(title, 0, 2);
+  fitFont(c, title, 800, DISPLAY, Math.round(h * 0.085), w * 0.7);
+  c.fillStyle = "#fffdf5";
+  c.fillText(title, 2.5 * k, 2.5 * k);
+  c.fillStyle = "#000";
+  c.fillText(title, 0, 0);
+  c.rotate(0.12);
+  c.translate(bw * 0.3, -bh * 0.72);
+  c.fillStyle = "#ffdd00";
+  c.fillRect(-w * 0.15, -h * 0.022, w * 0.3, h * 0.044);
+  ink(4);
+  c.strokeRect(-w * 0.15, -h * 0.022, w * 0.3, h * 0.044);
+  c.fillStyle = "#000";
+  c.font = `800 ${Math.round(h * 0.026)}px ${BODY}`;
+  c.fillText("GRAND PRIX", 0, h * 0.002);
   c.restore();
-  // platform band on top, rating at the foot
+
+  // platform band on top: a sheen, the console's logo in a pill and a few moulded grooves
   c.fillStyle = platform;
   c.fillRect(0, 0, w, band);
+  const sheen = c.createLinearGradient(0, 0, 0, band);
+  sheen.addColorStop(0, "rgba(255,255,255,.3)");
+  sheen.addColorStop(0.5, "rgba(255,255,255,0)");
+  sheen.addColorStop(1, "rgba(0,0,0,.18)");
+  c.fillStyle = sheen;
+  c.fillRect(0, 0, w, band);
   c.fillStyle = "#000";
-  c.fillRect(0, band - 3, w, 6);
+  c.fillRect(0, band - 3 * k, w, 6 * k);
   c.fillStyle = "#fff";
   c.beginPath();
   c.roundRect(w * 0.06, band * 0.25, w * 0.3, band * 0.5, band * 0.25);
   c.fill();
+  c.fillStyle = platform;
+  c.font = `800 ${Math.round(band * 0.32)}px ${DISPLAY}`;
+  c.fillText("PLAY", w * 0.21, band * 0.52);
+  c.fillStyle = "rgba(0,0,0,.25)";
+  [0.72, 0.78, 0.84, 0.9].forEach((x) => c.fillRect(w * x, band * 0.28, w * 0.025, band * 0.44));
+  // rating and player count at the foot
+  const box = w * 0.14;
   c.fillStyle = "#fff";
-  c.fillRect(w * 0.06, h - w * 0.2, w * 0.14, w * 0.14);
-  c.lineWidth = 4;
-  c.strokeRect(w * 0.06, h - w * 0.2, w * 0.14, w * 0.14);
+  c.fillRect(w * 0.06, h - w * 0.2, box, box);
+  ink(4);
+  c.strokeRect(w * 0.06, h - w * 0.2, box, box);
   c.fillStyle = "#000";
-  c.font = `800 ${Math.round(w * 0.08)}px ${BODY}`;
-  c.textAlign = "center";
-  c.textBaseline = "middle";
-  c.fillText("E", w * 0.13, h - w * 0.13);
-  c.lineWidth = 8;
+  c.fillRect(w * 0.06, h - w * 0.2 + box * 0.72, box, box * 0.28);
+  c.font = `800 ${Math.round(w * 0.07)}px ${BODY}`;
+  c.fillText("E", w * 0.13, h - w * 0.2 + box * 0.38);
+  c.fillStyle = "#fff";
+  c.font = `800 ${Math.round(box * 0.17)}px ${BODY}`;
+  c.fillText("ALL", w * 0.13, h - w * 0.2 + box * 0.87);
+  c.fillStyle = "#fffdf5";
+  c.beginPath();
+  c.roundRect(w * 0.66, h - w * 0.16, w * 0.28, w * 0.1, w * 0.05);
+  c.fill();
+  c.stroke();
+  c.fillStyle = "#000";
+  c.font = `800 ${Math.round(w * 0.045)}px ${BODY}`;
+  c.fillText("1–4 P", w * 0.8, h - w * 0.11);
+
+  // the print and the sleeve: fine grain, faint scanlines over the art, scuffs and a gloss
+  for (let i = 0; i < (w * h) / 300; i++) {
+    c.fillStyle = rand() < 0.5 ? "rgba(0,0,0,.05)" : "rgba(255,255,255,.07)";
+    c.fillRect(rand() * w, rand() * h, 1 + rand() * 1.5, 1);
+  }
+  c.fillStyle = "rgba(0,0,0,.045)";
+  for (let y = band; y < h; y += px) c.fillRect(0, y, w, px * 0.35);
+  c.strokeStyle = "rgba(255,255,255,.5)";
+  c.lineWidth = 1.2 * k;
+  for (let i = 0; i < 14; i++) {
+    const corner = i % 4;
+    const x = (corner % 2 ? w - rand() * w * 0.18 : rand() * w * 0.18);
+    const y = (corner < 2 ? band + rand() * h * 0.12 : h - rand() * h * 0.12);
+    const a = rand() * Math.PI;
+    const len = (4 + rand() * 10) * k;
+    c.beginPath();
+    c.moveTo(x, y);
+    c.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len);
+    c.stroke();
+  }
+  const gloss = c.createLinearGradient(0, 0, w, h);
+  gloss.addColorStop(0, "rgba(255,255,255,0)");
+  gloss.addColorStop(0.28, "rgba(255,255,255,0)");
+  gloss.addColorStop(0.33, "rgba(255,255,255,.22)");
+  gloss.addColorStop(0.38, "rgba(255,255,255,.04)");
+  gloss.addColorStop(0.46, "rgba(255,255,255,.12)");
+  gloss.addColorStop(0.5, "rgba(255,255,255,0)");
+  c.fillStyle = gloss;
+  c.fillRect(0, 0, w, h);
+  ink(8);
   c.strokeRect(0, 0, w, h);
   c.textAlign = "left";
   c.textBaseline = "alphabetic";
@@ -5125,8 +5394,9 @@ export function drawTsukaWrap(c, w, h, { cord, skin, diamonds = 7 }) {
 // The family on the desk frame, drawn as an anime-style illustration: dad with his arm round
 // mum (in a hijab), who holds their waving two-year-old daughter, and their seven-year-old son
 // in front in a little straw hat, throwing a peace sign. Heads lean in toward each other; flat
-// colours, thick ink lines and big shiny eyes, like the rest of the room.
-export function drawFamilyPortrait(c, w, h) {
+// colours, thick ink lines and big shiny eyes, like the rest of the room. By `night` the sky
+// behind them turns dark with a crescent moon and stars.
+export function drawFamilyPortrait(c, w, h, { night = false } = {}) {
   const u = w / 360;
   const INK = "#1a1714";
   const SKIN = "#f6d2b4";
@@ -5186,55 +5456,216 @@ export function drawFamilyPortrait(c, w, h) {
     line(2);
     c.stroke();
   };
+  // Repeating cloth and print textures, drawn at twice the scene's units so they stay crisp
+  const pattern = (size, paint) => {
+    const tile = document.createElement("canvas");
+    tile.width = tile.height = size * 2;
+    const t = tile.getContext("2d");
+    t.scale(2, 2);
+    paint(t, size);
+    const p = c.createPattern(tile, "repeat");
+    p.setTransform(new DOMMatrix().scale(0.5));
+    return p;
+  };
+  // manga screentone for the shadows
+  const DOTS = pattern(6, (t) => {
+    t.fillStyle = "rgba(26,23,20,.2)";
+    [[1.5, 1.5], [4.5, 4.5]].forEach(([x, y]) => {
+      t.beginPath();
+      t.arc(x, y, 1, 0, Math.PI * 2);
+      t.fill();
+    });
+  });
+  // a diagonal twill, for denim and khaki
+  const TWILL = pattern(6, (t) => {
+    t.lineWidth = 0.8;
+    [[0, "rgba(0,0,0,.1)"], [3, "rgba(255,255,255,.08)"]].forEach(([o, color]) => {
+      t.strokeStyle = color;
+      t.beginPath();
+      for (let k = -6; k <= 6; k += 6) {
+        t.moveTo(k + o, 6);
+        t.lineTo(k + o + 6, 0);
+      }
+      t.stroke();
+    });
+  });
+  // a soft linen crosshatch, for the hijab and dresses
+  const LINEN = pattern(5, (t) => {
+    t.fillStyle = "rgba(255,255,255,.1)";
+    t.fillRect(0, 0, 5, 0.7);
+    t.fillStyle = "rgba(0,0,0,.06)";
+    t.fillRect(0, 0, 0.7, 5);
+    t.fillRect(2.5, 2.5, 0.6, 0.6);
+  });
+  // a knitted rib, for the boy's shirt and the girl's dress
+  const RIB = pattern(4, (t) => {
+    t.fillStyle = "rgba(0,0,0,.08)";
+    t.fillRect(0, 0, 1, 4);
+    t.fillStyle = "rgba(255,255,255,.08)";
+    t.fillRect(2, 0, 0.8, 4);
+  });
+  // a basket weave, for the straw hat
+  const WEAVE = pattern(8, (t) => {
+    t.strokeStyle = "rgba(150,100,20,.45)";
+    t.lineWidth = 0.9;
+    t.beginPath();
+    t.moveTo(0.5, 1); t.lineTo(3.5, 1);
+    t.moveTo(0.5, 3); t.lineTo(3.5, 3);
+    t.moveTo(5, 0.5); t.lineTo(5, 3.5);
+    t.moveTo(7, 0.5); t.lineTo(7, 3.5);
+    t.moveTo(4.5, 5); t.lineTo(7.5, 5);
+    t.moveTo(4.5, 7); t.lineTo(7.5, 7);
+    t.moveTo(1, 4.5); t.lineTo(1, 7.5);
+    t.moveTo(3, 4.5); t.lineTo(3, 7.5);
+    t.stroke();
+  });
+  // Cel shading: the shape in a flat darker tone dusted with screentone, the lit colour laid
+  // over it nudged up and left toward the sun, so a hard-edged shadow is left down its far side;
+  // `texture` (the cloth) runs over the whole piece, under the ink outline.
+  const cel = (fill, draw, { width = 4, off = [-7, -4], shade = mixHex(fill, "#3a2440", 0.3), dots = true, texture } = {}) => {
+    c.save();
+    c.beginPath();
+    draw();
+    c.clip();
+    c.fillStyle = shade;
+    c.fill();
+    if (dots) {
+      c.fillStyle = DOTS;
+      c.fill();
+    }
+    c.translate(off[0], off[1]);
+    c.beginPath();
+    draw();
+    c.fillStyle = fill;
+    c.fill();
+    c.translate(-off[0], -off[1]);
+    if (texture) {
+      c.fillStyle = texture;
+      c.fillRect(0, 0, 360, H);
+    }
+    c.restore();
+    if (width) {
+      c.beginPath();
+      draw();
+      line(width);
+      c.stroke();
+    }
+  };
+  // Loose strands in a lighter tone over a hairdo
+  const strands = (color, width, paths) => {
+    c.strokeStyle = color;
+    c.lineWidth = width;
+    c.lineCap = "round";
+    paths.forEach(([x1, y1, cx, cy, x2, y2]) => {
+      c.beginPath();
+      c.moveTo(x1, y1);
+      c.quadraticCurveTo(cx, cy, x2, y2);
+      c.stroke();
+    });
+  };
 
-  // ---- Backdrop: a warm sky, sun rays, soft bokeh, petals and a flowery lawn ----
+  // ---- Backdrop: by day a clear blue sky, sun rays, soft bokeh and petals; by night a deep
+  // blue sky with a glowing crescent moon and twinkling stars. A flowery lawn either way ----
   const sky = c.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, "#ffe7c2");
-  sky.addColorStop(0.6, "#ffd1dc");
-  sky.addColorStop(1, "#cfe8d5");
+  (night ? [[0, "#141a3d"], [0.6, "#2b3a78"], [1, "#4b5f9e"]] : [[0, "#7cc4f2"], [0.6, "#b8e2fb"], [1, "#e2f4fd"]]).forEach(([at, color]) => sky.addColorStop(at, color));
   c.fillStyle = sky;
   c.fillRect(0, 0, 360, H);
-  c.save();
-  c.globalAlpha = 0.35;
-  c.fillStyle = "#fff7e6";
-  for (let i = 0; i < 9; i++) {
-    const a = -Math.PI / 2 + (i - 4) * 0.22;
-    c.beginPath();
-    c.moveTo(180, 120);
-    c.lineTo(180 + Math.cos(a - 0.06) * 700, 120 + Math.sin(a - 0.06) * 700);
-    c.lineTo(180 + Math.cos(a + 0.06) * 700, 120 + Math.sin(a + 0.06) * 700);
-    c.closePath();
-    c.fill();
-  }
-  [[50, 150, 26], [320, 200, 20], [300, 60, 14], [40, 380, 18], [330, 420, 24], [90, 40, 12]].forEach(([x, y, r]) => {
-    c.globalAlpha = 0.28;
-    c.beginPath();
-    c.arc(x, y, r, 0, Math.PI * 2);
-    c.fillStyle = "#ffffff";
-    c.fill();
-  });
-  c.restore();
-  ellipse(180, 120, 70, 70, "#fff3d6", 0);
-  [[40, 70, 0.4], [310, 110, -0.6], [70, 300, 1.1], [300, 330, 0.2], [30, 470, -0.3], [330, 520, 0.8], [250, 50, 1.4], [120, 90, 2.1]].forEach(([x, y, r]) => {
+  if (night) {
+    // the moon's halo, a few soft rings, then the crescent with its craters
     c.save();
-    c.translate(x, y);
-    c.rotate(r);
-    c.beginPath();
-    c.ellipse(0, 0, 9, 5.5, 0, 0, Math.PI * 2);
-    c.fillStyle = "#ff9ec2";
-    c.fill();
-    line(2.5);
-    c.stroke();
+    [[96, 0.08], [72, 0.12], [54, 0.18]].forEach(([r, alpha]) => {
+      c.globalAlpha = alpha;
+      ellipse(284, 78, r, r, "#cfd9ff", 0);
+    });
     c.restore();
-  });
-  [[64, 120, 7], [292, 160, 9], [320, 470, 6], [44, 250, 6]].forEach(([x, y, r]) => sparkle(x, y, r));
-  shape("#a7d7a5", () => {
+    const moon = crescent(284, 78, 38, 304, 62, 33);
+    c.fillStyle = "#fff4c4";
+    c.fill(moon);
+    c.save();
+    c.clip(moon);
+    c.fillStyle = "#f0d98c";
+    [[264, 86, 6], [274, 104, 4], [258, 66, 3.5]].forEach(([x, y, r]) => {
+      c.beginPath();
+      c.arc(x, y, r, 0, Math.PI * 2);
+      c.fill();
+    });
+    c.restore();
+    line(4);
+    c.stroke(moon);
+    // a field of tiny stars, then bigger twinkling ones
+    let starSeed = 5;
+    const starRand = () => ((starSeed = (starSeed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 90; i++) {
+      const x = starRand() * 360;
+      const y = starRand() * 520;
+      c.globalAlpha = 0.4 + starRand() * 0.6;
+      c.fillStyle = i % 4 ? "#ffffff" : "#ffe9a8";
+      c.beginPath();
+      c.arc(x, y, 0.6 + starRand() * 1.1, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.globalAlpha = 1;
+    [[50, 60, 9], [130, 34, 6], [330, 190, 8], [36, 230, 7], [312, 300, 6], [80, 140, 5], [176, 70, 5], [340, 440, 7], [24, 420, 6]].forEach(([x, y, r], i) =>
+      sparkle(x, y, r, i % 3 ? "#fffdf5" : "#ffe58a"));
+  } else {
+    c.save();
+    c.globalAlpha = 0.35;
+    c.fillStyle = "#fff7e6";
+    for (let i = 0; i < 9; i++) {
+      const a = -Math.PI / 2 + (i - 4) * 0.22;
+      c.beginPath();
+      c.moveTo(180, 120);
+      c.lineTo(180 + Math.cos(a - 0.06) * 700, 120 + Math.sin(a - 0.06) * 700);
+      c.lineTo(180 + Math.cos(a + 0.06) * 700, 120 + Math.sin(a + 0.06) * 700);
+      c.closePath();
+      c.fill();
+    }
+    [[50, 150, 26], [320, 200, 20], [300, 60, 14], [40, 380, 18], [330, 420, 24], [90, 40, 12]].forEach(([x, y, r]) => {
+      c.globalAlpha = 0.28;
+      c.beginPath();
+      c.arc(x, y, r, 0, Math.PI * 2);
+      c.fillStyle = "#ffffff";
+      c.fill();
+    });
+    c.restore();
+    ellipse(180, 120, 70, 70, "#fff3d6", 0);
+    [[40, 70, 0.4], [310, 110, -0.6], [70, 300, 1.1], [300, 330, 0.2], [30, 470, -0.3], [330, 520, 0.8], [250, 50, 1.4], [120, 90, 2.1]].forEach(([x, y, r]) => {
+      c.save();
+      c.translate(x, y);
+      c.rotate(r);
+      c.beginPath();
+      c.ellipse(0, 0, 9, 5.5, 0, 0, Math.PI * 2);
+      c.fillStyle = "#ff9ec2";
+      c.fill();
+      line(2.5);
+      c.stroke();
+      c.restore();
+    });
+    [[64, 120, 7], [292, 160, 9], [320, 470, 6], [44, 250, 6]].forEach(([x, y, r]) => sparkle(x, y, r));
+  }
+  shape(night ? "#5d8a7a" : "#a7d7a5", () => {
     c.moveTo(0, 560);
     c.quadraticCurveTo(180, 530, 360, 560);
     c.lineTo(360, H);
     c.lineTo(0, H);
     c.closePath();
   });
+  // short blades of grass across the lawn, darker toward the front
+  c.save();
+  c.clip();
+  let seed = 11;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 140; i++) {
+    const x = rand() * 360;
+    const y = 552 + rand() * (H - 552);
+    c.strokeStyle = i % 3 ? "rgba(30,70,60,.4)" : `rgba(255,255,255,${night ? 0.18 : 0.35})`;
+    c.lineWidth = 1.4;
+    c.beginPath();
+    c.moveTo(x, y);
+    c.lineTo(x + ((i % 5) - 2) * 0.8, y - 5 - (i % 4));
+    c.stroke();
+  }
+  c.restore();
   // little flowers and grass tufts on the lawn
   [[30, 572, "#fffdf5"], [70, 585, "#ffdd00"], [300, 575, "#ff90b3"], [334, 590, "#fffdf5"], [110, 592, "#ff90b3"]].forEach(([x, y, color]) => {
     for (let i = 0; i < 5; i++) {
@@ -5255,7 +5686,7 @@ export function drawFamilyPortrait(c, w, h) {
   // An anime face: brows, big glossy eyes (or happy closed ones), rosy cheeks and a smile that
   // can open into a grin
   const face = (x, y, r, { eye = "#5a3825", lashes = false, closed = false, grin = false, brow = INK } = {}) => {
-    ellipse(x, y, r, r * 1.04, SKIN);
+    cel(SKIN, () => c.ellipse(x, y, r, r * 1.04, 0, 0, Math.PI * 2), { off: [-r * 0.16, -r * 0.08], shade: SKIN_SHADE, dots: false });
     // a soft shade under the hairline
     c.save();
     c.globalAlpha = 0.25;
@@ -5300,6 +5731,15 @@ export function drawFamilyPortrait(c, w, h) {
       c.ellipse(ex, ey + r * 0.05, r * 0.11, r * 0.14, 0, 0, Math.PI * 2);
       c.fillStyle = eye;
       c.fill();
+      // the iris lighter toward the bottom, with a dark pupil
+      c.beginPath();
+      c.ellipse(ex, ey + r * 0.12, r * 0.08, r * 0.06, 0, 0, Math.PI * 2);
+      c.fillStyle = mixHex(eye, "#ffd9a0", 0.45);
+      c.fill();
+      c.beginPath();
+      c.ellipse(ex, ey + r * 0.03, r * 0.05, r * 0.07, 0, 0, Math.PI * 2);
+      c.fillStyle = INK;
+      c.fill();
       c.fillStyle = "#fff";
       c.beginPath();
       c.arc(ex - r * 0.05, ey - r * 0.08, r * 0.065, 0, Math.PI * 2);
@@ -5326,7 +5766,7 @@ export function drawFamilyPortrait(c, w, h) {
     } else stroke(3, () => c.arc(x, y + r * 0.42, r * 0.15, Math.PI * 0.12, Math.PI * 0.88));
   };
   const neck = (x, y, wd, hd) => shape(SKIN_SHADE, () => c.rect(x - wd / 2, y, wd, hd), 3);
-  const hand = (x, y, r = 9) => ellipse(x, y, r, r * 0.9, SKIN, 3);
+  const hand = (x, y, r = 9) => cel(SKIN, () => c.ellipse(x, y, r, r * 0.9, 0, 0, Math.PI * 2), { width: 3, off: [-r * 0.25, -r * 0.2], shade: SKIN_SHADE, dots: false });
   // A sleeve as a thick rounded stroke from a to b, with a hand at the end
   const arm = (color, x1, y1, cx, cy, x2, y2, width = 22, handR = 9) => {
     c.lineCap = "round";
@@ -5337,14 +5777,21 @@ export function drawFamilyPortrait(c, w, h) {
     c.quadraticCurveTo(cx, cy, x2, y2);
     c.stroke();
     c.lineWidth = width;
+    c.strokeStyle = mixHex(color, "#3a2440", 0.3);
+    c.stroke();
+    // the lit side, toward the sun
+    c.save();
+    c.translate(-width * 0.14, -width * 0.1);
+    c.lineWidth = width * 0.62;
     c.strokeStyle = color;
     c.stroke();
+    c.restore();
     hand(x2, y2, handR);
   };
 
   // ---- Dad (right): short black hair, navy overshirt over a white tee, khaki trousers ----
   const DX = 248;
-  shape("#c8a97e", () => {
+  cel("#c8a97e", () => {
     c.moveTo(DX - 48, 380);
     c.lineTo(DX - 52, 560);
     c.lineTo(DX - 6, 560);
@@ -5353,7 +5800,7 @@ export function drawFamilyPortrait(c, w, h) {
     c.lineTo(DX + 52, 560);
     c.lineTo(DX + 48, 380);
     c.closePath();
-  });
+  }, { texture: TWILL });
   stroke(2, () => {
     c.moveTo(DX - 28, 430);
     c.lineTo(DX - 30, 550);
@@ -5361,28 +5808,28 @@ export function drawFamilyPortrait(c, w, h) {
     c.lineTo(DX + 30, 550);
   });
   [-1, 1].forEach((s) => {
-    shape("#5a3a2a", () => c.roundRect(DX + s * 28 - 26, 552, 52, 16, 7), 3);
+    cel("#5a3a2a", () => c.roundRect(DX + s * 28 - 26, 552, 52, 16, 7), { width: 3, off: [-4, -3], dots: false });
     stroke(2, () => {
       c.moveTo(DX + s * 28 - 10, 556);
       c.lineTo(DX + s * 28 + 10, 556);
     });
   });
   neck(DX, 222, 26, 24);
-  shape("#2f4a7a", () => {
+  cel("#2f4a7a", () => {
     c.moveTo(DX - 62, 262);
     c.quadraticCurveTo(DX, 236, DX + 62, 262);
     c.lineTo(DX + 54, 392);
     c.lineTo(DX - 54, 392);
     c.closePath();
-  });
+  }, { off: [-9, -4], texture: TWILL });
   // open front showing the tee, collar points, buttons and a chest pocket
-  shape("#fffdf5", () => {
+  cel("#fffdf5", () => {
     c.moveTo(DX - 18, 244);
     c.lineTo(DX + 18, 244);
     c.lineTo(DX + 12, 392);
     c.lineTo(DX - 12, 392);
     c.closePath();
-  }, 3);
+  }, { width: 3, off: [-5, 0], shade: "#e4dccb", dots: false, texture: RIB });
   shape("#3d5f99", () => {
     c.moveTo(DX - 18, 244);
     c.lineTo(DX - 4, 262);
@@ -5425,18 +5872,19 @@ export function drawFamilyPortrait(c, w, h) {
     c.beginPath();
     c.arc(DX - 6, 158, 20, Math.PI * 1.15, Math.PI * 1.55);
     c.stroke();
+    strands("#4a443e", 1.8, [[DX - 34, 172, DX - 34, 150, DX - 16, 146], [DX + 14, 146, DX + 34, 150, DX + 36, 172], [DX + 4, 150, DX + 18, 152, DX + 22, 164]]);
     [-1, 1].forEach((s) => ellipse(DX + s * 41, 194, 6, 9, SKIN, 3));
   });
 
   // ---- Mum (left): a dusty-rose hijab with a brooch, and a long sage dress with a belt ----
   const MX = 118;
-  shape("#8fb8a0", () => {
+  cel("#8fb8a0", () => {
     c.moveTo(MX - 44, 290);
     c.quadraticCurveTo(MX - 60, 440, MX - 70, 562);
     c.lineTo(MX + 70, 562);
     c.quadraticCurveTo(MX + 60, 440, MX + 44, 290);
     c.closePath();
-  });
+  }, { off: [-10, -2], texture: LINEN });
   // a little floral print and the dress's folds
   [[MX - 30, 430], [MX + 20, 470], [MX - 12, 510], [MX + 36, 530], [MX - 44, 520], [MX + 6, 420]].forEach(([x, y]) => {
     for (let i = 0; i < 4; i++) ellipse(x + Math.cos((i * Math.PI) / 2) * 3, y + Math.sin((i * Math.PI) / 2) * 3, 2.4, 2.4, "#fffdf5", 0);
@@ -5449,12 +5897,12 @@ export function drawFamilyPortrait(c, w, h) {
     c.quadraticCurveTo(MX + 30, 500, MX + 34, 556);
   });
   shape("#6f9a82", () => c.rect(MX - 50, 384, 100, 10), 2.5);
-  [-1, 1].forEach((s) => shape("#6b4a3a", () => c.roundRect(MX + s * 26 - 20, 556, 40, 12, 6), 3));
+  [-1, 1].forEach((s) => cel("#6b4a3a", () => c.roundRect(MX + s * 26 - 20, 556, 40, 12, 6), { width: 3, off: [-4, -3], dots: false }));
   // left arm hanging down
   arm("#7aa38b", MX - 52, 304, MX - 70, 380, MX - 58, 450, 22, 9);
   // The hijab: a rounded hood framing the face and a drape over the shoulders, head leaning in
   tilted(MX, 240, 0.09, () => {
-    shape("#d98fa0", () => {
+    cel("#d98fa0", () => {
       c.moveTo(MX - 50, 200);
       c.quadraticCurveTo(MX - 54, 152, MX, 150);
       c.quadraticCurveTo(MX + 54, 152, MX + 50, 200);
@@ -5462,7 +5910,7 @@ export function drawFamilyPortrait(c, w, h) {
       c.quadraticCurveTo(MX, 340, MX - 52, 322);
       c.quadraticCurveTo(MX - 66, 280, MX - 50, 200);
       c.closePath();
-    });
+    }, { off: [-9, -5], texture: LINEN });
     // a soft shine on the fabric
     c.strokeStyle = "#f2b9c6";
     c.lineWidth = 4;
@@ -5495,13 +5943,13 @@ export function drawFamilyPortrait(c, w, h) {
   const GX = 168;
   // Mum's arm, under her: up from Mum's side and round beneath her
   arm("#7aa38b", MX + 40, 304, MX + 30, 378, GX - 20, 352, 18, 0.1);
-  shape("#ffd34d", () => {
+  cel("#ffd34d", () => {
     c.moveTo(GX - 22, 316);
     c.quadraticCurveTo(GX, 306, GX + 22, 316);
     c.lineTo(GX + 30, 372);
     c.lineTo(GX - 30, 372);
     c.closePath();
-  });
+  }, { off: [-6, -3], texture: RIB });
   // a white collar and a little flower on the dress
   shape("#fffdf5", () => {
     c.moveTo(GX - 14, 312);
@@ -5514,7 +5962,7 @@ export function drawFamilyPortrait(c, w, h) {
     ellipse(GX + 12 + Math.cos(a) * 3.5, 350 + Math.sin(a) * 3.5, 2.6, 2.6, "#ff90b3", 0);
   }
   ellipse(GX + 12, 350, 1.8, 1.8, "#fff", 0);
-  [-1, 1].forEach((s) => shape(SKIN, () => c.roundRect(GX + s * 12 - 6, 368, 12, 24, 6), 3));
+  [-1, 1].forEach((s) => cel(SKIN, () => c.roundRect(GX + s * 12 - 6, 368, 12, 24, 6), { width: 3, off: [-3, 0], shade: SKIN_SHADE, dots: false }));
   [-1, 1].forEach((s) => ellipse(GX + s * 12, 394, 9, 6, "#ff90b3", 3));
   // her waving arm, up by her head
   arm("#ffd34d", GX + 20, 322, GX + 42, 312, GX + 40, 280, 10, 7);
@@ -5526,14 +5974,15 @@ export function drawFamilyPortrait(c, w, h) {
   tilted(GX, 300, -0.12, () => {
     [-1, 1].forEach((s) => ellipse(GX + s * 34, 268, 10, 13, "#4a2c1d", 3));
     face(GX, 282, 26, { eye: "#3d2a1e", grin: true });
-    shape("#4a2c1d", () => {
+    cel("#4a2c1d", () => {
       c.moveTo(GX - 27, 280);
       c.quadraticCurveTo(GX - 28, 250, GX, 252);
       c.quadraticCurveTo(GX + 28, 250, GX + 27, 280);
       c.quadraticCurveTo(GX + 14, 266, GX + 2, 270);
       c.quadraticCurveTo(GX - 12, 264, GX - 27, 280);
       c.closePath();
-    }, 3);
+    }, { width: 3, off: [-4, -3], shade: "#2e1a10", dots: false });
+    strands("#7a5038", 1.6, [[GX - 18, 270, GX - 16, 256, GX - 4, 254], [GX + 6, 256, GX + 18, 258, GX + 22, 270], [GX - 8, 262, GX - 2, 256, GX + 4, 262]]);
     // bows on the pigtails
     [-1, 1].forEach((s) => {
       [-1, 1].forEach((k) => shape("#ff6b8b", () => {
@@ -5551,9 +6000,9 @@ export function drawFamilyPortrait(c, w, h) {
 
   // ---- The boy (7), in front: a straw hat, a red shirt, blue shorts and a peace sign ----
   const BX = 182;
-  [-1, 1].forEach((s) => shape(SKIN, () => c.roundRect(BX + s * 14 - 8, 510, 16, 44, 7), 3));
+  [-1, 1].forEach((s) => cel(SKIN, () => c.roundRect(BX + s * 14 - 8, 510, 16, 44, 7), { width: 3, off: [-4, 0], shade: SKIN_SHADE, dots: false }));
   [-1, 1].forEach((s) => {
-    shape("#fffdf5", () => c.roundRect(BX + s * 16 - 15, 550, 30, 14, 6), 3);
+    cel("#fffdf5", () => c.roundRect(BX + s * 16 - 15, 550, 30, 14, 6), { width: 3, off: [-3, -3], shade: "#d9d2c3", dots: false });
     shape("#e5484d", () => c.rect(BX + s * 16 - 15, 559, 30, 4), 0);
     stroke(1.5, () => {
       c.moveTo(BX + s * 16 - 4, 552);
@@ -5562,18 +6011,18 @@ export function drawFamilyPortrait(c, w, h) {
       c.lineTo(BX + s * 16 - 4, 556);
     });
   });
-  shape("#3b6fd6", () => c.roundRect(BX - 32, 478, 64, 42, 8));
+  cel("#3b6fd6", () => c.roundRect(BX - 32, 478, 64, 42, 8), { off: [-6, -4], texture: TWILL });
   stroke(2, () => {
     c.moveTo(BX, 486);
     c.lineTo(BX, 518);
   });
-  shape("#e5484d", () => {
+  cel("#e5484d", () => {
     c.moveTo(BX - 40, 420);
     c.quadraticCurveTo(BX, 404, BX + 40, 420);
     c.lineTo(BX + 36, 486);
     c.lineTo(BX - 36, 486);
     c.closePath();
-  });
+  }, { off: [-8, -4], texture: RIB });
   stroke(3, () => {
     c.moveTo(BX - 8, 412);
     c.lineTo(BX - 4, 482);
@@ -5594,7 +6043,7 @@ export function drawFamilyPortrait(c, w, h) {
   hand(BX + 62, 382, 9);
   tilted(BX, 410, 0.07, () => {
     face(BX, 380, 31, { grin: true });
-    shape("#2a1a12", () => {
+    cel("#2a1a12", () => {
       c.moveTo(BX - 32, 378);
       c.quadraticCurveTo(BX - 34, 350, BX, 350);
       c.quadraticCurveTo(BX + 34, 350, BX + 32, 378);
@@ -5604,7 +6053,8 @@ export function drawFamilyPortrait(c, w, h) {
       c.lineTo(BX - 10, 374);
       c.lineTo(BX - 20, 364);
       c.closePath();
-    }, 3);
+    }, { width: 3, off: [-4, -3], shade: "#140c08", dots: false });
+    strands("#5a3c2a", 1.4, [[BX - 24, 366, BX - 20, 356, BX - 8, 356], [BX + 8, 356, BX + 22, 358, BX + 24, 368]]);
     // a sticking plaster on his cheek, for a boy who plays hard
     c.save();
     c.translate(BX - 18, 396);
@@ -5612,14 +6062,14 @@ export function drawFamilyPortrait(c, w, h) {
     shape("#ffd9a8", () => c.roundRect(-7, -3, 14, 6, 3), 1.5);
     c.restore();
     // the straw hat: a wide brim, a round crown, a red band and woven lines
-    shape("#f2c14e", () => c.ellipse(BX, 356, 54, 12, 0, 0, Math.PI * 2));
-    shape("#f2c14e", () => {
+    cel("#f2c14e", () => c.ellipse(BX, 356, 54, 12, 0, 0, Math.PI * 2), { off: [-6, -4], texture: WEAVE });
+    cel("#f2c14e", () => {
       c.moveTo(BX - 30, 356);
       c.quadraticCurveTo(BX - 32, 318, BX, 318);
       c.quadraticCurveTo(BX + 32, 318, BX + 30, 356);
       c.closePath();
-    });
-    shape("#d62828", () => c.rect(BX - 31, 340, 62, 12), 3);
+    }, { off: [-8, -3], texture: WEAVE });
+    cel("#d62828", () => c.rect(BX - 31, 340, 62, 12), { width: 3, off: [-6, -3], dots: false });
     c.strokeStyle = "#c99a32";
     c.lineWidth = 1.5;
     [-36, -22, 22, 36].forEach((dx) => {
@@ -5643,6 +6093,14 @@ export function drawFamilyPortrait(c, w, h) {
   c.fillText("Our Little Family", 180, 616);
   heart(180, 648, 9, "#e5484d");
   c.restore();
+  // Printed on photo paper: a fine grain and a soft gloss across the top corner
+  paperFinish(c, w, h, 7);
+  const gloss = c.createLinearGradient(0, 0, w * 0.6, h * 0.35);
+  gloss.addColorStop(0, `rgba(255,255,255,${night ? 0.1 : 0.22})`);
+  gloss.addColorStop(0.5, `rgba(255,255,255,${night ? 0.03 : 0.06})`);
+  gloss.addColorStop(1, "rgba(255,255,255,0)");
+  c.fillStyle = gloss;
+  c.fillRect(0, 0, w, h);
 }
 
 // ---------- sword info card ----------

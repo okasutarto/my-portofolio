@@ -18,7 +18,7 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import emailjs from "@emailjs/browser";
-import { sfx, GROOVE_BEAT, setRainLevel, startScrape } from "@/composables/useSfx";
+import { sfx, GROOVE_BEAT, setRainLevel, startScrape, initializeAudio } from "@/composables/useSfx";
 import { ABOUT_NOTES } from "@/data/about";
 import { FOLDER_COLORS } from "@/data/projectFiles";
 import { EMAILJS_CONFIG } from "@/config/emailjs";
@@ -86,6 +86,9 @@ import {
   drawCarbonWeave,
   drawLeatherGrain,
   drawBrushedMetal,
+  drawMiniTop,
+  drawVentSlots,
+  drawPowerScreen,
   drawTrophyMetal,
   drawTrophyStone,
   drawSatinFinish,
@@ -6983,7 +6986,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const monitor = new THREE.Group();
   monitor.position.set(-0.2, RISER_TOP, -2.75);
   scene.add(monitor);
-  // Silver aluminium body and stand, with a dark inset bezel like the classic silver iMac.
+  // Studio Display XDR: a thin silver aluminium slab with an even black glass border all round
+  // (no chin), on a stand folded from one aluminium sheet, the foot running forward under it
   const brushed = canvasTexture(128, 128);
   track(brushed.texture);
   drawBrushedMetal(brushed.ctx, 128, 128);
@@ -6995,72 +6999,178 @@ export function createDeskScene({ container, projects, experiences, dark = false
   brushed.texture.needsUpdate = true;
   const aluminium = toon("#c8cbce");
   aluminium.map = brushed.texture;
-  // A slightly brighter silver foot rests on two dark rubber strips.
-  const FOOT_LIFT = 0.04;
-  const FOOT_H = 0.12;
-  const footMat = toon("#e0e1e2");
+  // Sized from the real one (62.3 wide, 47.8 tall on its stand, a 36.2 tall and 3.1 deep panel,
+  // a 16.8 deep stand, all cm), at the body's 4.24 width, so 1 unit is about 14.7 cm: the panel
+  // floats about 0.8 over the riser and is about 0.2 deep. The screen itself keeps the desktop's
+  // 5:3, so the body stands a little taller than the real 16:9 one.
+  const SCREEN_Y = 2.13;
+  // The stand's side profile (z forward, y up) as a centre line: the foot plate back from its
+  // front lip, a rounded fold at its rear, and the arm rising forward to the hinge behind the
+  // panel. The sheet is that line thickened, extruded across the stand's width.
+  // Sized from the real one (62.3 cm wide, a 16.8 cm deep stand, so 1 unit is about 14.7 cm):
+  // a foot about 1.1 deep and under a third of the panel's width
+  const STAND_W = 1.2;
+  const STAND_T = 0.045;
+  const FOLD_R = 0.14;
+  const armTop = new THREE.Vector2(-0.28, SCREEN_Y - 0.33);
+  const standLine = [new THREE.Vector2(0.26, STAND_T / 2), new THREE.Vector2(-0.62, STAND_T / 2)];
+  const foldCentre = new THREE.Vector2(-0.62, STAND_T / 2 + FOLD_R);
+  const armAngle = Math.atan2(armTop.y - foldCentre.y, armTop.x - foldCentre.x);
+  for (let i = 1; i <= 12; i++) {
+    const a = Math.PI + (armAngle - Math.PI) * (i / 12);
+    standLine.push(new THREE.Vector2(foldCentre.x - FOLD_R * Math.sin(a), foldCentre.y + FOLD_R * Math.cos(a)));
+  }
+  standLine.push(armTop);
+  const sideA = [];
+  const sideB = [];
+  standLine.forEach((p, i) => {
+    const prev = standLine[Math.max(0, i - 1)];
+    const next = standLine[Math.min(standLine.length - 1, i + 1)];
+    const t = next.clone().sub(prev).normalize();
+    const n = new THREE.Vector2(-t.y, t.x).multiplyScalar(STAND_T / 2);
+    sideA.push(p.clone().add(n));
+    sideB.push(p.clone().sub(n));
+  });
+  const standShape = new THREE.Shape([...sideA, ...sideB.reverse()]);
+  const standGeo = new THREE.ExtrudeGeometry(standShape, {
+    depth: STAND_W - 0.02, bevelEnabled: true, bevelThickness: 0.01, bevelSize: 0.008, bevelSegments: 2,
+  });
+  // shape x runs along z, its extrusion across x
+  standGeo.rotateY(-Math.PI / 2);
+  standGeo.translate((STAND_W - 0.02) / 2, 0, 0);
+  const footMat = toon("#d2d5d8");
   footMat.map = brushed.texture;
-  const base = mesh(rbox(1.75, FOOT_H, 1.3, 0.04), footMat, { outline: 0.03 });
-  base.position.set(0, FOOT_LIFT + FOOT_H / 2, -0.15);
-  const neck = mesh(rbox(1.3, 1.75, 0.09, 0.03), aluminium, { outline: 0.03 });
-  neck.position.set(0, 0.9, -0.42);
-  neck.rotation.x = 0.16;
-  // A hinge barrel where the neck meets the foot, with a dark seam either end, and a mount
-  // block joining its top to the screen's back
+  const stand = mesh(standGeo, footMat, { outline: 0.015 });
+  // A thin dark rubber pad under the foot, and the hinge block the arm meets on the back
   const hingeMat = toon("#1c1d21");
-  const hinge = mesh(new THREE.CylinderGeometry(0.075, 0.075, 1.22, 24), aluminium, { outline: 0.015 });
-  hinge.rotation.z = Math.PI / 2;
-  hinge.position.set(0, FOOT_LIFT + FOOT_H + 0.05, -0.55);
-  [-0.42, 0.42].forEach((x) => {
-    const seam = mesh(new THREE.CylinderGeometry(0.078, 0.078, 0.02, 24), hingeMat, { outline: 0, cast: false });
-    seam.rotation.z = Math.PI / 2;
-    seam.position.set(x, FOOT_LIFT + FOOT_H + 0.05, -0.55);
-    seam.raycast = noRaycast;
-    monitor.add(seam);
-  });
-  const mount = mesh(rbox(0.95, 0.62, 0.2, 0.04), hingeMat, { outline: 0.02 });
-  mount.position.set(0, 1.72, -0.17);
-  const footStrips = [0.4, -0.7].map((z) => {
-    const strip = mesh(rbox(1.55, FOOT_LIFT, 0.09, 0.008), hingeMat, { outline: 0.008, cast: false });
-    strip.position.set(0, FOOT_LIFT / 2, z);
-    return strip;
-  });
-  monitor.add(hinge, mount, ...footStrips);
-  // The screen runs from x -2.0 to 2.0 and y 1.43 to 3.83; the body is only 0.11 wider each
-  // side and 0.09 taller, with the chin below from 1.0
+  const footPad = mesh(rbox(STAND_W - 0.12, 0.01, 0.78, 0.004), hingeMat, { outline: 0, cast: false });
+  footPad.position.set(0, -0.003, -0.18);
+  const mount = mesh(rbox(0.86, 0.5, 0.16, 0.05), aluminium, { outline: 0.012 });
+  mount.position.set(0, armTop.y + 0.08, -0.2);
+  monitor.add(stand, footPad, mount);
+  // The screen runs from x -2.0 to 2.0 and 1.2 either side of SCREEN_Y; the black glass border
+  // is an even 0.09 all round and the aluminium shows only as a hairline rim round it
   const silverMat = toon("#d9dbdd");
   silverMat.map = brushed.texture;
-  const body = mesh(rbox(4.22, 2.92, 0.14, 0.08), silverMat, { outline: 0.06 });
-  body.position.set(0, 2.46, 0);
-  const bezel = mesh(rbox(4.16, 2.5, 0.02, 0.05), toon("#141518"), { outline: 0, cast: false });
-  bezel.position.set(0, 2.63, 0.075);
-  monitor.add(base, neck, body, bezel);
-  // The details: a thin black border round the panel, a webcam in the top bezel, a little
-  // logo and a power light on the chin (the body's own face below the bezel, 1.0 to 1.38),
-  // and the cable hole through the stand
+  const body = mesh(rbox(4.24, 2.62, 0.2, 0.06), silverMat, { outline: 0.03 });
+  body.position.set(0, SCREEN_Y, -0.03);
+  const bezel = mesh(rbox(4.18, 2.56, 0.02, 0.045), toon("#0d0e10"), { outline: 0, cast: false });
+  bezel.position.set(0, SCREEN_Y, 0.075);
+  monitor.add(body, bezel);
+  // The details: a thin black border round the panel and the camera in the top border
   // between the bezel's face (z 0.085) and the screen (z 0.09)
   const panelEdge = mesh(rbox(4.08, 2.44, 0.006, 0.002), toon("#1a1714"), { outline: 0, cast: false });
-  panelEdge.position.set(0, 2.63, 0.084);
-  // in the strip of bezel above the panel (3.85 to 3.88)
-  const webcam = new THREE.Mesh(track(new THREE.CircleGeometry(0.016, 16)), track(new THREE.MeshBasicMaterial({ color: "#2a2d33" })));
-  webcam.position.set(0, 3.866, 0.087);
-  const webcamLens = new THREE.Mesh(track(new THREE.CircleGeometry(0.007, 12)), track(new THREE.MeshBasicMaterial({ color: "#5a7bb0" })));
-  webcamLens.position.set(0, 3.866, 0.088);
-  // a small, plain round mark (the pentagon read as clutter)
-  const chinLogo = new THREE.Mesh(track(new THREE.CircleGeometry(0.045, 24)), track(new THREE.MeshBasicMaterial({ color: "#5c6169" })));
-  chinLogo.position.set(0, 1.19, 0.085);
-  const powerLed = new THREE.Mesh(track(new THREE.CircleGeometry(0.022, 10)), track(new THREE.MeshBasicMaterial({ color: "#16a34a" })));
-  powerLed.position.set(1.8, 1.19, 0.085);
-  const cableHole = new THREE.Mesh(track(new THREE.CircleGeometry(0.12, 18)), track(new THREE.MeshBasicMaterial({ color: "#0e0f11" })));
-  cableHole.position.set(0, 0.25, 0.05);
-  neck.add(cableHole);
-  [panelEdge, webcam, webcamLens, chinLogo, powerLed].forEach((part) => (part.raycast = noRaycast));
-  monitor.add(panelEdge, webcam, webcamLens, chinLogo, powerLed);
+  panelEdge.position.set(0, SCREEN_Y, 0.084);
+  // in the strip of border above the panel
+  const webcam = new THREE.Mesh(track(new THREE.CircleGeometry(0.018, 16)), track(new THREE.MeshBasicMaterial({ color: "#23262c" })));
+  webcam.position.set(0, SCREEN_Y + 1.242, 0.087);
+  const webcamLens = new THREE.Mesh(track(new THREE.CircleGeometry(0.008, 12)), track(new THREE.MeshBasicMaterial({ color: "#3d5a8c" })));
+  webcamLens.position.set(0, SCREEN_Y + 1.242, 0.088);
+  [panelEdge, webcam, webcamLens].forEach((part) => (part.raycast = noRaycast));
+  monitor.add(panelEdge, webcam, webcamLens);
+
+  // ---------- Mac mini: on the riser, right of the display's foot ----------
+  // The same brushed silver as the display: a squat square block with big rounded corners and
+  // softly eased top edges, a dark whole-apple badge on its top, on a dark inset base ring with vents
+  // round it. Two USB-C ports, a headphone jack and a status light along its front; power,
+  // ethernet, HDMI and three more USB-C across the back.
+  const MINI_W = 0.95;
+  const MINI_H = 0.36;
+  const MINI_LIFT = 0.03;
+  const macMini = new THREE.Group();
+  macMini.position.set(1.3, RISER_TOP, -2.62);
+  macMini.rotation.y = -0.1;
+  scene.add(macMini);
+  const miniBevel = 0.03;
+  const MINI_LID = MINI_W - 2 * miniBevel;
+  const miniGeo = new THREE.ExtrudeGeometry(roundedRectShape(MINI_LID, MINI_LID, 0.2 - miniBevel), {
+    depth: MINI_H - 2 * miniBevel, bevelEnabled: true, bevelThickness: miniBevel, bevelSize: miniBevel, bevelSegments: 4, curveSegments: 12,
+  });
+  // stood up: its extrusion runs up y, from the base ring's top (the shape's +y to the back)
+  miniGeo.rotateX(-Math.PI / 2);
+  miniGeo.translate(0, MINI_LIFT + miniBevel, 0);
+  const miniMat = toon("#dcdee0");
+  miniMat.map = brushed.texture;
+  // the lids take the shape's own coordinates as uv, so the top print is stretched over the lid
+  const miniTop = canvasTexture(512, 512);
+  track(miniTop.texture);
+  drawMiniTop(miniTop.ctx, 512, 512, { logo: 0.3 });
+  miniTop.texture.repeat.set(1 / MINI_LID, 1 / MINI_LID);
+  miniTop.texture.offset.set(0.5, 0.5);
+  miniTop.texture.needsUpdate = true;
+  const miniTopMat = toon("#ffffff");
+  miniTopMat.map = miniTop.texture;
+  const miniBody = mesh(miniGeo, [miniTopMat, miniMat], { outline: 0.015 });
+  // the base ring's walls take their x (or z) along u and the height up v: one slot row round it
+  const vents = canvasTexture(64, 16);
+  track(vents.texture);
+  drawVentSlots(vents.ctx, 64, 16);
+  vents.texture.wrapS = vents.texture.wrapT = THREE.RepeatWrapping;
+  vents.texture.repeat.set(10, 1 / MINI_LIFT);
+  vents.texture.needsUpdate = true;
+  const ventMat = toon("#ffffff");
+  ventMat.map = vents.texture;
+  const miniFoot = mesh(new THREE.ExtrudeGeometry(roundedRectShape(MINI_W - 0.1, MINI_W - 0.1, 0.16), {
+    depth: MINI_LIFT, bevelEnabled: false, curveSegments: 12,
+  }).rotateX(-Math.PI / 2), [toon("#1e2024"), ventMat], { outline: 0.005 });
+  macMini.add(miniBody, miniFoot);
+  // the front face is at z MINI_W / 2; the ports sit low, two to the left, the jack and light right
+  const MINI_FRONT = MINI_W / 2 + 0.002;
+  const PORT_Y = MINI_LIFT + 0.13;
+  const portMat = toon("#121316");
+  const portTongue = toon("#3b3f46");
+  const portChamfer = toon("#a7abb1");
+  // a USB-C port on either face: a bright chamfered rim round a dark slot with its tongue
+  const usbC = (x, y, z, facing) => {
+    const port = new THREE.Group();
+    port.position.set(x, y, z);
+    port.rotation.y = facing;
+    const rim = mesh(rbox(0.036, 0.082, 0.006, 0.017), portChamfer, { outline: 0, cast: false });
+    const slot = mesh(rbox(0.024, 0.068, 0.01, 0.011), portMat, { outline: 0, cast: false });
+    slot.position.z = 0.001;
+    const tongue = mesh(new THREE.BoxGeometry(0.007, 0.042, 0.004), portTongue, { outline: 0, cast: false });
+    tongue.position.z = 0.005;
+    port.add(rim, slot, tongue);
+    port.traverse((o) => (o.raycast = noRaycast));
+    macMini.add(port);
+  };
+  [-0.3, -0.19].forEach((x) => usbC(x, PORT_Y, MINI_FRONT, 0));
+  const jack = new THREE.Mesh(track(new THREE.CircleGeometry(0.018, 20)), portMat);
+  jack.position.set(0.3, PORT_Y, MINI_FRONT + 0.001);
+  const jackRim = new THREE.Mesh(track(new THREE.RingGeometry(0.018, 0.025, 20)), portChamfer);
+  jackRim.position.set(0.3, PORT_Y, MINI_FRONT + 0.001);
+  const miniLedMat = track(new THREE.MeshBasicMaterial({ color: "#f4f6f8" }));
+  const miniLed = new THREE.Mesh(track(new THREE.CircleGeometry(0.008, 12)), miniLedMat);
+  miniLed.position.set(0.17, PORT_Y, MINI_FRONT + 0.001);
+  [jack, jackRim, miniLed].forEach((part) => (part.raycast = noRaycast));
+  macMini.add(jack, jackRim, miniLed);
+  // the back, seen from behind (so its x runs the other way): power, ethernet, HDMI, USB-C
+  const MINI_BACK = -MINI_W / 2 - 0.002;
+  const power = mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.008, 28), portMat, { outline: 0, cast: false });
+  power.rotation.x = Math.PI / 2;
+  power.position.set(0.3, PORT_Y, MINI_BACK);
+  const ethernet = mesh(rbox(0.11, 0.08, 0.008, 0.008), portMat, { outline: 0, cast: false });
+  ethernet.position.set(0.15, PORT_Y, MINI_BACK);
+  const hdmi = mesh(rbox(0.1, 0.035, 0.008, 0.006), portMat, { outline: 0, cast: false });
+  hdmi.position.set(0.02, PORT_Y, MINI_BACK);
+  [power, ethernet, hdmi].forEach((part) => (part.raycast = noRaycast));
+  macMini.add(power, ethernet, hdmi);
+  [-0.1, -0.2, -0.3].forEach((x) => usbC(x, PORT_Y, MINI_BACK, Math.PI));
+  register(macMini, {
+    onHover: (on) => {
+      gsap.to(macMini.position, { y: RISER_TOP + (on ? 0.06 : 0), duration: 0.25, ease: "power2.out", overwrite: true });
+      gsap.to(miniLed.scale, { x: on ? 1.8 : 1, y: on ? 1.8 : 1, duration: 0.25, overwrite: true });
+    },
+    onClick: () => {
+      gsap.fromTo(macMini.scale, { x: 1.04, y: 0.94, z: 1.04 }, { x: 1, y: 1, z: 1, duration: 0.4, ease: "elastic.out(1.2, 0.4)" });
+      toggleComputer();
+    },
+  });
   // Clamped task light: brushed graphite, rubber end caps and an inset opal lens,
   // all with the same stepped toon shading as the monitor.
   const lightbar = new THREE.Group();
   lightbar.name = "monitor-lightbar";
-  lightbar.position.set(0, 4.04, 0.2);
+  lightbar.position.set(0, SCREEN_Y + 1.41, 0.2);
   monitor.add(lightbar);
   const lightbarMetal = toon("#454b55");
   lightbarMetal.map = brushed.texture;
@@ -7154,14 +7264,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const monitorGlowMat = { opacity: 0 };
   [["#00e0c6", -1], ["#ff90e8", 1]].forEach(([color, x]) => {
     stripLight(color, () => 2 * monitorGlowMat.opacity / 0.7,
-      [x, 2.6, -0.18], [x, 2.6, -2], monitor);
+      [x, SCREEN_Y, -0.18], [x, SCREEN_Y, -2], monitor);
   });
   // Sticky notes on the right of the bezel, each with a hard little shadow behind it
   const noteShadowMat = track(new THREE.MeshBasicMaterial({ color: "#000000" }));
   [
     // Stuck to the right edge of the body, half hanging off it, clear of the screen
-    { text: "ship it", color: "#ffdd00", tick: true, x: 2.18, y: 3.4, rz: -0.12 },
-    { text: "drink water!", color: "#ff90e8", x: 2.22, y: 2.15, rz: 0.18 },
+    { text: "ship it", color: "#ffdd00", tick: true, x: 2.18, y: SCREEN_Y + 0.77, rz: -0.12 },
+    { text: "drink water!", color: "#ff90e8", x: 2.22, y: SCREEN_Y - 0.48, rz: 0.18 },
   ].forEach((n) => {
     const note = printed(0.62, 0.62, 500, (c, w, h) => drawStickyNote(c, w, h, n));
     const shadow = new THREE.Mesh(track(new THREE.PlaneGeometry(0.62, 0.62)), noteShadowMat);
@@ -7342,9 +7452,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
       redrawScreen();
     },
   });
+  // The Mac mini's power: off, the screen goes black and its light out; on, it boots first.
+  // `level` fades the screen's spill.
+  const computer = { on: false, booting: true, bar: 0 };
+  const screenPower = { level: 0.35 };
   // A track asked for while the sound is off: it starts once the speakers are switched on
   let pendingTrack = null;
   function startMusic(index = lofi.index) {
+    if (!computer.on) return;
     if (soundMuted) {
       pendingTrack = index;
       onEvent("toggleSound");
@@ -7403,13 +7518,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
   screenTex.ctx.scale(2, 2);
   track(screenTex.texture);
   const screen = new THREE.Mesh(track(new THREE.PlaneGeometry(4.0, 2.4)), track(new THREE.MeshBasicMaterial({ map: screenTex.texture })));
-  screen.position.set(0, 2.63, 0.09);
+  screen.position.set(0, SCREEN_Y, 0.09);
   screen.userData.tex = screenTex;
   monitor.add(screen);
   // The screen's own spill: a cool light over the keyboard and desk, faint by day, and the
   // props in front of it throw shadows towards the visitor at night
-  const screenLight = neonLight("#c4d4ff", 2.2, () => (0.25 + 0.75 * roomLight.night), { distance: 7, shadow: true });
-  screenLight.position.set(0, 2.5, 0.9);
+  const screenLight = neonLight("#c4d4ff", 2.2, () => screenPower.level * (0.25 + 0.75 * roomLight.night), { distance: 7, shadow: true });
+  screenLight.position.set(0, SCREEN_Y - 0.13, 0.9);
   monitor.add(screenLight);
   const desktop = createDesktop({
     terminal: term,
@@ -7432,6 +7547,18 @@ export function createDeskScene({ container, projects, experiences, dark = false
     if ((desktop.active() === "console") !== consoleOn) {
       consoleOn = !consoleOn;
       onEvent("console", { on: consoleOn });
+      // the console is the display's own input, so it lights the screen with the Mac mini off
+      if (!computer.on && !computer.booting) gsap.to(screenPower, { level: consoleOn ? 1 : 0, duration: 0.35, overwrite: true });
+    }
+    // Off or still starting, the Mac mini shows black or its boot screen and nothing is clickable
+    if (!computer.on && !consoleOn) {
+      screenTex.ctx.save();
+      screenTex.ctx.setTransform(1, 0, 0, 1, 0, 0);
+      drawPowerScreen(screenTex.ctx, SCREEN_W * 2, SCREEN_H * 2, { booting: computer.booting, progress: computer.bar });
+      screenTex.ctx.restore();
+      screenTex.hotspots = [];
+      screenTex.texture.needsUpdate = true;
+      return;
     }
     // Hotspots come back in layout units; the canvas is printed at twice that
     screenTex.hotspots = desktop.draw(screenTex.ctx, { alert: termAlert, alertOn: cursorOn })
@@ -7467,6 +7594,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // From the welcome until someone opens the monitor, its title bar flashes for attention
   let termAlert = false;
   const redrawTerminal = () => {
+    if (!computer.on) return;
     drawTerminal(term.ctx, 640, 384, [...termLines, "> " + input], cursorOn, { alert: termAlert, alertOn: cursorOn });
     redrawScreen();
   };
@@ -7492,10 +7620,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
 
   // Types a command out by itself (clicking the screen, the HUD's command chips)
   function autotype(cmd) {
-    if (termBusy) return;
+    if (termBusy || !computer.on) return;
     termBusy = true;
     let i = 0;
     const typeNext = () => {
+      if (!computer.on) {
+        termBusy = false;
+        return;
+      }
       if (i < cmd.length) {
         input = cmd.slice(0, ++i);
         sfx.key();
@@ -7515,7 +7647,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
 
   // Real typing while zoomed in on the monitor
   function typeKey(key) {
-    if (termBusy) return;
+    if (termBusy || !computer.on) return;
     if (key === "Enter") return execute(input);
     if (key === "Backspace") input = input.slice(0, -1);
     else if (input.length < MAX_INPUT) input += key;
@@ -7525,7 +7657,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // Once the room is in view, the terminal greets whoever just arrived. The greeting stays on
   // screen when they zoom in, so it can be read there; zooming in first types it then.
   const welcome = () => {
-    if (welcomed) return;
+    if (welcomed || !computer.on) return;
     welcomed = true;
     autotype("welcome");
   };
@@ -7537,14 +7669,77 @@ export function createDeskScene({ container, projects, experiences, dark = false
     gsap.fromTo(monitor.position, { y: RISER_TOP }, { keyframes: [{ y: RISER_TOP + 0.3, duration: 0.15, ease: "power2.out" }, { y: RISER_TOP, duration: 0.4, ease: "bounce.out" }] });
     sfx.ping();
   };
-  timers.push(setTimeout(welcome, 1500));
 
   const showTerminal = () => {
+    if (!computer.on) return;
     desktop.exitConsole();
     if (desktop.active() === "terminal") return;
     desktop.launch("terminal");
     redrawScreen();
   };
+  // Clicking the Mac mini shuts the computer down (the music and any game stop, the screen
+  // goes black and its light fades) or starts it: the boot screen fills its bar, then the
+  // desktop comes back as it was. Clicks while it boots are ignored.
+  function bootComputer({ playSound = true, delay = 0.5 } = {}) {
+    computer.booting = true;
+    computer.bar = 0;
+    let playedBootSound = false;
+    const cleanGesture = () => {
+      ["pointerdown", "keydown"].forEach((evt) => window.removeEventListener(evt, onFirstGesture, true));
+    };
+    const onFirstGesture = () => {
+      cleanGesture();
+      if (computer.booting && !playedBootSound) {
+        playedBootSound = true;
+        sfx.power();
+      }
+    };
+    if (playSound) {
+      initializeAudio().then((ready) => {
+        if (ready && computer.booting && !playedBootSound) {
+          playedBootSound = true;
+          sfx.power();
+          cleanGesture();
+        }
+      });
+      ["pointerdown", "keydown"].forEach((evt) => window.addEventListener(evt, onFirstGesture, { capture: true, once: true }));
+    }
+    miniLedMat.color.set("#f4f6f8");
+    redrawScreen();
+    gsap.to(screenPower, { level: 0.35, duration: 0.4, overwrite: true });
+    gsap.to(computer, {
+      bar: 1,
+      duration: 2.2,
+      delay,
+      ease: "power1.inOut",
+      onUpdate: redrawScreen,
+      onComplete: () => {
+        cleanGesture();
+        computer.booting = false;
+        computer.on = true;
+        sfx.ding();
+        gsap.to(screenPower, { level: 1, duration: 0.4, overwrite: true });
+        redrawTerminal();
+        if (!welcomed) timers.push(setTimeout(welcome, 2000));
+      },
+    });
+  }
+
+  function toggleComputer() {
+    if (computer.booting) return;
+    gsap.killTweensOf(computer);
+    if (computer.on) {
+      if (lofi.playing) lofi.pause();
+      if (desktop.exitConsole()) redrawScreen();
+      computer.on = false;
+      sfx.powerDown();
+      miniLedMat.color.set("#2a2c30");
+      gsap.to(screenPower, { level: 0, duration: 0.35, ease: "power2.in", overwrite: true });
+      redrawScreen();
+      return;
+    }
+    bootComputer({ playSound: true, delay: 0.4 });
+  }
   const monitorEdgeRest = panelEdge.material.color.clone();
   register(monitor, {
     focus: "monitor",
@@ -7563,16 +7758,17 @@ export function createDeskScene({ container, projects, experiences, dark = false
     onHover: (on) => {
       if (!on && desktop.hover(null)) redrawScreen();
       // The screen acknowledges attention without moving the stand or its clickable UI.
-      gsap.to(powerLed.scale, { x: on ? 1.8 : 1, y: on ? 1.8 : 1, duration: 0.25, overwrite: true });
       gsap.to(panelEdge.material.color, { r: on ? 0.12 : monitorEdgeRest.r, g: on ? 0.25 : monitorEdgeRest.g, b: on ? 0.23 : monitorEdgeRest.b, duration: 0.25, overwrite: true });
     },
     onPointer: (hit) => {
+      if (!computer.on && !consoleOn) return;
       const moved = hit?.object === screen && hit.uv ? desktop.hover(hit.uv.x * SCREEN_W, (1 - hit.uv.y) * SCREEN_H) : desktop.hover(null);
       if (moved) redrawScreen();
     },
     // The console, Snake or Spotifree up front take their keys; anything else goes to the terminal
     onKey: (e) => {
       if (focus.name !== "monitor") return false;
+      if (!computer.on && !consoleOn) return false;
       // The console takes every key; Snake up front takes the arrows and WASD
       if (desktop.key(e)) {
         redrawScreen();
@@ -10528,6 +10724,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   contactShadow(plant, 1.9, 1.9);
   contactShadow(mouse, 0.85, 1.2, MAT_TOP);
   contactShadow(monitor, 2.2, 1.5, RISER_TOP);
+  contactShadow(macMini, 1.25, 1.25, RISER_TOP, 0.8);
   contactShadow(riser, 7.4, 2.4, 0, 0.7);
   contactShadow(keyboard, 5.8, 2.5, MAT_TOP, 0.8);
   contactShadow(phoneStand, 1.7, 1.5);
@@ -10959,7 +11156,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       stickyDrag.moved = true;
       // Keep a little overhang around the bezel, as in the original placements.
       stickyDrag.sticky.position.x = THREE.MathUtils.clamp(point.x - stickyDrag.offsetX, -2.3, 2.3);
-      stickyDrag.sticky.position.y = THREE.MathUtils.clamp(point.y - stickyDrag.offsetY, 1.3, 3.7);
+      stickyDrag.sticky.position.y = THREE.MathUtils.clamp(point.y - stickyDrag.offsetY, SCREEN_Y - 1.33, SCREEN_Y + 1.07);
       renderer.domElement.style.cursor = "grabbing";
       e.preventDefault();
       return;
@@ -11469,7 +11666,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     window: () => ({ target: [windowGroup.position.x + 0.1, windowGroup.position.y + 0.15, windowGroup.position.z + 1.55], dir: [1, 0.08, 0.04], fit: [8.6, 6.2], depth: 1.4 }),
     // Framed a little high, with room under the monitor's chin for the command chips and the
     // hint (they'd sit over the chin otherwise)
-    monitor: () => ({ target: [-0.2, 2.25 + RISER_TOP, -2.66], dir: [0.1, 0.32, 1], fit: [5.2, 4.6] }),
+    monitor: () => ({ target: [-0.2, SCREEN_Y - 0.38 + RISER_TOP, -2.66], dir: [0.1, 0.32, 1], fit: [5.2, 4.6] }),
     keyboard: () => ({ target: [0.2, 0.3, 0.75], dir: [0.1, 1, 0.75], fit: [5.4, 2.6] }),
     // A higher angle pushes the plant above the frame and leaves room for the sip quote.
     mug: () => ({ target: [mug.position.x - 0.3, 0.95 + MUG_Y, mug.position.z - 0.45], dir: [-0.2, 1, 0.45], fit: [3.1, 4.1] }),
@@ -11749,7 +11946,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       frameIntervals.length = 0;
       return;
     }
-    const moving = lightingBlending || now < responsiveUntil || gsap.isTweening(cam) || catIdleTl?.isActive() || catBusy || gsap.isTweening(blind) || mouseRunning || lampHopping || trophyCelebrating || lanyardDrag || hatDrag || noteDrag || shelfDrag || stickyDrag || chairDrag;
+    const moving = lightingBlending || now < responsiveUntil || gsap.isTweening(cam) || catIdleTl?.isActive() || catBusy || gsap.isTweening(blind) || mouseRunning || lampHopping || trophyCelebrating || lanyardDrag || hatDrag || noteDrag || shelfDrag || stickyDrag || chairDrag || gsap.isTweening(screenPower);
     // Do not skip presentation frames during interaction. Idle uses a tolerant interval rather
     // than an accumulated deadline, which otherwise creates short/long frame pairs under jitter.
     if (!moving && lastTick && now - lastTick < refreshMs * 0.7) return;
@@ -11916,6 +12113,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     if (firstFrame) {
       firstFrame = false;
       onEvent("ready");
+      // Wait for the boot overlay to fade out before starting the computer's boot sound and progress bar
+      timers.push(setTimeout(() => bootComputer({ playSound: true, delay: 0.2 }), 650));
     }
   }
 
@@ -11955,6 +12154,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     back,
     focusOn: (name) => SHOTS[name] && setFocus(name),
     runCommand: (cmd) => {
+      if (!computer.on) return;
       showTerminal();
       if (focus.name === "monitor") autotype(cmd);
       else setFocus("monitor"), timers.push(setTimeout(() => autotype(cmd), 700));

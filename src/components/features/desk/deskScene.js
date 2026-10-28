@@ -960,6 +960,184 @@ export function createDeskScene({ container, projects, experiences, dark = false
   windowGlare.position.z = 0.115;
   windowGlare.raycast = noRaycast;
   windowGroup.add(windowGlare);
+  // What stops the light coming in through the window (see windowLight): the wall round the
+  // glass, the glazing bars painted on the view and the blind. They're drawn only into that
+  // light's shadow map (skipped in every other pass), so the wall still doesn't darken the room
+  // for the sun, and nothing of them shows.
+  const shadowOnly = track(new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, side: THREE.DoubleSide }));
+  const skipDraw = (r, s, c, geometry) => geometry.setDrawRange(0, 0);
+  const restoreDraw = (r, s, c, geometry) => geometry.setDrawRange(0, Infinity);
+  const windowShadow = (geo) => {
+    const m = new THREE.Mesh(geo, shadowOnly);
+    m.castShadow = true;
+    m.frustumCulled = false;
+    m.raycast = noRaycast;
+    m.userData.windowShadow = true;
+    m.onBeforeShadow = (r, o, c, shadowCamera, g) => g.setDrawRange(0, shadowCamera === windowLight.shadow.camera ? Infinity : 0);
+    m.onAfterShadow = (r, o, c, shadowCamera, g) => g.setDrawRange(0, Infinity);
+    m.onBeforeRender = skipDraw;
+    m.onAfterRender = restoreDraw;
+    return m;
+  };
+  const windowWall = new THREE.Shape();
+  windowWall.moveTo(-40, -40);
+  windowWall.lineTo(40, -40);
+  windowWall.lineTo(40, 40);
+  windowWall.lineTo(-40, 40);
+  windowWall.closePath();
+  const glassHole = new THREE.Path();
+  glassHole.moveTo(-2.0, -2.05);
+  glassHole.lineTo(-2.0, 2.05);
+  glassHole.lineTo(2.0, 2.05);
+  glassHole.lineTo(2.0, -2.05);
+  glassHole.closePath();
+  windowWall.holes.push(glassHole);
+  const windowBars = 0.15; // as wide as drawWindowView paints them
+  [
+    track(new THREE.ShapeGeometry(windowWall)),
+    track(new THREE.BoxGeometry(windowBars, 4.1, 0.04)),
+    track(new THREE.BoxGeometry(4.0, windowBars, 0.04)),
+  ].forEach((geo) => windowGroup.add(at(windowShadow(geo), 0, 0, 0.06)));
+
+  // ---------- a roller blind over the window ----------
+  // Grey cloth on a roller above the frame, worked by a bead chain on the left (the
+  // side nearer the desk's view, easy to reach). It starts rolled up, out of the view; the
+  // chain lets it down in two steps and draws it back up. The roll fattens as the fabric winds
+  // onto it, the chain runs while it turns, and the fabric really stops the window's light, so
+  // the sunlit patch on the wall and desk shrinks with it.
+  const BLIND_W = 4.5;
+  const ROLL_Y = 2.42; // the roller's axis, just above the frame
+  const ROLL_Z = 0.36; // clear of the catch and the moulding
+  const ROLL_CORE = 0.05;
+  const ROLL_FULL = 0.045; // what the whole length of fabric adds to the roll's radius
+  const BAR_H = 0.08;
+  const FULL_DROP = ROLL_Y - (-2.18 + BAR_H / 2 + 0.01); // down to the sill
+  const MIN_DROP = 0.13; // rolled up, the bottom bar tucks under the roll
+  const FABRIC_TILE = 0.7; // world size of one repeat of the weave
+  const blindGroup = new THREE.Group();
+  windowGroup.add(blindGroup);
+  // The cloth, drawn like the rest of the room: a flat cool grey, with just enough cloth in it
+  // (faint weave lines, a soft drift in the yarn's tone, a few lighter slubs) to read as
+  // fabric without turning photographic
+  const blindPrint = canvasTexture(256, 256);
+  track(blindPrint.texture);
+  {
+    const c = blindPrint.ctx;
+    c.fillStyle = "#a4aab3";
+    c.fillRect(0, 0, 256, 256);
+    let seed = 913;
+    const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let k = 0; k < 40; k++) {
+      c.fillStyle = rand() < 0.5 ? "rgba(255,255,255,.03)" : "rgba(40,44,54,.03)";
+      c.beginPath();
+      c.ellipse(rand() * 256, rand() * 256, 20 + rand() * 40, 8 + rand() * 16, 0, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.fillStyle = "rgba(40,44,54,.07)";
+    for (let y = 0; y < 256; y += 4) c.fillRect(0, y, 256, 1);
+    c.fillStyle = "rgba(255,255,255,.05)";
+    for (let x = 2; x < 256; x += 4) c.fillRect(x, 0, 1, 256);
+    for (let k = 0; k < 22; k++) {
+      c.fillStyle = `rgba(232,236,242,${0.25 + rand() * 0.2})`;
+      c.fillRect(rand() * 256, Math.floor(rand() * 64) * 4 + 1, 10 + rand() * 30, 2);
+    }
+  }
+  blindPrint.texture.wrapS = blindPrint.texture.wrapT = THREE.RepeatWrapping;
+  blindPrint.texture.needsUpdate = true;
+  blindPrint.texture.repeat.set(BLIND_W / FABRIC_TILE, 1);
+  // By day the sun behind it shows through a little, so the cloth glows; by night it doesn't
+  const blindFabric = toon("#ffffff");
+  blindFabric.map = blindPrint.texture;
+  blindFabric.emissive.set("#ffe9c8");
+  blindFabric.emissiveMap = blindPrint.texture;
+  blindFabric.emissiveIntensity = 0.2;
+  // Each moving part shadows the window's light alone, through a twin drawn only in its pass
+  const blindPart = (geo, material, outline) => {
+    const part = mesh(geo, material, { outline, cast: false });
+    part.add(windowShadow(geo));
+    return part;
+  };
+  // the roll: a flat-shaded cylinder along x, scaled to the cloth wound on it
+  const roll = blindPart(new THREE.CylinderGeometry(1, 1, BLIND_W, 20, 1).rotateZ(Math.PI / 2), toon("#7f858f"), 0.025);
+  roll.position.set(0, ROLL_Y, ROLL_Z);
+  // the hanging cloth: a thin unit slab hung from its top edge, stretched to the drop, with
+  // the same ink outline as every other prop
+  const fabricSlab = track(new THREE.BoxGeometry(1, 1, 0.015).translate(0, -0.5, 0));
+  const fabric = blindPart(fabricSlab, blindFabric, 0.03);
+  // White end brackets on the wall, carrying the roll
+  const bracketMat = toon("#f4f4f2");
+  [-1, 1].forEach((side) => {
+    const x = side * (BLIND_W / 2 + 0.04);
+    const plate = mesh(rbox(0.07, 0.28, ROLL_Z - WINDOW_DEPTH + 0.1, 0.025), bracketMat, { outline: 0.02, cast: false });
+    plate.position.set(x, ROLL_Y + 0.02, (ROLL_Z + WINDOW_DEPTH) / 2 + 0.02);
+    blindGroup.add(plate);
+  });
+  // The control end on the left: a round housing the chain runs over
+  const blindHousing = mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.08, 20).rotateZ(Math.PI / 2), bracketMat, { outline: 0.02, cast: false });
+  blindHousing.position.set(-BLIND_W / 2 - 0.02, ROLL_Y, ROLL_Z);
+  // The bottom bar: a chunky charcoal rail at the hem, with a brass pull at its middle (the
+  // window catch's brass)
+  const blindInk = toon("#3a3d44");
+  const bottomBar = blindPart(rbox(BLIND_W + 0.04, BAR_H, 0.07, 0.03), blindInk, 0.02);
+  const pull = new THREE.Group();
+  const pullCord = mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.16, 6), blindInk, { outline: 0.008, cast: false });
+  pullCord.position.y = -0.1;
+  const pullKnob = mesh(new THREE.SphereGeometry(0.045, 12, 10), brass, { outline: 0.012, cast: false });
+  pullKnob.position.y = -0.2;
+  pull.add(pullCord, pullKnob);
+  bottomBar.add(pull);
+  blindGroup.add(roll, fabric, bottomBar, blindHousing);
+  // The bead chain: a loop hanging from the housing, front run and back run, as chunky inked
+  // beads (instanced, outline and all). The beads slide along the loop as the roller turns.
+  const CHAIN_LEN = 2.3;
+  const BEAD_GAP = 0.075;
+  const BEADS = Math.floor(CHAIN_LEN / BEAD_GAP);
+  const chainX = -BLIND_W / 2 - 0.06;
+  const beadGeo = track(new THREE.SphereGeometry(0.03, 10, 8));
+  const beads = new THREE.InstancedMesh(beadGeo, blindInk, BEADS * 2);
+  beads.frustumCulled = false;
+  beads.raycast = noRaycast;
+  const beadOutline = new THREE.InstancedMesh(hullGeometry(beadGeo), outlineMat(0.008), BEADS * 2);
+  beadOutline.instanceMatrix = beads.instanceMatrix;
+  beadOutline.frustumCulled = false;
+  beadOutline.raycast = noRaycast;
+  const blindChain = new THREE.Group();
+  blindChain.position.set(chainX, ROLL_Y, ROLL_Z);
+  // a fat invisible handle, so the thin chain is easy to catch: brought out into the room past
+  // the cloth, so from the desk's angle a ray meets it before the blind or the window
+  const chainHit = new THREE.Mesh(track(new THREE.BoxGeometry(0.36, CHAIN_LEN + 0.2, 0.5)), shadowOnly);
+  chainHit.position.set(-0.04, -CHAIN_LEN / 2, 0.2);
+  chainHit.visible = false;
+  // a brass weight at the bottom of the loop keeps the chain hanging straight
+  const chainWeight = mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.12, 12), brass, { outline: 0.012, cast: false });
+  chainWeight.position.y = -CHAIN_LEN - 0.06;
+  blindChain.add(beads, beadOutline, chainHit, chainWeight);
+  blindGroup.add(blindChain);
+  // lift: 1 rolled up (the start, so the view stays clear), 0 all the way down
+  // sway: the cloth swinging out from the roll a little as it settles
+  const blind = { lift: 1, sway: 0 };
+  const beadAt = new THREE.Matrix4();
+  function updateBlind() {
+    const drop = FULL_DROP + (MIN_DROP - FULL_DROP) * blind.lift;
+    const radius = ROLL_CORE + ROLL_FULL * (1 - drop / FULL_DROP);
+    roll.scale.set(1, radius, radius);
+    // hung from the roll's front, straight down to the bar
+    fabric.position.set(0, ROLL_Y, ROLL_Z + radius);
+    fabric.scale.set(BLIND_W, drop, 1);
+    fabric.rotation.x = blind.sway;
+    // the print stays put on the cloth, anchored at the hem, as it unrolls
+    blindPrint.texture.repeat.y = drop / FABRIC_TILE;
+    bottomBar.position.set(0, ROLL_Y - drop * Math.cos(blind.sway), ROLL_Z + radius - drop * Math.sin(blind.sway));
+    bottomBar.rotation.x = blind.sway;
+    // the chain runs down the front and up the back as the roll turns
+    const run = ((drop * 3) % BEAD_GAP + BEAD_GAP) % BEAD_GAP;
+    for (let i = 0; i < BEADS; i++) {
+      beads.setMatrixAt(i, beadAt.makeTranslation(0, -(i * BEAD_GAP + run), 0.04));
+      beads.setMatrixAt(BEADS + i, beadAt.makeTranslation(0, -(i * BEAD_GAP + BEAD_GAP - run), -0.04));
+    }
+    beads.instanceMatrix.needsUpdate = true;
+  }
+  updateBlind();
   // Weather: a quarter of visits open on a shower; after that a shower now and then, a minute
   // or two long, every few minutes at most
   function weather(first = false) {
@@ -1290,24 +1468,55 @@ export function createDeskScene({ container, projects, experiences, dark = false
     },
   });
 
-  // Project the four window panes onto receiving surfaces, including desk props.
-  const paneLight = canvasTexture(512, 512);
-  track(paneLight.texture);
-  paneLight.ctx.fillStyle = "#000";
-  paneLight.ctx.fillRect(0, 0, 512, 512);
-  paneLight.ctx.fillStyle = "#fff";
-  for (const x of [80, 264]) for (const y of [80, 264]) paneLight.ctx.fillRect(x, y, 168, 168);
-  paneLight.texture.needsUpdate = true;
-  const windowLight = new THREE.SpotLight(0xffe5ad, 110, 55, 0.58, 0.04, 2);
-  windowLight.position.set(SIDE_X + 0.48, 5.6, -1.1);
-  windowLight.target.position.set(1, -1, 1);
-  windowLight.map = paneLight.texture;
+  // Sun (or moon) through the window: a narrow spot far outside it, its rays all but parallel,
+  // aimed through the glass from wherever the sky's light stands. The wall round the glass, the
+  // glazing bars and the blind's slats shadow it for real, and its map spans only the beam, so
+  // slats a few centimetres apart still print as crisp stripes.
+  const WINDOW_SUN_FAR = 30;
+  const windowLight = new THREE.SpotLight(0xffe5ad, 2.2, 0, 0.13, 0.12, 0);
   windowLight.castShadow = true;
-  windowLight.shadow.mapSize.set(1024, 1024);
+  windowLight.shadow.mapSize.set(2048, 2048);
+  windowLight.shadow.camera.near = WINDOW_SUN_FAR - 6;
+  windowLight.shadow.camera.far = WINDOW_SUN_FAR + 30;
   windowLight.shadow.bias = -0.0002;
-  windowLight.shadow.normalBias = 0.03;
-  windowLight.shadow.radius = 6;
+  windowLight.shadow.normalBias = 0.02;
+  windowLight.shadow.radius = 3;
   scene.add(windowLight, windowLight.target);
+  const windowGlass = new THREE.Vector3(SIDE_X + 0.12 - WINDOW_DEPTH + 0.06, WINDOW_AT.y, WINDOW_AT.z);
+  const windowRay = new THREE.Vector3();
+  // `from`: where the sun or moon stands, seen from the room (the same place the room's sun uses)
+  function aimWindowLight(from) {
+    windowRay.set(...from).sub(sun.target.position).normalize();
+    windowLight.position.copy(windowGlass).addScaledVector(windowRay, WINDOW_SUN_FAR);
+    windowLight.target.position.copy(windowGlass).addScaledVector(windowRay, -1);
+    windowLight.target.updateMatrixWorld();
+    windowLight.shadow.needsUpdate = true;
+  }
+  // The chain (or the pull on the bottom bar) works the blind: halfway down, all the way down,
+  // then back up
+  const BLIND_STOPS = [1, 0.45, 0];
+  let blindStop = 0;
+  const workBlind = () => {
+    blindStop = (blindStop + 1) % BLIND_STOPS.length;
+    const lift = BLIND_STOPS[blindStop];
+    const duration = 0.5 + Math.abs(lift - blind.lift) * 1.1;
+    sfx.slide({ duration: Math.min(0.8, duration * 0.5), up: lift > blind.lift });
+    // it travels, then the hem swings on and settles, a touch of give rather than a stop dead
+    const swing = lift > blind.lift ? -0.05 : 0.07;
+    gsap.killTweensOf(blind);
+    gsap.timeline({ onUpdate: updateBlind })
+      .to(blind, { lift, duration, ease: "power1.inOut" })
+      .to(blind, { sway: swing, duration: 0.18, ease: "power1.out" }, ">-0.1")
+      .to(blind, { sway: 0, duration: 1.3, ease: "elastic.out(1, 0.3)" });
+  };
+  register(blindChain, {
+    onHover: (on) => gsap.to(blindChain.rotation, { x: on ? 0.06 : 0, duration: on ? 0.3 : 0.9, ease: on ? "power2.out" : "elastic.out(1, 0.3)", overwrite: true }),
+    onClick: workBlind,
+  });
+  register(bottomBar, {
+    onHover: (on) => gsap.to(pull.rotation, { x: on ? 0.35 : 0, duration: on ? 0.25 : 0.8, ease: on ? "power2.out" : "elastic.out(1, 0.3)", overwrite: true }),
+    onClick: workBlind,
+  });
 
   // Wall clock and a small print give the empty upper area a purpose.
   const clock = new THREE.Group();
@@ -9811,9 +10020,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
     sun.intensity = isDark ? 0.3 : 1.6;
     sun.castShadow = true;
     windowLight.color.set(isDark ? "#94b5ff" : "#ffe5ad");
-    // The daytime pane pattern is an accent; only the sun casts directional shadows.
-    windowLight.intensity = isDark ? 38 : 70;
-    windowLight.castShadow = isDark;
+    // Sun or moon, it comes in through the glass, shadowed by the wall, the bars and the blind
+    windowLight.intensity = isDark ? 0.8 : 2.2;
+    windowLight.castShadow = true;
+    if (isDark) aimWindowLight(MOON_AT);
+    blindFabric.emissiveIntensity = isDark ? 0.03 : 0.2;
     floorMat.color.set(isDark ? "#8a82a6" : "#ffffff");
     // Night keeps the walls white, just moonlit, so the room still reads as the same room
     backWallMat.color.set(isDark ? "#d6d3e6" : "#ffffff");
@@ -9834,12 +10045,16 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const DAYLIGHT = {
     // Warm key, cool fill: the sky's blue lifts what the sun can't reach, so shadows read as
     // cool shade rather than a grey film, at no extra cost (only colours and a little more key)
-    morning: { sun: "#ffd6a0", sunAt: [-14, 6, 7], sunPower: 1.55, sky: "#eef0ff", skyPower: 1.12, ambient: 0.6, fill: "#e9edff", pane: "#ffd59a", panePower: 80 },
-    day: { sun: "#fff1cc", sunAt: [-13, 9.5, 4.5], sunPower: 1.85, sky: "#f2f5ff", skyPower: 1.28, ambient: 0.62, fill: "#eef1ff", pane: "#ffe5ad", panePower: 70 },
+    // The wall keeps the sun's direct light to the window's patch (`pane`), so the room's sun
+    // is the softer daylight about the room, still throwing the props' shadows
+    morning: { sun: "#ffd6a0", sunAt: [-14, 6, 7], sunPower: 1.1, sky: "#eef0ff", skyPower: 1.22, ambient: 0.64, fill: "#e9edff", pane: "#ffd59a", panePower: 2.4 },
+    day: { sun: "#fff1cc", sunAt: [-13, 9.5, 4.5], sunPower: 1.3, sky: "#f2f5ff", skyPower: 1.38, ambient: 0.66, fill: "#eef1ff", pane: "#ffe5ad", panePower: 2.2 },
     // the view's sun rises on the front side of the window and sets on the back side, so the
     // room's evening sun comes in from behind
-    evening: { sun: "#ff9e66", sunAt: [-14, 4.5, -4], sunPower: 1.45, sky: "#ece4ff", skyPower: 0.98, ambient: 0.52, fill: "#e6deff", pane: "#ffb27a", panePower: 85 },
+    evening: { sun: "#ff9e66", sunAt: [-14, 4.5, -4], sunPower: 1.0, sky: "#ece4ff", skyPower: 1.08, ambient: 0.56, fill: "#e6deff", pane: "#ffb27a", panePower: 2.6 },
   };
+  // Where the moon stands for the window's night light: high and a little in front
+  const MOON_AT = [-14, 8, 2];
   function applyDaylight() {
     const light = DAYLIGHT[daylightPart];
     sun.color.set(light.sun);
@@ -9851,6 +10066,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     ambient.color.set(light.fill);
     windowLight.color.set(light.pane);
     windowLight.intensity = light.panePower;
+    aimWindowLight(light.sunAt);
   }
   setTheme(dark);
   let nextDaylightAt = performance.now() + 60000 + Math.random() * 60000;
@@ -10521,7 +10737,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   scene.updateMatrixWorld(true);
   const casterBox = new THREE.Box3();
   scene.traverse((o) => {
-    if (!o.isMesh || !o.castShadow) return;
+    // (the window's own occluders cast for the window's light alone)
+    if (!o.isMesh || !o.castShadow || o.userData.windowShadow) return;
     // pooled bits (crumble dust) wait far below the floor until they're used
     if (casterBox.setFromObject(o).max.y > FLOOR_Y - 5) sunCasters.union(casterBox);
   });
@@ -10549,7 +10766,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       frameIntervals.length = 0;
       return;
     }
-    const moving = now < responsiveUntil || gsap.isTweening(cam) || catIdleTl?.isActive() || mouseRunning || lampHopping || trophyCelebrating || lanyardDrag || hatDrag || noteDrag || shelfDrag || stickyDrag;
+    const moving = now < responsiveUntil || gsap.isTweening(cam) || catIdleTl?.isActive() || gsap.isTweening(blind) || mouseRunning || lampHopping || trophyCelebrating || lanyardDrag || hatDrag || noteDrag || shelfDrag || stickyDrag;
     // Do not skip presentation frames during interaction. Idle uses a tolerant interval rather
     // than an accumulated deadline, which otherwise creates short/long frame pairs under jitter.
     if (!moving && lastTick && now - lastTick < refreshMs * 0.7) return;

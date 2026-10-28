@@ -3009,7 +3009,7 @@ let glassCopy = null;
 // Raindrops stuck to the glass: where each sits, how big, and how fast it slides
 const GLASS_DROPS = Array.from({ length: 22 }, (_, i) => ({ x: (i * 0.383 + 0.07) % 1, y: (i * 0.617) % 1, r: 1.1 + ((i * 0.29) % 1) * 1.5, v: 0.004 + ((i * 0.53) % 1) * 0.02 }));
 // Fine beads of water stuck to the glass between the drops
-const GLASS_BEADS = Array.from({ length: 70 }, (_, i) => ({ x: (i * 0.6180339 + 0.11) % 1, y: (i * 0.4142 + 0.37) % 1, r: 0.25 + ((i * 0.7071) % 1) * 0.45 }));
+const GLASS_BEADS = Array.from({ length: 70 }, (_, i) => ({ x: (i * 0.6180339 + 0.11) % 1, y: (i * 0.4142 + 0.37) % 1, r: 0.2 + ((i * 0.7071) % 1) * 0.3 }));
 // The sky through the day: top band, middle, horizon; the sun's height, colour and side
 const SKIES = {
   morning: { sky: ["#ffb98a", "#ffd4a8", "#fff0d6"], sun: [0.26, 0.38, "#ffcf5c"], cloud: "#fff3e3" },
@@ -4181,7 +4181,7 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
       const y = (((d.y + (n + run) * step) % 1.1) - 0.05) * h;
       const sideAt = (k) => Math.sin(k * 1.9 + i * 2.7) * u * 1.6;
       const x = d.x * w + sideAt(n) + (sideAt(n + 1) - sideAt(n)) * run;
-      const r = d.r * u * 1.35 * (0.85 + 0.25 * Math.min(1, f / 0.72));
+      const r = d.r * u * 0.8 * (0.85 + 0.25 * Math.min(1, f / 0.72));
       // fading in at the top so a drop that wraps round never pops
       const fadeIn = Math.min(1, (y + 0.05 * h) / (0.08 * h));
       c.globalAlpha = wet * fadeIn;

@@ -39,7 +39,7 @@ for (const hz of [60, 90, 120, 144, 165]) {
     const light = () => ({ shadow: {} });
     const scheduler = vm.createContext({ document: { hidden: false },
       sun: light(), windowLight: light(), lampLight: light(), refreshMs: 1000 / 60,
-      responsiveUntil: active ? Infinity : 0, gsap: { isTweening: () => false }, cam: {}, catIdleTl: null,
+      responsiveUntil: active ? Infinity : 0, gsap: { isTweening: () => false }, cam: {}, blind: {}, catIdleTl: null,
       benchmark: null, createToonBatch: () => () => {}, scene: {}, renderer: {}, track: (x) => x,
       mouseRunning: false, lampHopping: false, trophyCelebrating: false, lanyardDrag: null, hatDrag: null, noteDrag: null, shelfDrag: null, stickyDrag: null,
       perfReadout: null, requestAnimationFrame() {}, frame: null, accepted: [] });

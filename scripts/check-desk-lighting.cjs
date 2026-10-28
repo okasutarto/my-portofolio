@@ -56,7 +56,7 @@ const ambient = { color: color() };
 const readabilityFill = {};
 const skyFill = { color: color() };
 const context = vm.createContext({
-  deskNeons: [{ strip: {}, washMat: {} }, { strip: {}, washMat: {} }], fitSunShadow() {},
+  deskNeons: [{ strip: {}, washMat: {} }, { strip: {}, washMat: {} }], fitSunShadow() {}, aimWindowLight() {}, blindFabric: {},
   DESK_WASH: 0.45, monitorGlowMat: {}, updateLampGlow() {}, daylightPart: 'day',
   riserMat: material(), riserLegMat: material(), RISER_LEG_SHADE: 0.8,
   darkNow: false, roomDark: false, sun, windowLight, lampLight, ambient, readabilityFill, skyFill,
@@ -77,7 +77,7 @@ const dayWindow = windowLight.intensity;
 const dayDirection = sun.position.xyz;
 const dayBaseFill = ambient.intensity + skyFill.intensity + readabilityFill.intensity;
 assert.equal(sun.castShadow, true);
-assert.equal(windowLight.castShadow, false, 'daylight must not add divergent projector shadows to parallel sunlight');
+assert.equal(windowLight.castShadow, true, 'daylight through the window is shadowed by the wall, the glazing bars and the blind');
 assert.ok(windowLight.intensity > 0, 'window pane accent must remain visible during the day');
 assert.equal(lampLight.intensity, 0);
 assert.equal(lampLight.castShadow, false);
@@ -93,7 +93,9 @@ assert.equal(lampLight.castShadow, true, 'night shadows must come from the desk 
 assert.equal(sun.castShadow, true, 'cool fill must preserve shadows outside the lamp cone');
 assert.notDeepEqual(sun.position.xyz, dayDirection, 'night fill must make shorter shadows than window sunlight');
 assert.equal(windowLight.castShadow, true, 'window panes and occluding objects must still project shadows at night');
-assert.ok(sun.intensity > 0 && sun.intensity < daySun / 5, 'night fill must stay much weaker than daylight');
+// daylight's direct light is the room's sun plus the sun through the window
+assert.ok(sun.intensity > 0 && sun.intensity < (daySun + dayWindow) / 5, 'night fill must stay much weaker than daylight');
+assert.ok(windowLight.intensity < dayWindow / 2, 'moonlight through the window must stay well below sunlight');
 assert.ok(windowLight.intensity > 0, 'moonlit panes must remain visible at night');
 
 theme(false);
@@ -101,7 +103,7 @@ assert.equal(sun.intensity, daySun);
 assert.deepEqual(sun.position.xyz, dayDirection);
 assert.equal(windowLight.intensity, dayWindow);
 assert.equal(sun.castShadow, true);
-assert.equal(windowLight.castShadow, false);
+assert.equal(windowLight.castShadow, true);
 assert.equal(lampLight.intensity, 0);
 assert.equal(lampLight.castShadow, false);
 assert.ok(readabilityFill.intensity > 0);

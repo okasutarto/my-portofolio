@@ -198,7 +198,7 @@ import { ref, computed, watch, onMounted } from "vue";
 import BotFace from "./BotFace.vue";
 import { sfx } from "../../composables/useSfx";
 import { useRouter } from "vue-router";
-import { getStreamingResponse } from "../../services/openai";
+import { getStreamingResponse } from "../../services/chatApi";
 import { usePostHog } from "@/composables/usePostHog";
 
 export default {

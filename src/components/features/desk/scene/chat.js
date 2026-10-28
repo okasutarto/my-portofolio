@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import gsap from "gsap";
 import { sfx } from "@/composables/useSfx";
-import { getStreamingResponse } from "@/services/openai";
+import { getStreamingResponse } from "@/services/chatApi";
 import { canvasTexture, drawChatScreen, drawSatinFinish, drawGlassSheen } from "../textures";
 
 export function createChat(runtime) {

@@ -2607,7 +2607,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   frameMat.position.set(0, FY, 0.056);
   const photoBorder = new THREE.Mesh(track(new THREE.PlaneGeometry(0.92, 1.69)), track(new THREE.MeshBasicMaterial({ color: "#171717" })));
   photoBorder.position.set(0, FY, 0.06);
-  const familyPhoto = printed(0.88, 1.65, 409, drawFamilyPortrait);
+  // its sky follows the room: blue by day, moon and stars by night
+  const familyPhoto = printed(0.88, 1.65, 818, (c, w, h) => drawFamilyPortrait(c, w, h, { night: roomLight.night > 0.5 }));
   familyPhoto.position.set(0, FY, 0.064);
   familyFrame.add(frameMat, photoBorder, familyPhoto);
   // brass corner keys where the rails meet
@@ -3474,7 +3475,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     addItem(at(group(caseMesh, spine), x + 0.075, standOn(2) + 0.575, 0.2), "case");
     x += 0.17;
   });
-  const cover = printed(0.78, 1.11, 300, (c, w, h) => drawGameCover(c, w, h));
+  const cover = printed(0.78, 1.11, 600, (c, w, h) => drawGameCover(c, w, h));
   cover.position.z = 0.076;
   // On a little black display stand, so its foot sits well clear of the shelf's front edge
   const caseStand = at(mesh(rbox(0.56, 0.12, 0.34, 0.03), black, { outline: 0.02 }), 0, -0.635, -0.04);
@@ -10644,6 +10645,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     trimMat.color.set(isDark ? "#b8b1da" : "#ffffff");
     if (diorama) drawBackdrop();
     windowView.userData.tex.redraw();
+    familyPhoto.userData.tex.redraw();
     if (typeof lightbarState !== "undefined" && isDark) {
       lightbarOn = true;
       lightbarState.power = 1;

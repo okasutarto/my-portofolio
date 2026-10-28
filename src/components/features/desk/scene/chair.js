@@ -15,22 +15,23 @@ export function createChair(runtime) {
   // leatherette all over: a tall back with the headrest built in, a raised centre panel
   // between padded wings, fine dark red stitching along every seam, gold badges, a thick padded
   // seat, recline hubs, 4D armrests and a flat-legged base.
-  // The leatherette: a fine grain tile, tinted dark, repeated small and only lightly bumping the
-  // toon shading, so it reads as smooth leather. The pads' uv run in world units, the boxes'
-  // 0 to 1 a face, so theirs repeat more.
-  const leatherTile = (repeat) => {
+  // The leatherette: a pebbled grain tile, tinted dark, that also bumps the toon shading so
+  // the grain catches the light; the centre panel's is perforated. The pads' uv run in world
+  // units (a tile to a unit), the boxes' 0 to 1 a face, so theirs repeat more.
+  const leatherTile = (perforated, repeat) => {
     const tex = canvasTexture(256, 256);
     runtime.core.track(tex.texture);
-    drawLeatherGrain(tex.ctx, 256, 256);
+    drawLeatherGrain(tex.ctx, 256, 256, { perforated });
     tex.texture.wrapS = tex.texture.wrapT = THREE.RepeatWrapping;
     tex.texture.repeat.set(repeat, repeat);
     const mat = runtime.core.toon("#35312e");
     mat.map = mat.bumpMap = tex.texture;
-    mat.bumpScale = 0.5;
+    mat.bumpScale = 2.2;
     return mat;
   };
-  const leather = leatherTile(4);
-  const leatherBox = leatherTile(14);
+  const leather = leatherTile(false, 1);
+  const leatherPanel = leatherTile(true, 1.6);
+  const leatherBox = leatherTile(false, 3.5);
   const CHAIR_STITCH = "#7a1a24";
   // Stitching is a fine dashed thread: a dash, a gap, along every seam
   const dashTex = canvasTexture(16, 4);
@@ -56,7 +57,7 @@ export function createChair(runtime) {
 
   // Under the cushion a black plastic pan, so the seat reads thick, and the tilt mechanism
   // under that
-  const seatBase = runtime.core.mesh(runtime.core.rbox(4.3, 0.3, 3.9, 0.12), chairFrameMat, { outline: 0.04 });
+  const seatBase = runtime.core.mesh(runtime.core.rbox(4.1, 0.3, 3.9, 0.12), chairFrameMat, { outline: 0.04 });
   seatBase.position.y = -2.82;
   const mechanism = runtime.core.mesh(runtime.core.rbox(1.9, 0.34, 2.2, 0.08), chairFrameMat, { outline: 0.03 });
   mechanism.position.set(0, -3.1, 0.2);
@@ -64,7 +65,7 @@ export function createChair(runtime) {
   mechanism.add(runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.5, 0.22, 0.5, 0.08), chairFrameMat, { outline: 0.02 }), 1.0, 0, 0.3));
   mechanism.add(runtime.core.at(runtime.core.rod(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0.9, 0.05, 0), 0.05, chairFrameMat, 0.015), -1.6, 0, -0.4));
   // The back's proportions are traced from photos of the chair, front, side and rear: a
-  // shield-shaped back about 1.5 times as tall as it is wide, its headrest the narrow top of
+  // shield-shaped back about 1.6 times as tall as it is wide, its headrest the narrow top of
   // the shield. Side on, its rear is one straight line while its front swells: the headrest is
   // barely half as thick as the lower back, and the wings sweep forward round the sitter, with
   // the lumbar pushing out between them. Its front is leather, with a raised panel stitched
@@ -147,12 +148,12 @@ export function createChair(runtime) {
   };
 
   // The back shell. `y` here is up the back from its middle, `h` up from its foot. Its outline
-  // is traced from a straight-on photo: a shield, its narrow rounded top under half the
-  // shoulders' width, the sides curving out ever faster to the shoulders, then in at a slight
-  // waist and out again round the lumbar before tucking in toward the seat.
+  // is traced from straight-on and rear photos: a shield, its narrow rounded top under half the
+  // shoulders' width, the sides curving out ever faster to the shoulders, then narrowing
+  // steadily to the seat, where it's under nine tenths as wide.
   const BACK_Y = -BACK_H / 2;
   const backWidth = halfWidthAlong(
-    [[2.18, 0], [2.3, 0.6], [2.42, 1.5], [2.4, 2.1], [2.28, 2.8], [2.21, 3.3], [2.25, 3.9], [2.3, 4.3], [2.24, 4.5], [2.02, 4.87], [1.77, 5.25], [1.5, 5.62], [1.29, 6.0], [1.13, 6.38], [0.96, 6.76], [0.9, BACK_H]],
+    [[1.86, 0], [1.91, 0.8], [1.97, 1.8], [2.05, 2.8], [2.11, 3.7], [2.14, 4.3], [2.08, 4.5], [1.88, 4.87], [1.65, 5.25], [1.4, 5.62], [1.2, 6.0], [1.05, 6.38], [0.89, 6.76], [0.84, BACK_H]],
     BACK_H,
     0.25,
   );
@@ -164,17 +165,22 @@ export function createChair(runtime) {
   // run down converging a little while the outline flares out to the shoulders, so each wing
   // starts as a point high on the side and widens down to the seat. Outward of the panel's
   // edge the shell bends forward (-z), sweeping round toward the sitter into a deep U, and
-  // swells into a padded cushion, one with the shell. The headrest, all panel, stays flat.
+  // swells into a padded cushion, one with the shell; seen from the front or side its swell
+  // dips in at a waist below the shoulders and pushes out again round the lumbar, though from
+  // behind the back only narrows. The headrest, all panel, stays flat.
   const WING_TOP = 5.85;
-  const PANEL_FOOT = 1.08;
+  const PANEL_FOOT = 1.0;
   const panelEdge = (h) => (h >= WING_TOP ? backWidth(h) : PANEL_FOOT + ((backWidth(WING_TOP) - PANEL_FOOT) * h) / WING_TOP);
   const WING_SWELL = 0.3;
   const wingSwell = (x, h) => {
     const inner = panelEdge(h);
+    // over the headrest the panel runs to the rim, leaving no wing
+    if (backWidth(h) - inner <= 0) return 0;
     const u = (Math.abs(x) - inner) / (backWidth(h) - inner);
     if (u <= 0 || u >= 1) return 0;
     const fade = THREE.MathUtils.smoothstep(backWidth(h) - inner, 0, 0.7) * THREE.MathUtils.smoothstep(h, 0, 0.6);
-    return WING_SWELL * Math.sin(Math.PI * u) ** 0.7 * fade;
+    const profile = 0.75 + 0.55 * Math.exp(-(((h - 1.7) / 0.9) ** 2)) - 0.35 * Math.exp(-(((h - 3.3) / 0.45) ** 2));
+    return WING_SWELL * Math.sin(Math.PI * u) ** 0.7 * fade * profile;
   };
   // Low down the front also swells forward at the lumbar, easing off toward the rim so the
   // smooth rear shell stays put. `z` tells front (below 0) from rear.
@@ -217,7 +223,7 @@ export function createChair(runtime) {
   const CENTRE_H = BACK_H - 0.35;
   const centrePad = pillow((h) => Math.min(panelEdge(h + 0.12) - 0.02, backWidth(h + 0.12) - 0.2), CENTRE_H, 0.24, { cols: 28, rows: 110 });
   const centreZ = (y) => -backDepth(y + BACK_H / 2) / 2 + 0.04;
-  chairBack.add(runtime.core.mesh(bent(centrePad.geo, BACK_Y + 0.12, centreZ), leather, { outline: 0.03 }), stitched(centrePad, 0.1, -1, BACK_Y + 0.12, centreZ));
+  chairBack.add(runtime.core.mesh(bent(centrePad.geo, BACK_Y + 0.12, centreZ), leatherPanel, { outline: 0.03 }), stitched(centrePad, 0.1, -1, BACK_Y + 0.12, centreZ));
   // the lumbar knob on the left side, a little above the seat
   const KNOB_H = 2.6;
   const knob = runtime.core.mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.18, 20), chairFrameMat, { outline: 0.02 });
@@ -231,11 +237,11 @@ export function createChair(runtime) {
   // the top of its padding where the cat curls up.
   const SEAT_L = 4.3;
   const SEAT_DEPTH = 1.1;
-  const seatWidth = halfWidthAlong([[2.2, 0], [2.35, 2.2], [2.3, SEAT_L]], SEAT_L, 0.7);
+  const seatWidth = halfWidthAlong([[2.09, 0], [2.23, 2.2], [2.19, SEAT_L]], SEAT_L, 0.7);
   const SEAT_BOLSTER = 0.14;
   const seatBolster = (x, y) =>
     SEAT_BOLSTER *
-    THREE.MathUtils.smoothstep(Math.abs(x), 1.3, 1.95) *
+    THREE.MathUtils.smoothstep(Math.abs(x), 1.24, 1.85) *
     THREE.MathUtils.smoothstep(seatWidth(y) - Math.abs(x), 0, 0.5) *
     (1 - THREE.MathUtils.smoothstep(y, SEAT_L - 1.2, SEAT_L - 0.4));
   const seatPad = pillow(seatWidth, SEAT_L, SEAT_DEPTH, {
@@ -311,7 +317,7 @@ export function createChair(runtime) {
   // 4D armrests: a bracket out from under the seat, a tall slim stem and a flat padded top
   // As the side view has them: a long flat pad well above the seat, on a thick stem that runs
   // down past the seat's underside before turning in beneath it
-  for (const x of [-2.8, 2.8]) {
+  for (const x of [-2.6, 2.6]) {
     const bracket = runtime.core.mesh(runtime.core.rbox(1.7, 0.2, 0.5, 0.06), chairFrameMat, { outline: 0.02 });
     bracket.position.set(x * 0.72, -3.05, 0.6);
     const stem = runtime.core.mesh(runtime.core.rbox(0.3, 2.75, 0.46, 0.1), chairFrameMat, { outline: 0.03 });
@@ -325,12 +331,12 @@ export function createChair(runtime) {
   for (const side of [-1, 1]) {
     const hub = runtime.core.mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.26, 28), chairFrameMat, { outline: 0.025 });
     hub.rotation.z = Math.PI / 2;
-    hub.position.set(side * 2.5, -2.45, 1.9);
+    hub.position.set(side * 2.05, -2.45, 1.9);
     const upright = runtime.core.mesh(runtime.core.rbox(0.16, 2.1, 0.75, 0.06), chairFrameMat, { outline: 0.02 });
-    upright.position.set(side * 2.36, -1.35, 2.3);
+    upright.position.set(side * 1.98, -1.35, 2.3);
     upright.rotation.x = 0.07;
     const runner = runtime.core.mesh(runtime.core.rbox(0.16, 0.45, 1.8, 0.06), chairFrameMat, { outline: 0.02 });
-    runner.position.set(side * 2.47, -2.75, 1.0);
+    runner.position.set(side * 2.05, -2.75, 1.0);
     runner.rotation.x = 0.12;
     upholstery.add(hub, upright, runner);
   }
@@ -354,7 +360,7 @@ export function createChair(runtime) {
     drag.turned += turn;
     chairTop.rotation.y += turn;
     if (Math.abs(turn) > 0.02 && time - drag.lastSound > 260) {
-      sfx.creak();
+      sfx.swivel();
       drag.lastSound = time;
     }
   }
@@ -388,7 +394,7 @@ export function createChair(runtime) {
         .to(chair.position, { z: z + 0.5, duration: 0.5, ease: "power2.out" }, 0.1)
         .to(chair.position, { z, duration: 0.9, ease: "power2.inOut" }, 0.7);
       sfx.hiss();
-      sfx.creak({ delay: 0.15 });
+      sfx.swivel({ delay: 0.15 });
       sfx.patter({ duration: 0.5, delay: 0.1 });
     },
   });

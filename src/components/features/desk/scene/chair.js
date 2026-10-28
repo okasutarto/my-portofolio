@@ -290,9 +290,11 @@ export function createChair(runtime) {
     runtime.core.rod(new THREE.Vector3(0, -2.38, 2.12), new THREE.Vector3(0, -1.88, 2.12), 0.14, chairFrameMat, 0.03),
   );
   // Everything above the gas lift turns on it: seat, back and armrests. They're modelled a
-  // size up and shrunk to the chair's real proportions against its seat height (the seat
-  // about 50 cm up, 55 cm wide, the back 82 cm tall), which keeps it from looking squat.
-  const CHAIR_SCALE = 0.82;
+  // size up and shrunk about the desk top's height. The desk is wider and lower than a real
+  // one, so the chair can't match both: this keeps the seat at the real chair's share of the
+  // desk's height (about two thirds) while letting it grow toward its share of the desk's
+  // width, so it neither looks squat nor dwarfed by the desk.
+  const CHAIR_SCALE = 0.95;
   const SEAT_TOP = -1.77 * CHAIR_SCALE;
   const chairTop = new THREE.Group();
   const upholstery = new THREE.Group();

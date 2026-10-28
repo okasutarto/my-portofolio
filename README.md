@@ -57,7 +57,7 @@ Prefer a classic page? The same content lives at [`/2d`](https://okasp.dev/2d).
 | 💡 **Lamp** | Day and night, by hand. |
 | 🔦 **Monitor lightbar** | Toggle the task light on or off during the night shift. |
 | 🔊 **Speakers** | Sound on or off, with a little groove when it comes on. |
-| 🪟 **Window & blind** | Morning, midday, sunset and moonlight scenery with birds, stars and rain. Pull the blind or its chain; three quick knocks toggle rain. The weather card shows live Pontianak weather when available. |
+| 🪟 **Window & blind** | Morning, midday, sunset and moonlight scenery with birds, stars and rain. Pull the blind or its chain; three quick knocks toggle rain. The weather card shows live weather for your area when available. |
 | 🪴 **Plant** | Each click blooms a flower. Three blooms call a butterfly. |
 | 🖱️ **Mouse** | Grows ears and a tail, and scampers off for a lap. |
 | 🪑 **Chair** | A Titan Evo-inspired gaming chair, traced from photos. Click to spin it, or drag it round on its post. |
@@ -92,16 +92,22 @@ Chain kills for a multiplier, and if you go down you get your own wanted poster.
 
 ## 🎨 Make it your room
 
-The ⚙️ gear next to **2D site** opens the room settings. Every pick applies instantly, by day
-and by night, and is remembered in your browser.
+The ⚙️ gear next to **2D site** opens the room settings, grouped into **Time & weather**,
+**Wall** and **Furniture** sections that expand one at a time. Every pick applies instantly and is
+remembered in your browser. Close the panel with its ✕, the gear or Esc.
 
 | Part | Choices | Default |
 | --- | --- | --- |
+| 🕰️ **Time of day** | Auto · Morning · Midday · Evening · Night | Auto: your own clock |
+| 🌧️ **Weather** | Auto · Clear · Rain | Auto: the real weather where you are |
 | 🧱 **Wall** | Seven house paints from white to graphite, or any colour at all | Graphite |
 | 🪵 **Desk** | Six woods × four cuts | Cherry, butcher block |
 | 🖥️ **Monitor riser** | Six woods × four cuts | Cherry, cathedral |
 | 🪟 **Window frame** | Six woods × four cuts | Cherry, planks |
 | 🎮 **Game shelf** | Six woods × four cuts | Cherry, planks |
+
+"Where you are" comes from your browser's time zone (`Asia/Jakarta` is Jakarta), looked up
+with Open-Meteo's geocoder: no location prompt, and Pontianak when the zone doesn't name a city.
 
 **Woods:** Oak · Maple · White ash · Cherry · Walnut · Ebony stain
 **Cuts:** Planks · Cathedral · Knotty · Butcher block
@@ -139,12 +145,15 @@ night shift trades the daylight for cyan and pink neon.
 | --- | --- | --- | --- |
 | Warm light across the monitor | Brighter room, steeper sunlight | Low amber light, muted violet shade | Moonlight, cyan/pink LEDs and a task light |
 
-- **Watch the weather.** Rain fades in with its own ambience. Sunlight dims, its edges soften,
-  and the view turns cloudy. Three quick knocks on the window toggle the rain.
+- **Watch the weather.** By default it rains outside when it's really raining where you are.
+  Rain fades in with its own ambience. Sunlight dims, its edges soften, and the view turns
+  cloudy. Three quick knocks on the window toggle the rain.
 - **Follow the light.** The sun and moon in the window guide the direct beam. Pull the blind
   and the light changes with it; the rear desk and monitor LEDs bring colour after dark.
-- **Stay for the night shift.** The room changes phase every 20–30 seconds with a 2-second
-  transition. Click the lamp or finish your coffee to switch the theme yourself.
+- **Keep your hours.** By default the room follows your own clock: morning from 05:00, midday
+  from 10:00, evening from 16:00 and night from 19:00, each change with a 2-second transition.
+  Pick a part of the day in the settings to hold it, or click the lamp or finish your coffee
+  to switch between day and night yourself.
 
 <details>
 <summary><strong>🔦 How the lighting works</strong></summary>
@@ -208,7 +217,7 @@ licenses live in `public/sfx/`; the lo-fi music is generated in the browser.
 | Sound | Web Audio API: synthesis plus local `.m4a` samples in `public/sfx/` |
 | Contact | EmailJS |
 | AI chat | Node.js + Express API (`my-portfolio-api/`), OpenAI, server-sent events |
-| Live weather | Open-Meteo forecast API, fetched by the browser |
+| Live weather | Open-Meteo forecast and geocoding APIs, fetched by the browser |
 | Analytics | Vercel Analytics / Speed Insights and PostHog |
 | Hosting | Vercel |
 
@@ -290,8 +299,9 @@ These phase/weather controls are **development-only**; open them on the dev serv
 | `/?preview=trophy` | Preview the final secret discovery and trophy celebration without changing saved progress |
 | `/?preview=secret` | Preview a discovery notification and its ding without changing saved progress; audio follows mute/autoplay settings |
 
-Without a valid `time` preview, the normal time cycle continues. Live weather and window
-interactions can still affect rain after the initial preview state.
+Without a valid `time` preview, the room follows the visitor's clock (or the time picked in the
+settings). A `rain` preview holds its level against the live weather; window knocks can still
+change it.
 
 Add `?perf` (or `&perf` to an existing query) for FPS, draw calls, triangles, CPU submission,
 GPU timing when available, frame p95 and render density. For comparisons, reload with one
@@ -324,6 +334,7 @@ the-desk/
 │   │   │   ├── textures.js       # Gathers the canvas textures from textures/
 │   │   │   ├── textures/         # Canvas surfaces by section: badge, tickets, desk woods, …
 │   │   │   ├── woods.js          # Woods, cuts, paintable parts and their defaults
+│   │   │   ├── daylight.js       # Parts of the day, time and weather modes, the clock's part
 │   │   │   ├── sceneConfig.js    # Shared palettes
 │   │   │   ├── sceneMeshes.js    # Shared mesh helpers
 │   │   │   ├── sceneShaders.js   # Shader patches such as the soft shadows

@@ -7292,8 +7292,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
     },
   });
   let screenDrawnAt = 0;
+  let consoleOn = false;
   function redrawScreen() {
     screenDrawnAt = performance.now();
+    // The page swaps the terminal's chips and hint for the game's while the TV is on
+    if ((desktop.active() === "console") !== consoleOn) {
+      consoleOn = !consoleOn;
+      onEvent("console", { on: consoleOn });
+    }
     // Hotspots come back in layout units; the canvas is printed at twice that
     screenTex.hotspots = desktop.draw(screenTex.ctx, { alert: termAlert, alertOn: cursorOn })
       .map((hs) => ({ ...hs, x: hs.x * 2, y: hs.y * 2, w: hs.w * 2, h: hs.h * 2 }));
@@ -8197,6 +8203,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
     } else if (!e.repeat) pressKey(e.code);
   };
   window.addEventListener("keydown", onKeyDown);
+  // The console's game sails while an arrow is held, so it needs to hear the key let go
+  const onKeyUp = (e) => {
+    if (focus.name === "monitor") desktop.keyUp(e);
+  };
+  window.addEventListener("keyup", onKeyUp);
   // The Konami code, typed anywhere: the shelf throws a party
   const KONAMI = ["ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "b", "a"];
   let konamiAt = 0;
@@ -10686,8 +10697,39 @@ export function createDeskScene({ container, projects, experiences, dark = false
     renderer.domElement.style.cursor = "grab";
     return drag;
   }
+  // A press held on the screen: an icon dragged along the dock, or a finger dragged over the
+  // console's picture to sail the ship
+  let screenDrag = null;
+  function screenPoint(e) {
+    rayFromPointer(e);
+    const hit = raycaster.intersectObject(screen, false)[0];
+    return hit?.uv ? { x: hit.uv.x * SCREEN_W, y: (1 - hit.uv.y) * SCREEN_H } : null;
+  }
+  // Returns the drag, `dropped` when a dock icon was really moved (so it isn't a click too)
+  function finishScreenDrag(pointerId = null) {
+    if (!screenDrag || (pointerId !== null && pointerId !== screenDrag.pointerId)) return null;
+    const drag = screenDrag;
+    screenDrag = null;
+    if (renderer.domElement.hasPointerCapture(drag.pointerId)) renderer.domElement.releasePointerCapture(drag.pointerId);
+    drag.dropped = drag.dock && desktop.release();
+    if (drag.dropped) redrawScreen();
+    return drag;
+  }
   const onPointerMove = (e) => {
     responsiveUntil = performance.now() + 2000;
+    if (screenDrag?.pointerId === e.pointerId) {
+      const at = screenPoint(e);
+      if (screenDrag.dock) {
+        if (at && desktop.dragTo(at.x, at.y)) redrawScreen();
+      } else if (screenDrag.unitsPerPixel) {
+        // The console: the finger can be anywhere, even below the monitor, clear of the ship
+        desktop.drag((e.clientX - screenDrag.px) * screenDrag.unitsPerPixel, (e.clientY - screenDrag.py) * screenDrag.unitsPerPixel);
+        Object.assign(screenDrag, { px: e.clientX, py: e.clientY });
+      }
+      screenDrag.at = at;
+      e.preventDefault();
+      return;
+    }
     if (shelfDrag) {
       if (e.pointerId !== shelfDrag.pointerId) return;
       const dy = e.clientY - shelfDrag.startY;
@@ -10828,6 +10870,27 @@ export function createDeskScene({ container, projects, experiences, dark = false
     responsiveUntil = performance.now() + 2000;
     if (shelfDrag || stickyDrag || noteDrag || lanyardDrag || hatDrag || chairDrag || e.button !== 0) return;
     downAt = { x: e.clientX, y: e.clientY };
+    const onScreen = focus.name === "monitor" && screenPoint(e);
+    if (onScreen && desktop.press(onScreen.x, onScreen.y)) {
+      // A dock icon: a plain click still opens it, a drag moves it along the dock
+      screenDrag = { pointerId: e.pointerId, at: onScreen, dock: true };
+      renderer.domElement.setPointerCapture(e.pointerId);
+      if (e.pointerType === "mouse") pressMouse();
+      e.preventDefault();
+      return;
+    }
+    if (e.pointerType !== "mouse" && focus.name === "monitor" && desktop.active() === "console") {
+      // A tap still lands on the screen's buttons when the finger is lifted. A finger moves the
+      // ship as far as it moves on the picture, wherever on the page it is
+      const left = screen.localToWorld(new THREE.Vector3(-2, 0, 0)).project(camera);
+      const right = screen.localToWorld(new THREE.Vector3(2, 0, 0)).project(camera);
+      const pictureWidth = Math.hypot(right.x - left.x, (right.y - left.y) * (container.clientHeight / container.clientWidth)) * container.clientWidth / 2;
+      const from = screenPoint(e);
+      screenDrag = { pointerId: e.pointerId, at: from, from, px: e.clientX, py: e.clientY, unitsPerPixel: SCREEN_W / Math.max(1, pictureWidth) };
+      renderer.domElement.setPointerCapture(e.pointerId);
+      e.preventDefault();
+      return;
+    }
     if (focus.name === "shelf") {
       shelfDrag = {
         pointerId: e.pointerId, startX: e.clientX, startY: e.clientY,
@@ -10911,6 +10974,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   }
   const onPointerCancel = (e) => {
     setHover(null);
+    finishScreenDrag(e.pointerId);
     if (finishShelfDrag(e.pointerId)) downAt = null;
     finishStickyDrag(e.pointerId);
     finishNoteDrag(e.pointerId);
@@ -10920,6 +10984,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   };
   const onWindowBlur = () => {
     setHover(null);
+    finishScreenDrag();
+    desktop.releaseKeys();
     if (finishShelfDrag()) downAt = null;
     finishStickyDrag();
     finishNoteDrag();
@@ -10928,6 +10994,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
     finishChairDrag();
   };
   const onPointerUp = (e) => {
+    const drag = finishScreenDrag(e.pointerId);
+    // A dock icon really moved, or a console finger set down off the picture: no desk click
+    if (drag?.dropped || (drag?.unitsPerPixel && !drag.from)) {
+      downAt = null;
+      return;
+    }
     if (shelfDrag) {
       if (e.pointerId !== shelfDrag.pointerId) return;
       const drag = finishShelfDrag(e.pointerId);
@@ -11520,6 +11592,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       densityQuery?.removeEventListener("change", onDensityChange);
       window.visualViewport?.removeEventListener("resize", resize);
       window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("keydown", onKonami);
       typer.removeEventListener("input", onTyperInput);
       typer.removeEventListener("keydown", onTyperKey);

@@ -3,6 +3,7 @@
 // terminal, Spotifree) that genie out of the dock and back into it. Drawn on a 2D canvas in a
 // 640 × 384 layout; clickable areas come back as hotspots in the same units.
 import { TRACKS, trackLength } from "./lofi";
+import { createStrike, drawStrike, strikeKey, STRIKE_BOOT } from "./strawHatStrike";
 
 export const SCREEN_W = 640;
 export const SCREEN_H = 384;
@@ -28,9 +29,19 @@ const APPS = {
   mail: { id: "mail", label: "Mail", focus: "contact" },
   messages: { id: "messages", label: "AI Chat", focus: "chat" },
 };
-// Kept in the dock; Snake only shows there while it's open (it lives in Launchpad)
-const DOCK_KEPT = ["launchpad", "files", "terminal", "spotifree", "code", "notes", "mail", "messages"];
+// Kept in the dock, Snake included: it's the desktop's own game, apart from the console
+const DOCK_KEPT = ["launchpad", "files", "terminal", "spotifree", "code", "snake", "notes", "mail", "messages"];
 const LAUNCHPAD_APPS = ["terminal", "spotifree", "code", "snake", "files", "notes", "mail", "messages"];
+// The visitor's own order, if they've dragged the icons about
+const readDockOrder = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem("dock-order"));
+    if (Array.isArray(saved) && saved.length === DOCK_KEPT.length && DOCK_KEPT.every((id) => saved.includes(id))) return saved;
+  } catch {
+    // Nothing saved, or no storage: the default order
+  }
+  return [...DOCK_KEPT];
+};
 function dockLayout(ids) {
   const w = ids.length * (ICON + ICON_GAP) + ICON_GAP;
   const x = (SCREEN_W - w) / 2;
@@ -57,6 +68,65 @@ function roundRect(c, x, y, w, h, r) {
   c.roundRect(x, y, w, h, r);
 }
 
+// ---------- texture: a fine print grain and halftone shading ----------
+// The grain is printed once into a small tile and laid over surfaces as a pattern
+let grainTile = null;
+const grainPatterns = new WeakMap();
+function seeded(seed) {
+  return () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+}
+function grainOver(c, alpha = 1) {
+  if (!grainTile) {
+    grainTile = document.createElement("canvas");
+    grainTile.width = grainTile.height = 96;
+    const g = grainTile.getContext("2d");
+    const rnd = seeded(7);
+    for (let i = 0; i < 1500; i++) {
+      const v = rnd() < 0.55 ? 0 : 255;
+      g.fillStyle = `rgba(${v},${v},${v},${0.05 + rnd() * 0.09})`;
+      g.fillRect(Math.floor(rnd() * 96), Math.floor(rnd() * 96), 1, 1);
+    }
+  }
+  let pattern = grainPatterns.get(c);
+  if (!pattern) {
+    pattern = c.createPattern(grainTile, "repeat");
+    grainPatterns.set(c, pattern);
+  }
+  // Fills the current path
+  c.save();
+  c.globalAlpha = alpha;
+  c.fillStyle = pattern;
+  c.fill();
+  c.restore();
+}
+// Comic shading inside the current path: dots that swell towards the bottom right of `box`
+function halftone(c, box, color, { gap = 7, max = 2.4 } = {}) {
+  const [x0, y0, w, h] = box;
+  c.save();
+  c.clip();
+  c.fillStyle = color;
+  for (let y = y0; y < y0 + h; y += gap) {
+    for (let x = x0 + (Math.round((y - y0) / gap) % 2) * (gap / 2); x < x0 + w; x += gap) {
+      const k = clamp01(((x - x0) / w + (y - y0) / h) / 2);
+      const r = max * k * k;
+      if (r < 0.35) continue;
+      c.beginPath();
+      c.arc(x, y, r, 0, Math.PI * 2);
+      c.fill();
+    }
+  }
+  c.restore();
+}
+// A soft white gloss over the top of the current path, and a darker foot
+function gloss(c, x, y, w, h, { top = 0.3, foot = 0.12 } = {}) {
+  const g = c.createLinearGradient(0, y, 0, y + h);
+  g.addColorStop(0, `rgba(255,255,255,${top})`);
+  g.addColorStop(0.45, "rgba(255,255,255,0)");
+  g.addColorStop(1, `rgba(0,0,0,${foot})`);
+  c.fillStyle = g;
+  c.fill();
+}
+
 // ---------- theme: the desktop follows the room's day and night ----------
 const THEMES = {
   light: {
@@ -65,13 +135,13 @@ const THEMES = {
     sky: ["#a8dcff", "#eef8ff"], dots: "rgba(26,23,20,.09)", line: "#1a1714",
     shapes: ["#1e3a8a", "#00e0c6", "#ffdd00", "#3b82f6", "#ff7a1a"],
     bar: "rgba(255,253,245,.92)", ink: "#1a1714", edge: "#000",
-    dock: "rgba(255,253,245,.75)", tip: "#1a1714", tipInk: "#fffdf5", card: "#fffdf5",
+    dock: "rgba(255,253,245,.75)", shelf: "rgba(26,23,20,.08)", tip: "#1a1714", tipInk: "#fffdf5", card: "#fffdf5",
   },
   dark: {
     sky: ["#2a2540", "#17151f"], dots: "rgba(196,185,220,.08)", line: "#0b0a10",
     shapes: ["#b05fa3", "#1f9c8e", "#c9a93a", "#5f7bc4", "#c97f45"],
     bar: "rgba(23,21,31,.92)", ink: "#ece8f7", edge: "#4b4466",
-    dock: "rgba(42,37,64,.8)", tip: "#ece8f7", tipInk: "#17151f", card: "#2a2540",
+    dock: "rgba(42,37,64,.8)", shelf: "rgba(0,0,0,.25)", tip: "#ece8f7", tipInk: "#17151f", card: "#2a2540",
   },
 };
 
@@ -90,16 +160,42 @@ function drawWallpaper(c, name) {
     w.fillRect(0, 0, SCREEN_W, SCREEN_H);
     w.fillStyle = theme.dots;
     for (let y = 12; y < SCREEN_H; y += 16) for (let x = 12; x < SCREEN_W; x += 16) w.fillRect(x, y, 1.6, 1.6);
+    // paper fibres: short faint hairs, the same every time
+    const rnd = seeded(name === "dark" ? 41 : 17);
+    w.lineWidth = 0.6;
+    for (let i = 0; i < 140; i++) {
+      const x = rnd() * SCREEN_W;
+      const y = rnd() * SCREEN_H;
+      const a = rnd() * Math.PI;
+      w.strokeStyle = rnd() < 0.5 ? theme.dots : "rgba(255,255,255,.25)";
+      w.beginPath();
+      w.moveTo(x, y);
+      w.quadraticCurveTo(x + Math.cos(a) * 4, y + Math.sin(a) * 4 + 1.5, x + Math.cos(a) * 9, y + Math.sin(a) * 9);
+      w.stroke();
+    }
     const [blob, teal, yellow, blue, orange] = theme.shapes;
     w.lineWidth = 3;
     w.lineJoin = "round";
     w.lineCap = "round";
     w.strokeStyle = theme.line;
-    const shape = (fill, path) => {
+    // Each cut-paper shape lies on the page: a hard shadow under it, halftone shading on
+    // its lower side, and its ink outline
+    const shade = name === "dark" ? "rgba(0,0,0,.35)" : "rgba(26,23,20,.22)";
+    const shape = (fill, path, box = null) => {
+      w.save();
+      w.translate(4, 4);
+      w.beginPath();
+      path();
+      w.fillStyle = shade;
+      w.fill();
+      w.restore();
       w.beginPath();
       path();
       w.fillStyle = fill;
       w.fill();
+      if (box) halftone(w, box, "rgba(0,0,0,.16)");
+      w.beginPath();
+      path();
       w.stroke();
     };
     // a blob spilling in from the top right
@@ -109,9 +205,9 @@ function drawWallpaper(c, name) {
       w.bezierCurveTo(630, 104, 650, 150, 660, 170);
       w.lineTo(660, -10);
       w.closePath();
-    });
+    }, [430, -10, 230, 180]);
     // a half sun rising from the bottom left
-    shape(yellow, () => w.arc(70, SCREEN_H + 10, 120, Math.PI, Math.PI * 2));
+    shape(yellow, () => w.arc(70, SCREEN_H + 10, 120, Math.PI, Math.PI * 2), [-50, SCREEN_H - 110, 240, 120]);
     // stripes inside it
     w.save();
     w.beginPath();
@@ -131,12 +227,28 @@ function drawWallpaper(c, name) {
     w.beginPath();
     w.arc(70, SCREEN_H + 10, 120, Math.PI, Math.PI * 2);
     w.stroke();
+    // a thin highlight along the sun's rim
+    w.strokeStyle = "rgba(255,255,255,.55)";
+    w.lineWidth = 2;
+    w.beginPath();
+    w.arc(70, SCREEN_H + 10, 112, Math.PI * 1.1, Math.PI * 1.45);
+    w.stroke();
+    w.strokeStyle = theme.line;
+    w.lineWidth = 3;
     // a teal quarter disc in the bottom right with a ring floating over it
     shape(teal, () => {
       w.moveTo(SCREEN_W + 10, SCREEN_H + 10);
       w.arc(SCREEN_W + 10, SCREEN_H + 10, 150, Math.PI, Math.PI * 1.5);
       w.closePath();
-    });
+    }, [SCREEN_W - 140, SCREEN_H - 140, 150, 150]);
+    // a dashed orbit round the ring
+    w.save();
+    w.setLineDash([3, 6]);
+    w.lineWidth = 1.6;
+    w.beginPath();
+    w.ellipse(530, 250, 62, 22, -0.35, 0, Math.PI * 2);
+    w.stroke();
+    w.restore();
     w.lineWidth = 12;
     w.strokeStyle = blue;
     w.beginPath();
@@ -154,7 +266,31 @@ function drawWallpaper(c, name) {
     w.save();
     w.translate(-6, 150);
     w.rotate(-0.22);
-    shape(blue, () => w.rect(0, 0, 70, 70));
+    shape(blue, () => w.rect(0, 0, 70, 70), [0, 0, 70, 70]);
+    // ruled lines on the tile, like a scrap of notebook paper
+    w.strokeStyle = "rgba(255,255,255,.35)";
+    w.lineWidth = 1;
+    for (let k = 1; k < 5; k++) {
+      w.beginPath();
+      w.moveTo(8, k * 14);
+      w.lineTo(64, k * 14);
+      w.stroke();
+    }
+    w.restore();
+    // a strip of washi tape holding the tile on
+    w.save();
+    w.translate(40, 140);
+    w.rotate(0.5);
+    w.fillStyle = name === "dark" ? "rgba(201,169,58,.75)" : "rgba(255,221,0,.8)";
+    w.fillRect(-18, -6, 36, 12);
+    w.strokeStyle = "rgba(0,0,0,.15)";
+    w.lineWidth = 1;
+    for (let k = -14; k < 18; k += 5) {
+      w.beginPath();
+      w.moveTo(k, -6);
+      w.lineTo(k + 4, 6);
+      w.stroke();
+    }
     w.restore();
     // a squiggle drifting across the top left
     w.strokeStyle = theme.line;
@@ -180,20 +316,59 @@ function drawWallpaper(c, name) {
       w.quadraticCurveTo(x - b, y + b, x - a, y);
       w.quadraticCurveTo(x - b, y - b, x, y - a);
     });
+    // little plus marks, scattered like print registration crosses
+    w.strokeStyle = theme.line;
+    w.lineWidth = 2;
+    [[352, 92], [470, 330], [214, 300], [612, 300]].forEach(([x, y]) => {
+      w.beginPath();
+      w.moveTo(x - 5, y);
+      w.lineTo(x + 5, y);
+      w.moveTo(x, y - 5);
+      w.lineTo(x, y + 5);
+      w.stroke();
+    });
+    // the whole sheet gets the print grain, then a soft vignette at the edges
+    w.beginPath();
+    w.rect(0, 0, SCREEN_W, SCREEN_H);
+    grainOver(w, 1);
+    const vignette = w.createRadialGradient(SCREEN_W / 2, SCREEN_H / 2, SCREEN_H * 0.35, SCREEN_W / 2, SCREEN_H / 2, SCREEN_W * 0.62);
+    vignette.addColorStop(0, "rgba(0,0,0,0)");
+    vignette.addColorStop(1, name === "dark" ? "rgba(0,0,0,.35)" : "rgba(26,23,20,.12)");
+    w.fillStyle = vignette;
+    w.fillRect(0, 0, SCREEN_W, SCREEN_H);
     wallpapers[name] = paper;
   }
   c.drawImage(wallpapers[name].canvas, 0, 0, SCREEN_W, SCREEN_H);
 }
 
 // ---------- dock icons ----------
-function drawIcon(c, id, x, y, s) {
+// Each is a little printed tile: a hard shadow, its colour, a gloss on top, grain, an outline
+function drawIcon(c, id, x, y, s, { shadow = true } = {}) {
   const u = s / 32;
+  if (shadow) {
+    roundRect(c, x + 2 * u, y + 2.5 * u, s, s, 8 * u);
+    c.fillStyle = "rgba(0,0,0,.8)";
+    c.fill();
+  }
   roundRect(c, x, y, s, s, 8 * u);
   c.fillStyle = { launchpad: "#3a3550", files: "#ffdd00", terminal: "#1a1714", spotifree: GREEN, code: "#4f7cff", snake: "#8fd694", notes: "#fffdf5", mail: "#7fb2ff", messages: "#ff90e8" }[id];
   c.fill();
+  gloss(c, x, y, s, s, { top: 0.32, foot: 0.16 });
+  grainOver(c, 0.9);
   c.lineWidth = 2;
   c.strokeStyle = "#000";
   c.stroke();
+  // a bright sliver along the top edge
+  c.save();
+  roundRect(c, x, y, s, s, 8 * u);
+  c.clip();
+  c.strokeStyle = "rgba(255,255,255,.45)";
+  c.lineWidth = 1.2 * u;
+  c.beginPath();
+  c.moveTo(x + 7 * u, y + 2.6 * u);
+  c.lineTo(x + s - 7 * u, y + 2.6 * u);
+  c.stroke();
+  c.restore();
   c.save();
   c.translate(x, y);
   c.scale(u, u);
@@ -822,358 +997,6 @@ function drawSnake(c, w, h, game, hotspots) {
   });
 }
 
-// ---------- the console: Straw Hat Dash ----------
-// Switched on from the PlayStation on the shelf, the monitor turns into a TV: a boot screen,
-// then a side-scrolling runner on a pirate ship's deck. Jump the barrels and crates, slide
-// under the seagulls, grab the meat. Faster the further you get.
-const DASH_GROUND = 300;
-const DASH_X = 110;
-const DASH_BOOT = 2.2;
-const JUMP_KEYS = new Set([" ", "ArrowUp", "w", "W", "Enter"]);
-const SLIDE_KEYS = new Set(["ArrowDown", "s", "S"]);
-const readDashBest = () => {
-  try {
-    return Number(localStorage.getItem("dash-best")) || 0;
-  } catch {
-    return 0;
-  }
-};
-function createDash(sound) {
-  const game = { state: "ready", y: 0, vy: 0, slideUntil: 0, things: [], dist: 0, nextAt: 0, meat: 0, best: readDashBest(), last: 0, t: 0 };
-  const score = () => Math.floor(game.dist / 12) + game.meat * 10;
-  game.score = score;
-  game.reset = () => {
-    Object.assign(game, { state: "play", y: 0, vy: 0, slideUntil: 0, things: [], dist: 0, nextAt: 380, meat: 0, last: 0 });
-  };
-  game.jump = () => {
-    if (game.state !== "play") return game.reset();
-    if (game.y > 0) return;
-    game.vy = 560;
-    game.slideUntil = 0;
-    sound("blip");
-  };
-  game.slide = () => {
-    if (game.state !== "play") return;
-    // A slide mid-air drops you straight down
-    if (game.y > 0) game.vy = Math.min(game.vy, -500);
-    game.slideUntil = game.t + 0.5;
-    sound("whoosh");
-  };
-  game.speed = () => 250 + Math.min(260, game.dist / 30);
-  const spawn = () => {
-    const roll = Math.random();
-    const x = SCREEN_W + 30;
-    if (roll < 0.38) game.things.push({ kind: "barrel", x, w: 24, h: 28, y: 0 });
-    else if (roll < 0.6) game.things.push({ kind: "crates", x, w: 28, h: 44, y: 0 });
-    else if (roll < 0.82) game.things.push({ kind: "gull", x, w: 30, h: 16, y: 30 });
-    else game.things.push({ kind: "meat", x, w: 20, h: 16, y: Math.random() < 0.5 ? 14 : 70 });
-    game.nextAt = game.dist + 230 + Math.random() * 260 + game.speed() * 0.25;
-  };
-  game.step = (t) => {
-    game.t = t;
-    if (game.state !== "play") return;
-    const dt = Math.min(0.05, game.last ? t - game.last : 0);
-    game.last = t;
-    const v = game.speed();
-    game.dist += v * dt;
-    if (game.dist >= game.nextAt) spawn();
-    // jump arc
-    game.vy -= 1600 * dt;
-    game.y = Math.max(0, game.y + game.vy * dt);
-    if (game.y === 0) game.vy = 0;
-    const sliding = t < game.slideUntil && game.y === 0;
-    const me = { x: DASH_X - 9, w: 18, y: game.y, h: sliding ? 16 : 32 };
-    game.things.forEach((o) => (o.x -= v * dt));
-    game.things = game.things.filter((o) => o.x + o.w > -20 && !o.taken);
-    for (const o of game.things) {
-      const overlap = me.x < o.x + o.w - 4 && me.x + me.w > o.x + 4 && me.y < o.y + o.h - 3 && me.y + me.h > o.y + 3;
-      if (!overlap) continue;
-      if (o.kind === "meat") {
-        o.taken = true;
-        game.meat++;
-        sound("pop");
-        continue;
-      }
-      game.state = "over";
-      if (score() > game.best) {
-        game.best = score();
-        try {
-          localStorage.setItem("dash-best", String(game.best));
-        } catch {
-          // The best score just isn't kept between visits
-        }
-      }
-      sound("buzz");
-      return;
-    }
-  };
-  return game;
-}
-
-// The runner: a little pirate in a straw hat, red vest and blue shorts, feet at (x, y)
-function drawRunner(c, x, y, t, { sliding, airborne, over }) {
-  c.save();
-  c.translate(x, y);
-  if (sliding) c.rotate(-1.2);
-  c.lineWidth = 2;
-  c.strokeStyle = "#1a1714";
-  const step = airborne || over ? 0 : Math.sin(t * 22);
-  // legs
-  [[-1, step], [1, -step]].forEach(([side, swing]) => {
-    c.fillStyle = "#f6d2b4";
-    c.save();
-    c.translate(side * 4, -12);
-    c.rotate(swing * 0.6);
-    c.fillRect(-2.5, 0, 5, 11);
-    c.strokeRect(-2.5, 0, 5, 11);
-    c.fillStyle = "#1a1714";
-    c.fillRect(-3, 10, 7, 3);
-    c.restore();
-  });
-  // shorts and vest
-  c.fillStyle = "#3b6fd6";
-  c.beginPath();
-  c.roundRect(-8, -16, 16, 7, 2);
-  c.fill();
-  c.stroke();
-  c.fillStyle = "#e5484d";
-  c.beginPath();
-  c.roundRect(-8, -29, 16, 14, 3);
-  c.fill();
-  c.stroke();
-  // arms swinging
-  c.fillStyle = "#f6d2b4";
-  c.save();
-  c.translate(0, -26);
-  c.rotate(-step * 0.8 - (airborne ? 1.6 : 0));
-  c.fillRect(-2, 0, 4, 11);
-  c.strokeRect(-2, 0, 4, 11);
-  c.restore();
-  // head
-  c.beginPath();
-  c.arc(0, -36, 8, 0, Math.PI * 2);
-  c.fill();
-  c.stroke();
-  c.fillStyle = "#1a1714";
-  if (over) {
-    c.font = "800 7px sans-serif";
-    c.textAlign = "center";
-    c.fillText("x x", 2, -35);
-  } else {
-    c.fillRect(2, -38, 2, 3);
-    c.fillRect(-3, -38, 2, 3);
-    c.beginPath();
-    c.arc(1, -33, 2.5, 0.1, Math.PI - 0.1);
-    c.stroke();
-  }
-  // straw hat
-  c.fillStyle = "#f2c14e";
-  c.beginPath();
-  c.ellipse(0, -42, 13, 3.2, 0, 0, Math.PI * 2);
-  c.fill();
-  c.stroke();
-  c.beginPath();
-  c.moveTo(-7, -42);
-  c.quadraticCurveTo(-7, -51, 0, -51);
-  c.quadraticCurveTo(7, -51, 7, -42);
-  c.closePath();
-  c.fill();
-  c.stroke();
-  c.fillStyle = "#d62828";
-  c.fillRect(-7, -45.5, 14, 3);
-  c.restore();
-}
-
-function drawThing(c, o, t) {
-  const x = o.x;
-  const y = DASH_GROUND - o.y;
-  c.lineWidth = 2;
-  c.strokeStyle = "#1a1714";
-  if (o.kind === "barrel") {
-    c.fillStyle = "#a0622d";
-    c.beginPath();
-    c.roundRect(x, y - o.h, o.w, o.h, 6);
-    c.fill();
-    c.stroke();
-    c.fillStyle = "#6b3f1d";
-    [0.25, 0.75].forEach((f) => c.fillRect(x, y - o.h * f - 1.5, o.w, 3));
-  } else if (o.kind === "crates") {
-    [[0, 0, 28, 22], [4, 22, 20, 22]].forEach(([dx, dy, w, h]) => {
-      c.fillStyle = "#d9a35b";
-      c.fillRect(x + dx, y - dy - h, w, h);
-      c.strokeRect(x + dx, y - dy - h, w, h);
-      c.beginPath();
-      c.moveTo(x + dx, y - dy - h);
-      c.lineTo(x + dx + w, y - dy);
-      c.stroke();
-    });
-  } else if (o.kind === "gull") {
-    const flap = Math.sin(t * 14) * 6;
-    const cy = y - o.h / 2;
-    c.fillStyle = "#fffdf5";
-    c.beginPath();
-    c.ellipse(x + 15, cy, 10, 6, 0, 0, Math.PI * 2);
-    c.fill();
-    c.stroke();
-    c.beginPath();
-    c.moveTo(x + 4, cy - 4 - flap);
-    c.quadraticCurveTo(x + 10, cy, x + 15, cy - 2);
-    c.quadraticCurveTo(x + 20, cy, x + 26, cy - 4 - flap);
-    c.stroke();
-    c.fillStyle = "#ffb000";
-    c.beginPath();
-    c.moveTo(x + 5, cy - 1);
-    c.lineTo(x - 1, cy + 1);
-    c.lineTo(x + 5, cy + 2);
-    c.fill();
-    c.fillStyle = "#1a1714";
-    c.fillRect(x + 8, cy - 3, 2, 2);
-  } else if (o.kind === "meat") {
-    const bob = Math.sin(t * 6) * 2;
-    c.fillStyle = "#fffdf5";
-    c.beginPath();
-    c.roundRect(x - 2, y - 9 + bob, 24, 4, 2);
-    c.fill();
-    c.stroke();
-    c.fillStyle = "#c2502b";
-    c.beginPath();
-    c.ellipse(x + 10, y - 7 + bob, 9, 7, 0, 0, Math.PI * 2);
-    c.fill();
-    c.stroke();
-  }
-}
-
-// The TV picture: boot, then the game (with its own buttons for touch screens)
-function drawConsole(c, w, h, game, t, t0, hotspots) {
-  const since = t - t0;
-  c.fillStyle = "#05060a";
-  c.fillRect(0, 0, w, h);
-  if (since < DASH_BOOT) {
-    // A wash of light rises, then the logo fades in with a soft glow
-    const k = clamp01(since / 0.9);
-    const glow = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w * 0.6);
-    glow.addColorStop(0, `rgba(70,110,255,${0.55 * k})`);
-    glow.addColorStop(1, "rgba(0,0,0,0)");
-    c.fillStyle = glow;
-    c.fillRect(0, 0, w, h);
-    const a = clamp01((since - 0.5) / 0.6) * (1 - clamp01((since - DASH_BOOT + 0.3) / 0.3));
-    c.globalAlpha = a;
-    c.fillStyle = "#fff";
-    c.textAlign = "center";
-    c.textBaseline = "middle";
-    c.font = `800 30px ${DISPLAY}`;
-    c.fillText("▶ PLAY", w / 2, h / 2);
-    c.globalAlpha = 1;
-    c.textAlign = "left";
-    return;
-  }
-  // sky, sun and sea
-  const sky = c.createLinearGradient(0, 0, 0, DASH_GROUND);
-  sky.addColorStop(0, "#7cc8ff");
-  sky.addColorStop(1, "#ffe0b0");
-  c.fillStyle = sky;
-  c.fillRect(0, 0, w, DASH_GROUND);
-  c.fillStyle = "#fff3c4";
-  c.beginPath();
-  c.arc(w * 0.78, 90, 34, 0, Math.PI * 2);
-  c.fill();
-  const scroll = game.dist;
-  // clouds drifting slowly
-  c.fillStyle = "#ffffff";
-  [[80, 60], [300, 40], [520, 80]].forEach(([cx, cy]) => {
-    const x = ((cx - scroll * 0.08) % (w + 120) + w + 120) % (w + 120) - 60;
-    c.beginPath();
-    c.ellipse(x, cy, 28, 10, 0, 0, Math.PI * 2);
-    c.ellipse(x + 18, cy - 6, 18, 9, 0, 0, Math.PI * 2);
-    c.fill();
-  });
-  c.fillStyle = "#2f7fd6";
-  c.fillRect(0, 230, w, DASH_GROUND - 230);
-  c.strokeStyle = "rgba(255,255,255,.55)";
-  c.lineWidth = 2;
-  for (let i = 0; i < 9; i++) {
-    const x = ((i * 90 - scroll * 0.3) % (w + 90) + w + 90) % (w + 90) - 45;
-    c.beginPath();
-    c.moveTo(x, 250 + (i % 3) * 14);
-    c.quadraticCurveTo(x + 10, 245 + (i % 3) * 14, x + 20, 250 + (i % 3) * 14);
-    c.stroke();
-  }
-  // the deck: planks scrolling by, and the rail
-  c.fillStyle = "#b9773a";
-  c.fillRect(0, DASH_GROUND, w, h - DASH_GROUND);
-  c.fillStyle = "#8a5426";
-  c.fillRect(0, DASH_GROUND, w, 4);
-  c.strokeStyle = "#7a4a22";
-  c.lineWidth = 1.5;
-  for (let i = 0; i < 12; i++) {
-    const x = ((i * 64 - scroll) % (w + 64) + w + 64) % (w + 64) - 32;
-    c.beginPath();
-    c.moveTo(x, DASH_GROUND + 4);
-    c.lineTo(x - 30, h);
-    c.stroke();
-  }
-  game.things.forEach((o) => drawThing(c, o, t));
-  const sliding = t < game.slideUntil && game.y === 0;
-  drawRunner(c, DASH_X, DASH_GROUND - game.y + (sliding ? -2 : 0), t, { sliding, airborne: game.y > 0, over: game.state === "over" });
-
-  // score
-  c.fillStyle = "#1a1714";
-  c.textBaseline = "middle";
-  c.font = `800 11px ${DISPLAY}`;
-  c.fillText(`SCORE ${game.score()}`, 14, 18);
-  c.font = `700 9px ${BODY}`;
-  c.fillText(`🍖 ${game.meat}   BEST ${Math.max(game.best, game.score())}`, 14, 34);
-
-  // exit button
-  c.fillStyle = "#1a1714";
-  roundRect(c, w - 66, 9, 56, 20, 5);
-  c.fill();
-  c.fillStyle = "#fff";
-  c.textAlign = "center";
-  c.font = `800 9px ${BODY}`;
-  c.fillText("✕ EXIT", w - 38, 19.5);
-  c.textAlign = "left";
-
-  if (game.state !== "play") {
-    c.fillStyle = "rgba(10,12,20,.55)";
-    c.fillRect(0, 0, w, h);
-    c.textAlign = "center";
-    c.fillStyle = "#ffdd00";
-    c.font = `800 24px ${DISPLAY}`;
-    c.fillText(game.state === "over" ? "GAME OVER" : "STRAW HAT DASH", w / 2, h / 2 - 40);
-    c.fillStyle = "#fff";
-    c.font = `600 11px ${BODY}`;
-    if (game.state === "over") c.fillText(`score ${game.score()}   ·   best ${game.best}`, w / 2, h / 2 - 14);
-    const blink = Math.floor(t * 2) % 2 === 0;
-    if (blink) c.fillText("press SPACE / ↑ or tap to " + (game.state === "over" ? "play again" : "start"), w / 2, h / 2 + 8);
-    c.font = `500 9px ${BODY}`;
-    c.fillText("↑ jump the barrels · ↓ slide under the gulls · grab the meat", w / 2, h / 2 + 28);
-    c.textAlign = "left";
-  }
-  // touch buttons
-  [["dashSlide", "▼ SLIDE", w - 150], ["dashJump", "▲ JUMP", w - 78]].forEach(([id, label, x]) => {
-    const y = h - 34;
-    c.fillStyle = "#1a1714";
-    roundRect(c, x + 2, y + 2, 64, 24, 6);
-    c.fill();
-    c.fillStyle = "#ffdd00";
-    roundRect(c, x, y, 64, 24, 6);
-    c.fill();
-    c.lineWidth = 2;
-    c.strokeStyle = "#1a1714";
-    c.stroke();
-    c.fillStyle = "#1a1714";
-    c.textAlign = "center";
-    c.font = `800 9px ${BODY}`;
-    c.fillText(label, x + 32, y + 12.5);
-    c.textAlign = "left";
-    hotspots.push({ id, x, y, w: 64, h: 24 });
-  });
-  hotspots.push({ id: "consoleExit", x: w - 66, y: 9, w: 56, h: 20 });
-  // Anywhere else on the picture jumps (and starts)
-  hotspots.push({ id: "dashJump", x: 0, y: 0, w, h });
-}
-
 export function createDesktop({ terminal, player, actions }) {
   // Positions are the windows' homes; maximized they fill the space between bar and dock
   const windows = {
@@ -1184,7 +1007,7 @@ export function createDesktop({ terminal, player, actions }) {
   };
   const typist = createTypist();
   const snake = createSnake((name) => actions.sound?.(name));
-  const dash = createDash((name) => actions.sound?.(name));
+  const strike = createStrike((name) => actions.sound?.(name));
   // The console takes over the whole screen while it's on
   const tv = { on: false, t0: 0 };
   // Launchpad: a grid of every app over the dimmed desktop
@@ -1196,6 +1019,11 @@ export function createDesktop({ terminal, player, actions }) {
   let notice = null;
   let themeName = "light";
   const now = () => performance.now() / 1000;
+  // The dock's icons can be dragged along it; each one's drawn x eases to its place
+  const dockOrder = readDockOrder();
+  const slots = {};
+  let dockDrag = null;
+  let lastDraw = 0;
 
   const rectOf = (win) => (win.max ? { x: 10, y: MENU_H + 8, w: SCREEN_W - 20, h: DOCK_Y - MENU_H - 16 } : win.home);
   const front = () => {
@@ -1209,7 +1037,11 @@ export function createDesktop({ terminal, player, actions }) {
     order = order.filter((o) => o !== id).concat(id);
   };
 
-  const dockIds = () => (windows.snake.open ? [...DOCK_KEPT, "snake"] : DOCK_KEPT);
+  const dockIds = () => dockOrder;
+  const dockSettling = () => {
+    const layout = dockLayout(dockOrder);
+    return dockOrder.some((id, i) => slots[id] !== undefined && Math.abs(slots[id] - layout.center(i)) > 0.3);
+  };
   const iconX = (id) => {
     const ids = dockIds();
     return dockLayout(ids).center(Math.max(0, ids.indexOf(id)));
@@ -1288,6 +1120,10 @@ export function createDesktop({ terminal, player, actions }) {
     // title bar
     c.fillStyle = win.bar;
     c.fillRect(0, 0, r.w, TITLE_H);
+    c.beginPath();
+    c.rect(0, 0, r.w, TITLE_H);
+    gloss(c, 0, 0, r.w, TITLE_H, { top: 0.28, foot: 0.12 });
+    grainOver(c, 0.9);
     c.fillStyle = "#000";
     c.fillRect(0, TITLE_H - 2, r.w, 2);
     ["#ff5f57", "#febc2e", "#28c840"].forEach((color, i) => {
@@ -1383,8 +1219,8 @@ export function createDesktop({ terminal, player, actions }) {
     if (windows.code.open && !windows.code.min) typist.step(t);
     if (front()?.id === "snake") snake.step(t);
     if (tv.on) {
-      if (t - tv.t0 > DASH_BOOT) dash.step(t);
-      drawConsole(c, SCREEN_W, SCREEN_H, dash, t, tv.t0, hotspots);
+      if (t - tv.t0 > STRIKE_BOOT) strike.step(t);
+      drawStrike(c, SCREEN_W, SCREEN_H, strike, t, tv.t0, hotspots);
       return hotspots.reverse();
     }
 
@@ -1406,6 +1242,10 @@ export function createDesktop({ terminal, player, actions }) {
     // menu bar
     c.fillStyle = theme.bar;
     c.fillRect(0, 0, SCREEN_W, MENU_H);
+    c.beginPath();
+    c.rect(0, 0, SCREEN_W, MENU_H);
+    gloss(c, 0, 0, SCREEN_W, MENU_H, { top: 0.35, foot: 0.06 });
+    grainOver(c, 0.8);
     c.fillStyle = theme.edge;
     c.fillRect(0, MENU_H - 2, SCREEN_W, 2);
     c.fillStyle = theme.ink;
@@ -1440,6 +1280,23 @@ export function createDesktop({ terminal, player, actions }) {
       c.stroke();
     });
     rx -= 18;
+    // control centre: two little toggles, then the search glass
+    c.lineWidth = 1.2;
+    [[6.5, 0], [12.5, 1]].forEach(([ty, on]) => {
+      roundRect(c, rx - 14, ty - 2.5, 12, 5, 2.5);
+      c.stroke();
+      c.beginPath();
+      c.arc(on ? rx - 4.5 : rx - 11.5, ty, 1.6, 0, Math.PI * 2);
+      c.fill();
+    });
+    rx -= 22;
+    c.lineWidth = 1.4;
+    c.beginPath();
+    c.arc(rx - 7, 9, 3.6, 0, Math.PI * 2);
+    c.moveTo(rx - 4.4, 11.6);
+    c.lineTo(rx - 1.5, 14.5);
+    c.stroke();
+    rx -= 18;
     if (player.playing) {
       const label = `♫ ${TRACKS[player.index].title}`;
       c.font = `700 10px ${BODY}`;
@@ -1448,20 +1305,54 @@ export function createDesktop({ terminal, player, actions }) {
     }
     c.textAlign = "left";
 
-    // dock
+    // dock: a printed shelf with a hard shadow, gloss, grain and a lip along the bottom
     const ids = dockIds();
     const dock = dockLayout(ids);
+    const dt = Math.min(0.05, lastDraw ? t - lastDraw : 0);
+    lastDraw = t;
+    roundRect(c, dock.x + 4, DOCK_Y + 4, dock.w, DOCK_H, 12);
+    c.fillStyle = "rgba(0,0,0,.85)";
+    c.fill();
     roundRect(c, dock.x, DOCK_Y, dock.w, DOCK_H, 12);
     c.fillStyle = theme.dock;
     c.fill();
-    c.lineWidth = 2;
+    gloss(c, dock.x, DOCK_Y, dock.w, DOCK_H, { top: 0.4, foot: 0.1 });
+    grainOver(c, 1);
+    c.save();
+    c.clip();
+    c.fillStyle = theme.shelf;
+    c.fillRect(dock.x, DOCK_Y + DOCK_H - 9, dock.w, 9);
+    c.fillStyle = "rgba(255,255,255,.55)";
+    c.fillRect(dock.x + 12, DOCK_Y + 2.5, dock.w - 24, 1.2);
+    c.restore();
+    c.lineWidth = 1.2;
     c.strokeStyle = theme.edge;
+    c.beginPath();
+    c.moveTo(dock.x + 3, DOCK_Y + DOCK_H - 9);
+    c.lineTo(dock.x + dock.w - 3, DOCK_Y + DOCK_H - 9);
+    c.stroke();
+    roundRect(c, dock.x, DOCK_Y, dock.w, DOCK_H, 12);
+    c.lineWidth = 2;
     c.stroke();
     let tip = null;
+    const dragging = dockDrag?.moved ? dockDrag.id : null;
     ids.forEach((id, i) => {
       const app = APPS[id];
-      const cx = dock.center(i);
-      const near = hoverX === null ? 0 : clamp01(1 - Math.abs(cx - hoverX) / 54);
+      const home = dock.center(i);
+      slots[id] = slots[id] === undefined || id === dragging ? home : lerp(slots[id], home, 1 - Math.exp(-dt * 16));
+      if (id === dragging) slots[id] = dockDrag.x;
+      const cx = slots[id];
+      hotspots.push({ id: "dock", app: app.id, x: home - ICON / 2 - ICON_GAP / 2, y: DOCK_Y, w: ICON + ICON_GAP, h: DOCK_H });
+      const win = windows[app.id];
+      if (win?.open || (app.id === "launchpad" && pad.open)) {
+        c.fillStyle = theme.ink;
+        c.beginPath();
+        c.arc(home, DOCK_Y + DOCK_H - 3.5, 1.8, 0, Math.PI * 2);
+        c.fill();
+      }
+      // The one being dragged is drawn last, over the others
+      if (id === dragging) return;
+      const near = hoverX === null || dragging ? 0 : clamp01(1 - Math.abs(cx - hoverX) / 54);
       const s = ICON * (1 + 0.45 * easeInOut(near));
       let lift = 0;
       if (bounce?.id === app.id) {
@@ -1471,19 +1362,13 @@ export function createDesktop({ terminal, player, actions }) {
       }
       const y = DOCK_Y + DOCK_H - 7 - s - lift;
       drawIcon(c, app.id, cx - s / 2, y, s);
-      const win = windows[app.id];
-      if (win?.open || (app.id === "launchpad" && pad.open)) {
-        c.fillStyle = theme.ink;
-        c.beginPath();
-        c.arc(cx, DOCK_Y + DOCK_H - 3.5, 1.8, 0, Math.PI * 2);
-        c.fill();
-      }
       if (app.id === "terminal" && alert) {
         c.fillStyle = "#e11d48";
         c.beginPath();
         c.arc(cx + s / 2 - 3, y + 3, 6, 0, Math.PI * 2);
         c.fill();
         c.lineWidth = 1.5;
+        c.strokeStyle = "#000";
         c.stroke();
         c.fillStyle = "#fff";
         c.font = `800 8px ${BODY}`;
@@ -1492,8 +1377,29 @@ export function createDesktop({ terminal, player, actions }) {
         c.textAlign = "left";
       }
       if (near > 0.7) tip = { label: app.label, x: cx, y: y - 6 };
-      hotspots.push({ id: "dock", app: app.id, x: cx - ICON / 2 - ICON_GAP / 2, y: DOCK_Y, w: ICON + ICON_GAP, h: DOCK_H });
     });
+    if (dragging) {
+      // Picked up: bigger, lifted with the pointer, wobbling a little, its slot left open
+      const s = ICON * 1.2;
+      const cx = Math.min(dock.x + dock.w - s / 2, Math.max(dock.x + s / 2, dockDrag.x));
+      const cy = Math.min(DOCK_Y + DOCK_H / 2 - 6, Math.max(DOCK_Y - 26, dockDrag.y));
+      const home = dock.center(ids.indexOf(dragging));
+      c.setLineDash([3, 3]);
+      c.lineWidth = 1.5;
+      c.strokeStyle = theme.ink;
+      roundRect(c, home - ICON / 2, DOCK_Y + DOCK_H - 7 - ICON, ICON, ICON, 8);
+      c.stroke();
+      c.setLineDash([]);
+      c.save();
+      c.translate(cx, cy);
+      c.rotate(Math.sin(t * 14) * 0.07);
+      roundRect(c, -s / 2 + 5, -s / 2 + 7, s, s, 9);
+      c.fillStyle = "rgba(0,0,0,.35)";
+      c.fill();
+      drawIcon(c, dragging, -s / 2, -s / 2, s);
+      c.restore();
+      tip = { label: APPS[dragging].label, x: cx, y: cy - s / 2 - 4 };
+    }
     if (tip) {
       c.font = `700 9px ${BODY}`;
       const tw = c.measureText(tip.label).width + 12;
@@ -1552,6 +1458,8 @@ export function createDesktop({ terminal, player, actions }) {
         roundRect(c, nx, ny, nw, 42, 8);
         c.fillStyle = theme.card;
         c.fill();
+        gloss(c, nx, ny, nw, 42, { top: 0.25, foot: 0.06 });
+        grainOver(c, 0.9);
         c.lineWidth = 2;
         c.strokeStyle = "#000";
         c.stroke();
@@ -1570,8 +1478,9 @@ export function createDesktop({ terminal, player, actions }) {
 
   function click(hs) {
     if (hs.id === "consoleExit") return Object.assign(tv, { on: false });
-    if (hs.id === "dashJump") return now() - tv.t0 > DASH_BOOT && dash.jump();
-    if (hs.id === "dashSlide") return dash.slide();
+    if (hs.id === "strikeStart") return now() - tv.t0 > STRIKE_BOOT && strike.start();
+    if (hs.id === "strikeBomb") return strike.bomb();
+    if (hs.id === "strikePause") return strike.pause();
     if (hs.id === "padClose") return Object.assign(pad, { open: false, t0: now() });
     if (hs.id === "pad") {
       Object.assign(pad, { open: false, t0: now() });
@@ -1600,14 +1509,55 @@ export function createDesktop({ terminal, player, actions }) {
     draw,
     click,
     launch,
-    // The console on the shelf switched on: boot, then Straw Hat Dash full screen
+    // The console on the shelf switched on: boot, then Straw Hat Strike full screen
     playConsole() {
       Object.assign(tv, { on: true, t0: now() });
-      dash.state = "ready";
+      strike.state = "ready";
+      strike.keys.clear();
     },
     exitConsole() {
       if (!tv.on) return false;
       tv.on = false;
+      return true;
+    },
+    // A press on the screen (layout units): on a dock icon it may turn into a drag along the
+    // dock. True when it's the dock's, so the scene follows the pointer from here.
+    press(x, y) {
+      if (tv.on || pad.open || y < DOCK_Y || y > DOCK_Y + DOCK_H) return false;
+      const layout = dockLayout(dockOrder);
+      const i = Math.floor((x - layout.x - ICON_GAP / 2) / (ICON + ICON_GAP));
+      if (i < 0 || i >= dockOrder.length) return false;
+      dockDrag = { id: dockOrder[i], x0: x, y0: y, x, y, moved: false };
+      return true;
+    },
+    // The pointer moved while pressed; true once it's really a drag (and needs a redraw)
+    dragTo(x, y) {
+      if (!dockDrag) return false;
+      if (!dockDrag.moved && Math.hypot(x - dockDrag.x0, y - dockDrag.y0) < 5) return false;
+      if (!dockDrag.moved) actions.sound?.("tick");
+      Object.assign(dockDrag, { moved: true, x, y });
+      hoverX = null;
+      const layout = dockLayout(dockOrder);
+      const to = Math.min(dockOrder.length - 1, Math.max(0, Math.round((x - layout.center(0)) / (ICON + ICON_GAP))));
+      const from = dockOrder.indexOf(dockDrag.id);
+      if (to !== from) {
+        dockOrder.splice(from, 1);
+        dockOrder.splice(to, 0, dockDrag.id);
+        actions.sound?.("tick");
+      }
+      return true;
+    },
+    // Let go: true when an icon was dragged (so it isn't also a click), and the order is kept
+    release() {
+      const drag = dockDrag;
+      dockDrag = null;
+      if (!drag?.moved) return false;
+      try {
+        localStorage.setItem("dock-order", JSON.stringify(dockOrder));
+      } catch {
+        // The order just isn't kept between visits
+      }
+      actions.sound?.("pop");
       return true;
     },
     // Something is moving on the screen: keep redrawing every frame
@@ -1615,6 +1565,8 @@ export function createDesktop({ terminal, player, actions }) {
       const t = now();
       return !!(
         tv.on ||
+        dockDrag?.moved ||
+        dockSettling() ||
         bounce ||
         notice ||
         t - pad.t0 < 0.3 ||
@@ -1626,10 +1578,9 @@ export function createDesktop({ terminal, player, actions }) {
     // A key while zoomed in on the screen; true when the desktop used it (Snake's arrows/WASD)
     key(e) {
       if (tv.on) {
-        if (now() - tv.t0 < DASH_BOOT) return true;
-        if (JUMP_KEYS.has(e.key)) dash.jump();
-        else if (SLIDE_KEYS.has(e.key)) dash.slide();
-        else if (e.key === "Backspace" || e.key === "q" || e.key === "Q") tv.on = false;
+        if (now() - tv.t0 < STRIKE_BOOT) return true;
+        if (e.key === "Backspace" || e.key === "q" || e.key === "Q") tv.on = false;
+        else strikeKey(strike, e, true);
         // Everything else is swallowed: no typing into the terminal behind the game
         return true;
       }
@@ -1645,8 +1596,21 @@ export function createDesktop({ terminal, player, actions }) {
       }
       return false;
     },
+    // The window lost focus: no key stays held down
+    releaseKeys() {
+      strike.keys.clear();
+    },
+    // A key let go: the ship stops sailing that way
+    keyUp(e) {
+      if (tv.on) strikeKey(strike, e, false);
+    },
+    // A finger dragged over the console's picture (layout units moved)
+    drag(dx, dy) {
+      if (tv.on) strike.nudge(dx, dy);
+    },
     // The pointer over the screen (layout units), or null: the dock magnifies under it
     hover(x, y) {
+      if (tv.on && x !== null) strike.aimAt(x, y);
       const next = tv.on || x === null || y < DOCK_Y - 24 ? null : x;
       if (next === hoverX) return false;
       hoverX = next;

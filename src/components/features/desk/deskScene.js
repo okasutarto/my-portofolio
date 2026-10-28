@@ -226,7 +226,7 @@ if (benchmark !== "no-ramp" && !THREE.ShaderChunk.gradientmap_pars_fragment.incl
 const VIEW_W = 21.5;
 const VIEW_H = 14.5;
 
-export function createDeskScene({ container, projects, experiences, dark = false, muted = false, onEvent = () => {} }) {
+export function createDeskScene({ container, projects, experiences, dark = false, muted = false, wallColor = "#3a3a3a", onEvent = () => {} }) {
   // Local preview links make each phase inspectable without waiting for the random cycle.
   const previewTime = process.env.NODE_ENV === "development" ? perfParams.get("time") : null;
   if (["morning", "day", "evening", "night"].includes(previewTime)) dark = previewTime === "night";
@@ -10551,6 +10551,16 @@ export function createDeskScene({ container, projects, experiences, dark = false
 
   // ---------- theme ----------
   let darkNow = dark;
+  // The walls' paint is the visitor's pick (graphite by default); by night it is tinted by the
+  // moonlight the white walls used to be given directly
+  const wallPaintColor = new THREE.Color(wallColor);
+  const MOONLIT_WALLS = [[backWallMat, new THREE.Color("#d6d3e6")], [sideWallMat, new THREE.Color("#c9c5dc")]];
+  function paintWalls(isDark) {
+    MOONLIT_WALLS.forEach(([mat, moon]) => {
+      mat.color.copy(wallPaintColor);
+      if (isDark) mat.color.multiply(moon);
+    });
+  }
   function setTheme(isDark) {
     darkNow = isDark;
     roomLight.night = isDark ? 1 : 0;
@@ -10580,10 +10590,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
     shadowedNeons.forEach((light) => (light.castShadow = isDark));
     blindFabric.emissiveIntensity = isDark ? 0.03 : 0.2;
     floorMat.color.set(isDark ? "#8a82a6" : "#ffffff");
-    // Night keeps the walls white, just moonlit, so the room still reads as the same room
-    backWallMat.color.set(isDark ? "#d6d3e6" : "#ffffff");
+    // Night keeps the visitor's paint, just moonlit, so the room still reads as the same room
+    paintWalls(isDark);
     scene.background = new THREE.Color(roomBackground(isDark));
-    sideWallMat.color.set(isDark ? "#c9c5dc" : "#ffffff");
     trimMat.color.set(isDark ? "#b8b1da" : "#ffffff");
     if (diorama) drawBackdrop();
     windowView.userData.tex.redraw();
@@ -10696,6 +10705,16 @@ export function createDeskScene({ container, projects, experiences, dark = false
     setRoomTheme(daylightPart === "night");
     if (wasDark !== darkNow) onEvent("nightShift", { dark: darkNow });
     nextDaylightAt = now + 20000 + Math.random() * 10000;
+  }
+  // A new paint goes straight on: both ends of any running blend take it, so the frame loop
+  // doesn't lerp it back
+  function setWallColor(hex) {
+    wallPaintColor.set(hex);
+    paintWalls(darkNow);
+    MOONLIT_WALLS.forEach(([mat]) => {
+      const at = lightingColors.indexOf(mat.color);
+      [lightingFrom, lightingTarget].forEach((state) => state.colors[at].copy(mat.color));
+    });
   }
   // The monitor's desktop follows the room
   const setRoomTheme = (isDark) => {
@@ -11862,6 +11881,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
 
   return {
     setTheme: setRoomTheme,
+    setWallColor,
     setMuted,
     back,
     focusOn: (name) => SHOTS[name] && setFocus(name),

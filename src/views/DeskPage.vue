@@ -11,11 +11,38 @@
         <div class="pointer-events-auto flex gap-2 mt-1">
           <!-- Sound and night mode live on the desk: the speakers and the lamp -->
           <router-link to="/2d" class="hud-btn bg-white text-black">← 2D site</router-link>
+          <button
+            v-if="!zoomed"
+            class="hud-btn bg-white text-black"
+            :aria-expanded="wallPickerOpen"
+            @click="wallPickerOpen = !wallPickerOpen">
+            <span class="w-3.5 h-3.5 border-2 border-black" :style="{ background: wallColor }"></span>
+            Wall
+          </button>
           <!-- On a phone the way back out sits beside it, not in a third row over the view -->
           <transition name="hud-pop">
             <button v-if="zoomed && !isDesktop" class="hud-btn bg-primary text-black" @click="scene?.back()">← Back</button>
           </transition>
         </div>
+        <!-- The wall paint: a few house colours, or any colour at all -->
+        <transition name="hud-pop">
+          <div
+            v-if="wallPickerOpen && !zoomed"
+            class="pointer-events-auto bg-white border-3 border-black shadow-neo-sm p-2 flex flex-wrap items-center gap-1.5 max-w-[15rem]">
+            <button
+              v-for="paint in WALL_PAINTS"
+              :key="paint.hex"
+              class="wall-swatch"
+              :class="{ 'wall-swatch--on': wallColor === paint.hex }"
+              :style="{ background: paint.hex }"
+              :title="paint.name"
+              :aria-label="`${paint.name} wall`"
+              @click="wallColor = paint.hex"></button>
+            <label class="wall-swatch wall-swatch--custom" title="Any colour" aria-label="Pick any wall colour">
+              <input v-model="wallColor" type="color" class="absolute inset-0 opacity-0 cursor-pointer" />
+            </label>
+          </div>
+        </transition>
       </div>
 
       <!-- Zoomed in: the way back out -->
@@ -79,6 +106,17 @@ import { useSfx } from "@/composables/useSfx";
 import { hideBootLoader } from "@/utils/bootLoader";
 
 const COMMAND_CHIPS = ["help", "whoami", "projects", "hobbies", "sudo hire oka"];
+const WALL_PAINTS = [
+  { name: "White", hex: "#ffffff" },
+  { name: "Greige", hex: "#e2ddd5" },
+  { name: "Light grey", hex: "#d9d9d9" },
+  { name: "Grey", hex: "#a6a6a6" },
+  { name: "Dark grey", hex: "#8c8c8c" },
+  { name: "Charcoal", hex: "#5c5c5c" },
+  { name: "Graphite", hex: "#3a3a3a" },
+];
+const WALL_KEY = "desk-wall-color";
+const DEFAULT_WALL = "#3a3a3a";
 const stageRef = ref(null);
 const scene = ref(null);
 const unsupported = ref(false);
@@ -87,6 +125,8 @@ const introPlaying = ref(true);
 const projectOpen = ref(false);
 const consoleOn = ref(false);
 const secretToast = ref("");
+const wallPickerOpen = ref(false);
+const wallColor = ref(readWallColor());
 let secretTimer = null;
 const zoomed = computed(() => focus.value !== "overview");
 const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -133,7 +173,27 @@ function onEvent(name, payload = {}) {
   }
 }
 
+// The pick is a per-visitor convenience: a blocked or empty storage just means the default wall
+function readWallColor() {
+  try {
+    const saved = localStorage.getItem(WALL_KEY);
+    if (/^#[0-9a-f]{6}$/i.test(saved || "")) return saved;
+  } catch {
+    // no storage: the default it is
+  }
+  return DEFAULT_WALL;
+}
+
 watch(isDark, (dark) => scene.value?.setTheme(dark));
+watch(wallColor, (hex) => {
+  scene.value?.setWallColor(hex);
+  try {
+    localStorage.setItem(WALL_KEY, hex);
+  } catch {
+    // no storage: the pick lasts this visit only
+  }
+});
+watch(zoomed, (value) => value && (wallPickerOpen.value = false));
 watch(muted, (value) => scene.value?.setMuted(value));
 
 onMounted(async () => {
@@ -147,6 +207,7 @@ onMounted(async () => {
       experiences,
       dark: isDark.value,
       muted: muted.value,
+      wallColor: wallColor.value,
       onEvent,
     });
     setTimeout(() => (introPlaying.value = false), 1600);
@@ -179,6 +240,18 @@ onUnmounted(() => {
 .hud-btn:active {
   transform: translate(2px, 2px);
   box-shadow: none;
+}
+.wall-swatch {
+  @apply relative w-7 h-7 border-2 border-black transition-transform;
+}
+.wall-swatch:hover {
+  transform: translate(-1px, -1px);
+}
+.wall-swatch--on {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #000;
+}
+.wall-swatch--custom {
+  background: conic-gradient(#ff90e8, #ffc900, #00e0c6, #90a8ed, #ff90e8);
 }
 .hud-pop-enter-active,
 .hud-pop-leave-active {

@@ -5518,10 +5518,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
   gauntlet.scale.setScalar(1.35);
   gauntlet.rotation.y = 0.15;
   shelf.add(gauntlet);
-  // Antique gold in three tones (with the outlines, it stays flat and graphic)
-  const glove = toon("#c29a54");
-  const gloveDark = toon("#66502b");
-  const gloveLight = toon("#e1bd72");
+  // Aged bronze-gold in three tones (with the outlines, it stays flat and graphic)
+  const glove = toon("#d89a44");
+  const gloveDark = toon("#6a4018");
+  const gloveLight = toon("#fbcd78");
   const gauntletMetal = canvasTexture(256, 256);
   track(gauntletMetal.texture);
   drawBrushedMetal(gauntletMetal.ctx, 256, 256);
@@ -5531,6 +5531,17 @@ export function createDeskScene({ container, projects, experiences, dark = false
   for (let i = 0; i < 180; i++) {
     gauntletMetal.ctx.fillStyle = i % 3 ? "rgba(55,35,12,.12)" : "rgba(255,244,205,.2)";
     gauntletMetal.ctx.fillRect(metalRand() * 256, metalRand() * 256, 1 + metalRand() * 8, 0.7);
+  }
+  // Soft brown tarnish pooled here and there, like the worn bronze in its recesses
+  for (let i = 0; i < 16; i++) {
+    const x = metalRand() * 256;
+    const y = metalRand() * 256;
+    const r = 18 + metalRand() * 40;
+    const tarnish = gauntletMetal.ctx.createRadialGradient(x, y, 0, x, y, r);
+    tarnish.addColorStop(0, "rgba(92,52,14,.26)");
+    tarnish.addColorStop(1, "rgba(92,52,14,0)");
+    gauntletMetal.ctx.fillStyle = tarnish;
+    gauntletMetal.ctx.fillRect(x - r, y - r, r * 2, r * 2);
   }
   gauntletMetal.texture.wrapS = gauntletMetal.texture.wrapT = THREE.RepeatWrapping;
   gauntletMetal.texture.repeat.set(2, 3);
@@ -5566,7 +5577,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const forearm = mesh(new THREE.LatheGeometry(cuffProfile, 40), glove, { outline: 0.018 });
   forearm.scale.z = 0.8;
   glovePart.add(forearm);
-  [[0.235, 0.335], [0.77, 0.245]].forEach(([y, r]) => {
+  [[0.235, 0.335]].forEach(([y, r]) => {
     const band = mesh(new THREE.CylinderGeometry(r + 0.008, r + 0.008, 0.022, 40), gloveDark, { outline: 0.006 });
     band.position.y = y;
     band.scale.z = 0.8;
@@ -5591,28 +5602,75 @@ export function createDeskScene({ container, projects, experiences, dark = false
   shield.closePath();
   const shieldGeo = new THREE.ExtrudeGeometry(shield, { depth: 0.012, bevelEnabled: true, bevelSize: 0.008, bevelThickness: 0.004, bevelSegments: 2, steps: 1 });
   const shieldPlate = mesh(shieldGeo, gloveDark, { outline: 0.006 });
-  shieldPlate.position.set(0, 0.515, 0.235);
+  // Broad and low, a pointed arch over most of the cuff's front, its tip under the wrist collar
+  shieldPlate.position.set(0, 0.475, 0.228);
+  shieldPlate.scale.set(1.15, 0.85, 1);
   shieldPlate.rotation.x = -0.16;
   glovePart.add(shieldPlate);
   const shieldTrim = [[0, -0.235, 0.019], [-0.118, -0.195, 0.019], [-0.093, -0.12, 0.019],
     [-0.058, 0.168, 0.019], [0, 0.212, 0.019], [0.058, 0.168, 0.019],
     [0.093, -0.12, 0.019], [0.118, -0.195, 0.019], [0, -0.235, 0.019]];
   engrave(shieldTrim, gloveLight, 0.004, shieldPlate);
-  engrave([[0, -0.18, 0.021], [0, 0, 0.021], [0, 0.16, 0.021]], gloveLight, 0.005, shieldPlate);
-  for (let i = 0; i < 6; i++) for (const side of [-1, 1]) {
-    const y = -0.15 + i * 0.05;
-    engrave([[0, y, 0.022], [side * 0.032, y + 0.018, 0.022], [side * (0.068 - i * 0.005), y + 0.036, 0.022]], gloveLight, 0.0035, shieldPlate);
+  // A raised arrow-headed spine up the middle, with a herringbone of chevrons down its lower half
+  const spine = new THREE.Shape();
+  spine.moveTo(-0.045, -0.215);
+  spine.lineTo(-0.045, 0.1);
+  spine.lineTo(0, 0.19);
+  spine.lineTo(0.045, 0.1);
+  spine.lineTo(0.045, -0.215);
+  spine.closePath();
+  const spinePlate = mesh(new THREE.ExtrudeGeometry(spine, { depth: 0.008, bevelEnabled: true, bevelSize: 0.005, bevelThickness: 0.003, bevelSegments: 2, steps: 1 }), glove, { outline: 0.005 });
+  spinePlate.position.z = 0.02;
+  shieldPlate.add(spinePlate);
+  engrave([[0, -0.2, 0.012], [0, 0.02, 0.012], [0, 0.14, 0.012]], gloveDark, 0.004, spinePlate);
+  for (let i = 0; i < 6; i++) {
+    const y = -0.19 + i * 0.038;
+    engrave([[-0.036, y, 0.012], [0, y + 0.026, 0.012], [0.036, y, 0.012]], gloveDark, 0.0035, spinePlate);
   }
+  // A notched hem across the bottom of the plate
+  [-1, 1].forEach((side) => engrave([[side * 0.13, -0.17, 0.021], [side * 0.075, -0.17, 0.021], [side * 0.06, -0.195, 0.021]], gloveLight, 0.0035, shieldPlate));
   const rivetGeo = track(new THREE.SphereGeometry(0.012, 10, 8));
   [-1, 1].forEach((side) => {
-    engrave([[side * 0.17, 0.3, 0.225], [side * 0.14, 0.48, 0.208], [side * 0.12, 0.68, 0.173]], gloveDark, 0.008);
-    engrave([[side * 0.195, 0.3, 0.213], [side * 0.17, 0.48, 0.19], [side * 0.145, 0.68, 0.15]], gloveLight, 0.004);
-    [0.33, 0.69].forEach((y) => {
-      const rivet = new THREE.Mesh(rivetGeo, gloveDark);
-      rivet.position.set(side * 0.14, y, 0.22 - (y - 0.5) * 0.1);
-      glovePart.add(rivet);
-    });
+    // Beaded seams down the cuff's flanks, following its flare
+    for (let i = 0; i < 9; i++) {
+      const y = 0.29 + i * 0.054;
+      const r = THREE.MathUtils.lerp(0.312, 0.24, (y - 0.29) / 0.46) + 0.004;
+      const bead = new THREE.Mesh(rivetGeo, gloveLight);
+      bead.scale.setScalar(0.7);
+      bead.position.set(side * Math.sin(1.05) * r, y, Math.cos(1.05) * r * 0.8);
+      glovePart.add(bead);
+    }
   });
+  // A second, finer hem ring above the cuff's base band
+  const hem = mesh(new THREE.CylinderGeometry(0.334, 0.334, 0.012, 40), gloveLight, { outline: 0.004 });
+  hem.position.y = 0.262;
+  hem.scale.z = 0.8;
+  glovePart.add(hem);
+  // A twisted rope trim round the cuff's bottom edge
+  const ropeTrim = mesh(new THREE.TorusGeometry(0.318, 0.011, 6, 64), gloveLight, { outline: 0.004 });
+  ropeTrim.rotation.x = Math.PI / 2;
+  ropeTrim.position.y = 0.207;
+  ropeTrim.scale.y = 0.8;
+  glovePart.add(ropeTrim);
+  for (let i = 0; i < 48; i++) {
+    const angle = i * Math.PI / 24;
+    glovePart.add(at(mesh(rbox(0.006, 0.026, 0.006, 0.002), gloveDark, { outline: 0, cast: false }),
+      Math.sin(angle) * 0.33, 0.207, Math.cos(angle) * 0.33 * 0.8, 0.6));
+  }
+  // Two overlapping lames close round the wrist, each flaring a little over the one below, like
+  // the reference's smooth layered wrist (no plates jutting out to the sides)
+  [[0.7, 0.79, 0.27, 0.252], [0.775, 0.875, 0.264, 0.248]].forEach(([y0, y1, r0, r1]) => {
+    const lameProfile = [[r0 - 0.014, y0], [r0, y0], [r0 - 0.002, y0 + 0.012], [r1, y1], [r1 - 0.014, y1], [r0 - 0.014, y0]].map(([r, y]) => new THREE.Vector2(r, y));
+    const lame = mesh(new THREE.LatheGeometry(lameProfile, 40), glove, { outline: 0.008 });
+    lame.scale.z = 0.8;
+    glovePart.add(lame);
+  });
+  // A narrow grooved strip down the middle of the wrist, from the hand plate to the arch's tip
+  const wristStrip = at(mesh(rbox(0.048, 0.19, 0.018, 0.008), glove, { outline: 0.005 }), 0, 0.78, 0.207);
+  wristStrip.rotation.x = -0.1;
+  glovePart.add(wristStrip);
+  engrave([[0, -0.08, 0.01], [0, 0.08, 0.01]], gloveDark, 0.0035, wristStrip);
+  for (let i = 0; i < 3; i++) wristStrip.add(at(mesh(rbox(0.03, 0.004, 0.004, 0.0015), gloveDark, { outline: 0, cast: false }), 0, -0.05 + i * 0.05, 0.01));
   // Wrist, the back of the hand, and the knuckle bar
   const wrist = mesh(new THREE.CylinderGeometry(0.245, 0.245, 0.07, 24), gloveDark, { outline: 0.012 });
   wrist.position.y = 0.84;
@@ -5624,18 +5682,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const cheek = new THREE.Shape();
     cheek.moveTo(side * 0.095, 1.29);
     cheek.quadraticCurveTo(side * 0.18, 1.26, side * 0.235, 1.31);
-    cheek.quadraticCurveTo(side * 0.25, 1.13, side * 0.285, 0.925);
+    cheek.quadraticCurveTo(side * 0.25, 1.13, side * 0.25, 0.93);
     cheek.lineTo(side * 0.12, 0.98);
     cheek.quadraticCurveTo(side * 0.07, 1.025, side * 0.095, 1.08);
     cheek.quadraticCurveTo(side * 0.155, 1.17, side * 0.095, 1.29);
     const plate = mesh(new THREE.ExtrudeGeometry(cheek, { depth: 0.014, bevelEnabled: true, bevelSize: 0.006, bevelThickness: 0.003, bevelSegments: 2, steps: 1, curveSegments: 12 }), glove, { outline: 0.008 });
     plate.position.z = 0.113;
     glovePart.add(plate);
-    engrave([[side * 0.225, 1.28, 0.137], [side * 0.244, 1.1, 0.137], [side * 0.266, 0.949, 0.137], [side * 0.13, 0.996, 0.137]], gloveLight, 0.004);
-    engrave([[side * 0.11, 1.26, 0.137], [side * 0.147, 1.18, 0.137], [side * 0.116, 1.07, 0.137]], gloveDark, 0.005);
-    // Layered wrist lames link the palm armour to the flared cuff.
-    engrave([[side * 0.035, 0.935, 0.127], [side * 0.11, 0.925, 0.145], [side * 0.195, 0.85, 0.155], [side * 0.21, 0.79, 0.145]], gloveDark, 0.012);
-    engrave([[side * 0.035, 0.916, 0.14], [side * 0.1, 0.903, 0.159], [side * 0.174, 0.845, 0.173]], gloveLight, 0.006);
+    engrave([[side * 0.225, 1.28, 0.137], [side * 0.236, 1.1, 0.137], [side * 0.238, 0.952, 0.137], [side * 0.13, 0.996, 0.137]], gloveLight, 0.004);
   });
   const mindSurround = mesh(new THREE.TorusGeometry(0.111, 0.008, 6, 48), gloveDark, { outline: 0 });
   mindSurround.scale.y = 1.12;
@@ -5646,11 +5700,30 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const tick = at(mesh(rbox(0.007, 0.019, 0.005, 0.002), gloveLight, { outline: 0, cast: false }), Math.sin(angle) * 0.11, 1.1 + Math.cos(angle) * 0.124, 0.14, -angle);
     glovePart.add(tick);
   }
-  // Filigree lines fanning out from the centre stone's setting
-  [-0.55, -0.2, 0.2, 0.55].forEach((angle) => {
-    const line = at(mesh(rbox(0.02, 0.2, 0.01, 0.005), gloveDark, { outline: 0, cast: false }), Math.sin(angle) * 0.13, 1.1 + Math.cos(angle) * 0.13, 0.112, -angle);
-    glovePart.add(line);
+  // A low engraved frame curving round the centre stone, from the knuckle bosses down to a point
+  // under it: grooves cut into the plate, not raised wings
+  [-1, 1].forEach((side) => {
+    engrave([[side * 0.1, 1.275], [side * 0.158, 1.19], [side * 0.165, 1.09], [side * 0.115, 0.995], [side * 0.03, 0.958]].map(([x, y]) => [x, y, 0.136]), gloveDark, 0.0055);
+    engrave([[side * 0.118, 1.272], [side * 0.176, 1.19], [side * 0.183, 1.09], [side * 0.13, 0.99], [side * 0.04, 0.945]].map(([x, y]) => [x, y, 0.137]), gloveLight, 0.0035);
   });
+  // A short ribbed upright joins the centre setting to the knuckle bar
+  const stoneNeck = at(mesh(rbox(0.032, 0.085, 0.02, 0.008), glove, { outline: 0.005 }), 0, 1.245, 0.12);
+  glovePart.add(stoneNeck);
+  for (let i = 0; i < 4; i++) stoneNeck.add(at(mesh(rbox(0.024, 0.005, 0.005, 0.002), gloveDark, { outline: 0, cast: false }), 0, -0.03 + i * 0.02, 0.011));
+  const arch = new THREE.Shape();
+  arch.moveTo(-0.07, 0.97);
+  arch.lineTo(0, 0.9);
+  arch.lineTo(0.07, 0.97);
+  arch.lineTo(0.04, 0.985);
+  arch.lineTo(0, 0.945);
+  arch.lineTo(-0.04, 0.985);
+  arch.closePath();
+  const archPlate = mesh(new THREE.ExtrudeGeometry(arch, { depth: 0.012, bevelEnabled: true, bevelSize: 0.004, bevelThickness: 0.003, bevelSegments: 1, steps: 1 }), gloveLight, { outline: 0.005 });
+  archPlate.position.z = 0.118;
+  glovePart.add(archPlate);
+  const archRivet = new THREE.Mesh(rivetGeo, gloveDark);
+  archRivet.position.set(0, 0.93, 0.138);
+  glovePart.add(archRivet);
   // An armoured finger segment: a gold capsule whose round ends overlap its neighbours', so a
   // bent finger stays in one piece, with a dark plate ring around the joint at its base
   const fingerSegment = (radius, length, ring = true) => {
@@ -5659,14 +5732,22 @@ export function createDeskScene({ container, projects, experiences, dark = false
     body.scale.z = 0.88;
     body.position.y = length / 2;
     part.add(body);
-    const channel = mesh(new THREE.CapsuleGeometry(radius * 0.34, Math.max(0.005, length * 0.4 - radius * 0.68), 4, 12), gloveDark, { outline: 0 });
+    // A long open slot down the segment, crossed by slanted rungs
+    const slot = Math.max(0.005, length * 0.55 - radius * 0.8);
+    const channel = mesh(new THREE.CapsuleGeometry(radius * 0.4, slot, 4, 12), gloveDark, { outline: 0 });
     channel.scale.z = 0.2;
-    channel.position.set(0, length * 0.58, radius * 0.89);
+    channel.position.set(0, length * 0.55, radius * 0.89);
     part.add(channel);
-    for (let i = 0; i < 3; i++) {
-      const notch = at(mesh(rbox(radius * 0.42, 0.004, 0.003, 0.001), gloveLight, { outline: 0, cast: false }), 0, length * (0.45 + i * 0.12), radius * 0.98);
-      part.add(notch);
+    const rungs = Math.max(2, Math.round(slot / 0.024));
+    for (let i = 0; i < rungs; i++) {
+      const y = length * 0.55 + (i - (rungs - 1) / 2) * (slot / rungs);
+      part.add(at(mesh(rbox(radius * 0.62, 0.006, 0.004, 0.001), gloveLight, { outline: 0, cast: false }), 0, y, radius * 0.95, 0.45));
     }
+    // A flared lip round the top of the segment, like a stack of cups up the finger
+    const rib = mesh(new THREE.CylinderGeometry(radius * 1.18, radius * 1.0, 0.03, 18), gloveLight, { outline: 0.005 });
+    rib.scale.z = 0.9;
+    rib.position.y = length * 0.88;
+    part.add(rib);
     if (ring) {
       const band = mesh(new THREE.CylinderGeometry(radius * 1.12, radius * 1.12, 0.026, 18), gloveDark, { outline: 0.008 });
       band.scale.z = 0.9;
@@ -5707,7 +5788,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
   thumbTip.position.y = 0.17;
   thumbTip.rotation.z = 0.25;
   thumbTip.add(fingerSegment(0.05, 0.15));
-  thumb.add(fingerSegment(0.06, 0.18, false), thumbTip);
+  // A broad plate over the thumb's base carries the time stone
+  const thumbPlate = mesh(rbox(0.125, 0.18, 0.03, 0.014), glove, { outline: 0.008 });
+  thumbPlate.position.set(0, 0.09, 0.05);
+  thumb.add(fingerSegment(0.06, 0.18, false), thumbTip, thumbPlate);
   glovePart.add(thumb);
   // A soft round glow, shared by the stones' halos and the snap's flash
   const flashTex = canvasTexture(128, 128);
@@ -5749,13 +5833,29 @@ export function createDeskScene({ container, projects, experiences, dark = false
     parent.add(setting, bezel, gem, halo);
     return gem;
   };
-  // Soul, reality, space and power across the knuckles; mind at the centre; time on the thumb
+  // Soul, space, reality and power across the knuckles, each on its own raised boss; mind at
+  // the centre; time on the thumb
+  const boss = new THREE.Shape();
+  boss.moveTo(0, -0.068);
+  boss.lineTo(-0.05, -0.03);
+  boss.lineTo(-0.052, 0.035);
+  boss.lineTo(-0.025, 0.058);
+  boss.lineTo(0.025, 0.058);
+  boss.lineTo(0.052, 0.035);
+  boss.lineTo(0.05, -0.03);
+  boss.closePath();
+  const bossGeo = new THREE.ExtrudeGeometry(boss, { depth: 0.016, bevelEnabled: true, bevelSize: 0.005, bevelThickness: 0.004, bevelSegments: 2, steps: 1 });
+  [-0.18, -0.06, 0.06, 0.18].forEach((x) => {
+    const plate = mesh(bossGeo, glove, { outline: 0.007 });
+    plate.position.set(x, 1.335, 0.104);
+    glovePart.add(plate);
+  });
   const stones = [
-    stone("#ff7a1a", glovePart, -0.18, 1.34, 0.13, 0.042),
-    stone("#e11d48", glovePart, -0.06, 1.34, 0.13, 0.042),
-    stone("#3b82f6", glovePart, 0.06, 1.34, 0.13, 0.042),
-    stone("#a855f7", glovePart, 0.18, 1.34, 0.13, 0.042),
-    stone("#ded33d", glovePart, 0, 1.1, 0.13, 0.076, 1.12),
+    stone("#f59e0b", glovePart, -0.18, 1.34, 0.13, 0.042),
+    stone("#2563eb", glovePart, -0.06, 1.34, 0.13, 0.042),
+    stone("#dc2626", glovePart, 0.06, 1.34, 0.13, 0.042),
+    stone("#6d3fd1", glovePart, 0.18, 1.34, 0.13, 0.042),
+    stone("#f5c518", glovePart, 0, 1.1, 0.13, 0.076, 1.12),
     stone("#22c55e", thumb, 0, 0.09, 0.07, 0.036),
   ];
   // One glow on the glove for all six: the colour of whichever stone burns brightest, faint at
@@ -11109,6 +11209,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
   let frameMs = 16;
   const postDensity = () => renderer.getPixelRatio();
   function sizeComposer() {
+    // At 2× and up the pixels are small enough to hide stair-steps, and multisampling a Retina
+    // frame costs more memory traffic than an integrated GPU can spare
+    const samples = postDensity() >= 2 ? 0 : 4;
+    [composer.renderTarget1, composer.renderTarget2].forEach((target) => {
+      if (target.samples === samples) return;
+      target.samples = samples;
+      target.dispose();
+    });
     composer.setPixelRatio(postDensity());
     composer.setSize(container.clientWidth || 1, container.clientHeight || 1);
   }
@@ -11209,14 +11317,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
     updateSpotlight(dt);
     // the chair stands between the camera and the tickets' close-up, so it's put away for it
     chair.visible = focus.name !== "experience";
-    // At 2× and up the pixels are small enough to hide stair-steps, and multisampling a Retina
-    // frame costs more memory traffic than an integrated GPU can spare
-    const samples = postDensity() >= 2 ? 0 : 4;
-    [composer.renderTarget1, composer.renderTarget2].forEach((target) => {
-      if (target.samples === samples) return;
-      target.samples = samples;
-      target.dispose();
-    });
     poseFolders();
     const pointerBlend = 1 - Math.pow(0.94, dt * 60);
     parallax.x += (parallax.tx - parallax.x) * pointerBlend;

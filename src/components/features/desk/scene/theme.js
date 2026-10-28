@@ -2,6 +2,7 @@ import * as THREE from "three";
 import gsap from "gsap";
 import { loadPortrait, windowSky, drawWoodTop } from "../textures";
 import { WOODS, WOOD_PATTERNS, DEFAULT_WOODS } from "../woods";
+import { TIME_MODES, partFor } from "../daylight";
 import { PALETTES } from "../sceneConfig";
 
 export function createTheme(runtime) {
@@ -223,15 +224,30 @@ export function createTheme(runtime) {
     runtime.lamp.updateLampGlow();
     runtime.workstation.updateLightbar();
   }
-  let nextDaylightAt = performance.now() + 20000 + Math.random() * 10000;
+  // The room keeps to the visitor's own clock, or to the part of the day they picked. It looks
+  // every half minute and moves on only when that part changes, so the lamp or the coffee can
+  // still switch it by hand until then; the visitor's weather is checked on the same beat (it
+  // fetches at most every quarter hour). A local phase preview stays put.
+  let timeMode = TIME_MODES[runtime.options.time] ? runtime.options.time : "auto";
+  let shownPart = partFor(timeMode);
+  let nextDaylightAt = 0;
   function updateDaylight(now) {
-    // A local phase preview stays put; the normal page keeps the accelerated cycle.
     if (runtime.room.daylightParts.includes(runtime.core.previewTime) || now < nextDaylightAt) return;
-    runtime.room.daylightPart = runtime.room.daylightParts[(runtime.room.daylightParts.indexOf(runtime.room.daylightPart) + 1) % runtime.room.daylightParts.length];
+    nextDaylightAt = now + 30000;
+    runtime.weather.refreshWeather();
+    const part = partFor(timeMode);
+    if (part !== shownPart) showPart(part);
+  }
+  function showPart(part) {
+    shownPart = part;
+    if (part !== "night") runtime.room.daylightPart = part;
     const wasDark = darkNow;
-    setRoomTheme(runtime.room.daylightPart === "night");
+    setRoomTheme(part === "night");
     if (wasDark !== darkNow) runtime.options.onEvent("nightShift", { dark: darkNow });
-    nextDaylightAt = now + 20000 + Math.random() * 10000;
+  }
+  function setTime(mode) {
+    timeMode = TIME_MODES[mode] ? mode : "auto";
+    showPart(partFor(timeMode));
   }
   // A new paint goes straight on: both ends of any running blend take it, so the frame loop
   // doesn't lerp it back
@@ -312,6 +328,7 @@ export function createTheme(runtime) {
     DAYLIGHT,
     get lightingBlending() { return lightingBlending; },
     updateDaylight,
+    setTime,
     updateLighting,
     setRoomTheme,
     setWallColor,

@@ -8,10 +8,12 @@ import { createPaperFlex } from "../paperFlex";
 import { PALETTES, perfParams, benchmark } from "../sceneConfig";
 
 export function createCore(runtime) {
-  // Local preview links make each phase inspectable without waiting for the random cycle.
+  // Local preview links hold a part of the day, or a level of rain, whatever the visitor's clock
+  // and weather say. `previewRain` is null when the link doesn't set one.
   const previewTime = process.env.NODE_ENV === "development" ? perfParams.get("time") : null;
   if (["morning", "day", "evening", "night"].includes(previewTime)) runtime.options.dark = previewTime === "night";
-  const previewRain = process.env.NODE_ENV === "development" ? THREE.MathUtils.clamp(Number(perfParams.get("rain")) || 0, 0, 1) : 0;
+  const rainParam = process.env.NODE_ENV === "development" ? perfParams.get("rain") : null;
+  const previewRain = rainParam === null ? null : THREE.MathUtils.clamp(Number(rainParam) || 0, 0, 1);
   let responsiveUntil = 0;
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));

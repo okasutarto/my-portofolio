@@ -13,7 +13,6 @@
           <router-link to="/2d" class="hud-btn bg-white text-black">← 2D site</router-link>
           <button
             v-if="!zoomed"
-            ref="settingsButton"
             class="hud-btn text-black px-2"
             :class="settingsOpen ? 'settings-toggle--open' : 'bg-white'"
             :aria-expanded="settingsOpen"
@@ -32,12 +31,11 @@
           </transition>
         </div>
         <!-- Room settings: the wall's paint, and the wood and cut of the desk, the monitor riser,
-             the window frame and the game shelf. A click anywhere outside, or Esc, puts it away. -->
+             the window frame and the game shelf. Its close button, the gear or Esc puts it away. -->
         <transition name="hud-pop">
           <div
             v-if="settingsOpen && !zoomed"
             id="room-settings"
-            ref="settingsPanel"
             role="dialog"
             aria-label="Room settings"
             class="settings-panel pointer-events-auto w-[19.5rem] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-9rem)] flex flex-col">
@@ -49,61 +47,110 @@
                 </svg>
               </button>
             </header>
-            <div class="settings-body overflow-y-auto flex flex-col gap-3 p-3">
-              <section class="settings-card">
-                <h3 class="settings-label">
-                  <span class="settings-tag" :style="{ background: PART_ACCENTS.wall }" aria-hidden="true">🧱</span>
-                  <span class="whitespace-nowrap">Wall</span>
-                  <span class="settings-value">· {{ wallName }}</span>
-                </h3>
-                <div class="flex flex-wrap items-center gap-1.5">
-                  <button
-                    v-for="paint in WALL_PAINTS"
-                    :key="paint.hex"
-                    class="swatch"
-                    :class="{ 'swatch--on': settings.wall === paint.hex }"
-                    :style="{ background: paint.hex }"
-                    :title="paint.name"
-                    :aria-label="`${paint.name} wall`"
-                    :aria-pressed="settings.wall === paint.hex"
-                    @click="setWall(paint.hex)">
-                    <span v-if="settings.wall === paint.hex" class="swatch-tick" :class="{ 'swatch-tick--light': isDarkColour(paint.hex) }" aria-hidden="true">✓</span>
-                  </button>
-                  <label class="swatch swatch--custom" :class="{ 'swatch--on': !wallIsPreset }" title="Any colour" aria-label="Pick any wall colour">
-                    <input :value="settings.wall" type="color" class="absolute inset-0 opacity-0 cursor-pointer" @input="setWall($event.target.value)" />
-                  </label>
-                </div>
-              </section>
-              <section v-for="(label, part) in WOOD_TARGETS" :key="part" class="settings-card">
-                <h3 class="settings-label">
-                  <span class="settings-tag" :style="{ background: PART_ACCENTS[part] }" aria-hidden="true">{{ PART_ICONS[part] }}</span>
-                  <span class="whitespace-nowrap">{{ label }}</span>
-                  <span class="settings-value">· {{ WOODS[settings.woods[part].wood].name }}</span>
-                </h3>
-                <div class="flex flex-wrap items-center gap-1.5">
-                  <button
-                    v-for="(wood, key) in WOODS"
-                    :key="key"
-                    class="swatch"
-                    :class="{ 'swatch--on': settings.woods[part].wood === key }"
-                    :style="{ background: wood.swatch }"
-                    :title="wood.name"
-                    :aria-label="`${wood.name} ${label.toLowerCase()}`"
-                    :aria-pressed="settings.woods[part].wood === key"
-                    @click="setWood(part, { wood: key })">
-                    <span v-if="settings.woods[part].wood === key" class="swatch-tick" :class="{ 'swatch-tick--light': isDarkColour(wood.swatch) }" aria-hidden="true">✓</span>
-                  </button>
-                </div>
-                <div class="flex flex-wrap gap-1.5 mt-2">
-                  <button
-                    v-for="(name, key) in WOOD_PATTERNS"
-                    :key="key"
-                    class="pattern-chip"
-                    :class="{ 'pattern-chip--on': settings.woods[part].pattern === key }"
-                    :aria-pressed="settings.woods[part].pattern === key"
-                    @click="setWood(part, { pattern: key })">
-                    {{ name }}
-                  </button>
+            <div class="settings-body overflow-y-auto flex flex-col gap-2.5 p-3">
+              <!-- Three groups, one open at a time, so the panel stays short -->
+              <section v-for="group in SETTINGS_GROUPS" :key="group.key" class="settings-card" :class="{ 'settings-card--open': openGroup === group.key }">
+                <button
+                  class="settings-group-head"
+                  :aria-expanded="openGroup === group.key"
+                  :aria-controls="`settings-${group.key}`"
+                  @click="openGroup = openGroup === group.key ? null : group.key">
+                  <span class="settings-tag" :style="{ background: group.accent }" aria-hidden="true">{{ group.icon }}</span>
+                  <span class="whitespace-nowrap">{{ group.label }}</span>
+                  <span class="settings-value">· {{ groupSummary[group.key] }}</span>
+                  <svg viewBox="0 0 24 24" class="settings-chevron" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="square" aria-hidden="true">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+                <div v-show="openGroup === group.key" :id="`settings-${group.key}`" class="settings-group-body">
+                  <template v-if="group.key === 'sky'">
+                    <div class="settings-sub">
+                      <h3 class="settings-sublabel">
+                        Time of day
+                        <span class="settings-value">· {{ settings.time === "auto" ? `your clock, ${DAY_PARTS[clockPart].toLowerCase()}` : TIME_MODES[settings.time] }}</span>
+                      </h3>
+                      <div class="flex flex-wrap gap-1.5">
+                        <button
+                          v-for="(name, key) in TIME_MODES"
+                          :key="key"
+                          class="pattern-chip"
+                          :class="{ 'pattern-chip--on': settings.time === key }"
+                          :aria-pressed="settings.time === key"
+                          @click="setTime(key)">
+                          {{ name }}
+                        </button>
+                      </div>
+                    </div>
+                    <div class="settings-sub">
+                      <h3 class="settings-sublabel">
+                        Weather
+                        <span class="settings-value">· {{ settings.rain === "auto" ? "your weather" : RAIN_MODES[settings.rain] }}</span>
+                      </h3>
+                      <div class="flex flex-wrap gap-1.5">
+                        <button
+                          v-for="(name, key) in RAIN_MODES"
+                          :key="key"
+                          class="pattern-chip"
+                          :class="{ 'pattern-chip--on': settings.rain === key }"
+                          :aria-pressed="settings.rain === key"
+                          @click="setRain(key)">
+                          {{ name }}
+                        </button>
+                      </div>
+                    </div>
+                  </template>
+                  <div v-else-if="group.key === 'wall'" class="settings-sub">
+                    <div class="flex flex-wrap items-center gap-1.5">
+                      <button
+                        v-for="paint in WALL_PAINTS"
+                        :key="paint.hex"
+                        class="swatch"
+                        :class="{ 'swatch--on': settings.wall === paint.hex }"
+                        :style="{ background: paint.hex }"
+                        :title="paint.name"
+                        :aria-label="`${paint.name} wall`"
+                        :aria-pressed="settings.wall === paint.hex"
+                        @click="setWall(paint.hex)">
+                        <span v-if="settings.wall === paint.hex" class="swatch-tick" :class="{ 'swatch-tick--light': isDarkColour(paint.hex) }" aria-hidden="true">✓</span>
+                      </button>
+                      <label class="swatch swatch--custom" :class="{ 'swatch--on': !wallIsPreset }" title="Any colour" aria-label="Pick any wall colour">
+                        <input :value="settings.wall" type="color" class="absolute inset-0 opacity-0 cursor-pointer" @input="setWall($event.target.value)" />
+                      </label>
+                    </div>
+                  </div>
+                  <template v-else>
+                    <div v-for="(label, part) in WOOD_TARGETS" :key="part" class="settings-sub">
+                      <h3 class="settings-sublabel">
+                        <span class="whitespace-nowrap">{{ label }}</span>
+                        <span class="settings-value">· {{ WOODS[settings.woods[part].wood].name }}, {{ WOOD_PATTERNS[settings.woods[part].pattern].toLowerCase() }}</span>
+                      </h3>
+                      <div class="flex flex-wrap items-center gap-1.5">
+                        <button
+                          v-for="(wood, key) in WOODS"
+                          :key="key"
+                          class="swatch"
+                          :class="{ 'swatch--on': settings.woods[part].wood === key }"
+                          :style="{ background: wood.swatch }"
+                          :title="wood.name"
+                          :aria-label="`${wood.name} ${label.toLowerCase()}`"
+                          :aria-pressed="settings.woods[part].wood === key"
+                          @click="setWood(part, { wood: key })">
+                          <span v-if="settings.woods[part].wood === key" class="swatch-tick" :class="{ 'swatch-tick--light': isDarkColour(wood.swatch) }" aria-hidden="true">✓</span>
+                        </button>
+                      </div>
+                      <div class="flex flex-wrap gap-1.5 mt-2">
+                        <button
+                          v-for="(name, key) in WOOD_PATTERNS"
+                          :key="key"
+                          class="pattern-chip"
+                          :class="{ 'pattern-chip--on': settings.woods[part].pattern === key }"
+                          :aria-pressed="settings.woods[part].pattern === key"
+                          @click="setWood(part, { pattern: key })">
+                          {{ name }}
+                        </button>
+                      </div>
+                    </div>
+                  </template>
                 </div>
               </section>
             </div>
@@ -188,11 +235,15 @@ import { useTheme } from "@/composables/useTheme";
 import { useSfx, initializeAudio, sfx } from "@/composables/useSfx";
 import { hideBootLoader } from "@/utils/bootLoader";
 import { WOODS, WOOD_PATTERNS, WOOD_TARGETS, DEFAULT_WOODS } from "@/components/features/desk/woods";
+import { DAY_PARTS, TIME_MODES, RAIN_MODES, DEFAULT_TIME, DEFAULT_RAIN, partOfDay, partFor } from "@/components/features/desk/daylight";
 
 const COMMAND_CHIPS = ["help", "whoami", "projects", "hobbies", "sudo hire oka"];
-// Each part's tag in the settings panel, in the room's accent colours
-const PART_ACCENTS = { wall: "#ff90e8", desk: "#ffdd00", riser: "#00e0c6", window: "#90a8ed", shelf: "#8fd694" };
-const PART_ICONS = { desk: "🪵", riser: "🖥️", window: "🪟", shelf: "🎮" };
+// The settings panel's groups, each tagged in one of the room's accent colours
+const SETTINGS_GROUPS = [
+  { key: "sky", label: "Time & weather", icon: "☀️", accent: "#ffc900" },
+  { key: "wall", label: "Wall", icon: "🧱", accent: "#ff90e8" },
+  { key: "wood", label: "Furniture", icon: "🪵", accent: "#00e0c6" },
+];
 const WALL_PAINTS = [
   { name: "White", hex: "#ffffff" },
   { name: "Greige", hex: "#e2ddd5" },
@@ -236,8 +287,7 @@ const projectOpen = ref(false);
 const consoleOn = ref(false);
 const secretToast = ref(null);
 const settingsOpen = ref(false);
-const settingsPanel = ref(null);
-const settingsButton = ref(null);
+const openGroup = ref("sky");
 const settings = reactive(readSettings());
 let secretTimer = null;
 const zoomed = computed(() => focus.value !== "overview");
@@ -246,19 +296,26 @@ const { isDark, toggleTheme } = useTheme();
 const { muted, toggleMute } = useSfx();
 
 
+// The visitor's clock, as a part of the day, for the panel's "Auto" (checked each minute)
+const clockPart = ref(partOfDay());
+let clockTimer = null;
 const wallIsPreset = computed(() => WALL_PAINTS.some((paint) => paint.hex === settings.wall));
 const wallName = computed(() => WALL_PAINTS.find((paint) => paint.hex === settings.wall)?.name ?? "Custom");
+// What each closed group is set to, at a glance
+const groupSummary = computed(() => {
+  const woods = new Set(Object.values(settings.woods).map((choice) => choice.wood));
+  return {
+    sky: `${settings.time === "auto" ? "Auto" : TIME_MODES[settings.time]}, ${settings.rain === "auto" ? "auto" : RAIN_MODES[settings.rain].toLowerCase()}`,
+    wall: wallName.value,
+    wood: woods.size === 1 ? WOODS[[...woods][0]].name : "Mixed",
+  };
+});
 // Whether a swatch is dark enough that its tick should be drawn in white
 function isDarkColour(hex) {
   const n = parseInt(hex.slice(1), 16);
   return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) < 140;
 }
-// The settings put themselves away at a press anywhere outside them (the gear toggles on its
-// own) or at Esc. Captured, so a press on the room still closes them first.
-function closeSettingsOutside(e) {
-  if (!settingsOpen.value || settingsPanel.value?.contains(e.target) || settingsButton.value?.contains(e.target)) return;
-  settingsOpen.value = false;
-}
+// Esc puts the settings away, as do their close button and the gear
 function closeSettingsOnEscape(e) {
   if (e.key === "Escape" && settingsOpen.value) settingsOpen.value = false;
 }
@@ -323,6 +380,8 @@ function readSettings() {
     pattern: WOOD_PATTERNS[choice.pattern] ? choice.pattern : DEFAULT_WOODS[part].pattern,
   });
   return {
+    time: TIME_MODES[saved.time] ? saved.time : DEFAULT_TIME,
+    rain: RAIN_MODES[saved.rain] ? saved.rain : DEFAULT_RAIN,
     wall: /^#[0-9a-f]{6}$/i.test(saved.wall || "") ? saved.wall : DEFAULT_WALL,
     woods: Object.fromEntries(Object.keys(WOOD_TARGETS).map((part) => [part, pickWood(part, saved.woods?.[part])])),
   };
@@ -344,14 +403,27 @@ function setWood(part, choice) {
   scene.value?.setWood(part, choice);
   saveSettings();
 }
+function setTime(mode) {
+  settings.time = mode;
+  scene.value?.setTime(mode);
+  saveSettings();
+}
+function setRain(mode) {
+  settings.rain = mode;
+  scene.value?.setRain(mode);
+  saveSettings();
+}
 
 watch(isDark, (dark) => scene.value?.setTheme(dark));
 watch(zoomed, (value) => value && (settingsOpen.value = false));
 watch(muted, (value) => scene.value?.setMuted(value));
 
 onMounted(async () => {
-  document.addEventListener("pointerdown", closeSettingsOutside, true);
   window.addEventListener("keydown", closeSettingsOnEscape);
+  clockTimer = setInterval(() => (clockPart.value = partOfDay()), 60000);
+  // The room opens on the visitor's part of the day (or their pick), so the page takes the night
+  // theme for a night and the day theme otherwise before the scene is built
+  if ((partFor(settings.time) === "night") !== isDark.value) toggleTheme();
   try {
     const { createDeskScene } = await import("@/components/features/desk/deskScene");
     await nextTick();
@@ -364,6 +436,8 @@ onMounted(async () => {
       muted: muted.value,
       wallColor: settings.wall,
       woods: JSON.parse(JSON.stringify(settings.woods)),
+      time: settings.time,
+      rain: settings.rain,
       onEvent,
     });
     setTimeout(() => (introPlaying.value = false), 1600);
@@ -383,7 +457,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  document.removeEventListener("pointerdown", closeSettingsOutside, true);
+  clearInterval(clockTimer);
   window.removeEventListener("keydown", closeSettingsOnEscape);
   clearTimeout(secretTimer);
   hideBootLoader();
@@ -453,11 +527,37 @@ onUnmounted(() => {
   background-size: 10px 10px;
 }
 .settings-card {
-  @apply bg-white border-2 border-black p-2.5;
+  @apply bg-white border-2 border-black;
   box-shadow: 3px 3px 0 0 #000;
 }
-.settings-label {
-  @apply flex items-center gap-1.5 text-xs font-extrabold uppercase mb-2 tracking-wide min-w-0;
+.settings-group-head {
+  @apply w-full flex items-center gap-1.5 px-2.5 py-2 text-left text-xs font-extrabold uppercase tracking-wide min-w-0;
+}
+.settings-group-head:hover {
+  background: #fff7c2;
+}
+.settings-card--open .settings-group-head {
+  @apply border-b-2 border-black;
+  background: #fff7c2;
+}
+.settings-chevron {
+  @apply w-3.5 h-3.5 ml-auto shrink-0;
+  transition: transform 0.2s;
+}
+.settings-card--open .settings-chevron {
+  transform: rotate(180deg);
+}
+.settings-group-body {
+  @apply px-2.5 pb-2.5;
+}
+.settings-sub {
+  @apply pt-2.5;
+}
+.settings-sub + .settings-sub {
+  @apply mt-2.5 border-t-2 border-dashed border-black/25;
+}
+.settings-sublabel {
+  @apply flex items-center gap-1 text-[11px] font-extrabold uppercase mb-1.5 tracking-wide min-w-0;
 }
 .settings-tag {
   @apply inline-flex items-center justify-center w-5 h-5 border-2 border-black text-[11px] leading-none shrink-0;

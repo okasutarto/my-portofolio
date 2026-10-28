@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { canvasTexture, drawWindowView, windowSky, drawWallPaint, drawWoodTop, drawWoodFloor } from "../textures";
 import { DEFAULT_WOODS } from "../woods";
+import { partFor } from "../daylight";
 import { PALETTES } from "../sceneConfig";
 
 export function createRoom(runtime) {
@@ -367,11 +368,13 @@ export function createRoom(runtime) {
   frameWood.map = frameGrainTex.texture;
   const windowFrame = runtime.core.mesh(new THREE.BoxGeometry(4.4, 4.5, 0.18), frameWood, { cast: false, outline: 0.03 });
   // Keep the animated view at the same cadence in overview and close-up.
-  // Start at a random daylight mood, then cycle in order with the room lighting.
-  // Night joins the cycle and switches on the room's lamps automatically.
-  const outside = { t: 0, flockAt: -99, starAt: -99, drawnAt: 0, rain: runtime.core.previewRain, rainTarget: runtime.core.previewRain, clicks: [], night: runtime.options.dark };
+  // The room opens on the part of the day the visitor's clock (or their pick) says; night
+  // switches on the room's lamps. The page already opened in the dark theme for a night.
+  const startRain = runtime.core.previewRain ?? 0;
+  const outside = { t: 0, flockAt: -99, starAt: -99, drawnAt: 0, rain: startRain, rainTarget: startRain, clicks: [], night: runtime.options.dark };
   const daylightParts = ["morning", "day", "evening", "night"];
-  let daylightPart = daylightParts.includes(runtime.core.previewTime) ? runtime.core.previewTime : runtime.options.dark ? "night" : daylightParts[Math.floor(Math.random() * 3)];
+  const startPart = partFor(runtime.options.time);
+  let daylightPart = daylightParts.includes(runtime.core.previewTime) ? runtime.core.previewTime : runtime.options.dark ? "night" : startPart === "night" ? "morning" : startPart;
   const dayPart = () => (outside.night ? "night" : daylightPart);
   outside.sky = windowSky(dayPart());
   const windowView = runtime.core.printed(4.0, 4.1, 220, (c, w, h) => drawWindowView(c, w, h, { ...outside, time: dayPart() }), { unlit: true });

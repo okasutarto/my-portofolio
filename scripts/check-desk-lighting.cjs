@@ -10,14 +10,21 @@ const textures = require('./helpers/texture-source.cjs').readTexturesSource();
 const skySource = textures.slice(textures.indexOf('function mixHex('), textures.indexOf('// `time` is the part of the day outside')).replace('export function', 'function');
 const windowSky = vm.runInNewContext(skySource + '; windowSky');
 const moodCode = source.slice(source.indexOf('  const daylightParts ='), source.indexOf('  const windowView ='));
-for (const [random, expected] of [[0, 'morning'], [0.5, 'day'], [0.999, 'evening']]) {
-  let draws = 0;
-  const mood = vm.runInNewContext(moodCode + '; ({ dayPart, outside })', {
-    windowSky, previewTime: null, dark: false, outside: { night: false }, Math: { floor: Math.floor, random: () => { draws++; return random; } },
-  });
-  assert.equal(mood.dayPart(), expected);
-  assert.equal(draws, 1);
+// The room opens on the part of the day its time mode gives (auto: the visitor's clock); a
+// night start waits for the page's dark theme, so a light page opens on the morning
+const daylightSource = fs.readFileSync(path.join(__dirname, '../src/components/features/desk/daylight.js'), 'utf8').replace(/export /g, '');
+const daylight = vm.runInNewContext(daylightSource + '; ({ TIME_MODES, partFor, partOfDay })');
+for (const [hour, expected] of [[6, 'morning'], [12, 'day'], [17, 'evening'], [21, 'night'], [2, 'night']]) {
+  assert.equal(daylight.partOfDay(new Date(2026, 0, 1, hour)), expected, `${hour}:00 is ${expected}`);
 }
+for (const [time, dark, expected] of [['morning', false, 'morning'], ['day', false, 'day'], ['evening', false, 'evening'], ['night', false, 'morning'], ['day', true, 'night']]) {
+  const mood = vm.runInNewContext(moodCode + '; ({ dayPart, outside })', {
+    windowSky, previewTime: null, dark, time, partFor: daylight.partFor, outside: { night: dark },
+  });
+  assert.equal(mood.dayPart(), expected, `${time}${dark ? ' on a dark page' : ''} opens on ${expected}`);
+}
+let clockPart = 'day';
+let weatherChecks = 0;
 let now = 0;
 const material = () => ({ color: new THREE.Color() });
 const sun = new THREE.DirectionalLight();
@@ -34,6 +41,8 @@ const context = vm.createContext({
   frameWood: material(), shelfMat: material(), shelfBackMat: material(), lipMat: material(),
   familyPhoto: { userData: { tex: { redraw() {} } } },
   THREE, windowSky, previewTime: null, roomLight: { night: 0 }, dark: false, outside: { night: false, rain: 0 },
+  time: 'auto', TIME_MODES: daylight.TIME_MODES, partFor: (mode) => (daylight.TIME_MODES[mode] && mode !== 'auto' ? mode : clockPart),
+  refreshWeather: () => weatherChecks++,
   performance: { now: () => now }, Math: Object.assign(Object.create(Math), { random: () => 0.5 }),
   deskNeons: [{ strip: {}, washMat: {} }, { strip: {}, washMat: {} }], fitSunShadow() {},
   aimWindowLight: (at) => { windowLight.userData.sky = [...at]; }, blindFabric: {}, shadowedNeons: [{}, {}, {}],
@@ -76,15 +85,23 @@ const dayColor = context.scene.background.clone();
 const daySky = context.outside.sky.sun.slice();
 now = 90000;
 run('updateDaylight(90000)');
-assert.equal(run('dayPart()'), 'evening');
+assert.equal(run('dayPart()'), 'day', 'the room holds while the clock stays in the same part of the day');
+clockPart = 'evening';
+now = 100000;
+run('updateDaylight(100000)');
+assert.equal(run('dayPart()'), 'day', 'the clock is only read every half minute');
+now = 120000;
+run('updateDaylight(120000)');
+assert.equal(run('dayPart()'), 'evening', 'the room moves on when the visitor\'s clock does');
 assert.equal(windowLight.intensity, clearDay, 'theme request does not jump the light');
-update(91000);
+update(121000);
 assert.ok(Math.abs(windowLight.intensity - (clearDay + 1.8) / 2) < 1e-10);
 assert.ok(context.outside.sky.sun[1] > daySky[1], 'sun lowers smoothly toward the evening horizon');
 assert.deepEqual(windowLight.userData.sky, [...context.outside.sky.sun], 'painted sun and shadow light use the same coordinates');
-update(92000);
+update(122000);
 assert.equal(windowLight.intensity, 1.8);
 now = 180000;
+clockPart = 'night';
 run('updateDaylight(180000)');
 update(181000);
 assert.ok(lampLight.intensity > 0 && lampLight.intensity < 5, 'desk lamp fades in with night');
@@ -149,8 +166,16 @@ assert.deepEqual(events, [['nightShift', true]]);
 }
 assert.ok(source.includes('const LIGHTING_TRANSITION = 2000'), 'phase fades complete in two seconds');
 now = 250000;
+const checksBefore = weatherChecks;
 run('updateDaylight(250000)');
-assert.equal(run('nextDaylightAt') - now, 25000, 'next phase uses the faster 20–30 second interval');
+assert.equal(run('nextDaylightAt') - now, 30000, 'the clock is read again in half a minute, with no timed cycle');
+assert.equal(weatherChecks, checksBefore + 1, 'the visitor\'s weather is checked on the same beat');
+run('setTime("evening")');
+assert.equal(run('dayPart()'), 'evening', 'a picked part of the day holds');
+clockPart = 'morning';
+now = 400000;
+run('updateDaylight(400000)');
+assert.equal(run('dayPart()'), 'evening', 'a picked part of the day ignores the clock');
 
 // Preserve texture/detail samplers when night and close-up lights compete for GPU slots.
 {

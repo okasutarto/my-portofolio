@@ -369,7 +369,7 @@ export function createChair(runtime) {
     drag.turned += turn;
     chairTop.rotation.y += turn;
     if (Math.abs(turn) > 0.02 && time - drag.lastSound > 260) {
-      sfx.swivel();
+      sfx.creak();
       drag.lastSound = time;
     }
   }
@@ -403,7 +403,7 @@ export function createChair(runtime) {
         .to(chair.position, { z: z + 0.5, duration: 0.5, ease: "power2.out" }, 0.1)
         .to(chair.position, { z, duration: 0.9, ease: "power2.inOut" }, 0.7);
       sfx.hiss();
-      sfx.swivel({ delay: 0.15 });
+      sfx.creak({ delay: 0.15 });
       sfx.patter({ duration: 0.5, delay: 0.1 });
     },
   });

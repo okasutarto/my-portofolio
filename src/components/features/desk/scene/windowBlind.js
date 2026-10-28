@@ -149,21 +149,6 @@ export function createWindowBlind(runtime) {
     placeBeads();
   }
   updateBlind();
-  // Weather: a quarter of visits open on a shower; after that a shower now and then, a minute
-  // or two long, every few minutes at most
-  function weather(first = false) {
-    if (runtime.core.destroyed) return;
-    let wait;
-    if (runtime.room.outside.rainTarget) {
-      runtime.room.outside.rainTarget = 0;
-      wait = 180000 + Math.random() * 120000;
-    } else if (Math.random() < (first ? 0.25 : 0.3)) {
-      runtime.room.outside.rainTarget = 0.6 + Math.random() * 0.4;
-      wait = 60000 + Math.random() * 60000;
-    } else wait = 180000 + Math.random() * 120000;
-    runtime.core.timers.push(setTimeout(weather, wait));
-  }
-  runtime.core.timers.push(setTimeout(() => weather(true), 4000));
   // Click the window to look out; click again for a flock of birds (or, at night, a shooting
   // star). Three quick clicks bring the rain, or stop it.
   const lookOut = () => {

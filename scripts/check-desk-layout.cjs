@@ -116,6 +116,7 @@ const resumeContext = {
   chairDrag: null,
   hatDrag: null,
   finishNoteDrag() { const drag = resumeContext.noteDrag; resumeContext.noteDrag = null; return drag; },
+  finishScreenDrag() {},
   runHotspot: ({ href }) => opens.push(href),
 };
 const onPointerUp = vm.runInNewContext(source.slice(upStart, source.indexOf('  const onPointerLeave', upStart)) + '; onPointerUp', resumeContext);

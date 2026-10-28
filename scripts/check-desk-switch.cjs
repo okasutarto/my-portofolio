@@ -1,9 +1,8 @@
 // Run: node scripts/check-desk-switch.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const vm = require('node:vm');
 const THREE = require('three');
-const source = fs.readFileSync(`${__dirname}/../src/components/features/desk/deskScene.js`, 'utf8');
+const source = require('./helpers/desk-source.cjs').readDeskSource();
 const legends = [];
 const ctx = new Proxy({}, {
   get: (_, key) => (...args) => {

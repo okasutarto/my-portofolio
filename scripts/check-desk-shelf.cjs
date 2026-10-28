@@ -1,9 +1,8 @@
 // Run: node scripts/check-desk-shelf.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const vm = require('node:vm');
 const THREE = require('three');
-const source = fs.readFileSync(require('node:path').join(__dirname, '../src/components/features/desk/deskScene.js'), 'utf8');
+const source = require('./helpers/desk-source.cjs').readDeskSource();
 const section = (a, b) => source.slice(source.indexOf(a), source.indexOf(b, source.indexOf(a)));
 const captured = new Set();
 let clicks = 0;
@@ -11,9 +10,9 @@ let moves = 0;
 let hidden = 0;
 const ctx = vm.createContext({
   performance, responsiveUntil: 0,
-  THREE, shelfLook: 1.7, focus: { name: 'shelf' }, viewH: 12, cam: { zoom: 2 }, container: { clientHeight: 600 },
+  THREE, shelfLook: 1.7, focus: { name: 'shelf' }, viewH: 12, userView: { zoom: 1 }, cam: { zoom: 2 }, container: { clientHeight: 600 },
   shelfBubble: { hide() { hidden++; } }, applyShot() { moves++; },
-  downAt: null, stickyDrag: null, noteDrag: null, lanyardDrag: null, hatDrag: null,
+  finishScreenDrag: () => null, screenDrag: null, chairDrag: null, downAt: null, stickyDrag: null, noteDrag: null, lanyardDrag: null, hatDrag: null,
   pick: () => ({ entry: {} }), handleClick: () => clicks++, back() { throw new Error('drag navigated away'); },
   renderer: { domElement: { style: {}, setPointerCapture: (id) => captured.add(id), hasPointerCapture: (id) => captured.has(id), releasePointerCapture: (id) => captured.delete(id) } },
 });

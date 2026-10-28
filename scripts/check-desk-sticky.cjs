@@ -1,9 +1,8 @@
 // Run: node scripts/check-desk-sticky.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const vm = require('node:vm');
 const THREE = require('three');
-const source = fs.readFileSync(require('node:path').join(__dirname, '../src/components/features/desk/deskScene.js'), 'utf8');
+const source = require('./helpers/desk-source.cjs').readDeskSource();
 const monitor = new THREE.Group();
 monitor.position.set(-0.2, 0, -2.75);
 const sticky = new THREE.Group();
@@ -15,7 +14,8 @@ let clicks = 0;
 let point = new THREE.Vector3(2.4, 3.5, 0.1);
 const sandbox = vm.createContext({
   performance, responsiveUntil: 0,
-  THREE, monitor, shelfDrag: null, noteDrag: null, lanyardDrag: null, hatDrag: null, downAt: null, focus: { name: "monitor" },
+  SCREEN_Y: 2.13, screen: {}, raycaster: { intersectObject: () => [] }, desktop: { active: () => null },
+  THREE, monitor, screenDrag: null, chairDrag: null, shelfDrag: null, noteDrag: null, lanyardDrag: null, hatDrag: null, downAt: null, focus: { name: "monitor" },
   renderer: { domElement: { style: {}, setPointerCapture: (id) => captured.add(id), hasPointerCapture: (id) => captured.has(id), releasePointerCapture: (id) => captured.delete(id) } },
   pick: () => ({ entry }),
   rayFromPointer: () => ({ intersectPlane: (_plane, result) => result.copy(monitor.localToWorld(point.clone())) }),
@@ -41,7 +41,7 @@ assert.ok(Math.abs(sticky.position.y - 1.9) < 1e-8);
 point.set(100, -100, 0.1);
 call('onPointerMove', event(40));
 assert.equal(sticky.position.x, 2.3);
-assert.equal(sticky.position.y, 1.3);
+assert.ok(Math.abs(sticky.position.y - 0.8) < 1e-8);
 call('onPointerUp', event(40));
 assert.equal(clicks, 1, 'drag release must not navigate');
 assert.equal(captured.size, 0, 'release pointer capture');

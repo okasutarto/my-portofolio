@@ -1,9 +1,8 @@
 // Run: node scripts/check-desk-hat.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const vm = require('node:vm');
 const THREE = require('three');
-const source = fs.readFileSync(`${__dirname}/../src/components/features/desk/deskScene.js`, 'utf8');
+const source = require('./helpers/desk-source.cjs').readDeskSource();
 const section = (start, end) => source.slice(source.indexOf(start), source.indexOf(end, source.indexOf(start)));
 const material = new THREE.MeshBasicMaterial();
 const context = vm.createContext({
@@ -22,7 +21,7 @@ const context = vm.createContext({
     return object;
   },
 });
-vm.runInContext(section('  const guitar =', '  // Project the four window panes') +
+vm.runInContext(section('  const guitar =', '  // Sun (or moon) through the window') +
   section('  const strawHat =', '  const stopHat ='), context);
 const hat = vm.runInContext('({ hung, hatPeg, guitarSwing, stretch, setStretch, constrainHat, HAT_SCALE })', context);
 const guitarBounds = new THREE.Box3();

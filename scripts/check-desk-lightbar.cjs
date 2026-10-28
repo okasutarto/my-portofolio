@@ -1,10 +1,8 @@
 // Run: node scripts/check-desk-lightbar.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 const THREE = require('three');
-const source = fs.readFileSync(path.join(__dirname, '../src/components/features/desk/deskScene.js'), 'utf8');
+const source = require('./helpers/desk-source.cjs').readDeskSource();
 const start = source.indexOf('  const lightbar =');
 const end = source.indexOf('  // The monitor has the same cyan/pink', start);
 const monitor = new THREE.Group();

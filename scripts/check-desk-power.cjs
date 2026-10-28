@@ -44,7 +44,7 @@ assert.equal(roundRectCalls.length, 2, 'boot screen draws slot and progress fill
 assert.ok(calls.some((c) => c.type === 'ellipse'), 'boot screen draws apple leaf');
 
 // 2. Check deskScene.js source patterns
-const sceneSource = fs.readFileSync(path.join(__dirname, '../src/components/features/desk/deskScene.js'), 'utf8');
+const sceneSource = require('./helpers/desk-source.cjs').readDeskSource();
 
 assert.ok(sceneSource.includes('drawPowerScreen('), 'deskScene calls drawPowerScreen');
 assert.ok(sceneSource.includes('toggleComputer()'), 'deskScene calls toggleComputer');

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const THREE = require('three');
-const source = fs.readFileSync(`${__dirname}/../src/components/features/desk/deskScene.js`, 'utf8');
+const source = require('./helpers/desk-source.cjs').readDeskSource();
 const section = (start, end) => source.slice(source.indexOf(start), source.indexOf(end, source.indexOf(start)));
 const apply = (target, values) => {
   for (const key of ['x', 'y', 'z', 'r', 'g', 'b', 'strength', 'phase', 'opacity']) if (key in values) target[key] = values[key];
@@ -65,7 +65,7 @@ assert.equal(clearance(-20, 0, 0), -Infinity, 'off the board the badge keeps its
 const stringGeo = new THREE.BoxGeometry(0.008, 4.15, 0.008, 1, 16, 1);
 const stringMat = new THREE.MeshBasicMaterial({ color: '#f4f2ee' });
 let guitarHandler;
-const guitar = vm.runInNewContext(section('  const stringRestColor', '  // Project the four window panes') + '; ({ stringVibration, updateGuitarStrings })', {
+const guitar = vm.runInNewContext(section('  const stringRestColor', '  // Sun (or moon) through the window') + '; ({ stringVibration, updateGuitarStrings })', {
   stringGeo, stringMat, gsap, guitarSwing: new THREE.Group(), register: (_, handler) => { guitarHandler = handler; },
 });
 const original = stringGeo.attributes.position.array.slice();
@@ -100,7 +100,7 @@ assert.equal(windowGlare.material.opacity, 0.55);
 // Clock and painting hover leave their hands/artwork untouched and yield during a click.
 for (const [start, end, name, actor] of [
   ['  let clockBusy =', '  const rugTex', 'clock', 'clockMount'],
-  ['  let paintingBusy =', '  // A rod between', 'paintingHang', 'paintingHang'],
+  ['  let paintingBusy =', '  // Seat height is roughly', 'paintingHang', 'paintingHang'],
 ]) {
   let handler;
   const object = new THREE.Group();

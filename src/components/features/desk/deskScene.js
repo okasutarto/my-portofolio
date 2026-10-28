@@ -320,6 +320,32 @@ export function createDeskScene({ container, projects, experiences, dark = false
   sun.shadow.normalBias = 0.02;
   sun.shadow.radius = 14;
   scene.add(sun, sun.target);
+  // Square, so texels stay square and the blur round; see fitSunShadow
+  const SUN_SPAN = 40;
+  const SUN_BLUR = sun.shadow.radius * SUN_SPAN;
+  const sunCasters = new THREE.Box3();
+  const sunCorner = new THREE.Vector3();
+  const sunFootprint = new THREE.Box3();
+  function fitSunShadow() {
+    if (sunCasters.isEmpty()) return;
+    const cam = sun.shadow.camera;
+    cam.position.copy(sun.position);
+    cam.lookAt(sun.target.position);
+    cam.updateMatrixWorld();
+    sunFootprint.makeEmpty();
+    for (let i = 0; i < 8; i++) {
+      sunCorner.set(i & 1 ? sunCasters.max.x : sunCasters.min.x, i & 2 ? sunCasters.max.y : sunCasters.min.y, i & 4 ? sunCasters.max.z : sunCasters.min.z);
+      sunFootprint.expandByPoint(sunCorner.applyMatrix4(cam.matrixWorldInverse));
+    }
+    const half = Math.min(SUN_SPAN, Math.max(sunFootprint.max.x - sunFootprint.min.x, sunFootprint.max.y - sunFootprint.min.y) + 1) / 2;
+    const cx = (sunFootprint.min.x + sunFootprint.max.x) / 2;
+    const cy = (sunFootprint.min.y + sunFootprint.max.y) / 2;
+    Object.assign(cam, { left: cx - half, right: cx + half, bottom: cy - half, top: cy + half });
+    cam.updateProjectionMatrix();
+    // the same penumbra in world units, now drawn from finer texels
+    sun.shadow.radius = SUN_BLUR / (half * 2);
+    sun.shadow.needsUpdate = true;
+  }
 
   const timers = [];
   let destroyed = false;
@@ -793,9 +819,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
 
   // A framed illustration on the left wall: four panes, a sun/moon and angular trees.
   const windowGroup = new THREE.Group();
-  // Set back in the wall's opening: the group's origin is the frame's plane, WINDOW_DEPTH
-  // behind the wall's face
-  const WINDOW_DEPTH = 0.42;
+  // Seated in the wall's opening, the frame's face all but flush with the wall's, so the wall
+  // runs straight up to the wood: the group's origin is the frame's plane, WINDOW_DEPTH behind
+  // the wall's face
+  const WINDOW_DEPTH = 0.1;
   windowGroup.position.set(SIDE_X + 0.12 - WINDOW_DEPTH, WINDOW_AT.y, WINDOW_AT.z);
   windowGroup.rotation.y = Math.PI / 2;
   room.add(windowGroup);
@@ -818,36 +845,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const windowView = printed(4.0, 4.1, 220, (c, w, h) => drawWindowView(c, w, h, { ...outside, time: dayPart() }), { unlit: true });
   windowView.position.z = 0.105;
   windowGroup.add(windowFrame, windowView);
-  // The reveal: wooden linings round the opening (the frame's wood), from the frame out to the wall's face
-  // (they fill the cut wall's edges and run on behind it), with a soft shadow cast in from
-  // above and the side so the frame reads as set into the wall
-  const JAMB = 0.12;
-  const REVEAL = WINDOW_DEPTH + 0.1;
-  // (no lining along the bottom: the sill is the opening's floor)
-  [[0, 2.25 + JAMB / 2, 4.4 + JAMB * 2, JAMB], [2.2 + JAMB / 2, 0, JAMB, 4.5], [-2.2 - JAMB / 2, 0, JAMB, 4.5]].forEach(([x, y, w, h]) => {
-    const jamb = mesh(new THREE.BoxGeometry(w, h, REVEAL), frameWood, { cast: false, outline: 0.015 });
-    // Stands just proud of the wall's face, a thin wooden lip round the opening: ending behind
-    // it let the white cut edge of the wall show as a line, and flush, the two faces flicker
-    jamb.position.set(x, y, WINDOW_DEPTH + 0.02 - REVEAL / 2);
-    windowGroup.add(jamb);
-  });
-  const revealShade = printed(4.4, 4.5, 64, (c, w, h) => {
-    c.clearRect(0, 0, w, h);
-    const top = c.createLinearGradient(0, 0, 0, h * 0.22);
-    top.addColorStop(0, "rgba(40,30,60,0.45)");
-    top.addColorStop(1, "rgba(40,30,60,0)");
-    c.fillStyle = top;
-    c.fillRect(0, 0, w, h * 0.22);
-    const side = c.createLinearGradient(w, 0, w * 0.86, 0);
-    side.addColorStop(0, "rgba(40,30,60,0.35)");
-    side.addColorStop(1, "rgba(40,30,60,0)");
-    c.fillStyle = side;
-    c.fillRect(w * 0.86, 0, w * 0.14, h);
-  }, { unlit: true });
-  revealShade.material.transparent = true;
-  revealShade.material.depthWrite = false;
-  revealShade.position.z = 0.125;
-  revealShade.raycast = noRaycast;
   // The sill runs out from the frame past the wall's face, with an apron board under it. Its
   // top sits clearly above the opening's floor and the frame's foot (both end inside it), so
   // no two faces share a plane and flicker as the camera moves.
@@ -855,7 +852,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   sill.position.set(0, -2.25 - 0.03, (WINDOW_DEPTH + 0.45) / 2);
   const apron = mesh(rbox(4.1, 0.26, 0.08, 0.03), frameWood, { cast: false, outline: 0.02 });
   apron.position.set(0, -2.25 - 0.29, WINDOW_DEPTH + 0.04);
-  windowGroup.add(sill, apron, revealShade);
+  windowGroup.add(sill, apron);
   const moulding = toon("#7a4a26");
   [[0, 2.05, 4.12, 0.1], [0, -2.05, 4.12, 0.1], [2.0, 0, 0.1, 4.2], [-2.0, 0, 0.1, 4.2]].forEach(([x, y, w, h]) => {
     const strip = mesh(rbox(w, h, 0.08, 0.02), moulding, { cast: false, outline: 0.015 });
@@ -1917,6 +1914,24 @@ export function createDeskScene({ container, projects, experiences, dark = false
   lampLight.shadow.radius = 9;
   lampHead.add(socket, ...socketRibs, turnKeyStem, turnKey, bulbCollar, ...collarThreads, bulb, bulbGlint, filament, halo, lampLight);
   lamp.add(lampHead);
+  // In the window's close-up the lamp's pole stands right across the glass, so the lamp steps
+  // out of that shot; only its meshes hide, so the bulb still lights the room
+  let lampHidden = false;
+  const lampShown = new Map();
+  function hideLamp(hidden) {
+    if (hidden === lampHidden) return;
+    lampHidden = hidden;
+    if (hidden) {
+      lamp.traverse((o) => {
+        if (!o.isMesh) return;
+        lampShown.set(o, o.visible);
+        o.visible = false;
+      });
+    } else {
+      lampShown.forEach((visible, o) => (o.visible = visible));
+      lampShown.clear();
+    }
+  }
   const setLamp = (on) => {
     lampLight.intensity = on ? 55 : 0;
     lampLight.castShadow = on;
@@ -9590,6 +9605,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     });
     monitorGlowMat.opacity = isDark ? 0.7 : 0;
     ambient.intensity = isDark ? 1.0 : 0.65;
+    ambient.color.set("#ffffff");
     skyFill.intensity = isDark ? 0 : 1.45;
     readabilityFill.intensity = isDark ? 0.55 : 0.35;
     jointMat.color.set(isDark ? "#3d3749" : "#1a1714");
@@ -9616,14 +9632,17 @@ export function createDeskScene({ container, projects, experiences, dark = false
     riserLegMat.color.set(p.desk).multiplyScalar(RISER_LEG_SHADE);
     shadowFill.color.set(p.shadow);
     if (!isDark) applyDaylight();
+    fitSunShadow();
   }
   // Match the randomly selected sky: warm morning, bright midday or amber evening.
   const DAYLIGHT = {
-    morning: { sun: "#ffd6a0", sunAt: [-14, 6, 7], sunPower: 1.35, sky: "#fff1dc", skyPower: 1.25, ambient: 0.62, pane: "#ffd59a", panePower: 80 },
-    day: { sun: "#fff1cc", sunAt: [-13, 9.5, 4.5], sunPower: 1.6, sky: "#fffaf0", skyPower: 1.45, ambient: 0.65, pane: "#ffe5ad", panePower: 70 },
+    // Warm key, cool fill: the sky's blue lifts what the sun can't reach, so shadows read as
+    // cool shade rather than a grey film, at no extra cost (only colours and a little more key)
+    morning: { sun: "#ffd6a0", sunAt: [-14, 6, 7], sunPower: 1.55, sky: "#eef0ff", skyPower: 1.12, ambient: 0.6, fill: "#e9edff", pane: "#ffd59a", panePower: 80 },
+    day: { sun: "#fff1cc", sunAt: [-13, 9.5, 4.5], sunPower: 1.85, sky: "#f2f5ff", skyPower: 1.28, ambient: 0.62, fill: "#eef1ff", pane: "#ffe5ad", panePower: 70 },
     // the view's sun rises on the front side of the window and sets on the back side, so the
     // room's evening sun comes in from behind
-    evening: { sun: "#ff9e66", sunAt: [-14, 4.5, -4], sunPower: 1.25, sky: "#ffe0c4", skyPower: 1.1, ambient: 0.55, pane: "#ffb27a", panePower: 85 },
+    evening: { sun: "#ff9e66", sunAt: [-14, 4.5, -4], sunPower: 1.45, sky: "#ece4ff", skyPower: 0.98, ambient: 0.52, fill: "#e6deff", pane: "#ffb27a", panePower: 85 },
   };
   function applyDaylight() {
     const light = DAYLIGHT[daylightPart];
@@ -9633,6 +9652,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     skyFill.color.set(light.sky);
     skyFill.intensity = light.skyPower;
     ambient.intensity = light.ambient;
+    ambient.color.set(light.fill);
     windowLight.color.set(light.pane);
     windowLight.intensity = light.panePower;
   }
@@ -9687,7 +9707,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   };
   const visibleHits = () => raycaster.intersectObjects(pickables, true)
     .filter((h) => -viewPoint.copy(h.point).applyMatrix4(camera.matrixWorldInverse).z >= camera.near)
-    .filter((h) => (gauntlet.visible || !inside(h.object, gauntlet)) && (chair.visible || !inside(h.object, chair)));
+    .filter((h) => (gauntlet.visible || !inside(h.object, gauntlet)) && (chair.visible || !inside(h.object, chair)) && (!lampHidden || !inside(h.object, lamp)));
   const pick = (e) => {
     rayFromPointer(e);
     const hit = visibleHits()[0];
@@ -10197,6 +10217,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     byFocus.get(focus.name)?.onLeave?.();
     clearTimeout(arriveTimer);
     focus.name = name;
+    // the lamp only steps aside once the camera is well on its way, so it doesn't vanish in
+    // plain sight of the overview; leaving, it's back at once
+    hideLamp(false);
+    if (name === "window") timers.push(setTimeout(() => focus.name === "window" && hideLamp(true), 450));
     if (name === "shelf") {
       if (hit?.point) {
         // A click on the top board frames its two display props, rather than the board edge.
@@ -10294,6 +10318,20 @@ export function createDeskScene({ container, projects, experiences, dark = false
       perfReadout.textContent = `${(1000 / frameMs).toFixed(0)} fps (budget ${(1000 / refreshMs).toFixed(0)}) · resolution locked\npost ${postDensity().toFixed(2)}× · GTAO ${aoPass.enabled ? "on" : "off"} · neon shadows ${neonShadows ? "on" : "off"}\n${drawCalls.toFixed(0)} draws · ${(triangles / 1000).toFixed(0)}k triangles\nCPU submit ${renderMs.toFixed(1)}ms · GPU ${gpuMs === null ? "n/a" : gpuMs.toFixed(1) + "ms"} · frame p95 ${p95.toFixed(1)}ms${benchmark ? " · " + benchmark : ""}`;
     }, 500));
   }
+
+  // The sun's map only has to cover what can throw a shadow: seen along the light, nothing
+  // outside the casters' footprint can be shadowed by them. Fitting the map to that footprint
+  // (rather than a fixed 40-unit square) packs far more texels onto the props for the same cost.
+  scene.updateMatrixWorld(true);
+  const casterBox = new THREE.Box3();
+  scene.traverse((o) => {
+    if (!o.isMesh || !o.castShadow) return;
+    // pooled bits (crumble dust) wait far below the floor until they're used
+    if (casterBox.setFromObject(o).max.y > FLOOR_Y - 5) sunCasters.union(casterBox);
+  });
+  // room for props that get dragged, knocked or jumped on a little beyond where they start
+  sunCasters.expandByScalar(0.5);
+  fitSunShadow();
 
   let frame = null;
   let lastBlink = 0;

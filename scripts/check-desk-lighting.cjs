@@ -47,16 +47,16 @@ for (const [random, expected] of [[0, 'morning'], [0.5, 'day'], [0.999, 'evening
 }
 const lampCode = source.slice(source.indexOf('  const setLamp ='), source.indexOf('  // Switched on, the bulb'));
 const themeCode = source.slice(source.indexOf('  function setTheme('), source.indexOf('  setTheme(dark);'));
-const color = () => ({ set(value) { this.value = value; return this; }, multiplyScalar() { return this; } });
+const color = () => ({ set(value) { this.value = value; return this; }, copy(other) { this.value = other.value; return this; }, multiplyScalar() { return this; } });
 const material = () => ({ color: color() });
 const sun = { color: color(), position: { set(...xyz) { this.xyz = xyz; } } };
 const windowLight = { color: color() };
 const lampLight = {};
-const ambient = {};
+const ambient = { color: color() };
 const readabilityFill = {};
 const skyFill = { color: color() };
 const context = vm.createContext({
-  deskNeons: [{ strip: {}, washMat: {} }, { strip: {}, washMat: {} }],
+  deskNeons: [{ strip: {}, washMat: {} }, { strip: {}, washMat: {} }], fitSunShadow() {},
   DESK_WASH: 0.45, monitorGlowMat: {}, updateLampGlow() {}, daylightPart: 'day',
   riserMat: material(), riserLegMat: material(), RISER_LEG_SHADE: 0.8,
   darkNow: false, roomDark: false, sun, windowLight, lampLight, ambient, readabilityFill, skyFill,

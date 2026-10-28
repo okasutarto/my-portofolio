@@ -2894,6 +2894,10 @@ function mixHex(a, b, k) {
   const ch = (shift) => Math.round(((pa >> shift) & 255) * (1 - k) + ((pb >> shift) & 255) * k);
   return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, "0")}`;
 }
+// Grass tufts on the near shore: where each stands (0–1 across, 0–1 down the bank) and how tall
+const GRASS_TUFTS = Array.from({ length: 30 }, (_, i) => ({ x: (i * 0.6180339 + 0.03) % 1, y: (i * 0.3819 + 0.12) % 1, s: 0.7 + ((i * 0.7071) % 1) * 0.6 }));
+// A snapshot of the view, for the raindrops on the glass to refract
+let glassCopy = null;
 // Raindrops stuck to the glass: where each sits, how big, and how fast it slides
 const GLASS_DROPS = Array.from({ length: 22 }, (_, i) => ({ x: (i * 0.383 + 0.07) % 1, y: (i * 0.617) % 1, r: 1.1 + ((i * 0.29) % 1) * 1.5, v: 0.004 + ((i * 0.53) % 1) * 0.02 }));
 // Fine beads of water stuck to the glass between the drops
@@ -2939,11 +2943,68 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
     });
   };
   const wrapX = (x, margin) => ((x % (w + margin * 2)) + w + margin * 2) % (w + margin * 2) - margin;
+  // Painted like a background plate: the sun (or moon) picks a side, every form gets a lit face
+  // toward it and a cool shade face away from it, and shadows fall the other way
+  const lightSide = look.sun[0] < 0.5 ? -1 : 1;
+  const SHADE = dark ? "#0b1030" : time === "evening" ? "#3a1f5c" : "#3b3a7a";
+  const shade = (color, k = 0.3) => mixHex(color, SHADE, k);
+  const glow = (color, k = 0.3) => mixHex(color, dark ? "#c9d4ff" : time === "evening" ? "#ffc58f" : "#fffdf5", k);
+  // Wind instead of every stalk on its own metronome: a light breeze rolling across the view,
+  // and every few seconds a gust sweeping in from the left. Each thing leans as the gust reaches
+  // it, then springs back past upright and settles; `lag` lets a crown trail its trunk.
+  const GUST_EVERY = 7;
+  const gustFront = ((t / GUST_EVERY) % 1) * 1.8 - 0.4;
+  const wind = (x, lag = 0) => {
+    const tt = t - lag;
+    const breeze = Math.sin(tt * 1.3 - x * 4) * 0.25 + Math.sin(tt * 2.9 - x * 9) * 0.08;
+    const behind = ((tt / GUST_EVERY) % 1) * 1.8 - 0.4 - x;
+    const gust = behind > 0 ? (1 - Math.exp(-behind * 40)) * Math.exp(-behind * 5) * Math.cos(behind * 14) : 0;
+    return (breeze + gust * 1.1) * (1 + rain * 0.8);
+  };
+  const lumps = (parts, dx = 0, dy = 0, grow = 1) => {
+    c.beginPath();
+    parts.forEach(([x, y, r, rw, rh]) => {
+      if (rw) c.rect(x + dx, y + dy, rw, rh);
+      else {
+        c.moveTo(x + dx + r * grow, y + dy);
+        c.arc(x + dx, y + dy, r * grow, 0, Math.PI * 2);
+      }
+    });
+  };
+  // A blob in two tones: its own colour where the light reaches, shade in the crescent beneath
+  // and away from the sun, and a small sheen on the bigger lumps facing it
+  const celBlob = (parts, color, size, shadow) => {
+    blob(parts, color, shadow);
+    c.save();
+    lumps(parts);
+    c.clip();
+    c.fillStyle = shade(color, 0.28);
+    c.fillRect(-w * 2, -h * 2, w * 4, h * 4);
+    lumps(parts, lightSide * size * 0.12, -size * 0.16, 0.96);
+    c.fillStyle = color;
+    c.fill();
+    c.beginPath();
+    parts.forEach(([x, y, r, rw]) => {
+      if (rw || r < size * 0.3) return;
+      const hx = x + lightSide * r * 0.38;
+      const hy = y - r * 0.45;
+      c.moveTo(hx + r * 0.22, hy);
+      c.ellipse(hx, hy, r * 0.22, r * 0.12, 0, 0, Math.PI * 2);
+    });
+    c.fillStyle = glow(color, 0.4);
+    c.fill();
+    c.restore();
+  };
 
   // Sky in flat bands, lighter toward the horizon
   const SKY = look.sky.map(grey);
   c.fillStyle = SKY[0];
   c.fillRect(0, 0, w, h);
+  // a deeper zenith and an in-between band, so the steps down to the horizon stay small
+  c.fillStyle = shade(SKY[0], dark ? 0.25 : 0.08);
+  c.fillRect(0, 0, w, h * 0.1);
+  c.fillStyle = mixHex(SKY[0], SKY[1], 0.5);
+  c.fillRect(0, h * 0.21, w, h * 0.09);
   c.fillStyle = SKY[1];
   c.fillRect(0, h * 0.3, w, h * 0.1);
   c.fillStyle = SKY[2];
@@ -2989,26 +3050,35 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   c.globalAlpha = 1 - rain * 0.9;
   c.fillStyle = halo;
   c.fillRect(sx - sr * 4, sy - sr * 4, sr * 8, sr * 8);
+  // A ring of light swelling out from it now and then, fading as it grows
+  const ring = (t * 0.22) % 1;
+  c.globalAlpha = (1 - ring) * 0.4 * (1 - rain);
+  c.beginPath();
+  c.arc(sx, sy, sr * (1.25 + ring * 1.9), 0, Math.PI * 2);
+  stroke(line * (1.4 - ring), dark ? "#fffdf5" : glow(sunColor, 0.5));
   c.globalAlpha = 1 - rain * 0.85;
+  // it breathes: a slow swell, and the rays stretching in a wave that runs round the disc
+  const breathe = 1 + 0.03 * Math.sin(t * 1.6);
   if (!dark) {
     c.save();
     c.translate(sx, sy);
     c.rotate(t * 0.25);
     for (let i = 0; i < 10; i++) {
       c.rotate((Math.PI * 2) / 10);
+      const tip = sr * ((i % 2 ? 1.55 : 1.72) + 0.13 * Math.sin(t * 2.4 - i * 1.25));
       c.beginPath();
       c.moveTo(sr * 1.3, 0);
-      c.lineTo(sr * 1.65, 0);
+      c.lineTo(tip, 0);
       stroke(line * 3.2, "#000");
       c.beginPath();
       c.moveTo(sr * 1.3, 0);
-      c.lineTo(sr * 1.65, 0);
+      c.lineTo(tip, 0);
       stroke(line * 1.4, sunColor);
     }
     c.restore();
-    blob([[sx, sy, sr]], sunColor);
+    celBlob([[sx, sy, sr * breathe]], sunColor, sr);
   } else {
-    blob([[sx, sy, sr]], "#fffdf5");
+    celBlob([[sx, sy, sr * breathe]], "#fffdf5", sr);
     [[-0.3, -0.2, 0.22], [0.3, 0.25, 0.16], [0.15, -0.38, 0.1]].forEach(([dx, dy, r]) => {
       c.beginPath();
       c.arc(sx + dx * sr, sy + dy * sr, r * sr, 0, Math.PI * 2);
@@ -3019,12 +3089,17 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   }
   c.globalAlpha = 1;
 
-  // Clouds drifting across (more, lower and heavier when it rains)
+  // Clouds drifting across (more, lower and heavier when it rains); where each is, so its
+  // shadow can slide over the mountains below it
+  const cloudSpots = [];
   [[0.1, 0.12, 1, 6], [0.55, 0.3, 0.75, 9], [0.85, 0.08, 0.6, 4.5]].forEach(([bx, by, size, speed], i) => {
     const x = wrapX(bx * w + t * speed * u, w * 0.2);
     const y = by * h + Math.sin(t * 0.4 + i) * u * 0.4;
     const s = size * u * 9;
-    blob([[x - s * 0.55, y + s * 0.1, s * 0.42], [x, y - s * 0.15, s * 0.58], [x + s * 0.55, y + s * 0.08, s * 0.45], [x - s * 0.55, y + s * 0.1, 0, s * 1.1, s * 0.42]], grey(look.cloud));
+    // each puff swells and settles on its own beat, so the cloud slowly changes shape as it drifts
+    const puff = (k) => s * (1 + 0.05 * Math.sin(t * 0.6 + i * 2.3 + k * 1.9));
+    cloudSpots.push([x, s]);
+    celBlob([[x - s * 0.55, y + s * 0.1, puff(0) * 0.42], [x, y - s * 0.15, puff(1) * 0.58], [x + s * 0.55, y + s * 0.08, puff(2) * 0.45], [x - s * 0.55, y + s * 0.1, 0, s * 1.1, s * 0.42]], grey(look.cloud), s);
   });
   if (rain > 0.05) {
     c.globalAlpha = Math.min(1, rain * 1.5);
@@ -3042,6 +3117,11 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
     const hx = wrapX(w * 0.15 + t * u * 1.6, u * 12);
     const hy = h * 0.2 + Math.sin(t * 0.5) * u * 1.5;
     const r = u * 4.2;
+    // swinging gently from the envelope, the basket trailing behind the drift
+    c.save();
+    c.translate(hx, hy);
+    c.rotate(Math.sin(t * 0.9) * 0.07 - 0.03);
+    c.translate(-hx, -hy);
     c.beginPath();
     c.moveTo(hx - r * 0.55, hy + r * 0.85);
     c.lineTo(hx - r * 0.3, hy + r * 1.75);
@@ -3059,6 +3139,7 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
     c.fillStyle = "#fffdf5";
     c.fillRect(hx - r, hy - r * 0.12, r * 2, r * 0.24);
     c.restore();
+    c.restore();
   }
 
   // A far range, paler and softer-edged, the haze between it and the near peaks
@@ -3070,28 +3151,97 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   c.fillStyle = grey(mixHex(dark ? "#3b3570" : time === "evening" ? "#9b7fd4" : "#c4b5fd", SKY[2], 0.55));
   c.fill();
   stroke(line * 0.6, "rgba(0,0,0,.45)");
-  // Mountains behind the lake
-  c.beginPath();
-  c.moveTo(-line, h * 0.6);
-  [[0, 0.46], [0.14, 0.34], [0.3, 0.5], [0.45, 0.38], [0.62, 0.52], [0.8, 0.36], [1, 0.48]].forEach(([x, y]) => c.lineTo(w * x, h * y));
-  c.lineTo(w + line, h * 0.6);
-  c.closePath();
-  c.fillStyle = grey(dark ? "#3b3570" : time === "evening" ? "#9b7fd4" : "#c4b5fd");
+  // Mountains behind the lake (drawn again, upside down, in the water)
+  const RIDGE = [[0, 0.46], [0.14, 0.34], [0.3, 0.5], [0.45, 0.38], [0.62, 0.52], [0.8, 0.36], [1, 0.48]];
+  const ridge = (mapY = (y) => y) => {
+    c.beginPath();
+    c.moveTo(-line, mapY(h * 0.6));
+    RIDGE.forEach(([x, y]) => c.lineTo(w * x, mapY(h * y)));
+    c.lineTo(w + line, mapY(h * 0.6));
+    c.closePath();
+  };
+  const mountainColor = grey(dark ? "#3b3570" : time === "evening" ? "#9b7fd4" : "#c4b5fd");
+  ridge();
+  c.fillStyle = mountainColor;
   c.fill();
+  c.save();
+  c.clip();
+  // Each peak's far side from the light in shade, the edge kinked on the way down so it reads
+  // as a rock face rather than a wedge; a few gullies scored down the lit side
+  [1, 3, 5].forEach((p) => {
+    const [px, py] = RIDGE[p];
+    const [vx, vy] = RIDGE[p - lightSide];
+    c.beginPath();
+    c.moveTo(w * px, h * py);
+    c.lineTo(w * vx, h * vy);
+    c.lineTo(w * vx, h * 0.6);
+    c.lineTo(w * (px - lightSide * 0.012), h * 0.6);
+    c.lineTo(w * (px + lightSide * 0.014), h * (py + (0.6 - py) * 0.5));
+    c.lineTo(w * (px - lightSide * 0.004), h * (py + (0.6 - py) * 0.22));
+    c.closePath();
+    c.fillStyle = shade(mountainColor, 0.3);
+    c.fill();
+    c.beginPath();
+    [[0.024, 0.085, 0.036, 0.15], [0.058, 0.1, 0.07, 0.16], [0.012, 0.13, 0.016, 0.2]].forEach(([x0, y0, x1, y1]) => {
+      c.moveTo(w * (px + lightSide * x0), h * (py + y0));
+      c.lineTo(w * (px + lightSide * x1), h * (py + y1));
+    });
+    stroke(line * 0.55, shade(mountainColor, 0.18));
+  });
+  // the clouds' shadows sliding over the slopes, cast away from the light
+  c.fillStyle = SHADE;
+  c.globalAlpha = (dark ? 0.2 : 0.14) * (1 + rain * 0.5);
+  cloudSpots.forEach(([x, s], i) => {
+    c.beginPath();
+    c.ellipse(x - lightSide * s * 0.7, h * (0.44 + (i % 2) * 0.06), s * 1.25, s * 0.42, -lightSide * 0.12, 0, Math.PI * 2);
+    c.fill();
+  });
+  c.globalAlpha = 1;
+  c.restore();
+  ridge();
   stroke();
-  // Snow caps
+  // Snow caps, their shaded half a cool blue-grey
   [[0.14, 0.34], [0.45, 0.38], [0.8, 0.36]].forEach(([x, y]) => {
+    const cap = () => {
+      c.beginPath();
+      c.moveTo(w * x, h * y);
+      c.lineTo(w * (x + 0.045), h * (y + 0.05));
+      c.lineTo(w * (x + 0.015), h * (y + 0.04));
+      c.lineTo(w * (x - 0.02), h * (y + 0.055));
+      c.lineTo(w * (x - 0.05), h * (y + 0.05));
+      c.closePath();
+    };
+    const snow = dark ? "#c9c5dc" : "#fffdf5";
+    cap();
+    c.fillStyle = snow;
+    c.fill();
+    c.save();
+    c.clip();
     c.beginPath();
     c.moveTo(w * x, h * y);
-    c.lineTo(w * (x + 0.045), h * (y + 0.05));
-    c.lineTo(w * (x + 0.015), h * (y + 0.04));
-    c.lineTo(w * (x - 0.02), h * (y + 0.055));
-    c.lineTo(w * (x - 0.05), h * (y + 0.05));
+    c.lineTo(w * (x - lightSide * 0.06), h * (y + 0.06));
+    c.lineTo(w * (x + lightSide * 0.004), h * (y + 0.06));
     c.closePath();
-    c.fillStyle = dark ? "#c9c5dc" : "#fffdf5";
+    c.fillStyle = shade(snow, 0.2);
     c.fill();
+    c.restore();
+    cap();
     stroke(line * 0.8);
   });
+
+  // Mist hanging along the foot of the mountains, drifting and thinning as it goes
+  c.fillStyle = mixHex(SKY[2], "#ffffff", dark ? 0.1 : 0.45);
+  for (let i = 0; i < 4; i++) {
+    const mw = w * (0.22 + (i % 2) * 0.1);
+    const mx = wrapX(((i * 0.31) % 1) * w + t * u * (0.5 + i * 0.25), mw);
+    const my = h * (0.535 + (i % 3) * 0.015) + Math.sin(t * 0.5 + i * 2) * u * 0.4;
+    const mh = u * (1.4 + (i % 2) * 0.6) * (0.85 + 0.15 * Math.sin(t * 0.7 + i));
+    c.globalAlpha = (dark ? 0.25 : 0.45) * (0.7 + 0.3 * Math.sin(t * 0.4 + i * 1.7));
+    c.beginPath();
+    c.roundRect(mx - mw / 2, my - mh / 2, mw, mh, mh / 2);
+    c.fill();
+  }
+  c.globalAlpha = 1;
 
   // The far shore: a low green bank with round bushes, a few houses (lit up at night, smoke
   // curling from a chimney) and a lighthouse on the point, its beam sweeping after dark
@@ -3101,7 +3251,8 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   for (let x = 0; x <= 1.001; x += 0.05) c.lineTo(w * x, bank - h * (0.012 + 0.01 * Math.sin(x * 17)));
   c.lineTo(w + line, bank + line);
   c.closePath();
-  c.fillStyle = grey(dark ? "#245239" : "#5fbf6a");
+  const bankColor = grey(dark ? "#245239" : "#5fbf6a");
+  c.fillStyle = bankColor;
   c.fill();
   stroke(line * 0.8);
   [0.04, 0.11, 0.17, 0.42, 0.5, 0.84, 0.9].forEach((x, i) => blob([[w * x, bank - h * 0.018, u * (1.6 + (i % 3) * 0.5)]], grey(dark ? "#1f5c3a" : "#2f9e57"), 0));
@@ -3110,18 +3261,32 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
     const hw = u * (3.4 + (i % 2) * 0.6);
     const hh = u * 2.6;
     const base = bank - h * 0.008;
+    c.fillStyle = grey("#fffdf5");
+    c.fillRect(hx - hw / 2, base - hh, hw, hh);
+    // the gable end turned from the light, and the roof's slope on that side, in shade
+    c.fillStyle = shade(grey("#fffdf5"), 0.25);
+    c.fillRect(lightSide > 0 ? hx - hw / 2 : hx + hw * 0.18, base - hh, hw * 0.32, hh);
     c.beginPath();
     c.rect(hx - hw / 2, base - hh, hw, hh);
-    c.fillStyle = grey("#fffdf5");
-    c.fill();
     stroke(line * 0.7);
-    c.beginPath();
-    c.moveTo(hx - hw * 0.62, base - hh);
-    c.lineTo(hx, base - hh - u * 2.2);
-    c.lineTo(hx + hw * 0.62, base - hh);
-    c.closePath();
+    const gable = () => {
+      c.beginPath();
+      c.moveTo(hx - hw * 0.62, base - hh);
+      c.lineTo(hx, base - hh - u * 2.2);
+      c.lineTo(hx + hw * 0.62, base - hh);
+      c.closePath();
+    };
+    gable();
     c.fillStyle = grey(roof);
     c.fill();
+    c.beginPath();
+    c.moveTo(hx, base - hh - u * 2.2);
+    c.lineTo(hx - lightSide * hw * 0.62, base - hh);
+    c.lineTo(hx, base - hh);
+    c.closePath();
+    c.fillStyle = shade(grey(roof), 0.3);
+    c.fill();
+    gable();
     stroke(line * 0.7);
     c.fillStyle = dark ? "#ffdd00" : "#30437f";
     c.fillRect(hx - u * 0.6, base - hh * 0.7, u * 1.2, u * 1.1);
@@ -3167,6 +3332,8 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   c.clip();
   c.fillStyle = grey("#e5484d");
   [0.25, 0.6].forEach((k) => c.fillRect(lx - u * 2, lBase - (lBase - lTop) * k - u * 0.7, u * 4, u * 1.4));
+  c.fillStyle = dark ? "rgba(11,16,48,.35)" : "rgba(59,58,122,.22)";
+  c.fillRect(lightSide > 0 ? lx - u * 2 : lx + u * 0.35, lTop, u * 1.65, lBase - lTop);
   c.restore();
   stroke(line * 0.7);
   c.beginPath();
@@ -3186,19 +3353,112 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   // The lake: ripples sliding, the sun/moon's reflection wobbling, a little sailboat
   const lakeTop = h * 0.58;
   const lakeBottom = h * 0.78;
-  c.fillStyle = grey(dark ? "#172554" : "#3b82f6");
+  const lakeColor = grey(dark ? "#172554" : "#3b82f6");
+  c.fillStyle = lakeColor;
   c.fillRect(0, lakeTop, w, lakeBottom - lakeTop);
+  c.save();
+  c.beginPath();
+  c.rect(0, lakeTop, w, lakeBottom - lakeTop);
+  c.clip();
+  // The far bank and the mountains mirrored in the water: squashed, sunk into its colour and
+  // cut into thin bands that each sway on their own beat, more the further out from the bank
+  // and fainter too, so the reflection wobbles like water instead of sitting there as a stamp
+  const mirrored = (y) => lakeTop + (lakeTop - y) * 0.55;
+  const reflectFill = mixHex(lakeColor, mountainColor, dark ? 0.3 : 0.38);
+  const band = u * 1.1;
+  for (let y = lakeTop, k = 0; y < lakeTop + h * 0.14; y += band, k++) {
+    const depth = (y - lakeTop) / (h * 0.14);
+    const dx = (Math.sin(t * 1.7 + k * 0.9) * 0.6 + Math.sin(t * 0.9 - k * 0.45) * 0.4) * u * (0.3 + depth * 1.6);
+    c.save();
+    c.beginPath();
+    c.rect(0, y, w, band + 0.5);
+    c.clip();
+    c.translate(dx, 0);
+    c.globalAlpha = 1 - depth * 0.55;
+    ridge(mirrored);
+    c.fillStyle = reflectFill;
+    c.fill();
+    c.restore();
+  }
+  // the far bank's green right under it, its lower edge rippling
+  c.beginPath();
+  c.moveTo(0, lakeTop);
+  for (let x = 0; x <= w + u * 2; x += u * 2) c.lineTo(x, lakeTop + u * (1.6 + 0.35 * Math.sin(t * 2 + x / (u * 3))));
+  c.lineTo(w + u * 2, lakeTop);
+  c.closePath();
+  c.fillStyle = mixHex(lakeColor, bankColor, 0.5);
+  c.fill();
+  // soft breaks of open water drifting through it, rounded at the ends, stretching and easing
+  for (let i = 0; i < 7; i++) {
+    const y = lakeTop + u * (2.6 + i * 1.9);
+    const len = w * (0.12 + (i % 3) * 0.06) * (0.75 + 0.25 * Math.sin(t * 0.7 + i * 2.3));
+    const x = wrapX(((i * 0.37) % 1) * w + t * u * (0.6 + (i % 3) * 0.35) + Math.sin(t * 0.8 + i * 1.7) * u * 3, w * 0.3);
+    c.beginPath();
+    c.moveTo(x, y);
+    c.quadraticCurveTo(x + len / 2, y + Math.sin(t * 1.3 + i) * u * 0.5, x + len, y);
+    stroke(u * (0.5 + (i % 2) * 0.35), lakeColor);
+  }
+  // deeper water toward the near shore
+  c.fillStyle = shade(lakeColor, 0.18);
+  c.fillRect(0, lakeBottom - u * 3.2, w, u * 3.2);
+  // the gust darkening the water as it crosses (a cat's paw), ruffled with short strokes
+  if (gustFront > -0.1 && gustFront < 1.1) {
+    const gx = gustFront * w;
+    const gy = lakeTop + (lakeBottom - lakeTop) * 0.55;
+    c.globalAlpha = 0.18;
+    c.fillStyle = SHADE;
+    c.beginPath();
+    c.ellipse(gx - w * 0.06, gy, w * 0.14, (lakeBottom - lakeTop) * 0.32, 0, 0, Math.PI * 2);
+    c.fill();
+    c.globalAlpha = 0.6;
+    c.beginPath();
+    for (let k = 0; k < 6; k++) {
+      const rx = gx - w * (0.02 + ((k * 0.37) % 1) * 0.16);
+      const ry = gy + ((k * 0.61) % 1 - 0.5) * (lakeBottom - lakeTop) * 0.45;
+      c.moveTo(rx, ry);
+      c.lineTo(rx + u * 2, ry);
+    }
+    stroke(line * 0.5, glow(lakeColor, 0.5));
+    c.globalAlpha = 1;
+  }
+  // glints twinkling on the water under the sun (or moon)
+  c.fillStyle = dark ? "#fffdf5" : glow(sunColor, 0.6);
+  for (let k = 0; k < 6; k++) {
+    const g = Math.max(0, Math.sin(t * 2.6 + k * 2.1));
+    const gs = u * 1.3 * g * g * g * (1 - rain);
+    if (gs < u * 0.1) continue;
+    const gx = sx + ((k * 0.618) % 1 - 0.5) * sr * 3.2;
+    const gy = lakeTop + u * 2.5 + ((k * 0.382) % 1) * (lakeBottom - lakeTop) * 0.6;
+    c.beginPath();
+    c.moveTo(gx, gy - gs);
+    c.quadraticCurveTo(gx, gy, gx + gs, gy);
+    c.quadraticCurveTo(gx, gy, gx, gy + gs);
+    c.quadraticCurveTo(gx, gy, gx - gs, gy);
+    c.quadraticCurveTo(gx, gy, gx, gy - gs);
+    c.fill();
+  }
+  c.restore();
   c.beginPath();
   c.moveTo(0, lakeTop);
   c.lineTo(w, lakeTop);
   stroke();
-  for (let i = 0; i < 4; i++) {
-    const bar = sr * (1.5 - i * 0.3) * (1 + 0.15 * Math.sin(t * 3 + i));
-    c.globalAlpha = 1 - rain * 0.85;
-    c.fillStyle = sunColor;
-    c.fillRect(sx - bar / 2 + Math.sin(t * 2 + i * 2) * u, lakeTop + u * 2 + i * u * 2.6, bar, u * 1.2);
-    c.globalAlpha = 1;
+  // the sun's (or moon's) path on the water: broken dashes that slide, stretch and blink,
+  // narrowing with distance from the bank
+  c.fillStyle = sunColor;
+  for (let i = 0; i < 5; i++) {
+    const rowY = lakeTop + u * 2 + i * u * 2.3;
+    const span = sr * (1.6 - i * 0.22);
+    for (let k = 0; k < 3; k++) {
+      const phase = t * (1.4 + k * 0.3) + i * 1.9 + k * 2.4;
+      const len = span * (0.24 + 0.16 * Math.sin(phase));
+      const cx = sx + Math.sin(phase * 0.7 + k) * span * 0.18 + (k - 1) * span * 0.32;
+      c.globalAlpha = (1 - rain * 0.85) * (0.7 + 0.3 * Math.sin(phase * 1.3));
+      c.beginPath();
+      c.roundRect(cx - len / 2, rowY, len, u, u * 0.5);
+      c.fill();
+    }
   }
+  c.globalAlpha = 1;
   // Rings spreading on the lake where the rain lands
   for (let i = 0; i < Math.round(rain * 10); i++) {
     const life = (t * 0.9 + i * 0.37) % 1;
@@ -3210,16 +3470,24 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
     stroke(line * 0.5, "#cdf6ff");
     c.globalAlpha = 1;
   }
-  for (let i = 0; i < 9; i++) {
-    const row = i % 4;
-    const dir = row % 2 ? 1 : -1;
-    const x = wrapX(((i * 0.29) % 1) * w + dir * t * u * (2 + row), u * 10);
-    const y = lakeTop + u * 3.5 + row * (lakeBottom - lakeTop - u * 6) / 3;
+  // Currents: little wavy strokes that fade in, drift along stretching out, and fade away
+  // again somewhere new, each lane at its own pace (quicker nearer the shore)
+  for (let i = 0; i < 10; i++) {
+    const lane = i % 4;
+    const dir = lane % 2 ? 1 : -1;
+    const run = t * (0.12 + lane * 0.05) + i * 0.37;
+    const life = run % 1;
+    const fade = Math.sin(life * Math.PI);
+    const x0 = ((i * 0.29 + Math.floor(run) * 0.53) % 1) * w * 0.9 + dir * life * u * 14;
+    const y = lakeTop + u * 3.5 + lane * (lakeBottom - lakeTop - u * 6) / 3 + Math.sin(t + i) * u * 0.3;
+    const len = u * (4 + (i % 3) * 2) * (0.6 + fade * 0.6);
+    c.globalAlpha = fade * (dark ? 0.8 : 0.95);
     c.beginPath();
-    c.moveTo(x, y);
-    c.lineTo(x + u * (5 + (i % 3) * 2), y);
-    stroke(line * 0.8, dark ? "#7fb2ff" : "#cdf6ff");
+    c.moveTo(x0, y);
+    for (let k = 1; k <= 4; k++) c.quadraticCurveTo(x0 + (len * (k - 0.5)) / 4, y + (k % 2 ? -1 : 1) * u * 0.55, x0 + (len * k) / 4, y);
+    stroke(line * 0.7, dark ? "#7fb2ff" : "#cdf6ff");
   }
+  c.globalAlpha = 1;
   const bx = w * 0.3 + Math.sin(t * 0.22) * w * 0.14;
   const by = lakeTop + (lakeBottom - lakeTop) * 0.45 + Math.sin(t * 2) * u * 0.6;
   c.save();
@@ -3272,21 +3540,57 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   }
 
   // Grass, flowers, and trees swaying on the near shore
-  c.fillStyle = grey(dark ? "#2f6b45" : "#8fd694");
+  const grassColor = grey(dark ? "#2f6b45" : "#8fd694");
+  c.fillStyle = grassColor;
   c.fillRect(0, lakeBottom, w, h - lakeBottom);
+  // the bank's lip in shade where it drops to the water, and tufts swaying in the breeze
+  c.fillStyle = shade(grassColor, 0.2);
+  c.fillRect(0, lakeBottom, w, u * 1.4);
+  c.beginPath();
+  GRASS_TUFTS.forEach(({ x, y, s: k }) => {
+    const gx = w * x;
+    const gy = lakeBottom + u * 3 + y * (h - lakeBottom - u * 3);
+    const sway = wind(x, y * 0.1) * u * 0.9;
+    const g = u * 1.5 * k;
+    c.moveTo(gx - g * 0.5 + sway, gy - g * 1.1);
+    c.quadraticCurveTo(gx - g * 0.2, gy - g * 0.3, gx, gy);
+    c.quadraticCurveTo(gx + sway * 0.5, gy - g * 0.8, gx + sway * 1.3, gy - g * 1.5);
+    c.moveTo(gx, gy);
+    c.quadraticCurveTo(gx + g * 0.3, gy - g * 0.4, gx + g * 0.7 + sway, gy - g * 0.95);
+  });
+  stroke(line * 0.5, shade(grassColor, 0.32));
   c.beginPath();
   c.moveTo(0, lakeBottom);
   c.lineTo(w, lakeBottom);
   stroke();
   // A sandy path winding down to a little wooden pier
-  c.beginPath();
-  c.moveTo(w * 0.47, h + line);
-  c.bezierCurveTo(w * 0.44, h * 0.9, w * 0.6, h * 0.86, w * 0.53, lakeBottom);
-  c.lineTo(w * 0.58, lakeBottom);
-  c.bezierCurveTo(w * 0.66, h * 0.86, w * 0.52, h * 0.92, w * 0.57, h + line);
-  c.closePath();
-  c.fillStyle = grey(dark ? "#8a7a5a" : "#f3d9a4");
+  const path = () => {
+    c.beginPath();
+    c.moveTo(w * 0.47, h + line);
+    c.bezierCurveTo(w * 0.44, h * 0.9, w * 0.6, h * 0.86, w * 0.53, lakeBottom);
+    c.lineTo(w * 0.58, lakeBottom);
+    c.bezierCurveTo(w * 0.66, h * 0.86, w * 0.52, h * 0.92, w * 0.57, h + line);
+    c.closePath();
+  };
+  const pathColor = grey(dark ? "#8a7a5a" : "#f3d9a4");
+  path();
+  c.fillStyle = pathColor;
   c.fill();
+  // pebbles pressed into it, each with a shaded underside
+  c.save();
+  c.clip();
+  [[0.505, 0.975, 1], [0.54, 0.94, 0.8], [0.52, 0.915, 0.6], [0.565, 0.885, 0.9], [0.585, 0.85, 0.7], [0.56, 0.815, 0.6], [0.55, 0.79, 0.5]].forEach(([x, y, k]) => {
+    c.beginPath();
+    c.ellipse(w * x, h * y, u * 1.1 * k, u * 0.6 * k, 0, 0, Math.PI * 2);
+    c.fillStyle = shade(pathColor, 0.35);
+    c.fill();
+    c.beginPath();
+    c.ellipse(w * x + lightSide * u * 0.15 * k, h * y - u * 0.18 * k, u * 0.8 * k, u * 0.38 * k, 0, 0, Math.PI * 2);
+    c.fillStyle = glow(pathColor, 0.35);
+    c.fill();
+  });
+  c.restore();
+  path();
   stroke(line * 0.7);
   const pierTop = lakeBottom - (lakeBottom - lakeTop) * 0.34;
   [0.535, 0.575].forEach((x) => {
@@ -3314,7 +3618,7 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   }
   // Reeds and cattails at the water's edge, swaying
   [0.24, 0.255, 0.27, 0.285, 0.72, 0.735, 0.75].forEach((x, i) => {
-    const sway = Math.sin(t * 1.4 + i) * u * 0.6;
+    const sway = (wind(x) + Math.sin(t * 2.2 + i) * 0.08) * u * 1.3;
     const top = lakeBottom - u * (4 + (i % 3) * 1.4);
     c.beginPath();
     c.moveTo(w * x, lakeBottom + u * 1.5);
@@ -3331,113 +3635,244 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
       c.restore();
     }
   });
-  // Flowers on the near shore, each on a swaying stem with a leaf or two: daisies (a ring of
-  // petals round a yellow eye), tulips (a cupped head of three petals) and round blooms
+  // Flowers on the near shore, drawn the way the rest of the view is: one clean black
+  // silhouette (stroked wide, then filled over), a shade side away from the light and a sheen
+  // toward it. Daisies face us a little tilted, tulips are closed cups, lavender stands in
+  // spikes. Stems are inked too, and each has a leaf or two reaching up and out.
   const stemColor = dark ? "#14532d" : "#166534";
+  const leafColor = dark ? "#1f5c3a" : "#2f9e57";
+  const ink = (width = line * 1.1) => stroke(width, "#000");
   const leaf = (x, y, side, size) => {
+    const L = size * 1.3;
     c.save();
     c.translate(x, y);
-    c.rotate(side * 0.9);
+    c.scale(side, 1);
+    c.rotate(-0.55);
     c.beginPath();
     c.moveTo(0, 0);
-    c.quadraticCurveTo(size * 0.6, -size * 0.45, size * 1.2, 0);
-    c.quadraticCurveTo(size * 0.6, size * 0.45, 0, 0);
-    c.fillStyle = dark ? "#1f5c3a" : "#2f9e57";
+    c.quadraticCurveTo(L * 0.45, -L * 0.4, L, 0);
+    c.quadraticCurveTo(L * 0.5, L * 0.32, 0, 0);
+    c.closePath();
+    ink();
+    c.fillStyle = leafColor;
     c.fill();
-    stroke(line * 0.5);
+    c.beginPath();
+    c.moveTo(0, 0);
+    c.lineTo(L, 0);
+    c.quadraticCurveTo(L * 0.5, L * 0.32, 0, 0);
+    c.fillStyle = shade(leafColor, 0.3);
+    c.fill();
+    c.beginPath();
+    c.moveTo(L * 0.08, 0);
+    c.quadraticCurveTo(L * 0.5, -L * 0.06, L * 0.86, 0);
+    stroke(line * 0.35, shade(leafColor, 0.5));
     c.restore();
   };
   const FLOWERS = [
     [0.36, 0.86, "#ff90e8", "daisy"], [0.43, 0.93, "#ffdd00", "tulip"], [0.62, 0.885, "#fffdf5", "daisy"],
-    [0.69, 0.95, "#ff6b6b", "tulip"], [0.3, 0.95, "#ffdd00", "round"], [0.75, 0.86, "#c4b5fd", "round"], [0.4, 0.99, "#fffdf5", "daisy"],
+    [0.69, 0.95, "#ff6b6b", "tulip"], [0.3, 0.95, "#a78bfa", "lavender"], [0.75, 0.86, "#c4b5fd", "lavender"], [0.4, 0.99, "#fffdf5", "daisy"],
   ];
   FLOWERS.forEach(([x, y, color, kind], i) => {
     // big enough to read their petals in the window close-up
     const fu = u * 1.7;
-    const sway = Math.sin(t * 1.5 + i) * fu * 0.4;
+    // the heads trail their stems a beat, and bob a touch on their own
+    const sway = (wind(x, 0.12) + Math.sin(t * 2.4 + i * 1.7) * 0.06) * fu * 0.7;
     const bx = w * x;
     const by = h * y + fu * 3.4;
     const fx = bx + sway;
     const fy = h * y;
     const petal = dark ? mixHex(color, "#3b3570", 0.45) : color;
-    c.beginPath();
-    c.moveTo(bx, by);
-    c.quadraticCurveTo(bx, (by + fy) / 2, fx, fy);
-    stroke(line * 0.7, stemColor);
-    leaf(bx + sway * 0.3, by - fu * 1.3, i % 2 ? 1 : -1, fu * 1.6);
-    if (kind === "daisy") {
-      for (let k = 0; k < 7; k++) {
-        const a = (k / 7) * Math.PI * 2 + t * 0.2 + i;
-        c.save();
-        c.translate(fx + Math.cos(a) * fu * 0.95, fy + Math.sin(a) * fu * 0.95);
-        c.rotate(a);
-        c.beginPath();
-        c.ellipse(0, 0, fu * 0.85, fu * 0.42, 0, 0, Math.PI * 2);
-        c.fillStyle = petal;
-        c.fill();
-        stroke(line * 0.45);
-        c.restore();
-      }
-      blob([[fx, fy, fu * 0.6]], dark ? "#b8a24a" : "#ffb35c", 0);
-    } else if (kind === "tulip") {
-      c.save();
-      c.translate(fx, fy);
-      c.rotate(sway / (fu * 8));
+    const tilt = sway / (fu * 6);
+    const stem = () => {
       c.beginPath();
-      c.moveTo(-fu * 1.1, -fu * 0.6);
-      c.lineTo(-fu * 0.55, -fu * 1.5);
-      c.lineTo(0, -fu * 0.75);
-      c.lineTo(fu * 0.55, -fu * 1.5);
-      c.lineTo(fu * 1.1, -fu * 0.6);
-      c.quadraticCurveTo(fu * 1.1, fu * 0.8, 0, fu * 0.8);
-      c.quadraticCurveTo(-fu * 1.1, fu * 0.8, -fu * 1.1, -fu * 0.6);
-      c.closePath();
+      c.moveTo(bx, by);
+      c.quadraticCurveTo(bx, (by + fy) / 2, fx, fy + fu * 0.3);
+    };
+    stem();
+    ink(line * 1.25);
+    stem();
+    stroke(line * 0.6, stemColor);
+    leaf(bx + sway * 0.25, by - fu * 1.1, i % 2 ? 1 : -1, fu * 1.4);
+    if (kind === "lavender") leaf(bx + sway * 0.1, by - fu * 0.4, i % 2 ? -1 : 1, fu * 1.1);
+    c.save();
+    c.translate(fx, fy);
+    c.rotate(tilt);
+    if (kind === "daisy") {
+      // seen a little from above: squashed, nine petals, each with a crease down its middle
+      c.scale(1, 0.82);
+      const N = 9;
+      const petals = () => {
+        c.beginPath();
+        for (let k = 0; k < N; k++) {
+          const a = (k / N) * Math.PI * 2 + i;
+          const px = Math.cos(a) * fu * 1.05;
+          const py = Math.sin(a) * fu * 1.05;
+          c.moveTo(px + Math.cos(a) * fu * 0.68, py + Math.sin(a) * fu * 0.68);
+          c.ellipse(px, py, fu * 0.68, fu * 0.3, a, 0, Math.PI * 2);
+        }
+      };
+      petals();
+      ink();
       c.fillStyle = petal;
       c.fill();
-      stroke(line * 0.55);
-      c.beginPath();
-      c.moveTo(0, -fu * 0.6);
-      c.lineTo(0, fu * 0.5);
-      stroke(line * 0.35, "rgba(0,0,0,.35)");
+      c.save();
+      c.clip();
+      c.fillStyle = shade(petal, 0.22);
+      c.fillRect(-fu * 3, fu * 0.2, fu * 6, fu * 3);
       c.restore();
-    } else {
-      // a round bloom: five petals of overlapping circles, a darker heart
-      const parts = [];
-      for (let k = 0; k < 5; k++) {
-        const a = (k / 5) * Math.PI * 2 - Math.PI / 2;
-        parts.push([fx + Math.cos(a) * fu * 0.7, fy + Math.sin(a) * fu * 0.7, fu * 0.7]);
+      c.beginPath();
+      for (let k = 0; k < N; k++) {
+        const a = (k / N) * Math.PI * 2 + i;
+        c.moveTo(Math.cos(a) * fu * 0.65, Math.sin(a) * fu * 0.65);
+        c.lineTo(Math.cos(a) * fu * 1.4, Math.sin(a) * fu * 1.4);
       }
-      blob(parts, petal, 0);
-      blob([[fx, fy, fu * 0.4]], dark ? "#2a2f45" : "#1a1714", 0);
+      stroke(line * 0.3, shade(petal, 0.35));
+      // the eye: a domed yellow heart, freckled, lit on top
+      const eye = dark ? "#c9a227" : "#ffb800";
+      c.beginPath();
+      c.arc(0, 0, fu * 0.55, 0, Math.PI * 2);
+      ink();
+      c.fillStyle = eye;
+      c.fill();
+      c.beginPath();
+      c.arc(0, 0, fu * 0.55, 0.15, Math.PI - 0.15);
+      c.fillStyle = shade(eye, 0.28);
+      c.fill();
+      c.fillStyle = shade(eye, 0.45);
+      [[-0.2, -0.05], [0.18, 0.08], [0.02, 0.25], [-0.05, -0.28], [0.25, -0.2]].forEach(([dx, dy]) => c.fillRect(fu * dx - u * 0.18, fu * dy - u * 0.18, u * 0.36, u * 0.36));
+      c.beginPath();
+      c.ellipse(lightSide * fu * 0.18, -fu * 0.22, fu * 0.2, fu * 0.11, 0, 0, Math.PI * 2);
+      c.fillStyle = glow(eye, 0.6);
+      c.fill();
+    } else if (kind === "tulip") {
+      // a closed cup: two petals behind, one in front with its edges overlapping theirs
+      const cup = () => {
+        c.beginPath();
+        c.moveTo(-fu * 0.95, -fu * 0.85);
+        c.quadraticCurveTo(-fu * 1.2, fu * 0.75, 0, fu * 0.85);
+        c.quadraticCurveTo(fu * 1.2, fu * 0.75, fu * 0.95, -fu * 0.85);
+        c.quadraticCurveTo(fu * 0.8, -fu * 0.4, fu * 0.42, -fu * 0.55);
+        c.quadraticCurveTo(fu * 0.28, -fu * 1.3, 0, -fu * 1.3);
+        c.quadraticCurveTo(-fu * 0.28, -fu * 1.3, -fu * 0.42, -fu * 0.55);
+        c.quadraticCurveTo(-fu * 0.8, -fu * 0.4, -fu * 0.95, -fu * 0.85);
+        c.closePath();
+      };
+      cup();
+      ink();
+      c.fillStyle = petal;
+      c.fill();
+      c.save();
+      c.clip();
+      c.fillStyle = shade(petal, 0.25);
+      c.fillRect(lightSide > 0 ? -fu * 2 : fu * 0.3, -fu * 2, fu * 1.7, fu * 4);
+      c.restore();
+      c.beginPath();
+      c.moveTo(-fu * 0.42, -fu * 0.55);
+      c.quadraticCurveTo(-fu * 0.5, fu * 0.2, -fu * 0.15, fu * 0.75);
+      c.moveTo(fu * 0.42, -fu * 0.55);
+      c.quadraticCurveTo(fu * 0.5, fu * 0.2, fu * 0.15, fu * 0.75);
+      stroke(line * 0.4, shade(petal, 0.45));
+      c.beginPath();
+      c.moveTo(lightSide * fu * 0.68, -fu * 0.45);
+      c.quadraticCurveTo(lightSide * fu * 0.78, 0, lightSide * fu * 0.6, fu * 0.35);
+      stroke(line * 0.55, glow(petal, 0.55));
+    } else {
+      // lavender: a spike of florets, smaller toward the tip, alternating sides
+      const florets = [];
+      for (let k = 0; k < 7; k++) {
+        const s = 1 - k * 0.09;
+        florets.push([(k % 2 ? 1 : -1) * fu * 0.22 * s, fu * 0.6 - k * fu * 0.42, fu * 0.42 * s, fu * 0.3 * s]);
+      }
+      const spike = () => {
+        c.beginPath();
+        florets.forEach(([dx, dy, rx, ry]) => {
+          c.moveTo(dx + rx, dy);
+          c.ellipse(dx, dy, rx, ry, 0, 0, Math.PI * 2);
+        });
+      };
+      spike();
+      ink();
+      c.fillStyle = petal;
+      c.fill();
+      c.beginPath();
+      florets.forEach(([dx, dy, rx, ry]) => {
+        c.moveTo(dx - lightSide * rx * 0.2 + rx * 0.75, dy + ry * 0.25);
+        c.ellipse(dx - lightSide * rx * 0.2, dy + ry * 0.25, rx * 0.75, ry * 0.7, 0, 0, Math.PI * 2);
+      });
+      c.fillStyle = shade(petal, 0.3);
+      c.fill();
+      c.fillStyle = glow(petal, 0.55);
+      florets.forEach(([dx, dy, rx, ry]) => c.fillRect(dx + lightSide * rx * 0.35 - u * 0.2, dy - ry * 0.45, u * 0.4, u * 0.3));
     }
+    c.restore();
   });
   const tree = (x, scale, i, round) => {
     const base = h * 0.97;
+    // its shadow stretched across the grass, away from the light
+    c.globalAlpha = dark ? 0.32 : 0.24;
+    c.fillStyle = SHADE;
+    c.beginPath();
+    c.ellipse(w * x - lightSide * u * 5 * scale, base, u * 9 * scale, u * 1.8 * scale, 0, 0, Math.PI * 2);
+    c.fill();
+    c.globalAlpha = 1;
     c.save();
     c.translate(w * x, base);
-    c.rotate(Math.sin(t * 1.1 + i * 1.3) * 0.035);
+    // the trunk bends a little with the wind, the crown a beat later and a little further
+    const bend = wind(x);
+    c.rotate(bend * 0.035);
+    const bark = "#8b5a2b";
+    const tw = u * 1.2 * scale;
+    c.fillStyle = bark;
+    c.fillRect(-tw, -u * 10 * scale, tw * 2, u * 10 * scale);
+    // a shaded side down the trunk, and a few knots and grain marks in the bark
+    c.fillStyle = shade(bark, 0.35);
+    c.fillRect(lightSide > 0 ? -tw : tw * 0.2, -u * 10 * scale, tw * 0.8, u * 10 * scale);
     c.beginPath();
-    c.rect(-u * 1.2 * scale, -u * 10 * scale, u * 2.4 * scale, u * 10 * scale);
-    c.fillStyle = "#8b5a2b";
-    c.fill();
+    [[-0.3, 2.5, 1.6], [0.35, 5, 1.2], [-0.1, 7.5, 1.4]].forEach(([bx, by, len]) => {
+      c.moveTo(tw * bx, -u * by * scale);
+      c.quadraticCurveTo(tw * (bx + 0.3), -u * (by + len * 0.5) * scale, tw * bx, -u * (by + len) * scale);
+    });
+    stroke(line * 0.45, shade(bark, 0.55));
+    c.beginPath();
+    c.rect(-tw, -u * 10 * scale, tw * 2, u * 10 * scale);
     stroke();
+    c.translate(0, -u * 10 * scale);
+    c.rotate((wind(x, 0.28) * 1.4 - bend) * 0.035 + Math.sin(t * 1.7 + i) * 0.006);
+    c.translate(0, u * 10 * scale);
     if (round) {
       const r = u * 6 * scale;
-      blob([[-r * 0.6, -u * 13 * scale, r * 0.75], [r * 0.6, -u * 13 * scale, r * 0.7], [0, -u * 18 * scale, r]], dark ? "#1f5c3a" : "#22a65c");
+      celBlob([[-r * 0.6, -u * 13 * scale, r * 0.75], [r * 0.6, -u * 13 * scale, r * 0.7], [0, -u * 18 * scale, r]], dark ? "#1f5c3a" : "#22a65c", r);
     } else {
+      const pine = dark ? "#14532d" : "#166534";
       [[-u * 8, -u * 18, u * 7], [-u * 14, -u * 30, u * 5.5]].forEach(([bottom, top, half]) => {
-        c.beginPath();
-        c.moveTo(0, top * scale);
-        c.lineTo(half * scale, bottom * scale);
-        c.lineTo(-half * scale, bottom * scale);
-        c.closePath();
+        const tier = () => {
+          c.beginPath();
+          c.moveTo(0, top * scale);
+          c.lineTo(half * scale, bottom * scale);
+          c.lineTo(-half * scale, bottom * scale);
+          c.closePath();
+        };
+        tier();
         c.fillStyle = "#000";
         c.save();
         c.translate(line * 1.4, line * 1.4);
         c.fill();
         c.restore();
-        c.fillStyle = dark ? "#14532d" : "#166534";
+        c.fillStyle = pine;
         c.fill();
+        // the half turned from the light in shade, a lit edge catching it on the other
+        c.beginPath();
+        c.moveTo(0, top * scale);
+        c.lineTo(-lightSide * half * scale, bottom * scale);
+        c.lineTo(lightSide * half * 0.12 * scale, bottom * scale);
+        c.closePath();
+        c.fillStyle = shade(pine, 0.35);
+        c.fill();
+        c.beginPath();
+        c.moveTo(lightSide * half * 0.12 * scale, (top + (bottom - top) * 0.22) * scale);
+        c.lineTo(lightSide * half * 0.72 * scale, (bottom - u * 0.9) * scale);
+        stroke(line * 0.7, glow(pine, 0.35));
+        tier();
         stroke();
       });
     }
@@ -3447,6 +3882,24 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   tree(0.22, 0.9, 1, true);
   tree(0.85, 1.05, 2, false);
   tree(0.96, 0.8, 3, true);
+
+  // Petals and leaves carried along in the gust, tumbling as they go
+  if (!dark && rain < 0.3 && gustFront > 0 && gustFront < 1.3) {
+    for (let k = 0; k < 6; k++) {
+      const px = (gustFront - 0.04 - k * 0.05) * w;
+      const py = h * (0.6 + ((k * 0.377) % 1) * 0.3) - gustFront * h * 0.08 + Math.sin(t * 3 + k * 2) * u * 2;
+      c.save();
+      c.translate(px, py);
+      c.rotate(t * (4 + k) + k);
+      c.scale(1, 0.35 + 0.65 * Math.abs(Math.sin(t * 5 + k)));
+      c.beginPath();
+      c.ellipse(0, 0, u * 1.1, u * 0.6, 0, 0, Math.PI * 2);
+      c.fillStyle = k % 3 ? "#ff90e8" : "#8fd694";
+      c.fill();
+      stroke(line * 0.4);
+      c.restore();
+    }
+  }
 
   // Birds by day (a few always about, a flock when called), fireflies by night
   const bird = (x, y, s, flap) => {
@@ -3472,16 +3925,38 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
       }
     }
   } else if (dark && rain < 0.3) {
+    // Fireflies wander on two loose loops at different beats, so no two paths fall in step,
+    // and blink the way they do: a quick swell, a slower fade, then dark for a while. A lit one
+    // leaves a short fading trail of where it just was.
+    const flyAt = (fly, at) => [
+      w * fly.x + (Math.sin(at * 0.43 + fly.p) * 3 + Math.sin(at * 1.13 + fly.p * 2.3) * 1.2) * u,
+      h * fly.y + (Math.sin(at * 0.61 + fly.p * 1.7) * 1.8 + Math.cos(at * 1.37 + fly.p) * 0.8) * u - Math.max(0, Math.sin(at * 0.2 + fly.p)) * u * 4,
+    ];
     VIEW_FLIES.forEach((fly) => {
-      const on = Math.sin(t * 2.3 + fly.p);
-      if (on < 0.1) return;
-      const x = w * fly.x + Math.sin(t * 0.7 + fly.p) * u * 3;
-      const y = h * fly.y + Math.sin(t * 1.1 + fly.p * 2) * u * 1.5;
-      const s = u * 0.9 * (0.6 + on * 0.6);
-      c.fillStyle = "#000";
-      c.fillRect(x - s / 2 - line * 0.4, y - s / 2 - line * 0.4, s + line * 0.8, s + line * 0.8);
-      c.fillStyle = "#ffdd00";
-      c.fillRect(x - s / 2, y - s / 2, s, s);
+      const cyc = (t * 0.32 + fly.p * 0.37) % 1;
+      const rise = cyc < 0.1 ? cyc / 0.1 : cyc < 0.45 ? 1 - (cyc - 0.1) / 0.35 : 0;
+      const g = rise * rise * (3 - 2 * rise);
+      if (g < 0.03) return;
+      const [x, y] = flyAt(fly, t);
+      const halo = c.createRadialGradient(x, y, 0, x, y, u * 3.4 * (0.5 + g * 0.5));
+      halo.addColorStop(0, `rgba(255,240,120,${0.6 * g})`);
+      halo.addColorStop(1, "rgba(255,240,120,0)");
+      c.fillStyle = halo;
+      c.fillRect(x - u * 3.5, y - u * 3.5, u * 7, u * 7);
+      c.fillStyle = "#fff6a0";
+      [0.12, 0.24].forEach((ago, k) => {
+        const [px, py] = flyAt(fly, t - ago);
+        c.globalAlpha = g * (0.45 - k * 0.2);
+        c.beginPath();
+        c.arc(px, py, u * (0.4 - k * 0.1), 0, Math.PI * 2);
+        c.fill();
+      });
+      c.globalAlpha = 1;
+      c.beginPath();
+      c.arc(x, y, u * (0.4 + g * 0.25), 0, Math.PI * 2);
+      c.fillStyle = mixHex("#8a7a2a", "#fffbd0", g);
+      c.fill();
+      stroke(line * 0.35, "#1a1714");
     });
   }
 
@@ -3513,50 +3988,61 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   c.fillRect(w / 2 - bar * 0.15, 0, bar * 0.3, h);
   c.fillRect(0, h / 2 - bar * 0.15, w, bar * 0.3);
 
-  // Water on the glass: fine beads all over, and bigger drops that cling, then run, leaving a
-  // tapering wet trail with a few beads left behind in it
+  // Water on the glass. Each drop is a little lens: it shows the view behind it upside down
+  // and shrunk, with a dark rim along its top, a bright caustic inside its lower edge and a
+  // pinpoint of light. The bigger ones cling and swell, then let go and run in a quick
+  // stick-slip zigzag, leaving a wet trail that dries again while they wait.
   if (rain > 0.05) {
     const wet = Math.min(1, rain * 1.3);
-    // a drop: a rounded teardrop, clear and a touch blue, catching the light at its top-left
-    // and glinting at its bottom-right, with a faint shadow cast on the glass beside it
-    const drop = (x, y, r, stretch = 1) => {
-      const tip = r * (1.5 + (stretch - 1) * 1.2);
+    // the drops refract a snapshot of the finished view, not the canvas they're drawing into
+    if (!glassCopy) glassCopy = document.createElement("canvas");
+    if (glassCopy.width !== w || glassCopy.height !== h) Object.assign(glassCopy, { width: w, height: h });
+    glassCopy.getContext("2d").drawImage(c.canvas, 0, 0);
+    const lens = (x, y, rx, ry, stretch = 0) => {
+      // a dome, its weight low; running, it draws up into a short tail
       const shape = () => {
         c.beginPath();
-        c.moveTo(x, y - tip);
-        c.bezierCurveTo(x + r * 0.35, y - tip * 0.55, x + r, y - r * 0.4, x + r, y);
-        c.arc(x, y, r, 0, Math.PI);
-        c.bezierCurveTo(x - r, y - r * 0.4, x - r * 0.35, y - tip * 0.55, x, y - tip);
+        c.moveTo(x - rx, y);
+        c.bezierCurveTo(x - rx, y - ry * 1.33 * (1 + stretch * 1.4), x + rx, y - ry * 1.33 * (1 + stretch * 1.4), x + rx, y);
+        c.bezierCurveTo(x + rx, y + ry * 1.38, x - rx, y + ry * 1.38, x - rx, y);
         c.closePath();
       };
       c.save();
-      c.translate(r * 0.35, r * 0.4);
       shape();
-      c.fillStyle = "rgba(10,20,40,.18)";
+      c.clip();
+      const R = Math.max(rx, ry) * 3.2;
+      c.translate(x, y);
+      c.scale(1, -1);
+      c.drawImage(glassCopy, x - R, y - R, R * 2, R * 2, -rx * 1.15, -ry * 1.4, rx * 2.3, ry * 2.8);
+      c.restore();
+      c.save();
+      shape();
+      c.clip();
+      c.fillStyle = dark ? "rgba(140,170,255,.18)" : "rgba(200,230,255,.22)";
       c.fill();
+      // the dark rim along the top, the bright caustic low inside
+      c.beginPath();
+      c.ellipse(x, y - ry * 0.25, rx * 1.05, ry * 1.1, 0, Math.PI * 1.05, Math.PI * 1.95);
+      c.lineWidth = Math.max(1.5, ry * 0.5);
+      c.strokeStyle = "rgba(10,20,45,.55)";
+      c.stroke();
+      c.beginPath();
+      c.ellipse(x, y + ry * 0.05, rx * 0.7, ry * 0.75, 0, Math.PI * 0.2, Math.PI * 0.8);
+      c.lineWidth = Math.max(1.2, ry * 0.28);
+      c.strokeStyle = "rgba(255,255,255,.8)";
+      c.stroke();
       c.restore();
       shape();
-      const body = c.createLinearGradient(x, y - tip, x, y + r);
-      body.addColorStop(0, "rgba(255,255,255,.55)");
-      body.addColorStop(0.55, dark ? "rgba(150,180,240,.35)" : "rgba(190,225,255,.4)");
-      body.addColorStop(1, dark ? "rgba(70,95,160,.55)" : "rgba(110,160,215,.55)");
-      c.fillStyle = body;
-      c.fill();
-      c.lineWidth = Math.max(1, u * 0.22);
-      c.strokeStyle = "rgba(10,20,40,.55)";
-      c.stroke();
-      // the highlight: a crescent hugging the upper-left, and a glint low on the right
-      c.beginPath();
-      c.arc(x - r * 0.12, y - r * 0.05, r * 0.62, Math.PI * 1.05, Math.PI * 1.6);
-      c.lineWidth = Math.max(1, r * 0.28);
-      c.strokeStyle = "rgba(255,255,255,.9)";
+      c.lineWidth = Math.max(1, u * 0.2);
+      c.strokeStyle = "rgba(10,20,45,.6)";
       c.stroke();
       c.beginPath();
-      c.arc(x + r * 0.45, y + r * 0.45, r * 0.16, 0, Math.PI * 2);
-      c.fillStyle = "rgba(255,255,255,.85)";
+      c.ellipse(x - rx * 0.35, y - ry * 0.4, rx * 0.2, ry * 0.15, -0.5, 0, Math.PI * 2);
+      c.fillStyle = "#fff";
       c.fill();
     };
     c.globalAlpha = wet;
+    // fine beads: little domes, a darker top edge and a pinpoint of light
     GLASS_BEADS.forEach((b, i) => {
       if (i / GLASS_BEADS.length > rain + 0.15) return;
       const x = b.x * w;
@@ -3564,44 +4050,56 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
       const r = b.r * u;
       c.beginPath();
       c.arc(x, y, r, 0, Math.PI * 2);
-      c.fillStyle = dark ? "rgba(170,195,255,.35)" : "rgba(220,240,255,.5)";
+      c.fillStyle = dark ? "rgba(170,195,255,.22)" : "rgba(230,245,255,.35)";
       c.fill();
-      c.lineWidth = Math.max(0.8, u * 0.12);
-      c.strokeStyle = "rgba(10,20,40,.35)";
-      c.stroke();
-      c.fillStyle = "rgba(255,255,255,.9)";
       c.beginPath();
-      c.arc(x - r * 0.3, y - r * 0.3, r * 0.3, 0, Math.PI * 2);
-      c.fill();
+      c.arc(x, y, r, Math.PI * 1.1, Math.PI * 1.9);
+      c.lineWidth = Math.max(1, r * 0.35);
+      c.strokeStyle = "rgba(10,20,45,.35)";
+      c.stroke();
+      c.beginPath();
+      c.arc(x, y, r * 0.7, Math.PI * 0.25, Math.PI * 0.75);
+      c.lineWidth = Math.max(0.8, r * 0.25);
+      c.strokeStyle = "rgba(255,255,255,.7)";
+      c.stroke();
     });
     GLASS_DROPS.forEach((d, i) => {
-      // They hold still most of the time, then run
-      const slide = Math.max(0, Math.sin(t * 0.6 + i * 1.9)) ** 6;
-      const y = ((d.y + t * d.v + slide * 0.04) % 1) * h;
-      const x = d.x * w + Math.sin(i + (y / h) * 6) * u * 0.4;
-      const r = d.r * u;
-      // the wet trail above it: a narrow, fading streak, longer while it's running
-      const trail = r * (3 + slide * 9);
+      // stick-slip: hold and swell for most of each beat, then run down a step and stop
+      const beat = t * (0.18 + d.v * 6) + i * 0.61;
+      const n = Math.floor(beat);
+      const f = beat - n;
+      const run = f < 0.72 ? 0 : 1 - (1 - (f - 0.72) / 0.28) ** 3;
+      const step = 0.05 + d.v * 2;
+      const y = (((d.y + (n + run) * step) % 1.1) - 0.05) * h;
+      const sideAt = (k) => Math.sin(k * 1.9 + i * 2.7) * u * 1.6;
+      const x = d.x * w + sideAt(n) + (sideAt(n + 1) - sideAt(n)) * run;
+      const r = d.r * u * 1.35 * (0.85 + 0.25 * Math.min(1, f / 0.72));
+      // fading in at the top so a drop that wraps round never pops
+      const fadeIn = Math.min(1, (y + 0.05 * h) / (0.08 * h));
+      c.globalAlpha = wet * fadeIn;
+      // the wet trail: drawn out while it runs, drying back while it holds
+      const trail = r * (1.5 + (f < 0.72 ? 9 * Math.exp(-f * 5) : 2 + run * 9));
       const streak = c.createLinearGradient(x, y - trail, x, y);
-      streak.addColorStop(0, "rgba(255,255,255,0)");
-      streak.addColorStop(1, dark ? "rgba(190,210,255,.35)" : "rgba(235,248,255,.5)");
+      streak.addColorStop(0, "rgba(220,240,255,0)");
+      streak.addColorStop(1, dark ? "rgba(170,195,255,.35)" : "rgba(230,245,255,.45)");
+      const tail = x - (sideAt(n + 1) - sideAt(n)) * run;
       c.beginPath();
-      c.moveTo(x - r * 0.12, y - trail);
-      c.quadraticCurveTo(x - r * 0.5, y - trail * 0.4, x - r * 0.55, y - r);
-      c.lineTo(x + r * 0.55, y - r);
-      c.quadraticCurveTo(x + r * 0.5, y - trail * 0.4, x + r * 0.12, y - trail);
+      c.moveTo(tail - r * 0.15, y - trail);
+      c.quadraticCurveTo(tail - r * 0.35, y - trail * 0.4, x - r * 0.4, y - r * 0.4);
+      c.lineTo(x + r * 0.4, y - r * 0.4);
+      c.quadraticCurveTo(tail + r * 0.35, y - trail * 0.4, tail + r * 0.15, y - trail);
       c.closePath();
       c.fillStyle = streak;
       c.fill();
-      // beads left behind in the trail
-      [0.45, 0.75].forEach((k, j) => {
-        if (slide < 0.05 && j) return;
+      // a bead or two left behind in it
+      if (trail > r * 3) {
+        c.fillStyle = "rgba(255,255,255,.6)";
         c.beginPath();
-        c.arc(x + (j ? -1 : 1) * r * 0.15, y - trail * k, r * (0.22 - j * 0.06), 0, Math.PI * 2);
-        c.fillStyle = "rgba(255,255,255,.7)";
+        c.arc(tail + r * 0.1, y - trail * 0.6, r * 0.16, 0, Math.PI * 2);
+        c.arc(tail - r * 0.12, y - trail * 0.85, r * 0.11, 0, Math.PI * 2);
         c.fill();
-      });
-      drop(x, y, r, 1 + slide * 0.5);
+      }
+      lens(x, y, r, r * 0.9, run * (1 - run) * 2);
     });
     c.globalAlpha = 1;
   }
@@ -4916,171 +5414,357 @@ export function weatherKind(code) {
   return ["—", "cloudy"];
 }
 
-// A little flat icon for a kind of weather, `s` across, centred on (x, y)
+// A little icon for a kind of weather, `s` across, centred on (x, y): flat colours with a
+// shaded underside and a sheen up top, like the rest of the desk's cartoon props
 function weatherIcon(c, x, y, s, kind, night = false) {
   const ink = "#1a1714";
+  c.save();
   c.lineJoin = "round";
   c.lineCap = "round";
   c.lineWidth = s * 0.05;
   c.strokeStyle = ink;
-  const sun = (cx, cy, r) => {
-    if (night) {
-      c.beginPath();
-      c.arc(cx, cy, r, Math.PI * 0.35, Math.PI * 1.65);
-      c.arc(cx + r * 0.45, cy - r * 0.1, r * 0.8, Math.PI * 1.55, Math.PI * 0.45, true);
-      c.closePath();
-      c.fillStyle = "#fff3b0";
-      c.fill();
-      c.stroke();
-      return;
-    }
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 8) * Math.PI * 2;
-      c.beginPath();
-      c.moveTo(cx + Math.cos(a) * r * 1.3, cy + Math.sin(a) * r * 1.3);
-      c.lineTo(cx + Math.cos(a) * r * 1.65, cy + Math.sin(a) * r * 1.65);
-      c.stroke();
-    }
-    c.beginPath();
-    c.arc(cx, cy, r, 0, Math.PI * 2);
-    c.fillStyle = "#ffcf3a";
-    c.fill();
-    c.stroke();
-  };
-  const cloud = (cx, cy, r, fill = "#fffdf5") => {
-    c.beginPath();
-    c.arc(cx - r * 0.75, cy + r * 0.15, r * 0.55, Math.PI * 0.5, Math.PI * 1.5);
-    c.arc(cx - r * 0.15, cy - r * 0.25, r * 0.7, Math.PI * 1.05, Math.PI * 1.9);
-    c.arc(cx + r * 0.65, cy + r * 0.1, r * 0.6, Math.PI * 1.35, Math.PI * 0.5);
-    c.closePath();
+  // fill a shape, shade the part of it `below` traces (it may name a fill rule), add a sheen,
+  // then ink its edge
+  const cel = (path, fill, below, sheen) => {
+    path();
     c.fillStyle = fill;
     c.fill();
+    c.save();
+    c.clip();
+    c.fillStyle = mixHex(fill, "#3b3a7a", 0.22);
+    c.fill(below() || "nonzero");
+    if (sheen) {
+      c.fillStyle = "rgba(255,255,255,.75)";
+      sheen();
+      c.fill();
+    }
+    c.restore();
+    path();
     c.stroke();
   };
-  if (kind === "clear") return sun(x, y, s * 0.26);
-  if (kind === "partly") {
-    sun(x - s * 0.14, y - s * 0.12, s * 0.19);
-    return cloud(x + s * 0.08, y + s * 0.1, s * 0.3);
-  }
-  if (kind === "cloudy") {
+  const sun = (cx, cy, r) => {
+    if (night) {
+      const moon = () => {
+        c.beginPath();
+        c.arc(cx, cy, r, Math.PI * 0.35, Math.PI * 1.65);
+        c.arc(cx + r * 0.45, cy - r * 0.1, r * 0.8, Math.PI * 1.55, Math.PI * 0.45, true);
+        c.closePath();
+      };
+      cel(moon, "#fff3b0", () => {
+        c.beginPath();
+        c.arc(cx - r * 0.2, cy + r * 0.35, r * 0.9, 0, Math.PI * 2);
+      });
+      c.fillStyle = "#e6d27a";
+      [[-0.55, -0.2, 0.13], [-0.35, 0.35, 0.09]].forEach(([dx, dy, k]) => {
+        c.beginPath();
+        c.arc(cx + dx * r, cy + dy * r, k * r, 0, Math.PI * 2);
+        c.fill();
+      });
+      return;
+    }
+    // rays: long and short in turn, each a rounded wedge
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const len = i % 2 ? 1.5 : 1.75;
+      c.save();
+      c.translate(cx, cy);
+      c.rotate(a);
+      c.beginPath();
+      c.moveTo(r * 1.22, -r * 0.13);
+      c.lineTo(r * len, 0);
+      c.lineTo(r * 1.22, r * 0.13);
+      c.closePath();
+      c.fillStyle = i % 2 ? "#ffb02e" : "#ffcf3a";
+      c.fill();
+      c.stroke();
+      c.restore();
+    }
+    cel(() => {
+      c.beginPath();
+      c.arc(cx, cy, r, 0, Math.PI * 2);
+    }, "#ffcf3a", () => {
+      // everything outside a circle nudged up and left: a crescent of shade low on the right
+      c.beginPath();
+      c.arc(cx - r * 0.25, cy - r * 0.3, r * 1.05, 0, Math.PI * 2);
+      c.rect(cx - r * 2, cy - r * 2, r * 4, r * 4);
+      return "evenodd";
+    }, () => {
+      c.beginPath();
+      c.ellipse(cx - r * 0.38, cy - r * 0.42, r * 0.26, r * 0.15, -0.6, 0, Math.PI * 2);
+    });
+  };
+  const cloud = (cx, cy, r, fill = "#fffdf5") => {
+    const shape = () => {
+      c.beginPath();
+      c.arc(cx - r * 0.75, cy + r * 0.15, r * 0.55, Math.PI * 0.5, Math.PI * 1.5);
+      c.arc(cx - r * 0.15, cy - r * 0.25, r * 0.7, Math.PI * 1.05, Math.PI * 1.9);
+      c.arc(cx + r * 0.65, cy + r * 0.1, r * 0.6, Math.PI * 1.35, Math.PI * 0.5);
+      c.closePath();
+    };
+    cel(shape, fill, () => {
+      c.beginPath();
+      c.rect(cx - r * 2, cy + r * 0.28, r * 4, r * 2);
+    }, () => {
+      c.beginPath();
+      c.ellipse(cx - r * 0.3, cy - r * 0.55, r * 0.26, r * 0.11, -0.25, 0, Math.PI * 2);
+    });
+  };
+  const drop = (px, py, k) => {
+    c.beginPath();
+    c.moveTo(px, py - k * 1.3);
+    c.quadraticCurveTo(px + k, py + k * 0.2, px, py + k);
+    c.quadraticCurveTo(px - k, py + k * 0.2, px, py - k * 1.3);
+    c.fillStyle = "#5fb3ff";
+    c.fill();
+    c.stroke();
+    c.beginPath();
+    c.arc(px - k * 0.3, py + k * 0.05, k * 0.22, 0, Math.PI * 2);
+    c.fillStyle = "#fffdf5";
+    c.fill();
+  };
+  if (kind === "clear") sun(x, y, s * 0.24);
+  else if (kind === "partly") {
+    sun(x - s * 0.14, y - s * 0.12, s * 0.18);
+    cloud(x + s * 0.08, y + s * 0.1, s * 0.3);
+  } else if (kind === "cloudy") {
     cloud(x + s * 0.12, y - s * 0.08, s * 0.24, "#c9d1dc");
-    return cloud(x - s * 0.04, y + s * 0.08, s * 0.32);
-  }
-  if (kind === "fog") {
+    cloud(x - s * 0.04, y + s * 0.08, s * 0.32);
+  } else if (kind === "fog") {
     cloud(x, y - s * 0.12, s * 0.28, "#dfe4ea");
     [0.16, 0.3].forEach((dy, i) => {
       c.beginPath();
-      c.moveTo(x - s * (0.32 - i * 0.06), y + s * dy);
-      c.lineTo(x + s * (0.32 - i * 0.1), y + s * dy);
+      const x0 = x - s * (0.32 - i * 0.06);
+      const x1 = x + s * (0.32 - i * 0.1);
+      c.moveTo(x0, y + s * dy);
+      for (let k = 1; k <= 4; k++) c.quadraticCurveTo(x0 + ((k - 0.5) / 4) * (x1 - x0), y + s * (dy + (k % 2 ? -0.03 : 0.03)), x0 + (k / 4) * (x1 - x0), y + s * dy);
       c.stroke();
     });
-    return;
-  }
-  cloud(x, y - s * 0.1, s * 0.3, kind === "storm" ? "#9aa5b5" : "#dfe6f0");
-  if (kind === "storm") {
-    c.beginPath();
-    c.moveTo(x + s * 0.02, y + s * 0.06);
-    c.lineTo(x - s * 0.1, y + s * 0.26);
-    c.lineTo(x + s * 0.02, y + s * 0.26);
-    c.lineTo(x - s * 0.06, y + s * 0.44);
-    c.lineTo(x + s * 0.16, y + s * 0.18);
-    c.lineTo(x + s * 0.04, y + s * 0.18);
-    c.closePath();
-    c.fillStyle = "#ffdd00";
-    c.fill();
-    c.stroke();
-    return;
-  }
-  [-0.16, 0, 0.16].forEach((dx, i) => {
-    const px = x + s * dx;
-    const py = y + s * (0.22 + (i % 2) * 0.08);
-    c.beginPath();
-    if (kind === "snow") c.arc(px, py, s * 0.035, 0, Math.PI * 2);
-    else {
-      c.moveTo(px, py - s * 0.06);
-      c.quadraticCurveTo(px + s * 0.045, py + s * 0.02, px, py + s * 0.05);
-      c.quadraticCurveTo(px - s * 0.045, py + s * 0.02, px, py - s * 0.06);
+  } else {
+    cloud(x, y - s * 0.1, s * 0.3, kind === "storm" ? "#9aa5b5" : "#dfe6f0");
+    if (kind === "storm") {
+      const bolt = () => {
+        c.beginPath();
+        c.moveTo(x + s * 0.02, y + s * 0.06);
+        c.lineTo(x - s * 0.1, y + s * 0.26);
+        c.lineTo(x + s * 0.02, y + s * 0.26);
+        c.lineTo(x - s * 0.06, y + s * 0.44);
+        c.lineTo(x + s * 0.16, y + s * 0.18);
+        c.lineTo(x + s * 0.04, y + s * 0.18);
+        c.closePath();
+      };
+      cel(bolt, "#ffdd00", () => {
+        c.beginPath();
+        c.rect(x + s * 0.03, y, s * 0.3, s * 0.5);
+      });
+    } else {
+      [-0.16, 0, 0.16].forEach((dx, i) => {
+        const px = x + s * dx;
+        const py = y + s * (0.24 + (i % 2) * 0.08);
+        if (kind !== "snow") return drop(px, py, s * 0.05);
+        c.beginPath();
+        for (let k = 0; k < 3; k++) {
+          const a = (k / 3) * Math.PI;
+          c.moveTo(px - Math.cos(a) * s * 0.05, py - Math.sin(a) * s * 0.05);
+          c.lineTo(px + Math.cos(a) * s * 0.05, py + Math.sin(a) * s * 0.05);
+        }
+        c.stroke();
+      });
     }
-    c.fillStyle = kind === "snow" ? "#fffdf5" : "#5fb3ff";
-    c.fill();
-    c.stroke();
-  });
+  }
+  c.restore();
 }
 
 // The card: where and when, the weather right now (icon, temperature, what it's doing,
 // humidity and wind), then the next few days. `weather` is null while it loads, or has
-// `error` when it couldn't be fetched.
+// `error` when it couldn't be fetched. Card stock with a fine grain, taped to the wall.
 export function drawWeatherCard(c, w, h, { place, weather }) {
   c.clearRect(0, 0, w, h);
   const pad = w * 0.06;
   const ink = "#1a1714";
-  brutalBox(c, 6, 6, w - 30, h - 30, "#fffdf5", { shadow: 16, line: 7 });
-  // header
+  const cardW = w - 30;
+  const cardH = h - 30;
+  brutalBox(c, 6, 6, cardW, cardH, "#fffdf5", { shadow: 16, line: 7 });
+  c.save();
+  c.beginPath();
+  c.rect(10, 10, cardW - 8, cardH - 8);
+  c.clip();
+  // the stock: a faint grid and a scatter of fibres and flecks
+  c.fillStyle = "rgba(47,124,246,.06)";
+  for (let gx = 10; gx < cardW; gx += 36) c.fillRect(gx, 10, 2, cardH);
+  for (let gy = 10; gy < cardH; gy += 36) c.fillRect(10, gy, cardW, 2);
+  for (let i = 0; i < 700; i++) {
+    const fx = 10 + ((i * 0.6180339) % 1) * cardW;
+    const fy = 10 + ((i * 0.7548776 + 0.3) % 1) * cardH;
+    c.fillStyle = i % 3 ? "rgba(26,23,20,.07)" : "rgba(160,120,60,.09)";
+    c.fillRect(fx, fy, i % 5 ? 2 : 5, 2);
+  }
+  // header band: sky blue, a shaded lower edge, light diagonal stripes
   const bandH = h * 0.11;
   c.fillStyle = "#7fdfff";
-  c.fillRect(9, 9, w - 36, bandH);
+  c.fillRect(9, 9, cardW - 6, bandH);
+  c.fillStyle = "rgba(255,255,255,.28)";
+  for (let sx = -bandH; sx < cardW; sx += 34) {
+    c.beginPath();
+    c.moveTo(sx, 9 + bandH);
+    c.lineTo(sx + 12, 9 + bandH);
+    c.lineTo(sx + 12 + bandH, 9);
+    c.lineTo(sx + bandH, 9);
+    c.closePath();
+    c.fill();
+  }
+  c.fillStyle = "#4fc3ea";
+  c.fillRect(9, 9 + bandH - 9, cardW - 6, 9);
+  c.restore();
   c.fillStyle = ink;
-  c.fillRect(9, 9 + bandH, w - 36, 6);
+  c.fillRect(9, 9 + bandH, cardW - 6, 6);
+  // a map pin, then the place
+  const pinX = pad + h * 0.018;
+  const pinY = 9 + bandH / 2;
+  const pr = h * 0.02;
+  c.beginPath();
+  c.arc(pinX, pinY - pr * 0.4, pr, Math.PI * 0.85, Math.PI * 0.15);
+  c.lineTo(pinX, pinY + pr * 1.5);
+  c.closePath();
+  c.fillStyle = "#ff6b6b";
+  c.fill();
+  c.lineWidth = 4;
+  c.strokeStyle = ink;
+  c.lineJoin = "round";
+  c.stroke();
+  c.beginPath();
+  c.arc(pinX, pinY - pr * 0.4, pr * 0.38, 0, Math.PI * 2);
+  c.fillStyle = "#fffdf5";
+  c.fill();
+  c.stroke();
   c.textBaseline = "middle";
-  c.font = `900 ${Math.round(h * 0.045)}px 'Lexend Mega', sans-serif`;
-  c.fillText(`WEATHER · ${place.toUpperCase()}`, pad, 9 + bandH / 2 + 2);
-  const right = w - 30 - pad;
+  c.fillStyle = ink;
+  const title = `WEATHER · ${place.toUpperCase()}`;
+  const titleX = pinX + pr * 1.8;
+  let size = Math.round(h * 0.045);
+  c.font = `900 ${size}px 'Lexend Mega', sans-serif`;
+  while (c.measureText(title).width > cardW - titleX - pad * 0.4 && size > 12) c.font = `900 ${--size}px 'Lexend Mega', sans-serif`;
+  c.fillText(title, titleX, pinY + 2);
+  const right = cardW - pad;
   if (!weather || weather.error) {
     c.font = `600 ${Math.round(h * 0.04)}px 'Space Grotesk', sans-serif`;
     c.textAlign = "center";
-    c.fillText(weather?.error ? "Couldn't reach the forecast right now." : "Checking the sky…", (w - 30) / 2, h * 0.45);
+    c.fillText(weather?.error ? "Couldn't reach the forecast right now." : "Checking the sky…", cardW / 2, h * 0.45);
     c.textAlign = "left";
+    tape(c, w);
     return;
   }
   const { current, days, updated } = weather;
   const [label, kind] = weatherKind(current.code);
   const top = 9 + bandH + 6;
-  // now
-  weatherIcon(c, pad + w * 0.16, top + h * 0.17, w * 0.34, kind, !current.isDay);
-  c.font = `900 ${Math.round(h * 0.13)}px 'Lexend Mega', sans-serif`;
+  // now: the icon on a round badge tinted by the sky it shows
+  const badgeX = pad + w * 0.16;
+  const badgeY = top + h * 0.17;
+  const badgeR = w * 0.14;
+  const tint = !current.isDay ? "#c9c5ff" : kind === "clear" || kind === "partly" ? "#fff1b8" : kind === "storm" ? "#d9dcef" : "#d6ecff";
+  c.beginPath();
+  c.arc(badgeX + 7, badgeY + 7, badgeR, 0, Math.PI * 2);
   c.fillStyle = ink;
-  c.fillText(`${Math.round(current.temp)}°`, pad + w * 0.38, top + h * 0.13);
+  c.fill();
+  c.beginPath();
+  c.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
+  c.fillStyle = tint;
+  c.fill();
+  c.lineWidth = 5;
+  c.stroke();
+  weatherIcon(c, badgeX, badgeY, w * 0.3, kind, !current.isDay);
+  // the temperature in big type with a hard pink shadow
+  const temp = `${Math.round(current.temp)}°`;
+  c.font = `900 ${Math.round(h * 0.13)}px 'Lexend Mega', sans-serif`;
+  c.fillStyle = "#ff90e8";
+  c.fillText(temp, pad + w * 0.38 + 7, top + h * 0.13 + 7);
+  c.fillStyle = ink;
+  c.fillText(temp, pad + w * 0.38, top + h * 0.13);
   c.font = `700 ${Math.round(h * 0.042)}px 'Space Grotesk', sans-serif`;
   c.fillText(label, pad + w * 0.39, top + h * 0.235);
   c.font = `500 ${Math.round(h * 0.032)}px 'Space Grotesk', sans-serif`;
   c.fillStyle = "#4b4f57";
   c.fillText(`Now · updated ${updated}`, pad + w * 0.39, top + h * 0.285);
-  // humidity and wind chips
+  // humidity and wind chips, each with a drawn icon
   const chipY = top + h * 0.34;
-  [[`💧 ${current.humidity}%`, "#c4e6ff"], [`🌬 ${Math.round(current.wind)} km/h`, "#d9f7d6"]].forEach(([text, fill], i) => {
+  const chipH = h * 0.06;
+  [["humidity", `${current.humidity}%`, "#c4e6ff"], ["wind", `${Math.round(current.wind)} km/h`, "#d9f7d6"]].forEach(([icon, text, fill], i) => {
     c.font = `700 ${Math.round(h * 0.034)}px 'Space Grotesk', sans-serif`;
-    const cw = c.measureText(text).width + pad * 1.1;
+    const iconW = chipH * 0.7;
+    const cw = c.measureText(text).width + iconW + pad * 1.2;
     const cx = pad + i * (w * 0.4);
     c.fillStyle = ink;
-    c.fillRect(cx + 4, chipY + 4, cw, h * 0.06);
+    c.fillRect(cx + 5, chipY + 5, cw, chipH);
     c.fillStyle = fill;
-    c.fillRect(cx, chipY, cw, h * 0.06);
+    c.fillRect(cx, chipY, cw, chipH);
     c.lineWidth = 4;
     c.strokeStyle = ink;
-    c.strokeRect(cx, chipY, cw, h * 0.06);
+    c.strokeRect(cx, chipY, cw, chipH);
+    const ix = cx + pad * 0.45 + iconW / 2;
+    const iy = chipY + chipH / 2;
+    c.lineWidth = 3.5;
+    c.lineCap = "round";
+    if (icon === "humidity") {
+      const k = chipH * 0.22;
+      c.beginPath();
+      c.moveTo(ix, iy - k * 1.4);
+      c.quadraticCurveTo(ix + k * 1.1, iy + k * 0.2, ix, iy + k);
+      c.quadraticCurveTo(ix - k * 1.1, iy + k * 0.2, ix, iy - k * 1.4);
+      c.fillStyle = "#2f7cf6";
+      c.fill();
+      c.stroke();
+    } else {
+      const k = chipH * 0.24;
+      c.beginPath();
+      c.moveTo(ix - k * 1.3, iy - k * 0.6);
+      c.lineTo(ix + k * 0.6, iy - k * 0.6);
+      c.arc(ix + k * 0.6, iy - k * 1.05, k * 0.45, Math.PI / 2, -Math.PI * 0.9, true);
+      c.moveTo(ix - k * 1.3, iy + k * 0.35);
+      c.lineTo(ix + k * 1, iy + k * 0.35);
+      c.arc(ix + k * 1, iy + k * 0.85, k * 0.5, -Math.PI / 2, Math.PI * 0.9);
+      c.stroke();
+    }
     c.fillStyle = ink;
-    c.fillText(text, cx + pad * 0.55, chipY + h * 0.032);
+    c.fillText(text, cx + pad * 0.75 + iconW, chipY + h * 0.032);
   });
-  // the next days
+  // the next days, each on its own little card; today's picked out in yellow
   const rowY = top + h * 0.45;
   c.fillStyle = ink;
   c.fillRect(pad, rowY, right - pad, 4);
   const colW = (right - pad) / days.length;
+  const dayTop = rowY + h * 0.022;
+  const dayH = h * 0.29;
   days.forEach((d, i) => {
-    const cx = pad + colW * (i + 0.5);
+    const bx = pad + colW * i + 5;
+    const bw = colW - 16;
+    const cx = bx + bw / 2;
+    brutalBox(c, bx, dayTop, bw, dayH, i === 0 ? "#fff1a6" : "#eef8ff", { shadow: 6, line: 4 });
     c.textAlign = "center";
     c.fillStyle = ink;
-    c.font = `800 ${Math.round(h * 0.034)}px 'Space Grotesk', sans-serif`;
-    c.fillText(d.label, cx, rowY + h * 0.05);
-    weatherIcon(c, cx, rowY + h * 0.13, colW * 0.6, weatherKind(d.code)[1]);
+    c.font = `800 ${Math.round(h * 0.032)}px 'Space Grotesk', sans-serif`;
+    c.fillText(d.label, cx, dayTop + h * 0.03);
+    weatherIcon(c, cx, dayTop + h * 0.1, bw * 0.62, weatherKind(d.code)[1]);
     c.fillStyle = ink;
     c.font = `800 ${Math.round(h * 0.036)}px 'Space Grotesk', sans-serif`;
-    c.fillText(`${Math.round(d.max)}°`, cx, rowY + h * 0.225);
+    c.fillText(`${Math.round(d.max)}°`, cx - bw * 0.16, dayTop + h * 0.18);
     c.fillStyle = "#6b7280";
-    c.font = `600 ${Math.round(h * 0.03)}px 'Space Grotesk', sans-serif`;
-    c.fillText(`${Math.round(d.min)}°`, cx, rowY + h * 0.265);
+    c.font = `600 ${Math.round(h * 0.028)}px 'Space Grotesk', sans-serif`;
+    c.fillText(`${Math.round(d.min)}°`, cx + bw * 0.2, dayTop + h * 0.182);
+    // chance of rain as a little gauge
+    const rain = d.rain ?? 0;
+    const gx = bx + bw * 0.14;
+    const gw = bw * 0.72;
+    const gy = dayTop + h * 0.212;
+    const gh = h * 0.016;
+    c.fillStyle = "#fffdf5";
+    c.fillRect(gx, gy, gw, gh);
+    c.fillStyle = "#5fb3ff";
+    c.fillRect(gx, gy, (gw * rain) / 100, gh);
+    c.lineWidth = 3;
+    c.strokeStyle = ink;
+    c.strokeRect(gx, gy, gw, gh);
     c.fillStyle = "#2f7cf6";
-    c.fillText(`💧${d.rain ?? 0}%`, cx, rowY + h * 0.305);
+    c.font = `700 ${Math.round(h * 0.026)}px 'Space Grotesk', sans-serif`;
+    c.fillText(`${rain}% rain`, cx, dayTop + h * 0.258);
   });
   c.textAlign = "left";
   // attribution, as the forecast's licence asks
@@ -5089,6 +5773,30 @@ export function drawWeatherCard(c, w, h, { place, weather }) {
   c.textAlign = "right";
   c.fillText("Weather data by Open-Meteo.com", right, h - 30 - pad * 0.6);
   c.textAlign = "left";
+  tape(c, w);
+}
+// Two strips of yellow tape holding the card's top corners to the wall
+function tape(c, w) {
+  [[w * 0.1, 16, -0.45], [w * 0.86, 16, 0.4]].forEach(([x, y, a]) => {
+    c.save();
+    c.translate(x, y);
+    c.rotate(a);
+    const tw = 120;
+    const th = 34;
+    c.beginPath();
+    c.moveTo(-tw / 2, -th / 2);
+    for (let k = 0; k <= 4; k++) c.lineTo(-tw / 2 + (k % 2 ? 5 : 0), -th / 2 + (k * th) / 4);
+    for (let k = 0; k <= 4; k++) c.lineTo(tw / 2 - (k % 2 ? 5 : 0), th / 2 - (k * th) / 4);
+    c.closePath();
+    c.fillStyle = "rgba(255,221,0,.78)";
+    c.fill();
+    c.fillStyle = "rgba(255,255,255,.35)";
+    c.fillRect(-tw / 2 + 8, -th / 2 + 5, tw - 16, 5);
+    c.lineWidth = 2;
+    c.strokeStyle = "rgba(26,23,20,.35)";
+    c.stroke();
+    c.restore();
+  });
 }
 
 // ---------- book spines on the shelf ----------

@@ -35,11 +35,11 @@ for (const dpr of [0.8, 1, 1.5, 2, 2.5, 3]) {
 const start = source.indexOf('  let lastTick = 0;');
 const end = source.indexOf('    // Step size for the springs', start);
 for (const hz of [60, 90, 120, 144, 165]) {
-  for (const active of [false, true]) {
+  for (const active of [false, "interaction", "lighting"]) {
     const light = () => ({ shadow: {} });
     const scheduler = vm.createContext({ document: { hidden: false },
       sun: light(), windowLight: light(), lampLight: light(), refreshMs: 1000 / 60,
-      responsiveUntil: active ? Infinity : 0, gsap: { isTweening: () => false }, cam: {}, blind: {}, catIdleTl: null,
+      lightingBlending: active === "lighting", responsiveUntil: active === "interaction" ? Infinity : 0, gsap: { isTweening: () => false }, cam: {}, blind: {}, catIdleTl: null, THREE: require('three'), updateShaft() {},
       benchmark: null, createToonBatch: () => () => {}, scene: {}, renderer: {}, track: (x) => x,
       mouseRunning: false, lampHopping: false, trophyCelebrating: false, lanyardDrag: null, hatDrag: null, noteDrag: null, shelfDrag: null, stickyDrag: null,
       perfReadout: null, requestAnimationFrame() {}, frame: null, accepted: [] });

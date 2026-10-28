@@ -49,6 +49,7 @@ import {
   drawPainting,
   PAINTING_COUNT,
   drawWindowView,
+  windowSky,
   drawWallPaint,
   drawFur,
   drawSparkStreak,
@@ -207,11 +208,29 @@ if (benchmark !== "no-pcss" && !THREE.ShaderChunk.shadowmap_pars_fragment.includ
     );
 }
 
+// Toon bands that change colour, not just brightness, as a painter shades: the turned-away band
+// leans cool violet and the band at the turn, where light gives way to shade, runs a little
+// warm and saturated. Every toon material (the batched one too) picks it up, at the cost of a
+// multiply.
+if (benchmark !== "no-ramp" && !THREE.ShaderChunk.gradientmap_pars_fragment.includes("toonBand")) {
+  THREE.ShaderChunk.gradientmap_pars_fragment = THREE.ShaderChunk.gradientmap_pars_fragment.replace(
+    "return vec3( texture2D( gradientMap, coord ).r );",
+    `float toonBand = texture2D( gradientMap, coord ).r;
+		vec3 tint = mix( vec3( 0.86, 0.9, 1.12 ), vec3( 1.08, 1.0, 0.92 ), smoothstep( 0.3, 0.6, toonBand ) );
+		tint = mix( tint, vec3( 1.0 ), smoothstep( 0.8, 1.0, toonBand ) );
+		return vec3( toonBand ) * tint;`,
+  );
+}
+
 // Smallest area of the scene that always stays in view (world units)
 const VIEW_W = 21.5;
 const VIEW_H = 14.5;
 
 export function createDeskScene({ container, projects, experiences, dark = false, muted = false, onEvent = () => {} }) {
+  // Local preview links make each phase inspectable without waiting for the random cycle.
+  const previewTime = process.env.NODE_ENV === "development" ? perfParams.get("time") : null;
+  if (["morning", "day", "evening", "night"].includes(previewTime)) dark = previewTime === "night";
+  const previewRain = process.env.NODE_ENV === "development" ? THREE.MathUtils.clamp(Number(perfParams.get("rain")) || 0, 0, 1) : 0;
   let responsiveUntil = 0;
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -236,11 +255,36 @@ export function createDeskScene({ container, projects, experiences, dark = false
   composer.addPass(new RenderPass(scene, camera));
   const aoPass = new GTAOPass(scene, camera, 1, 1);
   aoPass.depthRenderMaterial.defines.PERSPECTIVE_CAMERA = 0;
-  aoPass.updateGtaoMaterial({ radius: 1.2, thickness: 1, distanceExponent: 1.5, scale: 1.4, samples: 12 });
-  aoPass.updatePdMaterial({ radius: 6, samples: 12, rings: 2 });
+  // Keep shallow wall gaps (sword racks, boards and shelf backs) readable even in diffuse
+  // light. More near-contact samples and a narrower denoise preserve thin silhouettes.
+  aoPass.updateGtaoMaterial({ radius: 1.6, thickness: 1.4, distanceExponent: 2, scale: 1.8, samples: 18 });
+  aoPass.updatePdMaterial({ radius: 2.5, samples: 12, rings: 2 });
+  // The occlusion is the costliest pass, and most of the time the room holds still: it's worked
+  // out afresh whenever the view or anything in it moves (see the frame loop), a few times a
+  // second otherwise (idle motion, the cat's breathing, is slow enough for the shading to trail
+  // it by a frame or two), and in between the last result is laid over the frame again
+  let aoDue = true;
   const aoSetSize = aoPass.setSize.bind(aoPass);
-  aoPass.setSize = (width, height) => aoSetSize(Math.ceil(width / 2), Math.ceil(height / 2));
-  aoPass.blendIntensity = 0.85;
+  aoPass.setSize = (width, height) => {
+    aoDue = true;
+    aoSetSize(width, height);
+  };
+  const aoRenderFresh = aoPass.render.bind(aoPass);
+  aoPass.render = (r, writeBuffer, readBuffer, ...rest) => {
+    if (aoDue || benchmark === "no-ao-cache") {
+      aoDue = false;
+      return aoRenderFresh(r, writeBuffer, readBuffer, ...rest);
+    }
+    // GTAOPass's own composite (OUTPUT.Default) over the cached, denoised occlusion
+    const into = aoPass.renderToScreen ? null : writeBuffer;
+    aoPass.copyMaterial.uniforms.tDiffuse.value = readBuffer.texture;
+    aoPass.copyMaterial.blending = THREE.NoBlending;
+    aoPass.renderPass(r, aoPass.copyMaterial, into);
+    aoPass.blendMaterial.uniforms.intensity.value = aoPass.blendIntensity;
+    aoPass.blendMaterial.uniforms.tDiffuse.value = aoPass.pdRenderTarget.texture;
+    aoPass.renderPass(r, aoPass.blendMaterial, into);
+  };
+  aoPass.blendIntensity = 0.88;
   const useFrameDepth = () => aoPass.setGBuffer(composer.readBuffer.depthTexture);
   useFrameDepth();
   [aoPass.gtaoMaterial, aoPass.pdMaterial].forEach((m) => (m.needsUpdate = true));
@@ -308,6 +352,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   }
 
   // Daylight enters from the upper panes of the left window, across the desk.
+  const roomLight = { night: dark ? 1 : 0 };
   const ambient = new THREE.AmbientLight(0xffffff, 1.15);
   scene.add(ambient);
   // Broad sky/floor bounce keeps the whole daytime room bright, beyond the window patch.
@@ -315,12 +360,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
   scene.add(skyFill);
   // Soft front fill reveals bevels without adding another directional shadow.
   const readabilityFill = new THREE.DirectionalLight(0xdde4ff, 0);
-  readabilityFill.position.set(7, 8, 12);
+  readabilityFill.position.set(-4, 6, 8);
   scene.add(readabilityFill);
   const sun = new THREE.DirectionalLight(0xfff1cc, 1.8);
-  // From the window side, in front of the desk, aimed toward the back wall: shadows fall to
-  // the right on the desk and up onto the wall behind the props
-  sun.position.set(-13, 9.5, 4.5);
+  // Broad sky/room bounce from the open front-left side gives all props a soft cast shadow.
+  // Its direction stays stable while the direct sunlight moves through the window.
+  sun.position.set(-7, 12, 8);
   sun.target.position.set(1, -0.5, -2.5);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -763,6 +808,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const backWallMat = toon("#ffffff");
   backWallMat.map = backWallPaint;
   const sideWallMat = toon("#ffffff");
+  // Matte paint needs a continuous response: the props' three toon bands turn overlapping
+  // strip lights into visible circular patches on these otherwise flat walls.
+  const wallGradient = track(new THREE.DataTexture(Uint8Array.from({ length: 256 }, (_, i) => Math.round(70 + i * 185 / 255)), 256, 1, THREE.RedFormat));
+  wallGradient.minFilter = wallGradient.magFilter = THREE.LinearFilter;
+  wallGradient.needsUpdate = true;
+  backWallMat.gradientMap = sideWallMat.gradientMap = wallGradient;
   sideWallMat.map = sideWallPaint;
   const trimMat = toon("#ffffff");
   const roomBox = (w, h, d, material, x, y, z, outline = 0.055) => {
@@ -773,14 +824,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   };
   roomBox(200, 0.25, 200, floorMat, 0, FLOOR_Y - 0.17, 1.2);
   roomBox(200, 100, 0.24, backWallMat, 0, FLOOR_Y + 50, WALL_Z);
-  // The room's ambient fill washes shadows off the wall, so the wall gets its own catcher: a
-  // plane just in front of it that only shows where something's shadow lands
-  const wallShadowMat = track(new THREE.ShadowMaterial({ color: "#1a1714", opacity: 0.32 }));
-  const wallShadows = new THREE.Mesh(track(new THREE.PlaneGeometry(40, 24)), wallShadowMat);
-  wallShadows.position.set(0, FLOOR_Y + 10, WALL_Z + 0.125);
-  wallShadows.receiveShadow = true;
-  wallShadows.raycast = noRaycast;
-  room.add(wallShadows);
+  // The wall materials already receive the real light's shadows. A separate ShadowMaterial
+  // mask would darken them even outside the window cookie or an indoor light's actual reach.
   // The side wall, with a real opening cut for the window (see the window below). Built as
   // its outline extruded through the wall's thickness, the opening as a hole in it.
   const WINDOW_AT = { y: 4.7, z: -1.1, w: 4.4, h: 4.5 };
@@ -806,24 +851,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const sideWall = mesh(sideWallGeo, sideWallMat, { outline: 0.055, cast: false });
   sideWall.position.x = SIDE_X - 0.12;
   room.add(sideWall);
-  const sideShadows = new THREE.Mesh(track(new THREE.PlaneGeometry(30, 24)), wallShadowMat);
-  sideShadows.rotation.y = Math.PI / 2;
-  sideShadows.position.set(SIDE_X + 0.135, FLOOR_Y + 10, 1.2);
-  sideShadows.receiveShadow = true;
-  sideShadows.raycast = noRaycast;
-  room.add(sideShadows);
   roomBox(200, 0.22, 0.16, trimMat, 0, FLOOR_Y + 0.17, WALL_Z + 0.23, 0.025);
   roomBox(0.16, 0.22, 200, trimMat, SIDE_X + 0.23, FLOOR_Y + 0.17, 1.2, 0.025);
 
-  // A hidden LED strip along the rear edge, with a soft wash on the wall above it.
-  const deskGlow = canvasTexture(256, 128);
-  track(deskGlow.texture);
-  const deskGlowGradient = deskGlow.ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
-  deskGlowGradient.addColorStop(0, "rgba(255,255,255,1)");
-  deskGlowGradient.addColorStop(0.45, "rgba(255,255,255,0.75)");
-  deskGlowGradient.addColorStop(1, "rgba(255,255,255,0)");
-  deskGlow.ctx.fillStyle = deskGlowGradient;
-  deskGlow.ctx.fillRect(0, 0, 256, 128);
+  // Rear LED strips illuminate surfaces through actual shadowed lights.
   const DESK_WASH = 0.45;
   // Every neon also lights the room for real: a point light that follows its glow (fade, flicker,
   // party), so the toon surfaces pick up the colour and the props throw coloured shadows
@@ -862,6 +893,26 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const light = shadowedNeons[neonShadowTurn];
     if (light.intensity > 0) light.shadow.needsUpdate = true;
   }
+  // Shared broad emitters for the desk and monitor strips. A flat inner cone and overlapping
+  // coverage keep the individual sample centres from reading as little spotlights.
+  const stripLight = (color, level, position, target, parent = scene) => {
+    const light = new THREE.SpotLight(color, 0, 4.5, 1.5, 0.12, 0);
+    light.position.set(...position);
+    light.target.position.set(...target);
+    light.castShadow = true;
+    light.shadow.mapSize.set(512, 512);
+    light.shadow.camera.near = 0.05;
+    light.shadow.bias = -0.0003;
+    light.shadow.normalBias = 0.015;
+    light.shadow.radius = 9;
+    light.shadow.autoUpdate = false;
+    light.shadow.needsUpdate = true;
+    shadowedNeons.push(light);
+    // ponytail: overlapping samples approximate a strip; true area shadows need a different renderer.
+    neonLights.push({ light, max: 1.1, level });
+    parent.add(light, light.target);
+    return light;
+  };
   const deskNeons = ["#00e0c6", "#ff90e8"].map((color, i) => {
     const x = i === 0 ? -3.5 : 3.5;
     const strip = new THREE.Mesh(
@@ -871,22 +922,17 @@ export function createDeskScene({ container, projects, experiences, dark = false
     // tucked just under the top's back edge, so only its light shows, never the strip itself
     strip.position.set(x, -0.3, -4.23);
     strip.raycast = noRaycast;
-    const washMat = track(new THREE.MeshBasicMaterial({
-      map: deskGlow.texture, color, transparent: true, depthWrite: false,
-      blending: THREE.AdditiveBlending, opacity: 0,
-    }));
-    // A broad, faint wash: the two colours meet softly behind the monitor instead of each
-    // lighting a flat band of wall
-    const wash = new THREE.Mesh(track(new THREE.PlaneGeometry(11, 3.6)), washMat);
-    wash.position.set(x, 1.8, WALL_Z + 0.15);
-    wash.raycast = noRaycast;
-    // Above the top's back edge: it washes the wall and the backs of the props, whose
-    // silhouettes rise up the wall in the strip's colour. Held a metre off the wall: any closer
-    // and the falloff burns a white hotspot onto it
-    const light = neonLight(color, 4, () => washMat.opacity / DESK_WASH, { distance: 9, shadow: true });
-    light.position.set(x, 0.5, WALL_Z + 1.1);
-    scene.add(strip, wash, light);
-    return { strip, washMat };
+    // Fade state only: no painted wall glow that can bypass an occluding prop.
+    const washMat = { opacity: 0 };
+    // Four broad samples retain the strip coverage and leave texture units for the
+    // monitor task light and textured/bump-mapped materials on 16-sampler GPUs.
+    const lights = Array.from({ length: 2 }, (_, sample) => {
+      const sx = x - 3.5 + (sample + 0.5) * 3.5;
+      return stripLight(color, () => 1.5 * washMat.opacity / DESK_WASH,
+        [sx, strip.position.y, strip.position.z], [sx, 2.5, WALL_Z + 0.12]);
+    });
+    scene.add(strip);
+    return { strip, washMat, lights };
   });
 
   // A framed illustration on the left wall: four panes, a sun/moon and angular trees.
@@ -910,10 +956,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // while it's zoomed in on, a few times a second otherwise
   // Start at a random daylight mood, then cycle in order with the room lighting.
   // Night joins the cycle and switches on the room's lamps automatically.
-  const outside = { t: 0, flockAt: -99, starAt: -99, drawnAt: 0, rain: 0, rainTarget: 0, clicks: [], night: dark };
+  const outside = { t: 0, flockAt: -99, starAt: -99, drawnAt: 0, rain: previewRain, rainTarget: previewRain, clicks: [], night: dark };
   const daylightParts = ["morning", "day", "evening", "night"];
-  let daylightPart = dark ? "night" : daylightParts[Math.floor(Math.random() * 3)];
+  let daylightPart = daylightParts.includes(previewTime) ? previewTime : dark ? "night" : daylightParts[Math.floor(Math.random() * 3)];
   const dayPart = () => (outside.night ? "night" : daylightPart);
+  outside.sky = windowSky(dayPart());
   const windowView = printed(4.0, 4.1, 220, (c, w, h) => drawWindowView(c, w, h, { ...outside, time: dayPart() }), { unlit: true });
   windowView.position.z = 0.105;
   windowGroup.add(windowFrame, windowView);
@@ -960,10 +1007,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
   windowGlare.position.z = 0.115;
   windowGlare.raycast = noRaycast;
   windowGroup.add(windowGlare);
-  // What stops the light coming in through the window (see windowLight): the wall round the
-  // glass, the glazing bars painted on the view and the blind. They're drawn only into that
-  // light's shadow map (skipped in every other pass), so the wall still doesn't darken the room
-  // for the sun, and nothing of them shows.
+  // What stands in the window light's way (see windowLight): the glazing bars painted on the
+  // view, and the blind. They're drawn only into that light's shadow map (skipped in every other
+  // pass), so the sun doesn't see them and nothing of them shows. The light's cookie keeps
+  // the beam inside the glass opening.
   const shadowOnly = track(new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, side: THREE.DoubleSide }));
   const skipDraw = (r, s, c, geometry) => geometry.setDrawRange(0, 0);
   const restoreDraw = (r, s, c, geometry) => geometry.setDrawRange(0, Infinity);
@@ -979,22 +1026,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     m.onAfterRender = restoreDraw;
     return m;
   };
-  const windowWall = new THREE.Shape();
-  windowWall.moveTo(-40, -40);
-  windowWall.lineTo(40, -40);
-  windowWall.lineTo(40, 40);
-  windowWall.lineTo(-40, 40);
-  windowWall.closePath();
-  const glassHole = new THREE.Path();
-  glassHole.moveTo(-2.0, -2.05);
-  glassHole.lineTo(-2.0, 2.05);
-  glassHole.lineTo(2.0, 2.05);
-  glassHole.lineTo(2.0, -2.05);
-  glassHole.closePath();
-  windowWall.holes.push(glassHole);
   const windowBars = 0.15; // as wide as drawWindowView paints them
   [
-    track(new THREE.ShapeGeometry(windowWall)),
     track(new THREE.BoxGeometry(windowBars, 4.1, 0.04)),
     track(new THREE.BoxGeometry(4.0, windowBars, 0.04)),
   ].forEach((geo) => windowGroup.add(at(windowShadow(geo), 0, 0, 0.06)));
@@ -1359,7 +1392,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const pegs = [];
   const posts = [];
   const strings = [];
-  const stringMat = track(new THREE.MeshBasicMaterial({ color: "#f4f2ee" }));
+  const stringMat = toon("#b8bec7");
   [-1, 1].forEach((side) => [0, 1, 2].forEach((k) => {
     const y = 4.22 + k * 0.17;
     const edge = 0.2 + k * 0.02;
@@ -1490,13 +1523,180 @@ export function createDeskScene({ container, projects, experiences, dark = false
   scene.add(windowLight, windowLight.target);
   const windowGlass = new THREE.Vector3(SIDE_X + 0.12 - WINDOW_DEPTH + 0.06, WINDOW_AT.y, WINDOW_AT.z);
   const windowRay = new THREE.Vector3();
-  // `from`: where the sun or moon stands, seen from the room (the same place the room's sun uses)
+  // The light's cookie: the glass, as the light sees it, white in black (edges a touch soft, as
+  // the sun isn't a point), so it shines only through the window. Redrawn whenever it's aimed.
+  const glassCookie = canvasTexture(512, 512);
+  track(glassCookie.texture);
+  windowLight.map = glassCookie.texture;
+  const glassCorner = new THREE.Vector3();
+  let cookieRain = -1;
+  function drawGlassCookie() {
+    windowGroup.updateWorldMatrix(true, false);
+    windowLight.updateMatrixWorld();
+    windowLight.shadow.updateMatrices(windowLight);
+    const c = glassCookie.ctx;
+    c.fillStyle = "#000";
+    c.fillRect(0, 0, 512, 512);
+    c.filter = `blur(${2 + outside.rain * 6}px)`;
+    c.beginPath();
+    [[-2, -2.05], [-2, 2.05], [2, 2.05], [2, -2.05]].forEach(([x, y], k) => {
+      // the shadow matrix takes a world point to the light map's 0–1 square
+      windowGroup.localToWorld(glassCorner.set(x, y, 0.06)).applyMatrix4(windowLight.shadow.matrix);
+      const px = glassCorner.x * 512;
+      const py = (1 - glassCorner.y) * 512;
+      if (k) c.lineTo(px, py);
+      else c.moveTo(px, py);
+    });
+    c.closePath();
+    c.fillStyle = "#fff";
+    c.fill();
+    c.filter = "none";
+    glassCookie.texture.needsUpdate = true;
+    cookieRain = outside.rain;
+  }
+  // `from`: normalized coordinates of the sun or moon in the painted window view.
   function aimWindowLight(from) {
-    windowRay.set(...from).sub(sun.target.position).normalize();
+    // The view's horizontal axis is window-local X (world -Z). Calibrate elevation to this
+    // room: sunrise crosses the monitor face; the overhead noon sun reaches the desktop.
+    windowGroup.updateWorldMatrix(true, false);
+    windowRay.set((from[0] - 0.5) * 1.4, (0.65 - from[1]) * 1.3, -1)
+      .transformDirection(windowGroup.matrixWorld);
     windowLight.position.copy(windowGlass).addScaledVector(windowRay, WINDOW_SUN_FAR);
     windowLight.target.position.copy(windowGlass).addScaledVector(windowRay, -1);
     windowLight.target.updateMatrixWorld();
     windowLight.shadow.needsUpdate = true;
+    drawGlassCookie();
+  }
+
+  // The beam through the window: a soft shaft of light in the air, from the glass into the room
+  // along the light's own path, with dust drifting in it. A fake volume (four faint additive
+  // sides, bright at the glass and fading out along the beam and toward its edges) and a few
+  // dozen motes cost two draws, against a raymarched one's full-screen pass. It takes the
+  // window light's colour and strength, keeps to the part of the glass the blind leaves open,
+  // and thins out in the rain.
+  const SHAFT_LEN = 9;
+  const shaftGeo = track(new THREE.BufferGeometry());
+  const shaftPos = new THREE.BufferAttribute(new Float32Array(16 * 3), 3);
+  const shaftUv = new Float32Array(16 * 2);
+  for (let face = 0; face < 4; face++) {
+    // each side: its two glass corners (u 0 and 1) at the window (v 0), then out along the beam
+    [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(([u, v], k) => shaftUv.set([u, v], (face * 4 + k) * 2));
+  }
+  shaftGeo.setAttribute("position", shaftPos);
+  shaftGeo.setAttribute("uv", new THREE.BufferAttribute(shaftUv, 2));
+  shaftGeo.setIndex([0, 1, 2, 2, 1, 3, 4, 5, 6, 6, 5, 7, 8, 9, 10, 10, 9, 11, 12, 13, 14, 14, 13, 15]);
+  const shaftMat = track(new THREE.ShaderMaterial({
+    uniforms: { color: { value: new THREE.Color() }, strength: { value: 0 } },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `
+      uniform vec3 color;
+      uniform float strength;
+      varying vec2 vUv;
+      void main() {
+        // clamped: multisampling reads the uvs a little past a triangle's edge, and pow() of a
+        // negative is NaN, which comes out as a dark dashed line along the beam's edges
+        float along = pow(clamp(1.0 - vUv.y, 0.0, 1.0), 1.8);
+        float across = sin(3.14159265 * clamp(vUv.x, 0.0, 1.0));
+        gl_FragColor = vec4(color * strength * along * across * across, 1.0);
+      }`,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+  }));
+  const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+  shaft.frustumCulled = false;
+  shaft.raycast = noRaycast;
+  scene.add(shaft);
+  // dust: points scattered through the beam (across, up, along), drifting slowly down it
+  const MOTES = 60;
+  const moteAt = Array.from({ length: MOTES }, () => [Math.random(), Math.random(), Math.random(), Math.random() * Math.PI * 2]);
+  const moteGeo = track(new THREE.BufferGeometry());
+  const motePos = new THREE.BufferAttribute(new Float32Array(MOTES * 3), 3);
+  const moteCol = new THREE.BufferAttribute(new Float32Array(MOTES * 3), 3);
+  moteGeo.setAttribute("position", motePos);
+  moteGeo.setAttribute("color", moteCol);
+  const moteDot = canvasTexture(32, 32);
+  track(moteDot.texture);
+  const moteGlow = moteDot.ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+  moteGlow.addColorStop(0, "rgba(255,255,255,1)");
+  moteGlow.addColorStop(1, "rgba(255,255,255,0)");
+  moteDot.ctx.fillStyle = moteGlow;
+  moteDot.ctx.fillRect(0, 0, 32, 32);
+  const motes = new THREE.Points(moteGeo, track(new THREE.PointsMaterial({
+    size: 5, sizeAttenuation: false, map: moteDot.texture, vertexColors: true,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  })));
+  motes.frustumCulled = false;
+  motes.raycast = noRaycast;
+  scene.add(motes);
+  const shaftCorner = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+  const shaftInto = new THREE.Vector3();
+  const shaftTint = new THREE.Color();
+  const shaftPoint = new THREE.Vector3();
+  const shaftReach = [SHAFT_LEN, SHAFT_LEN, SHAFT_LEN, SHAFT_LEN];
+  const BACK_WALL = WALL_Z + 0.12;
+  // How far a ray from `from` along the beam (shaftInto) goes before it meets the back wall, the
+  // desk's top (within its edges) or else the floor; never further than SHAFT_LEN
+  function beamReach(from) {
+    let reach = SHAFT_LEN;
+    if (shaftInto.z < -1e-4) reach = Math.min(reach, (BACK_WALL - from.z) / shaftInto.z);
+    if (shaftInto.y < -1e-4) {
+      const toDesk = -from.y / shaftInto.y;
+      const x = from.x + shaftInto.x * toDesk;
+      const z = from.z + shaftInto.z * toDesk;
+      const onDesk = Math.abs(x) < 7 && Math.abs(z) < 4.2;
+      reach = Math.min(reach, onDesk ? toDesk : (FLOOR_Y - from.y) / shaftInto.y);
+    }
+    return Math.max(0, reach);
+  }
+  function updateShaft(now) {
+    // the open part of the glass, below the blind's bottom bar
+    const top = Math.min(2.05, bottomBar.position.y - BAR_H / 2);
+    const strength = windowLight.intensity * 0.028 * (1 - 0.7 * outside.rain) * (1 - 0.75 * roomLight.night);
+    shaft.visible = motes.visible = top > -1.95 && strength > 0.002;
+    if (!shaft.visible) return;
+    // glass corners, clockwise from the bottom left as seen from the room, then the beam's way in
+    [[-2, -2.05], [-2, top], [2, top], [2, -2.05]].forEach(([x, y], k) => windowGroup.localToWorld(shaftCorner[k].set(x, y, 0.12)));
+    shaftInto.copy(windowRay).negate();
+    // Each edge of the beam stops where it meets the room: the back wall, the desk's top or the
+    // floor, whichever comes first, its glow already faded to nothing there. Run on through them,
+    // its sides cut across the wall as bright streaks no real beam leaves.
+    shaftCorner.forEach((corner, k) => (shaftReach[k] = beamReach(corner)));
+    // the four sides: left, top, right, bottom; each one corner pair, near then far
+    [[0, 1], [1, 2], [2, 3], [3, 0]].forEach(([a, b], face) => {
+      const i = face * 4;
+      shaftPos.setXYZ(i, shaftCorner[a].x, shaftCorner[a].y, shaftCorner[a].z);
+      shaftPos.setXYZ(i + 1, shaftCorner[b].x, shaftCorner[b].y, shaftCorner[b].z);
+      shaftPos.setXYZ(i + 2, shaftCorner[a].x + shaftInto.x * shaftReach[a], shaftCorner[a].y + shaftInto.y * shaftReach[a], shaftCorner[a].z + shaftInto.z * shaftReach[a]);
+      shaftPos.setXYZ(i + 3, shaftCorner[b].x + shaftInto.x * shaftReach[b], shaftCorner[b].y + shaftInto.y * shaftReach[b], shaftCorner[b].z + shaftInto.z * shaftReach[b]);
+    });
+    shaftPos.needsUpdate = true;
+    shaftTint.copy(windowLight.color);
+    shaftMat.uniforms.color.value.copy(shaftTint);
+    shaftMat.uniforms.strength.value = strength;
+    // motes: across the glass (u from left to right, w from bottom to top), drifting along the
+    // beam and bobbing a little, brightest in its middle
+    const t = now / 1000;
+    moteAt.forEach(([u, w, along, phase], k) => {
+      const s = (along + t * 0.012) % 1;
+      const bob = Math.sin(t * 0.6 + phase) * 0.06;
+      shaftPoint.copy(shaftCorner[0]).lerp(shaftCorner[3], u);
+      shaftPoint.y += (top + 2.05) * w + bob;
+      // as far in as the beam reaches at that height, short of where it lands
+      const reach = THREE.MathUtils.lerp((shaftReach[0] + shaftReach[3]) / 2, (shaftReach[1] + shaftReach[2]) / 2, w);
+      shaftPoint.addScaledVector(shaftInto, s * reach * 0.85);
+      motePos.setXYZ(k, shaftPoint.x, shaftPoint.y, shaftPoint.z);
+      const glow = Math.sin(Math.PI * s) * Math.sin(Math.PI * u) * strength * 6 * (0.6 + 0.4 * Math.sin(t * 1.3 + phase * 3));
+      moteCol.setXYZ(k, shaftTint.r * glow, shaftTint.g * glow, shaftTint.b * glow);
+    });
+    motePos.needsUpdate = true;
+    moteCol.needsUpdate = true;
   }
   // The chain (or the pull on the bottom bar) works the blind: halfway down, all the way down,
   // then back up
@@ -2064,7 +2264,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const LAMP_BASE = new THREE.Vector3(-5.8, 0, -3.3);
   // Where the socket hangs, over the right of the base
   const SOCKET = new THREE.Vector3(-5.25, 3.35, -3.2);
-  const AIM = new THREE.Vector3(-1.8, 0, 0.8);
   const lampBrass = toon("#c9a24a");
   const lampWood = toon("#8b5a34");
   lampWood.map = windowWood.texture;
@@ -2161,8 +2360,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     part.renderOrder = 2;
     part.raycast = noRaycast;
   });
-  // The glow: a halo round the bulb and a warm pool where its light lands on the desk. Their
-  // strength follows the light's, so they flicker with it as it comes on.
+  // Only the small bulb halo is decorative; the room is lit and shadowed by the bulb itself.
   const radial = (stops) => {
     const tex = canvasTexture(128, 128);
     track(tex.texture);
@@ -2176,34 +2374,23 @@ export function createDeskScene({ container, projects, experiences, dark = false
   halo.scale.set(2.6, 2.6, 1);
   halo.position.y = BULB_Y;
   halo.raycast = noRaycast;
-  const pool = new THREE.Mesh(
-    track(new THREE.PlaneGeometry(4.2, 3.4)),
-    track(new THREE.MeshBasicMaterial({ map: radial([[0, "rgba(255,214,130,0.75)"], [0.55, "rgba(255,200,110,0.25)"], [1, "rgba(255,190,100,0)"]]), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 })),
-  );
-  pool.rotation.x = -Math.PI / 2;
-  pool.position.set(AIM.x + 0.2, 0.015, AIM.z - 0.6);
-  pool.raycast = noRaycast;
-  scene.add(pool);
   function updateLampGlow() {
     const k = Math.min(1, lampLight.intensity / 55);
     // Kept soft, so the bulb reads as a lamp rather than a white blowout
     halo.material.opacity = 0.55 * k;
-    pool.material.opacity = 0.5 * k;
     bulbMat.color.setRGB(0.93 + 0.07 * k, 0.83 + 0.06 * k, 0.64 - 0.06 * k);
     filamentMat.color.setRGB(0.66 + 0.34 * k, 0.45 + 0.5 * k, 0.17 + 0.55 * k);
   }
-  // The bulb lights the work surface and casts shadows away from the lamp. It sits just below
-  // the glass, so the socket can't block it, and looks across at the desk.
-  const lampLight = new THREE.SpotLight(0xffd394, 0, 22, 0.95, 0.6, 2);
-  lampLight.position.y = BULB_Y - 0.55;
-  lampLight.target.position.copy(AIM);
-  scene.add(lampLight.target);
-  lampLight.shadow.mapSize.set(1024, 1024);
-  lampLight.shadow.camera.near = 0.2;
-  lampLight.shadow.camera.far = 22;
+  // An exposed bulb emits in every direction from the filament, including toward the wall.
+  const lampLight = new THREE.PointLight(0xffd394, 0, 16, 2);
+  lampLight.position.y = BULB_Y;
+  // A cube needs six faces; 512 per face keeps the local lamp's cost bounded.
+  lampLight.shadow.mapSize.set(512, 512);
+  lampLight.shadow.camera.near = 0.08;
+  lampLight.shadow.camera.far = 16;
   lampLight.shadow.bias = -0.0002;
   lampLight.shadow.normalBias = 0.02;
-  lampLight.shadow.radius = 9;
+  lampLight.shadow.radius = 5;
   lampHead.add(socket, ...socketRibs, turnKeyStem, turnKey, bulbCollar, ...collarThreads, bulb, bulbGlint, filament, halo, lampLight);
   lamp.add(lampHead);
   // In the window's close-up the lamp's pole stands right across the glass, so the lamp steps
@@ -2225,22 +2412,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     }
   }
   const setLamp = (on) => {
-    lampLight.intensity = on ? 55 : 0;
+    lampLight.intensity = on ? 5 : 0;
     lampLight.castShadow = on;
     updateLampGlow();
   };
-  // Switched on, the bulb stutters a couple of times before it settles
-  function lampSwitch(on) {
-    gsap.killTweensOf(lampLight);
-    if (!on) return;
-    gsap.timeline()
-      .set(lampLight, { intensity: 0 })
-      .to(lampLight, { intensity: 40, duration: 0.05 })
-      .to(lampLight, { intensity: 4, duration: 0.07 })
-      .to(lampLight, { intensity: 30, duration: 0.05, delay: 0.1 })
-      .to(lampLight, { intensity: 2, duration: 0.08 })
-      .to(lampLight, { intensity: 55, duration: 0.2, delay: 0.12 });
-  }
   // Like a desk lamp with a mind of its own: on hover the bulb swings on its pole; on a click
   // the lamp crouches, hops, nods its bulb, and only then throws the switch
   const lampHeadRest = lampHead.rotation.clone();
@@ -2657,7 +2832,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     shelfLeds.forEach(({ ledMat, glowMat }) => {
       ledMat.color.set(darkNow || party ? ledColor : "#c4cece");
       glowMat.color.copy(ledColor);
-      glowMat.opacity = party ? 0.7 : darkNow ? 0.5 : 0;
+      glowMat.opacity = party ? 0.7 : roomLight.night * 0.5;
     });
   }
   // A neon sign on the back panel above the console: "GAME ON" with a little controller. By
@@ -2898,14 +3073,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // The blue light, up the front edge of the core on either side
   const led = new THREE.Group();
   const ledMat = track(new THREE.MeshBasicMaterial({ color: "#4f6bff" }));
-  led.material = ledMat;
   [-1, 1].forEach((side) => {
     const strip = new THREE.Mesh(track(new THREE.BoxGeometry(0.014, PS_H * 0.82, 0.014)), ledMat);
     strip.position.set(side * (CORE_T / 2 - 0.012), PS_H * 0.48, PS_D * 0.45 - 0.004);
     led.add(strip);
   });
   // The LED's glow on the shelf round the console, blue in standby and brighter once it boots
-  const consoleLight = neonLight("#4f6bff", 0.6, () => (darkNow ? 1 : 0.4), { distance: 1.8, tint: ledMat });
+  const consoleLight = neonLight("#4f6bff", 0.6, () => (0.4 + 0.6 * roomLight.night), { distance: 1.8, tint: ledMat });
   consoleLight.position.set(0, PS_H * 0.5, PS_D * 0.45 + 0.2);
   led.add(consoleLight);
   consoleBody.add(led);
@@ -4612,6 +4786,18 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // taller than it is wide), drawn after the room but before the cards, plates and the cut's
   // effects, which stay bright.
   const SPOT_REACH = { x: 3.0, y: 4.0 };
+  // A dedicated key keeps the swords lit through every room phase; the overlay only
+  // darkens their surroundings. Fade with focus, independently of the room lights.
+  const swordSpotlight = new THREE.SpotLight("#fff4e8", 0, 18, Math.PI / 4, 0.65, 0);
+  swordSpotlight.castShadow = true;
+  swordSpotlight.shadow.mapSize.set(1024, 1024);
+  swordSpotlight.shadow.camera.near = 0.5;
+  swordSpotlight.shadow.camera.far = 18;
+  swordSpotlight.shadow.bias = -0.0002;
+  swordSpotlight.shadow.normalBias = 0.015;
+  swordSpotlight.shadow.radius = 2;
+  swordSpotlight.shadow.autoUpdate = false;
+  scene.add(swordSpotlight, swordSpotlight.target);
   const spotUniforms = {
     center: { value: new THREE.Vector2() },
     radius: { value: new THREE.Vector2(1, 1) },
@@ -4659,9 +4845,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
     gauntlet.visible = focus.name !== "swords";
     const strength = spotUniforms.strength;
     strength.value += ((focus.name === "swords" ? 1 : 0) - strength.value) * (1 - Math.pow(0.02, dt));
+    swordSpotlight.intensity = 1.25 * strength.value;
     spotlight.visible = strength.value > 0.005;
     if (!spotlight.visible) return;
+    swordSpotlight.shadow.needsUpdate = true;
     katanaRack.getWorldPosition(spotAt);
+    swordSpotlight.target.position.copy(spotAt);
+    swordSpotlight.position.copy(spotAt).add(screenAxis.set(0, 3, 6));
     spotEdge.copy(spotAt).project(camera);
     spotUniforms.center.value.set(spotEdge.x, spotEdge.y);
     const cx = spotEdge.x;
@@ -5836,7 +6026,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   function powerConsole() {
     discover("console");
     sfx.power({ duration: 0.8 });
-    led.material.color.set("#8fdcff");
+    ledMat.color.set("#8fdcff");
     // Lights up along its length, never past the console's ends: it only thickens and glows
     led.children.forEach((strip) => gsap.fromTo(strip.scale, { x: 3, y: 1, z: 3 }, { x: 1.5, y: 1, z: 1.5, duration: 0.6, ease: "back.out(3)" }));
     [pad1, pad2].forEach((pad, i) => gsap.fromTo(pad.userData.moves.rotation, { z: 0.08 }, { z: 0, duration: 0.5, delay: i * 0.08, ease: "elastic.out(1.5, 0.15)" }));
@@ -6602,45 +6792,79 @@ export function createDeskScene({ container, projects, experiences, dark = false
   neck.add(cableHole);
   [panelEdge, webcam, webcamLens, chinLogo, powerLed].forEach((part) => (part.raycast = noRaycast));
   monitor.add(panelEdge, webcam, webcamLens, chinLogo, powerLed);
-  // Bias lighting: a strip on the monitor's back throws a cyan-to-pink glow on the wall behind
-  // it, at night. Drawn as the blurred shadow of a rounded rect (the shape itself stays off the
-  // canvas), so it fades out evenly on every side.
-  const monitorGlowTex = canvasTexture(640, 480);
-  track(monitorGlowTex.texture);
-  {
-    const c = monitorGlowTex.ctx;
-    const glowFill = c.createLinearGradient(0, 0, 640, 0);
-    glowFill.addColorStop(0, "#00e0c6");
-    glowFill.addColorStop(0.5, "#8b7bff");
-    glowFill.addColorStop(1, "#ff90e8");
-    // The shadow takes its colour from shadowColor only, so lay the gradient over it
-    c.shadowColor = "#ffffff";
-    c.shadowBlur = 60;
-    c.shadowOffsetX = 2000;
-    c.fillStyle = "#ffffff";
-    c.beginPath();
-    c.roundRect(120 - 2000, 110, 400, 260, 50);
-    c.fill();
-    c.shadowColor = "transparent";
-    c.globalCompositeOperation = "source-in";
-    c.fillStyle = glowFill;
-    c.fillRect(0, 0, 640, 480);
+  // Clamped task light: brushed graphite, rubber end caps and an inset opal lens,
+  // all with the same stepped toon shading as the monitor.
+  const lightbar = new THREE.Group();
+  lightbar.name = "monitor-lightbar";
+  lightbar.position.set(0, 4.04, 0.2);
+  monitor.add(lightbar);
+  const lightbarMetal = toon("#454b55");
+  lightbarMetal.map = brushed.texture;
+  const lightbarRubber = toon("#20232a");
+  const lightbarTrim = toon("#88919b");
+  const lightbarBody = mesh(rbox(3.9, 0.105, 0.22, 0.014), lightbarMetal, { outline: 0.012 });
+  lightbar.add(lightbarBody);
+  [-1, 1].forEach((side) => {
+    const cap = mesh(rbox(0.055, 0.108, 0.224, 0.012), lightbarRubber, { outline: 0.008 });
+    cap.position.x = side * 1.97;
+    const collar = mesh(rbox(0.018, 0.106, 0.222, 0.008), lightbarTrim, { outline: 0 });
+    collar.position.x = side * 1.915;
+    lightbar.add(cap, collar);
+  });
+  const lightbarClamp = mesh(rbox(0.34, 0.11, 0.4, 0.025), lightbarRubber, { outline: 0.015 });
+  lightbarClamp.position.set(0, -0.065, -0.18);
+  const lightbarCounterweight = mesh(rbox(0.32, 0.34, 0.14, 0.035), lightbarMetal, { outline: 0.015 });
+  lightbarCounterweight.position.set(0, -0.2, -0.37);
+  const lightbarPad = mesh(rbox(0.28, 0.045, 0.16, 0.01), lightbarRubber, { outline: 0 });
+  lightbarPad.position.set(0, -0.13, -0.185);
+  const lightbarButton = mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.02, 16), lightbarRubber, { outline: 0.006 });
+  lightbarButton.position.set(1.64, 0.053, 0);
+  const lightbarPowerMark = mesh(rbox(0.012, 0.003, 0.035, 0.002), lightbarTrim, { outline: 0, cast: false });
+  lightbarPowerMark.position.set(1.64, 0.065, 0);
+  lightbar.add(lightbarClamp, lightbarCounterweight, lightbarPad, lightbarButton, lightbarPowerMark);
+  // The lens sits inside a dark lip and throws light forward, away from the screen.
+  const lightbarLip = mesh(rbox(3.67, 0.025, 0.13, 0.008), lightbarRubber, { outline: 0.005 });
+  lightbarLip.position.set(0, -0.045, 0.055);
+  lightbarLip.rotation.x = -0.35;
+  const lightbarDiffuserMat = toon("#e4dac5");
+  lightbarDiffuserMat.emissive.copy(lampLight.color);
+  const lightbarDiffuser = mesh(rbox(3.53, 0.015, 0.095, 0.005), lightbarDiffuserMat, { outline: 0, cast: false });
+  lightbarDiffuser.position.set(0, -0.062, 0.065);
+  lightbarDiffuser.rotation.x = -0.35;
+  lightbar.add(lightbarLip, lightbarDiffuser);
+  for (let i = -7; i <= 7; i++) {
+    const seam = mesh(rbox(0.012, 0.006, 0.087, 0.002), lightbarTrim, { outline: 0, cast: false });
+    seam.position.set(i * 0.215, -0.071, 0.07);
+    seam.rotation.x = -0.35;
+    lightbar.add(seam);
   }
-  // Normal blending, not additive: the night wall is already pale, so added light only washed
-  // the colours out to white; laid over it instead, the glow keeps its cyan, violet and pink
-  const monitorGlowMat = track(new THREE.MeshBasicMaterial({
-    map: monitorGlowTex.texture, transparent: true, depthWrite: false, opacity: 0,
-  }));
-  const monitorGlow = new THREE.Mesh(track(new THREE.PlaneGeometry(10.4, 7.8)), monitorGlowMat);
-  // On the wall, centred behind the screen
-  monitorGlow.position.set(monitor.position.x, RISER_TOP + 2.7, WALL_Z + 0.16);
-  monitorGlow.raycast = noRaycast;
-  scene.add(monitorGlow);
-  // The bias strip lights the wall for real too: cyan on the left, pink on the right
-  [["#00e0c6", -1.6], ["#ff90e8", 1.6]].forEach(([color, dx]) => {
-    const light = neonLight(color, 2.5, () => monitorGlowMat.opacity / 0.7, { distance: 6 });
-    light.position.set(monitor.position.x + dx, RISER_TOP + 2.6, WALL_Z + 1.2);
-    scene.add(light);
+  // A focused task beam needs gentler falloff over the full monitor-to-desk height;
+  // inverse-square decay and a 120-degree cone hid the previous light in the toon bands.
+  // Widen the task beam to cover the longer bar without another shadow-map sampler.
+  const lightbarLight = new THREE.SpotLight(lampLight.color, 0, 7, Math.PI / 4, 0.55, 0);
+  lightbarLight.position.set(0, -0.09, 0.14);
+  lightbarLight.target.position.set(0, -4.65, 3.2);
+  lightbarLight.shadow.mapSize.set(512, 512);
+  lightbarLight.shadow.camera.near = 0.1;
+  lightbarLight.shadow.bias = -0.0002;
+  lightbarLight.shadow.normalBias = 0.02;
+  lightbarLight.shadow.radius = 4;
+  lightbar.add(lightbarLight, lightbarLight.target);
+  lightbar.traverse((part) => (part.raycast = noRaycast));
+  function updateLightbar() {
+    const night = roomLight.night;
+    lightbarLight.color.copy(lampLight.color);
+    lightbarLight.intensity = 9 * night;
+    lightbarLight.castShadow = night > 0;
+    lightbarDiffuserMat.emissive.copy(lampLight.color);
+    lightbarDiffuserMat.emissiveIntensity = 1.4 * night;
+  }
+  // The monitor has the same cyan/pink bias strip. Broad rear-facing sources follow its
+  // transform and overlap on the wall; they never paint over shadows with a glow plane.
+  const monitorGlowMat = { opacity: 0 };
+  [["#00e0c6", -1], ["#ff90e8", 1]].forEach(([color, x]) => {
+    stripLight(color, () => 2 * monitorGlowMat.opacity / 0.7,
+      [x, 2.6, -0.18], [x, 2.6, -2], monitor);
   });
   // Sticky notes on the right of the bezel, each with a hard little shadow behind it
   const noteShadowMat = track(new THREE.MeshBasicMaterial({ color: "#000000" }));
@@ -6894,7 +7118,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   monitor.add(screen);
   // The screen's own spill: a cool light over the keyboard and desk, faint by day, and the
   // props in front of it throw shadows towards the visitor at night
-  const screenLight = neonLight("#c4d4ff", 2.2, () => (darkNow ? 1 : 0.25), { distance: 7, shadow: true });
+  const screenLight = neonLight("#c4d4ff", 2.2, () => (0.25 + 0.75 * roomLight.night), { distance: 7, shadow: true });
   screenLight.position.set(0, 2.5, 0.9);
   monitor.add(screenLight);
   const desktop = createDesktop({
@@ -9034,7 +9258,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   phoneGlass.position.z = 0.0615;
   phoneGlass.raycast = noRaycast;
   // The chat's glow on the desk and the mug in front of it, at night
-  const phoneLight = neonLight("#fff1dc", 0.5, () => (darkNow ? 1 : 0), { distance: 1.6 });
+  const phoneLight = neonLight("#fff1dc", 0.5, () => roomLight.night, { distance: 1.6 });
   phoneLight.position.z = 0.35;
   phoneScreen.add(phoneLight);
   const phoneBezel = mesh(phoneSlab(0.91, 1.91, 0.02, 0.13), toon("#0d0d0f"), { outline: 0, cast: false });
@@ -10020,26 +10244,31 @@ export function createDeskScene({ container, projects, experiences, dark = false
   let darkNow = dark;
   function setTheme(isDark) {
     darkNow = isDark;
+    roomLight.night = isDark ? 1 : 0;
     deskNeons.forEach(({ strip, washMat }) => {
       strip.visible = isDark;
       washMat.opacity = isDark ? DESK_WASH : 0;
     });
     monitorGlowMat.opacity = isDark ? 0.7 : 0;
-    ambient.intensity = isDark ? 1.0 : 0.65;
-    ambient.color.set("#ffffff");
-    skyFill.intensity = isDark ? 0 : 1.45;
-    readabilityFill.intensity = isDark ? 0.55 : 0.35;
+    ambient.intensity = isDark ? 0.16 : 0.38;
+    ambient.color.set(isDark ? "#aab9df" : "#ffffff");
+    skyFill.color.set(isDark ? "#94acdb" : "#f2f5ff");
+    skyFill.intensity = isDark ? 0.12 : 0.9;
+    readabilityFill.intensity = isDark ? 0.12 : 0.18;
     jointMat.color.set(isDark ? "#3d3749" : "#1a1714");
     sun.color.set(isDark ? "#aabfff" : "#fff1cc");
-    // A faint cool overhead fill leaves short shadows outside the desk lamp's cone.
-    sun.position.set(...(isDark ? [-4, 12, 3] : [-13, 9.5, 4.5]));
-    sun.intensity = isDark ? 0.3 : 1.6;
+    // Broad room bounce retains faint cast shadows for every prop, including wall-mounted
+    // objects outside the direct window patch. The directional key remains the window light.
+    sun.intensity = isDark ? 0.24 : 0.55;
     sun.castShadow = true;
     windowLight.color.set(isDark ? "#94b5ff" : "#ffe5ad");
     // Sun or moon, it comes in through the glass, shadowed by the wall, the bars and the blind
-    windowLight.intensity = isDark ? 0.8 : 2.2;
+    windowLight.intensity = isDark ? 0.18 : 2.2;
     windowLight.castShadow = true;
-    if (isDark) aimWindowLight(MOON_AT);
+    if (isDark) aimWindowLight(windowSky("night").sun);
+    // The neons' cube shadows only by night: by day the strips are off and the screen's glow
+    // is faint, yet every pixel would still sample their six-sided maps
+    shadowedNeons.forEach((light) => (light.castShadow = isDark));
     blindFabric.emissiveIntensity = isDark ? 0.03 : 0.2;
     floorMat.color.set(isDark ? "#8a82a6" : "#ffffff");
     // Night keeps the walls white, just moonlit, so the room still reads as the same room
@@ -10049,6 +10278,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     trimMat.color.set(isDark ? "#b8b1da" : "#ffffff");
     windowView.userData.tex.redraw();
     setLamp(isDark);
+    updateLightbar();
     const p = isDark ? PALETTES.dark : PALETTES.light;
     deskMat.color.set(p.desk);
     riserMat.color.set(p.desk);
@@ -10062,46 +10292,124 @@ export function createDeskScene({ container, projects, experiences, dark = false
     // Warm key, cool fill: the sky's blue lifts what the sun can't reach, so shadows read as
     // cool shade rather than a grey film, at no extra cost (only colours and a little more key)
     // The wall keeps the sun's direct light to the window's patch (`pane`), so the room's sun
-    // is the softer daylight about the room, still throwing the props' shadows
-    morning: { sun: "#ffd6a0", sunAt: [-14, 6, 7], sunPower: 1.1, sky: "#eef0ff", skyPower: 1.22, ambient: 0.64, fill: "#e9edff", pane: "#ffd59a", panePower: 2.4 },
-    day: { sun: "#fff1cc", sunAt: [-13, 9.5, 4.5], sunPower: 1.3, sky: "#f2f5ff", skyPower: 1.38, ambient: 0.66, fill: "#eef1ff", pane: "#ffe5ad", panePower: 2.2 },
+    // is the softer daylight about the room, without adding a second set of direct shadows
+    morning: { sun: "#ffe2b6", sunPower: 1.1, sky: "#fff5e7", skyPower: 1.55, ambient: 0.62, fill: "#fff4e8", pane: "#ffdfa8", panePower: 3.0 },
+    day: { sun: "#fff1cc", sunPower: 1.3, sky: "#f2f5ff", skyPower: 1.85, ambient: 0.78, fill: "#eef1ff", pane: "#ffe5ad", panePower: 4.1 },
     // the view's sun rises on the front side of the window and sets on the back side, so the
     // room's evening sun comes in from behind
-    evening: { sun: "#ff9e66", sunAt: [-14, 4.5, -4], sunPower: 1.0, sky: "#ece4ff", skyPower: 1.08, ambient: 0.56, fill: "#e6deff", pane: "#ffb27a", panePower: 2.6 },
+    evening: { sun: "#ff9e66", sunPower: 1.0, sky: "#b7aed7", skyPower: 0.38, ambient: 0.16, fill: "#c3b9de", pane: "#ffab72", panePower: 1.8 },
   };
-  // Where the moon stands for the window's night light: high and a little in front
-  const MOON_AT = [-14, 8, 2];
   function applyDaylight() {
     const light = DAYLIGHT[daylightPart];
     sun.color.set(light.sun);
-    sun.position.set(...light.sunAt);
-    sun.intensity = light.sunPower;
+    sun.intensity = light.sunPower * (daylightPart === "evening" ? 0.3 : 0.5);
     skyFill.color.set(light.sky);
     skyFill.intensity = light.skyPower;
     ambient.intensity = light.ambient;
     ambient.color.set(light.fill);
+    readabilityFill.intensity = daylightPart === "evening" ? 0.18 : 0.32;
     windowLight.color.set(light.pane);
     windowLight.intensity = light.panePower;
-    aimWindowLight(light.sunAt);
+    aimWindowLight(windowSky(daylightPart).sun);
   }
+  // Capture existing theme targets, then blend them in the frame loop. No extra tween owns
+  // these values, so a second theme change can start from exactly what is currently visible.
+  const lightingValues = [
+    [ambient, "intensity"], [skyFill, "intensity"], [readabilityFill, "intensity"],
+    [sun, "intensity"], [windowLight, "intensity"], [lampLight, "intensity"],
+    [roomLight, "night"], [monitorGlowMat, "opacity"], [blindFabric, "emissiveIntensity"],
+    ...deskNeons.map(({ washMat }) => [washMat, "opacity"]),
+  ];
+  const lightingColors = [ambient.color, skyFill.color, sun.color, windowLight.color,
+    jointMat.color, floorMat.color, backWallMat.color, sideWallMat.color, trimMat.color,
+    deskMat.color, riserMat.color, riserLegMat.color, shadowFill.color];
+  // Keep a stable background Color so it can be interpolated like the wall paint.
   setTheme(dark);
-  let nextDaylightAt = performance.now() + 60000 + Math.random() * 60000;
+  lightingColors.push(scene.background);
+  const captureLighting = () => ({
+    values: lightingValues.map(([object, key]) => object[key]),
+    colors: lightingColors.map((color) => color.clone()),
+  });
+  let lightingTarget = captureLighting();
+  let lightingFrom = lightingTarget;
+  let lightingStarted = -Infinity;
+  const LIGHTING_TRANSITION = 2000;
+  const rainLightColor = new THREE.Color("#aab8cf");
+  const dryWindowColor = windowLight.color.clone();
+  let lightingBlending = false;
+  function updateLighting(now) {
+    const progress = Math.min(1, Math.max(0, (now - lightingStarted) / LIGHTING_TRANSITION));
+    const blend = progress * progress * (3 - 2 * progress);
+    outside.skyBlend = blend;
+    lightingValues.forEach(([object, key], i) => {
+      // Once settled, preserve the lamp's own click/flicker animation.
+      if (object === lampLight && !lightingBlending) return;
+      object[key] = THREE.MathUtils.lerp(lightingFrom.values[i], lightingTarget.values[i], blend);
+    });
+    lightingColors.forEach((color, i) => color.copy(lightingFrom.colors[i]).lerp(lightingTarget.colors[i], blend));
+    // Clouds remove the direct beam much more than diffuse sky/bounce light.
+    windowLight.intensity *= 1 - 0.88 * outside.rain;
+    sun.intensity *= 1 - 0.6 * outside.rain;
+    skyFill.intensity *= 1 - 0.38 * outside.rain;
+    ambient.intensity *= 1 - 0.25 * outside.rain;
+    // Overcast light loses its sharp window outline; indoor lamp/neon shadows stay intact.
+    windowLight.shadow.radius = THREE.MathUtils.lerp(3, 5, roomLight.night) + outside.rain * 9;
+    if (Math.abs(cookieRain - outside.rain) > 0.02) drawGlassCookie();
+    dryWindowColor.copy(windowLight.color);
+    windowLight.color.lerp(rainLightColor, outside.rain * 0.65);
+    outside.sky = windowSky(dayPart(), outside.skyFrom, blend);
+    if (lightingBlending) {
+      aimWindowLight(outside.sky.sun);
+      lampLight.castShadow = true;
+      if (progress === 1) {
+        lightingBlending = false;
+        lampLight.castShadow = darkNow;
+      }
+    }
+    if (!lightingBlending) {
+      deskNeons.forEach(({ strip }) => (strip.visible = darkNow));
+      shadowedNeons.forEach((light) => (light.castShadow = darkNow));
+    }
+    updateLampGlow();
+    updateLightbar();
+  }
+  let nextDaylightAt = performance.now() + 20000 + Math.random() * 10000;
   function updateDaylight(now) {
-    if (now < nextDaylightAt) return;
+    // A local phase preview stays put; the normal page keeps the accelerated cycle.
+    if (daylightParts.includes(previewTime) || now < nextDaylightAt) return;
     daylightPart = daylightParts[(daylightParts.indexOf(daylightPart) + 1) % daylightParts.length];
     const wasDark = darkNow;
     setRoomTheme(daylightPart === "night");
     if (wasDark !== darkNow) onEvent("nightShift", { dark: darkNow });
-    nextDaylightAt = now + 60000 + Math.random() * 60000;
+    nextDaylightAt = now + 20000 + Math.random() * 10000;
   }
   // The monitor's desktop follows the room
   const setRoomTheme = (isDark) => {
     if (isDark) daylightPart = "night";
     else if (daylightPart === "night") daylightPart = "morning";
+    // Remove rain attenuation from the captured intensities; updateLighting applies it once.
+    const rainScales = [1 - 0.25 * outside.rain, 1 - 0.38 * outside.rain, 1, 1 - 0.6 * outside.rain, 1 - 0.88 * outside.rain];
+    const from = captureLighting();
+    from.colors[lightingColors.indexOf(windowLight.color)].copy(dryWindowColor);
+    rainScales.forEach((scale, i) => (from.values[i] /= scale));
+    outside.skyFrom = outside.sky;
+    const background = scene.background;
+    const neonShadows = isDark || shadowedNeons.some((light) => light.castShadow);
     setTheme(isDark);
+    shadowedNeons.forEach((light) => (light.castShadow = neonShadows));
+    background.copy(scene.background);
+    scene.background = background;
+    lightingTarget = captureLighting();
+    lightingFrom = from;
+    lightingStarted = performance.now();
+    lightingBlending = true;
+    gsap.killTweensOf(lampLight);
+    deskNeons.forEach(({ strip }) => (strip.visible = true));
+    lightingValues.forEach(([object, key], i) => (object[key] = from.values[i]));
+    lightingColors.forEach((color, i) => color.copy(from.colors[i]));
+    outside.skyBlend = 0;
     outside.night = isDark;
     windowView.userData.tex.redraw();
-    lampSwitch(isDark);
     setNeon(isDark);
     catSettle();
     desktop.setTheme(isDark);
@@ -10762,6 +11070,32 @@ export function createDeskScene({ container, projects, experiences, dark = false
   sunCasters.expandByScalar(0.5);
   fitSunShadow();
 
+  // Shadow samplers share the fragment-stage limit with printed textures, toon ramps and
+  // bump maps. Reserve those slots before enabling shadows, including close-up-only lights.
+  const materialMapKeys = ["map", "emissiveMap", "gradientMap", "bumpMap", "normalMap", "alphaMap", "aoMap", "lightMap", "roughnessMap", "metalnessMap", "envMap"];
+  let materialTextureSlots = 0;
+  scene.traverse((object) => {
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    materials.forEach((material) => {
+      if (!material?.isMeshToonMaterial && !material?.isMeshStandardMaterial) return;
+      materialTextureSlots = Math.max(materialTextureSlots, materialMapKeys.filter((key) => material[key]?.isTexture).length);
+    });
+  });
+  const shadowLights = [...new Set([swordSpotlight, windowLight, sun, lampLight, lightbarLight, signLight, screenLight, ...shadowedNeons])];
+  const lightTextureSlots = shadowLights.filter((light) => light.map).length;
+  const shadowTextureLimit = Math.max(0, renderer.capabilities.maxTextures - materialTextureSlots - lightTextureSlots);
+  const decorativeShadows = new Set(shadowedNeons);
+  function updateShadowBudget() {
+    let available = shadowTextureLimit;
+    shadowLights.forEach((light) => {
+      const active = light.intensity > 0.001 && (!decorativeShadows.has(light) || darkNow || lightingBlending);
+      const enabled = active && available > 0;
+      if (enabled) available--;
+      if (enabled && !light.castShadow) light.shadow.needsUpdate = true;
+      light.castShadow = enabled;
+    });
+  }
+
   let frame = null;
   let lastBlink = 0;
   const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -10769,6 +11103,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const target = new THREE.Vector3();
   let lastTick = 0;
   let mainShadowAt = 0;
+  let aoFreshAt = 0;
+  const aoCamPos = new THREE.Vector3();
+  const aoCamTurn = new THREE.Quaternion();
+  let aoCamZoom = 0;
   const frameIntervals = [];
   const updateToonBatch = benchmark === "no-batch" ? () => {} : createToonBatch(scene, renderer, track);
   [sun, windowLight, lampLight].forEach((light) => {
@@ -10782,7 +11120,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       frameIntervals.length = 0;
       return;
     }
-    const moving = now < responsiveUntil || gsap.isTweening(cam) || catIdleTl?.isActive() || gsap.isTweening(blind) || mouseRunning || lampHopping || trophyCelebrating || lanyardDrag || hatDrag || noteDrag || shelfDrag || stickyDrag;
+    const moving = lightingBlending || now < responsiveUntil || gsap.isTweening(cam) || catIdleTl?.isActive() || gsap.isTweening(blind) || mouseRunning || lampHopping || trophyCelebrating || lanyardDrag || hatDrag || noteDrag || shelfDrag || stickyDrag;
     // Do not skip presentation frames during interaction. Idle uses a tolerant interval rather
     // than an accumulated deadline, which otherwise creates short/long frame pairs under jitter.
     if (!moving && lastTick && now - lastTick < refreshMs * 0.7) return;
@@ -10822,6 +11160,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
       camera.near = cam.near;
       camera.updateProjectionMatrix();
     }
+    // the occlusion is redone when the view has shifted at all, or anything's moving, and a
+    // few times a second otherwise (see aoPass.render)
+    if (moving || now >= aoFreshAt || camera.zoom !== aoCamZoom || camera.position.distanceToSquared(aoCamPos) > 1e-10 || 1 - Math.abs(camera.quaternion.dot(aoCamTurn)) > 1e-10) {
+      aoDue = true;
+      aoFreshAt = now + 1000 / 15;
+      aoCamPos.copy(camera.position);
+      aoCamTurn.copy(camera.quaternion);
+      aoCamZoom = camera.zoom;
+    }
     updateLanyard(dt);
     updateShelfLeds(now);
     updateCatWatch(now);
@@ -10831,6 +11178,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     updateDaylight(now);
     outside.t += dt;
     outside.rain += (outside.rainTarget - outside.rain) * Math.min(1, dt * 0.35);
+    updateLighting(now);
     if (Math.abs(outside.rain - (outside.heard ?? -1)) > 0.02) {
       outside.heard = outside.rain;
       setRainLevel(soundMuted ? 0 : outside.rain);
@@ -10867,7 +11215,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       plane.scale.setScalar(1 + lift * 0.3);
       // Ambient occlusion now darkens the contact itself; this only softens it under a prop
       // and carries the shadow while the prop is lifted
-      plane.material.opacity = (darkNow ? 0.22 : 0.28) * strength / (1 + lift * 3);
+      plane.material.opacity = THREE.MathUtils.lerp(0.16, 0.115, roomLight.night) * (1 - 0.2 * outside.rain) * strength / (1 + lift * 3);
       plane.visible = object.visible;
     }
     if (now - lastBlink > 530) {
@@ -10900,9 +11248,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
       });
     }
     updateNeonLights(now, moving);
+    updateShaft(now);
     updatePaperFlex();
     constrainHat();
     updateToonBatch();
+    updateShadowBudget();
     renderFrame();
     if (firstFrame) {
       firstFrame = false;
@@ -10998,6 +11348,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       sun.shadow.dispose();
       windowLight.shadow.dispose();
       lampLight.shadow.dispose();
+      swordSpotlight.shadow.dispose();
       neonLights.forEach(({ light }) => light.shadow?.dispose());
       composer.passes.forEach((pass) => pass.dispose?.());
       composer.dispose();

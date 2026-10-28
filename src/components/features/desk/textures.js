@@ -3264,16 +3264,27 @@ const GLASS_DROPS = Array.from({ length: 22 }, (_, i) => ({ x: (i * 0.383 + 0.07
 const GLASS_BEADS = Array.from({ length: 70 }, (_, i) => ({ x: (i * 0.6180339 + 0.11) % 1, y: (i * 0.4142 + 0.37) % 1, r: 0.2 + ((i * 0.7071) % 1) * 0.3 }));
 // The sky through the day: top band, middle, horizon; the sun's height, colour and side
 const SKIES = {
-  morning: { sky: ["#ffb98a", "#ffd4a8", "#fff0d6"], sun: [0.26, 0.38, "#ffcf5c"], cloud: "#fff3e3" },
-  day: { sky: ["#7fdfff", "#a8ecff", "#cdf6ff"], sun: [0.74, 0.19, "#ffdd00"], cloud: "#ffffff" },
-  evening: { sky: ["#6d5cc4", "#ff8fa3", "#ffb35c"], sun: [0.7, 0.44, "#ff7a1a"], cloud: "#ffd0e0" },
-  night: { sky: ["#1e2a5a", "#26356b", "#30437f"], sun: [0.74, 0.19, "#fffdf5"], cloud: "#55638f" },
+  morning: { sky: ["#ffb98a", "#ffd4a8", "#fff0d6"], sun: [0.32, 0.30, "#ffcf5c"], cloud: "#fff3e3" },
+  day: { sky: ["#7fdfff", "#a8ecff", "#cdf6ff"], sun: [0.5, 0.10, "#ffdd00"], cloud: "#ffffff" },
+  evening: { sky: ["#493e77", "#b36b83", "#e29b6a"], sun: [0.7, 0.44, "#ff7a1a"], cloud: "#bba8bc" },
+  night: { sky: ["#1e2a5a", "#26356b", "#30437f"], sun: [0.66, 0.19, "#fffdf5"], cloud: "#55638f" },
 };
 
+// Shared by the painted sky and the room's window light, including interrupted transitions.
+export function windowSky(time, from = SKIES[time], blend = 1) {
+  const to = SKIES[time];
+  return {
+    sky: to.sky.map((color, i) => mixHex(from.sky[i], color, blend)),
+    sun: [0, 1].map((i) => from.sun[i] + (to.sun[i] - from.sun[i]) * blend).concat(mixHex(from.sun[2], to.sun[2], blend)),
+    cloud: mixHex(from.cloud, to.cloud, blend),
+    night: (from.night ?? (from === SKIES.night ? 1 : 0)) * (1 - blend) + (time === "night" ? blend : 0),
+  };
+}
+
 // `time` is the part of the day outside (morning, day, evening, night), `rain` 0–1
-export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt = -99, starAt = -99 } = {}) {
-  const dark = time === "night";
-  const look = SKIES[time];
+export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt = -99, starAt = -99, skyFrom, skyBlend = 1 } = {}) {
+  const look = windowSky(time, skyFrom, skyBlend);
+  const dark = look.night >= 0.5;
   // Rain greys everything over
   const grey = (color) => mixHex(color, dark ? "#2a2f45" : "#8d97a8", rain * 0.55);
   const u = w / 100;
@@ -3403,20 +3414,22 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   const sy = h * look.sun[1];
   const sr = w * 0.085;
   const sunColor = look.sun[2];
+  // The sun fades before the moon appears (and vice versa), avoiding a silhouette pop.
+  const celestial = Math.abs(look.night * 2 - 1);
   // A soft halo round it, breathing a little
   const halo = c.createRadialGradient(sx, sy, sr, sx, sy, sr * (dark ? 2.6 : 3.2) * (1 + 0.04 * Math.sin(t * 1.3)));
   halo.addColorStop(0, dark ? "rgba(255,253,245,.28)" : "rgba(255,255,230,.5)");
   halo.addColorStop(1, "rgba(255,255,255,0)");
-  c.globalAlpha = 1 - rain * 0.9;
+  c.globalAlpha = (1 - rain * 0.9) * celestial;
   c.fillStyle = halo;
   c.fillRect(sx - sr * 4, sy - sr * 4, sr * 8, sr * 8);
   // A ring of light swelling out from it now and then, fading as it grows
   const ring = (t * 0.22) % 1;
-  c.globalAlpha = (1 - ring) * 0.4 * (1 - rain);
+  c.globalAlpha = (1 - ring) * 0.4 * (1 - rain) * celestial;
   c.beginPath();
   c.arc(sx, sy, sr * (1.25 + ring * 1.9), 0, Math.PI * 2);
   stroke(line * (1.4 - ring), dark ? "#fffdf5" : glow(sunColor, 0.5));
-  c.globalAlpha = 1 - rain * 0.85;
+  c.globalAlpha = (1 - rain * 0.85) * celestial;
   // it breathes: a slow swell, and the rays stretching in a wave that runs round the disc
   const breathe = 1 + 0.03 * Math.sin(t * 1.6);
   if (!dark) {

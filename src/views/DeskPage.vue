@@ -95,9 +95,26 @@
       <transition name="hud-pop">
         <div
           v-if="secretToast"
-          :key="secretToast"
-          class="absolute top-4 right-4 pointer-events-none bg-black text-primary font-bold text-sm md:text-base px-3 py-2 border-4 border-black shadow-[5px_5px_0_0_#ff90e8] rotate-1">
-          {{ secretToast }}
+          :key="secretToast.key"
+          class="absolute top-4 right-4 md:top-6 md:right-6 z-50 pointer-events-auto cursor-pointer bg-[#ffdd00] border-3 md:border-4 border-black shadow-[6px_6px_0_0_#000000] p-2.5 md:p-3 flex items-center gap-3 select-none -rotate-1 max-w-[calc(100vw-2rem)] hover:scale-105 transition-transform"
+          title="Click to dismiss"
+          @click="secretToast = null">
+          <div class="w-10 h-10 md:w-11 md:h-11 bg-black text-[#ffdd00] flex items-center justify-center border-2 border-black font-extrabold text-lg md:text-xl shadow-[2px_2px_0_0_#ff90e8] shrink-0">
+            {{ secretToast.allDone ? '🏆' : '✦' }}
+          </div>
+          <div class="flex flex-col min-w-0 pr-1">
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] md:text-xs font-black tracking-wider uppercase bg-black text-white px-1.5 py-0.5 leading-none">
+                {{ secretToast.allDone ? 'ALL SECRETS FOUND!' : 'SECRET FOUND' }}
+              </span>
+              <span class="text-xs md:text-sm font-bold text-black font-mono">
+                {{ secretToast.found }}/{{ secretToast.total }}
+              </span>
+            </div>
+            <div class="text-xs md:text-sm font-extrabold text-black leading-tight mt-1 truncate">
+              {{ secretToast.title }}
+            </div>
+          </div>
         </div>
       </transition>
 
@@ -152,6 +169,29 @@ const WALL_PAINTS = [
   { name: "Charcoal", hex: "#5c5c5c" },
   { name: "Graphite", hex: "#3a3a3a" },
 ];
+const SECRET_NAMES = {
+  snap: "Infinity Gauntlet Snap",
+  katana: "Katana Draw & Strike",
+  rat: "Mouse Scamper",
+  catKeys: "Cat on Keyboard",
+  rain: "Window Rainstorm",
+  star: "Night Shooting Star",
+  lamp: "Bouncy Edison Lamp",
+  painting: "Living Canvas Art",
+  chair: "Desk Chair Spin",
+  guitar: "Guitar Acoustic Strum",
+  luffy: "Straw Hat Strike",
+  clock: "Clock Time Rewind",
+  butterfly: "Bonsai Bloom",
+  lofi: "Lofi Beats on Monitor",
+  badge: "Staff ID Badge Flip",
+  gymPR: "10-Rep Dumbbell Workout",
+  konami: "Konami Cheat Code",
+  console: "Retro Handheld Console",
+  robot: "Bit the Glitchy Robot",
+  trash: "Paper Basketball Toss",
+};
+
 const SETTINGS_KEY = "desk-settings";
 const DEFAULT_WALL = "#3a3a3a";
 const stageRef = ref(null);
@@ -161,7 +201,7 @@ const focus = ref("overview");
 const introPlaying = ref(true);
 const projectOpen = ref(false);
 const consoleOn = ref(false);
-const secretToast = ref("");
+const secretToast = ref(null);
 const settingsOpen = ref(false);
 const settings = reactive(readSettings());
 let secretTimer = null;
@@ -201,9 +241,17 @@ function onEvent(name, payload = {}) {
   else if (name === "projectOpen") projectOpen.value = payload.open;
   else if (name === "console") consoleOn.value = payload.on;
   else if (name === "secret") {
-    secretToast.value = payload.found === payload.total ? "🏆 All secrets found!" : `✦ Secret found ${payload.found}/${payload.total}`;
+    const isAll = payload.found === payload.total;
+    const title = payload.id ? (SECRET_NAMES[payload.id] || payload.id) : (isAll ? "Master of the Desk!" : "Keep exploring the room!");
+    secretToast.value = {
+      allDone: isAll,
+      found: payload.found,
+      total: payload.total,
+      title,
+      key: `${payload.id || 'secret'}-${payload.found}-${Date.now()}`,
+    };
     clearTimeout(secretTimer);
-    secretTimer = setTimeout(() => (secretToast.value = ""), 2600);
+    secretTimer = setTimeout(() => (secretToast.value = null), 4500);
   }
   else if (name === "focus") {
     focus.value = payload.name;

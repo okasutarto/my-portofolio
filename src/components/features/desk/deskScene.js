@@ -3102,7 +3102,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
       // Still counted for this visit
     }
     trophyPlate.userData.tex.redraw();
-    onEvent("secret", { found: secretsFound.size, total: SECRETS.length });
+    sfx.ding({ pitch: 1.15, volume: 0.22 });
+    onEvent("secret", { id, found: secretsFound.size, total: SECRETS.length });
     if (secretsFound.size === SECRETS.length) timers.push(setTimeout(celebrateSecrets, 1200));
   }
   // All of them: the trophy lights up gold and throws confetti
@@ -7139,11 +7140,16 @@ export function createDeskScene({ container, projects, experiences, dark = false
   jack.position.set(0.3, PORT_Y, MINI_FRONT + 0.001);
   const jackRim = new THREE.Mesh(track(new THREE.RingGeometry(0.018, 0.025, 20)), portChamfer);
   jackRim.position.set(0.3, PORT_Y, MINI_FRONT + 0.001);
-  const miniLedMat = track(new THREE.MeshBasicMaterial({ color: "#f4f6f8" }));
-  const miniLed = new THREE.Mesh(track(new THREE.CircleGeometry(0.008, 12)), miniLedMat);
-  miniLed.position.set(0.17, PORT_Y, MINI_FRONT + 0.001);
-  [jack, jackRim, miniLed].forEach((part) => (part.raycast = noRaycast));
-  macMini.add(jack, jackRim, miniLed);
+  const miniLedMat = track(new THREE.MeshBasicMaterial({ color: "#22c55e" }));
+  const miniLed = new THREE.Mesh(track(new THREE.CircleGeometry(0.012, 16)), miniLedMat);
+  miniLed.position.set(0.17, PORT_Y, MINI_FRONT + 0.002);
+  const miniLedRim = new THREE.Mesh(track(new THREE.RingGeometry(0.012, 0.018, 20)), portChamfer);
+  miniLedRim.position.set(0.17, PORT_Y, MINI_FRONT + 0.001);
+  const miniLedHaloMat = track(new THREE.MeshBasicMaterial({ color: "#22c55e", transparent: true, opacity: 0.65, depthWrite: false }));
+  const miniLedHalo = new THREE.Mesh(track(new THREE.CircleGeometry(0.038, 16)), miniLedHaloMat);
+  miniLedHalo.position.set(0.17, PORT_Y, MINI_FRONT + 0.0015);
+  [jack, jackRim, miniLed, miniLedRim, miniLedHalo].forEach((part) => (part.raycast = noRaycast));
+  macMini.add(jack, jackRim, miniLed, miniLedRim, miniLedHalo);
   // the back, seen from behind (so its x runs the other way): power, ethernet, HDMI, USB-C
   const MINI_BACK = -MINI_W / 2 - 0.002;
   const power = mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.008, 28), portMat, { outline: 0, cast: false });
@@ -7159,7 +7165,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   register(macMini, {
     onHover: (on) => {
       gsap.to(macMini.position, { y: RISER_TOP + (on ? 0.06 : 0), duration: 0.25, ease: "power2.out", overwrite: true });
-      gsap.to(miniLed.scale, { x: on ? 1.8 : 1, y: on ? 1.8 : 1, duration: 0.25, overwrite: true });
+      gsap.to(miniLed.scale, { x: on ? 1.4 : 1, y: on ? 1.4 : 1, duration: 0.25, overwrite: true });
+      gsap.to(miniLedHalo.scale, { x: on ? 1.4 : 1, y: on ? 1.4 : 1, duration: 0.25, overwrite: true });
     },
     onClick: () => {
       gsap.fromTo(macMini.scale, { x: 1.04, y: 0.94, z: 1.04 }, { x: 1, y: 1, z: 1, duration: 0.4, ease: "elastic.out(1.2, 0.4)" });
@@ -7704,7 +7711,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
       });
       ["pointerdown", "keydown"].forEach((evt) => window.addEventListener(evt, onFirstGesture, { capture: true, once: true }));
     }
-    miniLedMat.color.set("#f4f6f8");
+    miniLedMat.color.set("#22c55e");
+    miniLedHalo.visible = true;
+    gsap.to(miniLedHaloMat, { opacity: 0.65, duration: 0.3, overwrite: true });
     redrawScreen();
     gsap.to(screenPower, { level: 0.35, duration: 0.4, overwrite: true });
     gsap.to(computer, {
@@ -7733,7 +7742,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
       if (desktop.exitConsole()) redrawScreen();
       computer.on = false;
       sfx.powerDown();
-      miniLedMat.color.set("#2a2c30");
+      miniLedMat.color.set("#1f2125");
+      gsap.to(miniLedHaloMat, { opacity: 0, duration: 0.25, overwrite: true, onComplete: () => { miniLedHalo.visible = false; } });
       gsap.to(screenPower, { level: 0, duration: 0.35, ease: "power2.in", overwrite: true });
       redrawScreen();
       return;

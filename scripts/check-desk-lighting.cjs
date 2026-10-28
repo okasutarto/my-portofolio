@@ -39,6 +39,7 @@ const context = vm.createContext({
   aimWindowLight: (at) => { windowLight.userData.sky = [...at]; }, blindFabric: {}, shadowedNeons: [{}, {}, {}],
   cookieRain: 0, drawGlassCookie() {}, DESK_WASH: 0.45, monitorGlowMat: {}, updateLampGlow() {}, updateLightbar() {},
   riserMat: material(), riserLegMat: material(), RISER_LEG_SHADE: 0.8,
+  hoopBoardFace: { material: { emissiveIntensity: 0 } }, net: { material: material() },
   sun, windowLight, lampLight, ambient, readabilityFill, skyFill,
   jointMat: material(), floorMat: material(), backWallMat: material(),
   sideWallMat: material(), trimMat: material(), deskMat: material(), shadowFill: material(),
@@ -227,10 +228,12 @@ assert.equal(run('nextDaylightAt') - now, 25000, 'next phase uses the faster 20â
   assert.ok(night.x > 0 && night.y < 0 && night.z > 0, 'moonlight follows the upper-right moon in the window');
 }
 // Rain must attenuate and recover correctly in every phase.
+const hoopGlow = {};
 for (const part of ['morning', 'day', 'evening', 'night']) {
   now += 10000;
   run(`daylightPart = '${part}'; setRoomTheme(${part === 'night'})`);
   update(now + 5000);
+  hoopGlow[part] = [context.hoopBoardFace.material.emissiveIntensity, context.net.material.color.r];
   const clear = windowLight.intensity;
   const clearRadius = windowLight.shadow.radius;
   const localLamp = lampLight.intensity;
@@ -244,6 +247,10 @@ for (const part of ['morning', 'day', 'evening', 'night']) {
   assert.equal(windowLight.intensity, clear, `${part}: clear weather restores direct light`);
   assert.equal(windowLight.shadow.radius, clearRadius, `${part}: shadow softness recovers`);
 }
+// The backboard's glowing print settles into the room's light from dusk on
+assert.deepEqual(hoopGlow.morning, hoopGlow.day);
+assert.ok(hoopGlow.day[0] > hoopGlow.evening[0] && hoopGlow.evening[0] > hoopGlow.night[0], 'backboard glow dims towards night');
+assert.ok(hoopGlow.day[1] > hoopGlow.evening[1] && hoopGlow.evening[1] > hoopGlow.night[1], 'net darkens towards night');
 
 // Exercise the same per-frame contact update used by the moving mouse and lifted mug.
 const object = { position: { x: 5.6, y: 0, z: -0.6 }, rotation: { y: 0.2 } };

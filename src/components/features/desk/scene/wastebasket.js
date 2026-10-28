@@ -409,6 +409,8 @@ export function createWastebasket(runtime) {
   // Public state used by the other scene parts.
   return {
     bin,
+    hoopBoardFace,
+    net,
     updatePapers,
     papers,
     get binBadgeTimer() { return binBadgeTimer; },

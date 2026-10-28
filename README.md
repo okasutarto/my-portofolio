@@ -126,7 +126,7 @@ night shift trades the daylight for cyan and pink neon.
 
 <table>
   <tr>
-    <td width="50%"><img src="public/readme-desk.jpg" alt="Morning: warm sunlight through the window across the desk" width="100%" /></td>
+    <td width="50%"><img src="public/readme-desk-morning.jpg" alt="Morning: warm sunlight through the window across the desk" width="100%" /></td>
     <td width="50%"><img src="public/readme-desk-night.jpg" alt="Night shift: cyan and pink LEDs behind the desk and monitor" width="100%" /></td>
   </tr>
   <tr>
@@ -311,7 +311,8 @@ the-desk/
 ├── public/
 │   ├── index.html                # Meta tags and the boot loader
 │   ├── og-image.png              # Link preview image
-│   ├── readme-desk.jpg           # Morning README screenshot
+│   ├── readme-desk.jpg           # README hero screenshot
+│   ├── readme-desk-morning.jpg   # Morning README screenshot, paired with the night one
 │   ├── readme-desk-night.jpg     # Nighttime README screenshot
 │   └── sfx/                      # Recorded sound layers and their licenses
 ├── src/

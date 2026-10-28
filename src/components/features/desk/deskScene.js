@@ -4790,8 +4790,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const SPOT_REACH = { x: 3.0, y: 4.0 };
   // The sword key's own strength at midday, and how much of the room's lost fill (morning,
   // evening, night, rain) it makes up on top
-  const SWORD_KEY = 0.85;
-  const SWORD_FILL_MAKEUP = 0.77;
+  const SWORD_KEY = 0.3;
+  const SWORD_FILL_MAKEUP = 1;
   // A dedicated key keeps the swords lit through every room phase; the overlay only
   // darkens their surroundings. Fade with focus, independently of the room lights.
   const swordSpotlight = new THREE.SpotLight("#fff4e8", 0, 18, Math.PI / 4, 0.65, 0);
@@ -4851,9 +4851,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
     gauntlet.visible = focus.name !== "swords";
     const strength = spotUniforms.strength;
     strength.value += ((focus.name === "swords" ? 1 : 0) - strength.value) * (1 - Math.pow(0.02, dt));
-    // The room's own fill (ambient and sky) falls from ~2.6 at midday to ~0.3 at night; the key
-    // makes up most of what's missing, so the swords hold their brightness at any hour, rain or
-    // shine, a touch dimmer after dark rather than lit up past the room around them
+    // The room's own fill (ambient and sky) falls from ~2.6 at midday to ~0.3 at night; a light
+    // key makes up what's missing, so the swords hold the same brightness at any hour, rain or
+    // shine, without a daytime glare on top of an already bright room
     const dayFill = DAYLIGHT.day.ambient + DAYLIGHT.day.skyPower;
     const fillGap = Math.max(0, dayFill - ambient.intensity - skyFill.intensity);
     swordSpotlight.intensity = (SWORD_KEY + fillGap * SWORD_FILL_MAKEUP) * strength.value;

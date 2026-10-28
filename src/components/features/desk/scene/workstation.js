@@ -5,6 +5,7 @@ import { canvasTexture, drawTerminal, drawStickyNote, drawWoodTop, drawBrushedMe
 import { createDesktop, SCREEN_W, SCREEN_H } from "../desktop";
 import { createLofi, TRACKS } from "../lofi";
 import { PALETTES } from "../sceneConfig";
+import { DEFAULT_WOODS } from "../woods";
 
 export function createWorkstation(runtime) {
   // ---------- monitor riser: a wooden shelf the monitor and speakers stand on ----------
@@ -15,7 +16,7 @@ export function createWorkstation(runtime) {
   const RISER_LEG_SHADE = 0.62;
   // Its own print of the grain (not a clone of the desk's), so it can take a different wood
   const riserGrain = canvasTexture(1400, 840);
-  drawWoodTop(riserGrain.ctx, 1400, 840);
+  drawWoodTop(riserGrain.ctx, 1400, 840, DEFAULT_WOODS.riser);
   const riserWood = riserGrain.texture;
   riserWood.wrapS = riserWood.wrapT = THREE.RepeatWrapping;
   // the grain at the desk's scale: half its length, and one of its five boards

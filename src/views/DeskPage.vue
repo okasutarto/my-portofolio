@@ -157,7 +157,7 @@ import { experiences } from "@/data/experience";
 import { useTheme } from "@/composables/useTheme";
 import { useSfx, initializeAudio, sfx } from "@/composables/useSfx";
 import { hideBootLoader } from "@/utils/bootLoader";
-import { WOODS, WOOD_PATTERNS, WOOD_TARGETS, DEFAULT_WOOD } from "@/components/features/desk/woods";
+import { WOODS, WOOD_PATTERNS, WOOD_TARGETS, DEFAULT_WOODS } from "@/components/features/desk/woods";
 
 const COMMAND_CHIPS = ["help", "whoami", "projects", "hobbies", "sudo hire oka"];
 const WALL_PAINTS = [
@@ -266,13 +266,13 @@ function readSettings() {
   } catch {
     // no storage, or not ours: the default room it is
   }
-  const pickWood = (choice = {}) => ({
-    wood: WOODS[choice.wood] ? choice.wood : DEFAULT_WOOD.wood,
-    pattern: WOOD_PATTERNS[choice.pattern] ? choice.pattern : DEFAULT_WOOD.pattern,
+  const pickWood = (part, choice = {}) => ({
+    wood: WOODS[choice.wood] ? choice.wood : DEFAULT_WOODS[part].wood,
+    pattern: WOOD_PATTERNS[choice.pattern] ? choice.pattern : DEFAULT_WOODS[part].pattern,
   });
   return {
     wall: /^#[0-9a-f]{6}$/i.test(saved.wall || "") ? saved.wall : DEFAULT_WALL,
-    woods: Object.fromEntries(Object.keys(WOOD_TARGETS).map((part) => [part, pickWood(saved.woods?.[part])])),
+    woods: Object.fromEntries(Object.keys(WOOD_TARGETS).map((part) => [part, pickWood(part, saved.woods?.[part])])),
   };
 }
 function saveSettings() {

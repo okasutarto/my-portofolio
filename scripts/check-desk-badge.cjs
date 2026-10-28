@@ -1,7 +1,5 @@
 // Run: node scripts/check-desk-badge.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 const THREE = require('three');
 const source = require('./helpers/desk-source.cjs').readDeskSource();
@@ -50,7 +48,7 @@ assert.equal(state().badgeFlipped, true);
 assert.ok(state().badgeFront.position.z > 0.0325 && state().badgeBack.position.z < -0.0325, 'print clears both holder faces');
 
 // Badge links retain their exact hit regions at different texture resolutions.
-const textures = fs.readFileSync(path.join(__dirname, '../src/components/features/desk/textures.js'), 'utf8');
+const textures = require('./helpers/texture-source.cjs').readTexturesSource();
 const badgeCode = textures.slice(textures.indexOf('export function drawBadge('), textures.indexOf('// ---------- boarding pass'));
 const canvas = new Proxy({}, { get: () => () => {} });
 const printContext = vm.createContext({ guilloche() {}, stockGrain() {}, DISPLAY: 'sans-serif', BODY: 'sans-serif', brutalBox() {}, drawPortrait() {} });

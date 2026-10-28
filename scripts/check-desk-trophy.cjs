@@ -6,7 +6,7 @@ const THREE = require('three');
 const { gsap } = require('gsap');
 const source = require('./helpers/desk-source.cjs').readDeskSource();
 const section = (a, b) => source.slice(source.indexOf(a), source.indexOf(b, source.indexOf(a)));
-const tailsSource = fs.readFileSync(`${__dirname}/../src/components/features/desk/textures.js`, 'utf8');
+const tailsSource = require('./helpers/texture-source.cjs').readTexturesSource();
 const BUBBLE_TAILS = vm.runInNewContext(tailsSource.slice(tailsSource.indexOf('export const BUBBLE_TAILS'), tailsSource.indexOf('function drawMangaBubble')).replace('export ', '') + '; BUBBLE_TAILS');
 const trophy = new THREE.Group();
 trophy.position.set(1, 2, 0);

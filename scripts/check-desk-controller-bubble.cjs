@@ -1,10 +1,9 @@
 // Run: node scripts/check-desk-controller-bubble.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const vm = require('node:vm');
 const THREE = require('three');
 const source = require('./helpers/desk-source.cjs').readDeskSource();
-const textures = fs.readFileSync(`${__dirname}/../src/components/features/desk/textures.js`, 'utf8');
+const textures = require('./helpers/texture-source.cjs').readTexturesSource();
 const BUBBLE_TAILS = vm.runInNewContext(textures.slice(textures.indexOf('export const BUBBLE_TAILS'), textures.indexOf('function drawMangaBubble')).replace('export ', '') + '; BUBBLE_TAILS');
 const shelf = new THREE.Group();
 shelf.position.set(10.5, -5.2, -3.75);

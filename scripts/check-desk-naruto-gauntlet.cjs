@@ -1,6 +1,5 @@
 // Run: node scripts/check-desk-naruto-gauntlet.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const vm = require('node:vm');
 const THREE = require('three');
 const source = require('./helpers/desk-source.cjs').readDeskSource();
@@ -52,7 +51,7 @@ vm.runInNewContext(snapStart + '; snapFingers()', {
 });
 assert.deepEqual(order, ['cancel hover', 'snap']);
 
-const textures = fs.readFileSync(`${__dirname}/../src/components/features/desk/textures.js`, 'utf8');
+const textures = require('./helpers/texture-source.cjs').readTexturesSource();
 const manga = textures.slice(textures.indexOf('// ---------- Naruto manga collection'), textures.indexOf('// ---------- the handheld')).replace(/export /g, '');
 const text = [];
 const ctx = new Proxy({

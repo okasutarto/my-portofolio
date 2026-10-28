@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const source = fs.readFileSync(require('node:path').join(__dirname, '../src/components/features/desk/strawHatStrike.js'), 'utf8')
+  .replace(/^import .*;\n/gm, '')
   .replace(/^export /gm, '');
 const canvas = () => new Proxy(function () {}, {
   get: (target, key) => (key === 'measureText' ? () => ({ width: 10 }) : canvas()),
@@ -13,6 +14,7 @@ const canvas = () => new Proxy(function () {}, {
 });
 const store = {};
 const ctx = vm.createContext({
+  DISPLAY: 'display', BODY: 'body',
   localStorage: { getItem: (k) => store[k] ?? null, setItem: (k, v) => (store[k] = v) },
   navigator: { getGamepads: () => [] },
   // Seeded, so every run plays the same game

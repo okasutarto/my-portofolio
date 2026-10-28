@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const read = (path) => fs.readFileSync(`${__dirname}/../src/${path}`, 'utf8');
 const strip = (source) => source.replace(/^import .*;\n/gm, '').replace(/export /g, '');
 const context = vm.createContext({ THREE: require('three') });
-vm.runInContext(strip(read('data/projects.js')) + strip(read('data/projectFiles.js')) + strip(read('data/about.js')) + strip(read('components/features/desk/textures.js')), context);
+vm.runInContext(strip(read('data/projects.js')) + strip(read('data/projectFiles.js')) + strip(read('data/about.js')) + strip(require('./helpers/texture-source.cjs').readTexturesSource()), context);
 const ctx = new Proxy({ font: '20px sans-serif', measureText(text) { return { width: String(text).length * (parseFloat(this.font.match(/[\d.]+px/)?.[0]) || 20) * 0.58 }; } }, { get(target, key) { return key in target ? target[key] : () => {}; } });
 context.ctx = ctx;
 vm.runInContext(`

@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 const source = require('./helpers/desk-source.cjs').readDeskSource();
 const THREE = require('three');
-const textures = fs.readFileSync(path.join(__dirname, '../src/components/features/desk/textures.js'), 'utf8');
+const textures = require('./helpers/texture-source.cjs').readTexturesSource();
 const skySource = textures.slice(textures.indexOf('function mixHex('), textures.indexOf('// `time` is the part of the day outside')).replace('export function', 'function');
 const windowSky = vm.runInNewContext(skySource + '; windowSky');
 const moodCode = source.slice(source.indexOf('  const daylightParts ='), source.indexOf('  const windowView ='));

@@ -4,6 +4,7 @@
 // Pistol for a gun, meat for power, a Gatling to clear the sky, and a Sea King at the end of
 // every stage. Drawn in the desktop's 640 × 384 layout, in the room's toon style: flat fills,
 // thick ink outlines and hard offset shadows.
+import { DISPLAY, BODY } from "./textures/base";
 
 const W = 640;
 const H = 384;
@@ -12,8 +13,6 @@ const CREAM = "#fffdf5";
 const YELLOW = "#ffdd00";
 const RED = "#e5484d";
 const BLUE = "#3b6fd6";
-const DISPLAY = "'Lexend Mega', sans-serif";
-const BODY = "'Space Grotesk', sans-serif";
 export const STRIKE_BOOT = 2.2;
 // The sea starts at the horizon; the ship sails anywhere below it
 const HORIZON = 96;

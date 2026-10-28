@@ -6,7 +6,7 @@ const path = require('node:path');
 const read = (name) => fs.readFileSync(path.join(__dirname, '../src/components/features/desk', name), 'utf8');
 
 // Record the real drawing path for every tail direction.
-const textures = read('textures.js');
+const textures = require('./helpers/texture-source.cjs').readTexturesSource();
 const drawing = textures.slice(textures.indexOf('export const BUBBLE_TAILS'), textures.indexOf('export function drawQuoteBubble')).replace('export ', '');
 const paths = [];
 const context = {

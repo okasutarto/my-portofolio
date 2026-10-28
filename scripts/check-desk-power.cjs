@@ -1,10 +1,8 @@
 // Run: node scripts/check-desk-power.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 
-const texSource = fs.readFileSync(path.join(__dirname, '../src/components/features/desk/textures.js'), 'utf8');
+const texSource = require('./helpers/texture-source.cjs').readTexturesSource();
 const start = texSource.indexOf('function wholeApple(');
 const end = texSource.indexOf('export function drawVentSlots', start);
 const { drawPowerScreen } = vm.runInNewContext(

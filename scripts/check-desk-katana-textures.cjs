@@ -1,8 +1,7 @@
 // Run: node scripts/check-desk-katana-textures.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const vm = require('node:vm');
-const source = fs.readFileSync('src/components/features/desk/textures.js', 'utf8');
+const source = require('./helpers/texture-source.cjs').readTexturesSource();
 const start = source.indexOf('export function drawEnmaBlade');
 const end = source.indexOf('// ---------- family portrait ----------', start);
 const draw = vm.runInNewContext(source.slice(start, end).replace(/export /g, '') +

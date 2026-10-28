@@ -27,7 +27,7 @@ const context = vm.createContext({
   console, Date, Math, Set, Map, WeakMap,
   localStorage: { getItem: (key) => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value) },
   document: { createElement: makeCanvas },
-  performance: { now: () => time }, TRACKS: [],
+  performance: { now: () => time }, TRACKS: [], DISPLAY: 'display', BODY: 'body',
   createStrike: () => ({ keys: new Set() }), drawStrike() {}, strikeKey() {}, STRIKE_BOOT: 1,
 });
 vm.runInContext(strip('src/components/features/desk/wallpapers.js') + strip('src/components/features/desk/desktop.js') + `

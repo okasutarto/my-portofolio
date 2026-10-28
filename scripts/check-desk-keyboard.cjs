@@ -1,6 +1,5 @@
 // Run: node scripts/check-desk-keyboard.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const vm = require('node:vm');
 const THREE = require('three');
 
@@ -38,7 +37,7 @@ const THREE = require('three');
     geo.dispose();
     key.material.dispose();
   }
-  const textures = fs.readFileSync(require('node:path').join(__dirname, '../src/components/features/desk/textures.js'), 'utf8');
+  const textures = require('./helpers/texture-source.cjs').readTexturesSource();
   const fit = textures.slice(textures.indexOf('function fitFont('), textures.indexOf('const DISPLAY ='));
   const labelCode = textures.slice(textures.indexOf('export function drawKeyLabel('), textures.indexOf('// ---------- speech bubble over the mug')).replace('export function', 'function');
   const drawLabel = vm.runInNewContext(fit + labelCode + '; drawKeyLabel', { BODY: 'sans-serif' });

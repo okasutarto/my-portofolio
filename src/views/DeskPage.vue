@@ -14,7 +14,7 @@
           <button
             v-if="!zoomed"
             ref="settingsButton"
-            class="hud-btn settings-toggle text-black px-2"
+            class="hud-btn text-black px-2"
             :class="settingsOpen ? 'settings-toggle--open' : 'bg-white'"
             :aria-expanded="settingsOpen"
             aria-controls="room-settings"
@@ -25,8 +25,6 @@
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
-            <!-- a status light: lit green while the settings are open, grey while they're shut -->
-            <span class="settings-led" :class="{ 'settings-led--on': settingsOpen }" aria-hidden="true"></span>
           </button>
           <!-- On a phone the way back out sits beside it, not in a third row over the view -->
           <transition name="hud-pop">
@@ -410,11 +408,7 @@ onUnmounted(() => {
   transform: translate(2px, 2px);
   box-shadow: none;
 }
-/* The settings toggle: pink and pressed in while the panel is open, its gear turned a notch,
-   with a little status light (grey shut, green open) */
-.settings-toggle {
-  @apply relative;
-}
+/* The settings toggle: pink and pressed in while the panel is open, its gear turned a notch */
 .settings-toggle--open {
   background: #ff90e8;
   transform: translate(2px, 2px);
@@ -429,15 +423,6 @@ onUnmounted(() => {
 }
 .settings-toggle--open .settings-gear {
   transform: rotate(90deg);
-}
-.settings-led {
-  @apply absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full border-2 border-black;
-  background: #b9b9b9;
-  transition: background-color 0.2s, box-shadow 0.2s;
-}
-.settings-led--on {
-  background: #39ff14;
-  box-shadow: 0 0 6px 1px rgba(57, 255, 20, 0.8);
 }
 /* The panel: a card with a yellow title strip, each part on its own little card */
 .settings-panel {

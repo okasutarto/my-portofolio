@@ -149,12 +149,12 @@ function wrap(c, text, maxWidth, maxLines) {
 }
 
 // Largest font size (<= max) at which text fits on one line
-function fitFont(c, text, weight, family, max, width) {
+function fitFont(c, text, weight, family, max, width, min = 16) {
   let size = max;
   do {
     c.font = `${weight} ${size}px ${family}`;
     size -= 2;
-  } while (c.measureText(text).width > width && size > 16);
+  } while (c.measureText(text).width > width && size > min);
 }
 
 
@@ -1956,11 +1956,6 @@ export function drawDeskMat(c, w, h) {
     }
     c.stroke();
   });
-  // a little wordmark in the top-left
-  c.fillStyle = "rgba(255,253,245,.35)";
-  c.font = "900 26px 'Lexend Mega', sans-serif";
-  c.textBaseline = "top";
-  c.fillText("OKA · DESK", 40, 34);
   // the stitched edge
   c.strokeStyle = "rgba(255,253,245,.45)";
   c.lineWidth = 3;
@@ -3186,12 +3181,12 @@ export function drawKeyLabel(c, w, h, label, color = "#fff", { ink = "#000", sma
   c.textAlign = "center";
   c.textBaseline = "middle";
   if (shift) {
-    fitFont(c, shift, 500, BODY, Math.round(h * 0.3), w - 18);
+    fitFont(c, shift, 500, BODY, Math.round(h * 0.3), w * 0.78, 4);
     c.fillText(shift, w / 2, h * 0.3);
-    fitFont(c, label, 500, BODY, Math.round(h * 0.3), w - 18);
+    fitFont(c, label, 500, BODY, Math.round(h * 0.3), w * 0.78, 4);
     c.fillText(label, w / 2, h * 0.68);
   } else {
-    fitFont(c, label, 500, BODY, Math.round(h * (small ? 0.24 : 0.4)), w - 20);
+    fitFont(c, label, 500, BODY, Math.round(h * (small ? 0.24 : 0.4)), w * 0.78, 4);
     c.fillText(label, w / 2, h / 2 + 2);
   }
   if (homing) {

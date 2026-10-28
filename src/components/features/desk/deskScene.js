@@ -8386,7 +8386,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     onLeave: () => finishNoteDrag(),
   });
 
-  // ---------- keyboard: a 75% board after the NuPhy Halo75 ----------
+  // ---------- keyboard: NuPhy Halo75 V2, Obsidian Black ----------
   // Every key is its own cap with its legend printed on top, keyed by KeyboardEvent.code, so the
   // key you press on your own keyboard presses the very same key on the desk.
   // A felt desk mat under the keyboard and the mouse, wide enough for the mouse's run
@@ -8400,20 +8400,52 @@ export function createDeskScene({ container, projects, experiences, dark = false
   deskMatPad.position.set(0.9, MAT_TOP / 2, 0.75);
   scene.add(deskMatPad);
 
+  const KEYBOARD_SCALE = 0.78;
   const keyboard = new THREE.Group();
+  keyboard.scale.setScalar(KEYBOARD_SCALE);
   keyboard.position.set(0.2, MAT_TOP, 0.75);
   scene.add(keyboard);
   // A black aluminium case on a smoky see-through bottom, with the Halo's light bar glowing along
   // its left end
   const KEY_UNIT = 0.28;
-  const KEY_GAP = 0.034;
+  const KEY_GAP = 0.018;
   const KEYS_W = 16 * KEY_UNIT;
   const KEYS_D = 6 * KEY_UNIT;
   const CASE_W = KEYS_W + 0.22;
-  const CASE_D = KEYS_D + 0.24;
-  const keyBottom = mesh(rbox(CASE_W, 0.12, CASE_D, 0.06), toon("#3a3d44"), { outline: 0.03 });
+  const CASE_D = KEYS_D + 0.38;
+  const KEYBOARD_TILT = THREE.MathUtils.degToRad(6);
+  keyboard.rotation.x = KEYBOARD_TILT;
+  const keyboardLift = CASE_D / 2 * Math.sin(KEYBOARD_TILT) + 0.012;
+  keyboard.position.y = MAT_TOP + keyboardLift * KEYBOARD_SCALE;
+  // Feet reach the mat beneath the tilted chassis; key travel stays in keyboard space.
+  const keyboardFootMat = toon("#15171a");
+  [-1, 1].forEach((side) => {
+    [-1, 1].forEach((end) => {
+      const z = end * (CASE_D / 2 - 0.13);
+      const height = (keyboardLift - z * Math.sin(KEYBOARD_TILT)) / Math.cos(KEYBOARD_TILT);
+      const foot = mesh(rbox(0.42, height + 0.025, 0.18, 0.012), keyboardFootMat, { outline: 0.006, cast: false });
+      foot.position.set(side * (CASE_W / 2 - 0.36), -height / 2, z);
+      keyboard.add(foot);
+    });
+  });
+  const keyCaseMat = toon("#24262b");
+  const lowerFinish = canvasTexture(256, 128);
+  track(lowerFinish.texture);
+  lowerFinish.ctx.fillStyle = "#d4d4d4";
+  lowerFinish.ctx.fillRect(0, 0, 256, 128);
+  for (let x = 0; x < 256; x += 4) {
+    lowerFinish.ctx.fillStyle = "rgba(0,0,0,.22)";
+    lowerFinish.ctx.fillRect(x, 0, 1, 128);
+    lowerFinish.ctx.fillStyle = "rgba(255,255,255,.13)";
+    lowerFinish.ctx.fillRect(x + 1, 0, 1, 128);
+  }
+  const lowerShellMat = toon("#45484d");
+  lowerShellMat.map = lowerFinish.texture;
+  lowerShellMat.bumpMap = lowerFinish.texture;
+  lowerShellMat.bumpScale = 0.003;
+  const keyBottom = mesh(rbox(CASE_W, 0.12, CASE_D, 0.06), lowerShellMat, { outline: 0.02 });
   keyBottom.position.y = 0.06;
-  const keyBase = mesh(rbox(CASE_W - 0.02, 0.15, CASE_D - 0.02, 0.06), toon("#1b1c1f"), { outline: 0.03 });
+  const keyBase = mesh(rbox(CASE_W - 0.02, 0.15, CASE_D - 0.02, 0.06), keyCaseMat, { outline: 0.02 });
   keyBase.position.y = 0.19;
   keyboard.add(keyBottom, keyBase);
   const haloMat = track(new THREE.MeshBasicMaterial({ color: "#38bdf8" }));
@@ -8421,6 +8453,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
   haloBar.position.set(-CASE_W / 2 + 0.05, 0.27, -KEYS_D / 2 + KEY_UNIT * 0.9);
   haloBar.raycast = noRaycast;
   keyboard.add(haloBar);
+  // A recessed switch plate gives the gaps depth without a separate mesh under every cap.
+  const switchPlate = mesh(rbox(KEYS_W + 0.025, 0.025, KEYS_D + 0.025, 0.035), toon("#111317"), { outline: 0, cast: false });
+  switchPlate.position.y = 0.27;
+  keyboard.add(switchPlate);
+  const portRim = mesh(rbox(0.24, 0.075, 0.022, 0.025), toon("#737982"), { outline: 0.006, cast: false });
+  portRim.position.set(-1.55, 0.19, -CASE_D / 2 - 0.006);
+  const usbPort = mesh(rbox(0.19, 0.045, 0.025, 0.018), toon("#0c0e12"), { outline: 0, cast: false });
+  usbPort.position.copy(portRim.position).z -= 0.014;
+  keyboard.add(portRim, usbPort);
   const KEY_Y = 0.34;
   const letters = (row) => row.split("").map((ch) => [`Key${ch}`, ch]);
   const fKeys = Array.from({ length: 12 }, (_, i) => [`F${i + 1}`, `F${i + 1}`]);
@@ -8449,12 +8490,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
     c: { shot: "chat", code: "KeyC", color: "#7fb2ff" },
   };
   const shortcutByCode = new Map(Object.values(SHORTCUTS).map((sc) => [sc.code, sc]));
-  // The Halo75's colourway: near-black alphas, grey modifiers, a mint Esc, a coral Enter and a
+  // The Halo75 V2's colourway: near-black alphas, grey modifiers, a mint Esc, a coral Enter and a
   // yellow space bar
   const ACCENTS = { Escape: "#5ec4a2", Enter: "#f2603c", Space: "#f5c22b" };
   const ALPHA = /^(Key|Digit)|^(Minus|Equal|BracketLeft|BracketRight|Backslash|Semicolon|Quote|Comma|Period|Slash|Backquote)$/;
   const keyColor = (code) => ACCENTS[code] || (ALPHA.test(code) ? "#2a2c31" : "#43464d");
-  const keyInk = (code) => shortcutByCode.get(code)?.color || (ACCENTS[code] ? "#1a1714" : "#c3c6cc");
+  const keyInk = (code) => shortcutByCode.get(code)?.color || (ACCENTS[code] ? "#f1eee5" : "#c3c6cc");
   // The shifted symbols printed above the digits and punctuation
   const SHIFTED = {
     Backquote: "~", Digit1: "!", Digit2: "@", Digit3: "#", Digit4: "$", Digit5: "%", Digit6: "^", Digit7: "&", Digit8: "*", Digit9: "(", Digit0: ")",
@@ -8462,6 +8503,33 @@ export function createDeskScene({ container, projects, experiences, dark = false
   };
   const keyMats = new Map();
   const keyMat = (color) => keyMats.get(color) || keyMats.set(color, toon(color)).get(color);
+  // Sculpt the cap rather than stacking a second lid over it. The clear ink decal follows
+  // the same shallow dish, so legends stay on the surface while each key moves.
+  const keycapTop = (x, z, w, d) => 0.09 - 0.012 * Math.max(0, 1 - (x / (w / 2)) ** 2) * Math.max(0, 1 - (z / (d / 2)) ** 2);
+  function sculptKeycap(w, d) {
+    // Keep a grid across the top: a rounded box's flat centre has only two triangles,
+    // which cannot follow a dish or the ink printed on it.
+    const geo = new THREE.BoxGeometry(w, 0.18, d, Math.max(8, Math.ceil(w / 0.08)), 4, 8);
+    const pos = geo.attributes.position;
+    const inner = new THREE.Vector3(w / 2 - 0.035, 0.055, d / 2 - 0.035);
+    const lower = inner.clone().negate();
+    const point = new THREE.Vector3();
+    const nearest = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) {
+      point.fromBufferAttribute(pos, i);
+      nearest.copy(point).clamp(lower, inner);
+      point.sub(nearest).normalize().multiplyScalar(0.035).add(nearest);
+      const y = point.y;
+      const taper = 1 - 0.05 * THREE.MathUtils.clamp((y + 0.09) / 0.18, 0, 1);
+      const x = point.x * taper;
+      const z = point.z * taper;
+      const dish = y > 0.055 ? (0.09 - keycapTop(x, z, w, d)) * ((y - 0.055) / 0.035) : 0;
+      pos.setXYZ(i, x, y - dish, z);
+    }
+    geo.computeVertexNormals();
+    return geo;
+  }
+  const keyGeometries = new Map();
   const keyByCode = new Map();
   const legendMat = (map) => track(new THREE.MeshToonMaterial({
     map, gradientMap: gradient, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1,
@@ -8476,15 +8544,25 @@ export function createDeskScene({ container, projects, experiences, dark = false
       key.position.set((cursor + width / 2) * KEY_UNIT, KEY_Y, (r - 2.5) * KEY_UNIT);
       key.userData.code = code;
       // AO supplies the gaps between caps; the case supplies the keyboard's cast shadow.
-      key.add(mesh(rbox(w, 0.18, d, 0.05), keyMat(color), { outline: 0.03, cast: false }));
-      if (label) {
-        const homing = code === "KeyF" || code === "KeyJ" ? "#38bdf8" : null;
-        const legend = printed(w - 0.05, d - 0.05, 340, (c, cw, ch) => drawKeyLabel(c, cw, ch, label, null, { ink: keyInk(code), small: label.length > 1, shift: SHIFTED[code] || MOD_SYMBOLS[code], homing }));
+      if (!keyGeometries.has(w)) keyGeometries.set(w, sculptKeycap(w, d));
+      key.add(mesh(keyGeometries.get(w), keyMat(color), { outline: 0.014, cast: false }));
+      {
+        const legend = printed(w - 0.085, d - 0.085, 340, (c, cw, ch) => drawKeyLabel(c, cw, ch, label, null, { ink: keyInk(code), small: label.length > 1, shift: SHIFTED[code] || MOD_SYMBOLS[code] }));
+        const inkSurface = track(new THREE.PlaneGeometry(w - 0.085, d - 0.085, 8, 8));
+        const inkPos = inkSurface.attributes.position;
+        for (let i = 0; i < inkPos.count; i++) inkPos.setZ(i, keycapTop(inkPos.getX(i), -inkPos.getY(i), w, d));
+        inkSurface.computeVertexNormals();
+        legend.geometry = inkSurface;
         // Ink on the cap, not a sticker over it: a clear decal under the cap's own toon light
         legend.material = legendMat(legend.userData.tex.texture);
         legend.rotation.x = -Math.PI / 2;
-        legend.position.y = 0.091;
+        legend.position.y = 0.001;
         key.add(legend);
+      }
+      if (code === "KeyF" || code === "KeyJ") {
+        const homing = mesh(rbox(0.075, 0.012, 0.018, 0.005), keyMat("#81bfc7"), { outline: 0, cast: false });
+        homing.position.set(0, keycapTop(0, 0.058, w, d) + 0.006, 0.058);
+        key.add(homing);
       }
       keyboard.add(key);
       keyByCode.set(code, key);
@@ -9676,8 +9754,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   function catKeyboardRun() {
     discover("catKeys");
     catBusy = true;
-    const top = keyboard.position.y + KEY_Y + 0.09;
-    const z = keyboard.position.z + 0.05;
+    const keyTop = keyboard.localToWorld(new THREE.Vector3(0, KEY_Y + 0.09, 0.05));
+    const top = keyTop.y;
+    const z = keyTop.z;
     const tl = gsap.timeline({ onComplete: () => (catBusy = false, catTravel = null) });
     catTravel = tl;
     tl.call(() => {
@@ -9686,7 +9765,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     });
     tl.to({}, { duration: 0.35 });
     catLeave(tl);
-    catHop(tl, new THREE.Vector3(keyboard.position.x - 2.0, top, z), 0, 1.6);
+    catHop(tl, new THREE.Vector3(keyboard.position.x - 2.0 * KEYBOARD_SCALE, top, z), 0, 1.6);
     tl.call(() => catSay("✨ helping ✨"));
     const trot = { p: 0 };
     let lastStep = 0;
@@ -9695,7 +9774,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       duration: 2.4,
       ease: "none",
       onUpdate: () => {
-        cat.position.x = keyboard.position.x - 2.0 + trot.p * 4.1;
+        cat.position.x = keyboard.position.x + (-2.0 + trot.p * 4.1) * KEYBOARD_SCALE;
         catLegs.forEach((leg, i) => (leg.rotation.z = Math.sin(trot.p * 28 + (i % 2) * Math.PI) * 0.45));
         const step = Math.floor(trot.p * 14);
         if (step !== lastStep) {
@@ -10745,7 +10824,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   contactShadow(monitor, 2.2, 1.5, RISER_TOP);
   contactShadow(macMini, 1.25, 1.25, RISER_TOP, 0.8);
   contactShadow(riser, 7.4, 2.4, 0, 0.7);
-  contactShadow(keyboard, 5.8, 2.5, MAT_TOP, 0.8);
+  contactShadow(keyboard, 5.8 * KEYBOARD_SCALE, 2.5 * KEYBOARD_SCALE, MAT_TOP, 0.8);
   contactShadow(phoneStand, 1.7, 1.5);
   contactShadow(tickets, 3.4, 1.8, 0, 0.6);
   contactShadow(folders, FOLDER_W * 1.35, FOLDER_D * 1.35, 0, 0.7);
@@ -11686,7 +11765,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     // Framed a little high, with room under the monitor's chin for the command chips and the
     // hint (they'd sit over the chin otherwise)
     monitor: () => ({ target: [-0.2, SCREEN_Y - 0.38 + RISER_TOP, -2.66], dir: [0.1, 0.32, 1], fit: [5.2, 4.6] }),
-    keyboard: () => ({ target: [0.2, 0.3, 0.75], dir: [0.1, 1, 0.75], fit: [5.4, 2.6] }),
+    keyboard: () => ({ target: [0.2, 0.3 * KEYBOARD_SCALE, 0.75], dir: [0.1, 1, 0.75], fit: [5.4 * KEYBOARD_SCALE, 2.6 * KEYBOARD_SCALE] }),
     // A higher angle pushes the plant above the frame and leaves room for the sip quote.
     mug: () => ({ target: [mug.position.x - 0.3, 0.95 + MUG_Y, mug.position.z - 0.45], dir: [-0.2, 1, 0.45], fit: [3.1, 4.1] }),
   };

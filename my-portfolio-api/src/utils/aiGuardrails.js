@@ -284,17 +284,17 @@ function validateOutput(response, userMessage) {
 
 /**
  * Sanitizes and processes the AI response before sending to client
- * NOTE: This function is called on EACH streamed chunk, so we must NOT trim
- * whitespace as that would remove spaces between words
- * @param {string} response - The AI's response chunk
+ * NOTE: While streaming this runs on pieces of the response (see createResponseFilter),
+ * so we must NOT trim whitespace as that would remove spaces between words
+ * @param {string} response - The AI's response piece
  * @returns {string} - Sanitized response (preserves whitespace)
  */
 function postProcessResponse(response) {
   let processed = response;
   
   // Remove any accidental system prompt leakage patterns
-  processed = processed.replace(/\[system\].*?\[\/system\]/gi, '');
-  processed = processed.replace(/<system>.*?<\/system>/gi, '');
+  processed = processed.replace(/\[system\][\s\S]*?\[\/system\]/gi, '');
+  processed = processed.replace(/<system>[\s\S]*?<\/system>/gi, '');
   processed = processed.replace(/```system[\s\S]*?```/gi, '');
   
   // Remove potential markdown code blocks that might contain sensitive info
@@ -305,6 +305,53 @@ function postProcessResponse(response) {
   processed = processed.replace(/\n{3,}/g, '\n\n');
   
   return processed;
+}
+
+/**
+ * Where text pending in the stream can safely be cut: everything before it is sent now, the
+ * rest is held because it might be the start of a pattern postProcessResponse removes
+ * @param {string} text - Response text not sent yet
+ * @returns {number} - Index to cut at
+ */
+function safeCutIndex(text) {
+  let cut = text.length;
+
+  // Hold an unclosed code fence or system tag until it closes
+  const fences = [...text.matchAll(/```/g)];
+  if (fences.length % 2 === 1) cut = fences[fences.length - 1].index;
+  for (const [open, close] of [[/\[system\]/gi, /\[\/system\]/i], [/<system>/gi, /<\/system>/i]]) {
+    const opens = [...text.matchAll(open)];
+    const last = opens[opens.length - 1];
+    if (last && !close.test(text.slice(last.index))) cut = Math.min(cut, last.index);
+  }
+
+  // Hold a marker that may still be arriving ("``", "<sys", "[syst") and trailing newlines,
+  // so a run of newlines split across chunks still collapses
+  const tail = text.slice(0, cut).match(/(\n+|(?<!`)`{1,2}|<\/?s?y?s?t?e?m?|\[\/?s?y?s?t?e?m?)$/i);
+  if (tail) cut -= tail[0].length;
+  return cut;
+}
+
+/**
+ * Applies postProcessResponse to a stream, so patterns split across chunks are still caught
+ * @returns {{ push: (chunk: string) => string, flush: () => string }} - Each returns the text to send
+ */
+function createResponseFilter() {
+  let pending = '';
+  return {
+    push(chunk) {
+      pending += chunk;
+      const cut = safeCutIndex(pending);
+      const ready = pending.slice(0, cut);
+      pending = pending.slice(cut);
+      return postProcessResponse(ready);
+    },
+    flush() {
+      const rest = postProcessResponse(pending);
+      pending = '';
+      return rest;
+    },
+  };
 }
 
 /**
@@ -363,5 +410,6 @@ module.exports = {
   validateOutput,
   validateOutputContent,
   postProcessResponse,
+  createResponseFilter,
   FALLBACK_RESPONSES,
 };

@@ -56,7 +56,7 @@ const limiter = rateLimit({
 app.use('/api', limiter); // Apply rate limiting to API routes only
 
 // 4. Request Body Size Limit - Prevent large payload attacks
-app.use(express.json({ limit: '10kb' }));
+app.use(express.json({ limit: '32kb' })); // room for the chat history
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
 // Root endpoint

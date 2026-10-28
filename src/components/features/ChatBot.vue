@@ -4,15 +4,15 @@
     <Transition name="tooltip">
       <div
         v-if="showTooltip && !isOpen"
-        class="tip absolute bottom-[88px] right-0 w-60 bg-white dark:bg-surface-dark text-black dark:text-white border-[3px] border-black dark:border-[#f4ead5] shadow-neo px-4 py-3">
+        class="tip absolute bottom-[88px] right-0 w-60 rounded-2xl bg-white dark:bg-surface-dark text-black dark:text-white border-[3px] border-black dark:border-[#f4ead5] shadow-neo px-4 py-3">
         <p class="font-display font-bold text-sm leading-tight">
           Got questions? <span class="waving-hand">👋</span>
         </p>
-        <p class="text-xs font-medium mt-1 opacity-75">Ask my AI assistant anything about me.</p>
+        <p class="text-xs font-medium mt-1 opacity-75">My robot buddy can tell you all about me.</p>
         <button
           @click="dismissTooltip"
           aria-label="Close tooltip"
-          class="absolute -top-3 -right-3 w-7 h-7 bg-black text-white dark:bg-[#f4ead5] dark:text-black border-2 border-black flex items-center justify-center hover:rotate-90 transition-transform">
+          class="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-black text-white dark:bg-[#f4ead5] dark:text-black border-2 border-black flex items-center justify-center hover:rotate-90 transition-transform">
           <span class="material-icons text-sm">close</span>
         </button>
       </div>
@@ -21,7 +21,7 @@
     <!-- Launcher: a little robot face that blinks and looks around -->
     <button
       @click="toggleChat"
-      class="launcher relative w-16 h-16 bg-primary border-[3px] border-black dark:border-[#f4ead5] flex items-center justify-center shadow-neo transition-all z-20"
+      class="launcher relative w-16 h-16 rounded-2xl bg-primary border-[3px] border-black dark:border-[#f4ead5] flex items-center justify-center shadow-neo transition-all z-20"
       :class="{ 'is-open': isOpen, hop: hopping }"
       :aria-label="isOpen ? 'Close chat' : 'Open chat'">
       <span v-if="isOpen" class="material-icons text-black text-3xl font-bold">close</span>
@@ -30,7 +30,7 @@
       <!-- Unread reply while the window was closed -->
       <span
         v-if="hasNewMessages && !isOpen"
-        class="absolute -top-2.5 -right-2.5 w-6 h-6 bg-[#ff5c8a] border-2 border-black flex items-center justify-center text-xs font-bold text-black">
+        class="absolute -top-2.5 -right-2.5 w-6 h-6 rounded-full bg-[#ff5c8a] border-2 border-black flex items-center justify-center text-xs font-bold text-black">
         1
       </span>
     </button>
@@ -39,22 +39,22 @@
     <Transition name="chat-window">
       <div
         v-if="isOpen"
-        class="chat-window fixed inset-x-0 bottom-0 h-[88dvh] sm:absolute sm:inset-x-auto sm:right-0 sm:bottom-[88px] sm:w-[400px] sm:h-[min(620px,calc(100vh-140px))] bg-white dark:bg-background-dark text-black dark:text-white border-[3px] border-black dark:border-[#f4ead5] flex flex-col overflow-hidden z-30">
+        class="chat-window fixed inset-x-0 bottom-0 h-[88dvh] sm:absolute sm:inset-x-auto sm:right-0 sm:bottom-[88px] sm:w-[400px] sm:h-[min(620px,calc(100vh-140px))] rounded-t-3xl sm:rounded-3xl bg-white dark:bg-background-dark text-black dark:text-white border-[3px] border-black dark:border-[#f4ead5] flex flex-col overflow-hidden z-30">
         <!-- Header -->
         <div
           class="flex items-center justify-between gap-3 px-4 py-3 bg-primary text-black border-b-[3px] border-black dark:border-[#f4ead5]">
           <div class="flex items-center gap-3 min-w-0">
             <div
-              class="w-11 h-11 shrink-0 bg-white border-[2.5px] border-black flex items-center justify-center -rotate-6 shadow-[3px_3px_0_#000]">
+              class="w-11 h-11 shrink-0 rounded-2xl bg-white border-[2.5px] border-black flex items-center justify-center -rotate-6 shadow-[3px_3px_0_#000]">
               <BotFace class="w-8 h-8" :talking="isStreaming" />
             </div>
             <div class="min-w-0">
-              <h2 class="font-display font-bold text-base uppercase tracking-tight leading-none truncate">
+              <h2 class="font-display font-bold text-lg tracking-tight leading-none truncate">
                 Oka's Assistant
               </h2>
-              <p class="flex items-center gap-1.5 mt-1.5 text-[11px] font-bold uppercase tracking-wider">
+              <p class="flex items-center gap-1.5 mt-1 text-xs font-semibold opacity-80">
                 <span class="status-dot w-2 h-2 rounded-full bg-[#16a34a] border border-black"></span>
-                {{ isWaitingForResponse || isStreaming ? "Typing…" : "Online" }}
+                {{ isWaitingForResponse || isStreaming ? "Typing…" : "Online · replies fast" }}
               </p>
             </div>
           </div>
@@ -70,22 +70,22 @@
 
         <!-- Messages -->
         <div
-          class="flex-1 overflow-y-auto px-4 py-5 space-y-4 bg-dot-grid no-scrollbar"
+          class="flex-1 overflow-y-auto px-4 py-5 space-y-3 bg-dot-grid no-scrollbar"
           ref="chatMessages"
           @scroll="handleScroll">
           <!-- Welcome card fills the empty window until the first question -->
           <div v-if="messages.length === 0" class="min-h-full flex flex-col justify-center">
             <div
-              class="welcome relative bg-white dark:bg-surface-dark border-[3px] border-black dark:border-[#f4ead5] shadow-neo px-5 pt-12 pb-5 mt-10 text-center">
+              class="welcome relative rounded-3xl bg-white dark:bg-surface-dark border-[3px] border-black dark:border-[#f4ead5] shadow-neo px-5 pt-12 pb-5 mt-10 text-center">
               <div
-                class="welcome-bot absolute left-1/2 -top-10 w-20 h-20 bg-primary border-[3px] border-black dark:border-[#f4ead5] flex items-center justify-center shadow-neo-sm">
+                class="welcome-bot absolute left-1/2 -top-10 w-20 h-20 rounded-3xl bg-primary border-[3px] border-black dark:border-[#f4ead5] flex items-center justify-center shadow-neo-sm">
                 <BotFace wave class="w-[68px] h-14 ml-2" />
               </div>
-              <h3 class="font-display font-bold text-lg uppercase tracking-tight leading-tight">
-                Hi! I'm Oka's assistant
+              <h3 class="font-display font-bold text-xl tracking-tight leading-tight">
+                Hey there! 👋
               </h3>
               <p class="text-sm font-medium opacity-75 mt-2 mb-5">
-                Ask me anything about his skills, experience or projects. I usually reply in a few seconds.
+                I'm Oka's little robot sidekick. Ask me about his skills, work or side projects, or just pick one below.
               </p>
               <div class="flex flex-wrap justify-center gap-2">
                 <button
@@ -93,7 +93,7 @@
                   :key="question.label"
                   :style="{ backgroundColor: question.color }"
                   @click="askQuickQuestion(question)"
-                  class="chip inline-flex items-center gap-1.5 text-black border-2 border-black dark:border-[#f4ead5] px-3 py-1.5 text-xs font-bold shadow-neo-sm transition-all">
+                  class="chip inline-flex items-center gap-1.5 rounded-full text-black border-2 border-black dark:border-[#f4ead5] px-3.5 py-1.5 text-xs font-bold shadow-neo-sm transition-all">
                   <svg class="question-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="miter" aria-hidden="true"><path :d="question.icon" /></svg>{{ question.label }}
                 </button>
               </div>
@@ -108,11 +108,11 @@
               :class="message.sender === 'user' ? 'justify-end' : 'justify-start'">
               <span
                 v-if="message.sender === 'bot'"
-                class="avatar w-8 h-8 shrink-0 bg-primary border-2 border-black dark:border-[#f4ead5] flex items-center justify-center">
+                class="avatar w-8 h-8 shrink-0 rounded-full bg-primary border-2 border-black dark:border-[#f4ead5] flex items-center justify-center">
                 <BotFace class="w-6 h-6" :talking="isStreaming && index === messages.length - 1" />
               </span>
               <div
-                class="bubble max-w-[82%] px-3.5 py-2.5 border-2 border-black dark:border-[#f4ead5]"
+                class="bubble max-w-[82%] px-4 py-2.5 border-2 border-black dark:border-[#f4ead5]"
                 :class="
                   message.sender === 'user'
                     ? 'bubble-user bg-secondary text-black'
@@ -126,9 +126,9 @@
                 <button
                   v-if="message.showContactButton"
                   @click="navigateToContact"
-                  class="mt-3 w-full bg-primary text-black font-bold uppercase tracking-wider py-2 border-2 border-black shadow-[3px_3px_0_#000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all flex items-center justify-center gap-2 text-xs">
+                  class="mt-3 w-full rounded-full bg-primary text-black font-bold py-2 border-2 border-black shadow-[3px_3px_0_#000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all flex items-center justify-center gap-2 text-xs">
                   <span class="material-icons text-base">mail</span>
-                  Send Oka a postcard
+                  Say hi to Oka
                 </button>
               </div>
             </div>
@@ -137,7 +137,7 @@
           <!-- Typing indicator -->
           <div v-if="isTyping || isWaitingForResponse" class="flex items-end gap-2">
             <span
-              class="avatar w-8 h-8 shrink-0 bg-primary border-2 border-black dark:border-[#f4ead5] flex items-center justify-center">
+              class="avatar w-8 h-8 shrink-0 rounded-full bg-primary border-2 border-black dark:border-[#f4ead5] flex items-center justify-center">
               <BotFace class="w-6 h-6" />
             </span>
             <div
@@ -153,13 +153,13 @@
         <Transition name="followups">
           <div
             v-if="followUps.length"
-            class="followups flex gap-2 overflow-x-auto no-scrollbar px-3 pt-3 pb-0.5 bg-white dark:bg-surface-dark border-t-[3px] border-black dark:border-[#f4ead5]">
+            class="followups flex gap-2 overflow-x-auto no-scrollbar px-3 pt-3 pb-0.5 bg-white dark:bg-surface-dark border-t-2 border-black dark:border-[#f4ead5]">
             <button
               v-for="question in followUps"
               :key="question.label"
                   :style="{ backgroundColor: question.color }"
               @click="askQuickQuestion(question)"
-              class="chip shrink-0 inline-flex items-center gap-1.5 text-black border-2 border-black dark:border-[#f4ead5] px-2.5 py-1 text-xs font-bold transition-colors">
+              class="chip shrink-0 inline-flex items-center gap-1.5 rounded-full text-black border-2 border-black dark:border-[#f4ead5] px-3 py-1 text-xs font-bold transition-colors">
               <svg class="question-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="miter" aria-hidden="true"><path :d="question.icon" /></svg>{{ question.label }}
             </button>
           </div>
@@ -169,18 +169,18 @@
         <form
           @submit.prevent="sendMessage"
           class="flex items-center gap-2 p-3 bg-white dark:bg-surface-dark"
-          :class="{ 'border-t-[3px] border-black dark:border-[#f4ead5]': !followUps.length }">
+          :class="{ 'border-t-2 border-black dark:border-[#f4ead5]': !followUps.length }">
           <input
             v-model="userInput"
             type="text"
-            placeholder="Ask me anything about Oka…"
+            placeholder="Type a message…"
             aria-label="Message"
-            class="flex-1 min-w-0 h-11 bg-[#f6f3ea] dark:bg-[#0d0b09] border-2 border-black dark:border-[#f4ead5] px-3.5 text-base sm:text-sm font-medium text-black dark:text-white placeholder-black/40 dark:placeholder-white/40 focus:outline-none focus:shadow-[3px_3px_0_var(--color-primary)] transition-shadow"
+            class="flex-1 min-w-0 h-11 rounded-full bg-[#f6f3ea] dark:bg-[#0d0b09] border-2 border-black dark:border-[#f4ead5] px-4 text-base sm:text-sm font-medium text-black dark:text-white placeholder-black/40 dark:placeholder-white/40 focus:outline-none focus:shadow-[3px_3px_0_var(--color-primary)] transition-shadow"
             :disabled="isTyping || isWaitingForResponse || isStreaming" />
           <button
             type="submit"
             aria-label="Send message"
-            class="send h-11 w-12 shrink-0 bg-primary border-2 border-black dark:border-[#f4ead5] flex items-center justify-center shadow-neo-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all disabled:opacity-40 disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0"
+            class="send h-11 w-11 shrink-0 rounded-full bg-primary border-2 border-black dark:border-[#f4ead5] flex items-center justify-center shadow-neo-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all disabled:opacity-40 disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0"
             :disabled="!userInput.trim() || isTyping || isWaitingForResponse || isStreaming">
             <span class="material-icons text-black text-xl">arrow_upward</span>
           </button>
@@ -198,7 +198,7 @@ import { ref, computed, watch, onMounted } from "vue";
 import BotFace from "./BotFace.vue";
 import { sfx } from "../../composables/useSfx";
 import { useRouter } from "vue-router";
-import { getStreamingResponse } from "../../services/openai";
+import { getStreamingResponse, toHistory } from "../../services/chatApi";
 import { usePostHog } from "@/composables/usePostHog";
 
 export default {
@@ -291,6 +291,8 @@ export default {
       const messageText = userInput.value.trim();
       if (!messageText || isTyping.value || isStreaming.value) return;
 
+      // The conversation so far, so follow-up questions keep their context
+      const history = toHistory(messages.value);
       messages.value.push({
         sender: "user",
         text: messageText,
@@ -372,7 +374,7 @@ export default {
         await getStreamingResponse(messageText, (token) => {
           tokenBuffer += token;
           if (!isProcessingBuffer) typeToken();
-        });
+        }, history);
 
         isStreamComplete = true;
         if (!isProcessingBuffer) typeToken();
@@ -382,7 +384,7 @@ export default {
         sfx.buzz();
         messages.value.push({
           sender: "bot",
-          text: "Sorry, I encountered an error. Please try again later.",
+          text: "Oops, my wires got tangled for a sec 😅 Mind trying that again?",
         });
       }
     };
@@ -662,6 +664,7 @@ export default {
   background: #fff;
   color: #000;
   border: 2px solid #000;
+  border-radius: 10px;
   box-shadow: 2px 2px 0 #000;
   transition: transform 0.15s, box-shadow 0.15s;
 }
@@ -684,11 +687,17 @@ export default {
   position: relative;
   box-shadow: 3px 3px 0 var(--color-shadow);
 }
+.bubble {
+  border-radius: 20px;
+}
 .bubble-bot {
-  border-bottom-left-radius: 0;
+  border-bottom-left-radius: 6px;
+  transform-origin: bottom left;
 }
 .bubble-user {
+  border-bottom-right-radius: 6px;
   box-shadow: 3px 3px 0 #000;
+  transform-origin: bottom right;
 }
 
 .message-enter-active {
@@ -696,12 +705,22 @@ export default {
 }
 .message-enter-from {
   opacity: 0;
-  transform: translateY(12px) scale(0.92);
+  transform: translateY(10px) scale(0.85);
+}
+.message-enter-from .bubble-bot {
+  transform: rotate(-3deg);
+}
+.message-enter-from .bubble-user {
+  transform: rotate(3deg);
+}
+.message-enter-active .bubble {
+  transition: transform 0.45s cubic-bezier(0.34, 1.8, 0.64, 1);
 }
 
 .dot {
   width: 7px;
   height: 7px;
+  border-radius: 50%;
   background: currentColor;
   animation: dot 0.9s ease-in-out infinite;
 }

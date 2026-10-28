@@ -5,6 +5,7 @@
 import { WALLPAPERS, createWallpapers, paintScenery } from "./wallpapers";
 import { TRACKS, trackLength } from "./lofi";
 import { createStrike, drawStrike, strikeKey, STRIKE_BOOT } from "./strawHatStrike";
+import { DISPLAY, BODY } from "./textures/base";
 
 export const SCREEN_W = 640;
 export const SCREEN_H = 384;
@@ -14,8 +15,6 @@ const ICON = 32;
 const ICON_GAP = 10;
 const DOCK_H = 46;
 const DOCK_Y = SCREEN_H - DOCK_H - 6;
-const DISPLAY = "'Lexend Mega', sans-serif";
-const BODY = "'Space Grotesk', sans-serif";
 const GREEN = "#1fdf64";
 
 // Every app: those with a window open on the screen; the others fly the camera to their prop

@@ -433,7 +433,7 @@ const supportsWebGL = () => {
 const loadScene = async () => {
   // three.js comes in after the hero content has painted
   const { createHeroScene } = await import(
-    /* webpackChunkName: "hero-scene" */ "@/components/features/hero/heroScene"
+    "@/components/features/hero/heroScene"
   );
   if (!alive || !stageRef.value) return;
   heroScene = createHeroScene({

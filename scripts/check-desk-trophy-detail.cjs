@@ -1,9 +1,8 @@
 // Run: node scripts/check-desk-trophy-detail.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const vm = require('node:vm');
 const THREE = require('three');
-const textureSource = fs.readFileSync(`${__dirname}/../src/components/features/desk/textures.js`, 'utf8');
+const textureSource = require('./helpers/texture-source.cjs').readTexturesSource();
 const textures = vm.runInNewContext(textureSource.slice(textureSource.indexOf('// Trophy metal:'), textureSource.indexOf('// ---------- katana ----------')).replace(/export /g, '') + '; ({ drawTrophyMetal, drawTrophyStone })');
 const ctx = new Proxy({}, { get: (_, key) => (...args) => {
   args.filter(value => typeof value === 'number').forEach(value => assert.ok(Number.isFinite(value)));

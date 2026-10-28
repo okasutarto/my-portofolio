@@ -73,14 +73,12 @@ export function createChair(runtime) {
   mechanism.add(runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.5, 0.22, 0.5, 0.08), chairFrameMat, { outline: 0.02 }), 1.0, 0, 0.3));
   mechanism.add(runtime.core.at(runtime.core.rod(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0.9, 0.05, 0), 0.05, chairFrameMat, 0.015), -1.6, 0, -0.4));
   // The back's proportions are traced from photos of the chair, front, side and rear: a
-  // narrow, flat-topped headrest a little over half as wide as the back, with near-straight
-  // sides that sweep out over the shoulders into the wings, widest a little under halfway up,
-  // then narrow slightly toward the seat; about 1.5 times as tall as it is wide. Side on, its rear is one
-  // straight line while its front swells: the headrest is barely half as thick as the lower
-  // back, and below the shoulders the wings sweep forward round the sitter, with the lumbar
-  // pushing out between them. Its front is leather, with a raised panel stitched round in red;
-  // the wings' inner faces are carbon weave, rolling over into leather at their outer edges.
-  // Its rear is one smooth leather shell stitched round the edge.
+  // shield-shaped back about 1.5 times as tall as it is wide, its headrest the narrow top of
+  // the shield. Side on, its rear is one straight line while its front swells: the headrest is
+  // barely half as thick as the lower back, and the wings sweep forward round the sitter, with
+  // the lumbar pushing out between them. Its front is leather, with a raised panel stitched
+  // round in red; the wings' inner faces are carbon weave, rolling over into leather at their
+  // outer edges. Its rear is one smooth leather shell stitched round the edge.
   const BACK_H = 7.0;
   const BACK_DEPTH = 1.25;
   const BACK_FOOT = -2.45;
@@ -158,28 +156,47 @@ export function createChair(runtime) {
     return { geo, depthAt, halfWidth, height, centre };
   };
 
-  // The back shell. `y` here is up the back from its middle, `h` up from its foot.
+  // The back shell. `y` here is up the back from its middle, `h` up from its foot. Its outline
+  // is traced from a straight-on photo: a shield, its narrow rounded top under half the
+  // shoulders' width, the sides curving out ever faster to the shoulders, then running down
+  // near straight to the seat.
   const BACK_Y = -BACK_H / 2;
   const backWidth = halfWidthAlong(
-    [[2.1, 0], [2.2, 1.2], [2.3, 2.6], [2.28, 3.6], [2.1, 4.2], [1.82, 4.75], [1.58, 5.3], [1.42, 5.9], [1.34, 6.5], [1.3, BACK_H]],
+    [[2.12, 0], [2.2, 1.1], [2.27, 2.3], [2.3, 3.4], [2.3, 4.25], [2.23, 4.5], [2.02, 4.87], [1.77, 5.25], [1.5, 5.62], [1.29, 6.0], [1.13, 6.38], [0.96, 6.76], [0.9, BACK_H]],
     BACK_H,
-    0.5,
+    0.25,
   );
   // Full depth up to the lumbar, thinning over the shoulders to a slim headrest
-  const backDepth = (h) => BACK_DEPTH - 0.6 * THREE.MathUtils.smoothstep(h, 3.6, 5.6);
+  const backDepth = (h) => BACK_DEPTH - 0.6 * THREE.MathUtils.smoothstep(h, 3.6, 6.6);
   // Each height sits forward of the flat rear by however much thinner it is
   const recess = (y) => (BACK_DEPTH - backDepth(y + BACK_H / 2)) / 2;
-  // The wings: from the edge of the centre panel outward, the shell bends forward (-z), so
-  // each side sweeps round toward the sitter into a deep U, straightening out over the
-  // shoulders so the headrest is flat; and low down its front swells forward at the lumbar,
-  // easing off toward the rim so the smooth rear shell stays put. `z` tells front (below 0)
-  // from rear.
-  const BEND_FROM = 1.1;
+  // The wings: the centre panel fills the headrest edge to edge, then below WING_TOP its edges
+  // run down converging a little while the outline flares out to the shoulders, so each wing
+  // starts as a point high on the side and widens down to the seat. Outward of the panel's
+  // edge the shell bends forward (-z), sweeping round toward the sitter into a deep U, and
+  // swells into a thick rolled cushion faced in leather. From the shoulders down, the back's
+  // sides (the wings' outer faces, round the rolled edge) are carbon weave, piped in red where
+  // they meet the leather front and rear. The headrest, all panel, stays flat.
+  const WING_TOP = 5.85;
+  const PANEL_FOOT = 1.08;
+  const SIDE_BAND = 0.32;
+  const SIDE_TOP = 5.0;
+  const panelEdge = (h) => (h >= WING_TOP ? backWidth(h) : PANEL_FOOT + ((backWidth(WING_TOP) - PANEL_FOOT) * h) / WING_TOP);
+  const WING_SWELL = 0.45;
+  const wingSwell = (x, h) => {
+    const inner = panelEdge(h);
+    const u = (Math.abs(x) - inner) / (backWidth(h) - inner);
+    if (u <= 0 || u >= 1) return 0;
+    const fade = THREE.MathUtils.smoothstep(backWidth(h) - inner, 0, 0.7) * THREE.MathUtils.smoothstep(h, 0, 0.6);
+    return WING_SWELL * Math.sin(Math.PI * u) ** 0.7 * fade;
+  };
+  const onSide = (x, h) => h < SIDE_TOP && Math.abs(x) > backWidth(h) - SIDE_BAND;
+  // Low down the front also swells forward at the lumbar, easing off toward the rim so the
+  // smooth rear shell stays put. `z` tells front (below 0) from rear.
   const BEND = 0.75;
   const LUMBAR = 0.22;
-  const wingBend = (y) => 1 - THREE.MathUtils.smoothstep(y + BACK_H / 2, 4.0, 5.0);
   const lumbar = (x, y) => LUMBAR * Math.exp(-(((y + BACK_H / 2 - 1.8) / 1.1) ** 2)) * THREE.MathUtils.smoothstep(backWidth(y + BACK_H / 2) - Math.abs(x), 0, 0.9);
-  const backZ = (x, y, z) => recess(y) - BEND * wingBend(y) * Math.max(0, Math.abs(x) - BEND_FROM) ** 2 - (z < 0 ? lumbar(x, y) : 0);
+  const backZ = (x, y, z) => recess(y) - BEND * Math.max(0, Math.abs(x) - panelEdge(y + BACK_H / 2)) ** 2 - (z < 0 ? lumbar(x, y) : 0);
   // Lay a pad built round z = 0 onto the back: up by y0, forward by z0(y), then shaped
   const bent = (geo, y0, z0 = () => 0) => {
     geo.translate(0, y0, 0);
@@ -199,46 +216,31 @@ export function createChair(runtime) {
     const loop = [...run.map((y) => edge(y, 1)), ...run.slice().reverse().map((y) => edge(y, -1))];
     return chairSeam(loop.map(([x, y]) => new THREE.Vector3(x, y + y0, z0(y + y0) + side * (pad.depthAt(x, y, side) + 0.015) + bend(x, y + y0, side))));
   };
-  // The wings: below the shoulders, the outer half of each side swells forward into a thick
-  // rolled cushion, part of the shell itself so it runs into the shoulder with no join. Its
-  // inner edge runs straight down the back until it sweeps out toward the shoulder's slant;
-  // the swell fades away over the wing's top. Its inner face, up to the roll, is carbon.
-  const BOLSTER_H = 4.6;
-  const BOLSTER_IN = 1.12;
-  const WING_FLARE = 3.7;
-  const WING_ROLL = 0.42;
-  const bolsterInner = (h) => (h < WING_FLARE ? BOLSTER_IN : BOLSTER_IN + (backWidth(BOLSTER_H) - 0.3 - BOLSTER_IN) * ((h - WING_FLARE) / (BOLSTER_H - WING_FLARE)) ** 1.6);
-  const WING_SWELL = 0.42;
-  const wingSwell = (x, h) => {
-    const inner = bolsterInner(h);
-    const u = (Math.abs(x) - inner) / (backWidth(h) - inner);
-    if (u <= 0 || u >= 1) return 0;
-    const fade = THREE.MathUtils.smoothstep(BOLSTER_H - h, 0, 1.6) * THREE.MathUtils.smoothstep(h, 0, 0.6);
-    return WING_SWELL * Math.sin(Math.PI * u) ** 0.7 * fade;
-  };
-  const onWingFace = (x, h) => h < BOLSTER_H - 0.3 && Math.abs(x) > bolsterInner(h) + 0.02 && Math.abs(x) < backWidth(h) - WING_ROLL;
   const backPad = pillow(backWidth, BACK_H, backDepth, {
-    cols: 48,
-    rows: 140,
+    cols: 56,
+    rows: 160,
     bulge: (x, h, side) => (side < 0 ? wingSwell(x, h) : 0),
-    material: (x, h, side) => (side > 0 ? 1 : onWingFace(x, h) ? 2 : 0),
+    material: (x, h, side) => (onSide(x, h) ? 2 : side > 0 ? 1 : 0),
   });
   const chairBack = runtime.core.mesh(bent(backPad.geo, BACK_Y), [leather, leather, carbon], { outline: 0.06 });
   chairBack.position.set(0, BACK_FOOT + BACK_H / 2, 2.05);
   // reclined about 8 degrees, as the chair stands upright
   chairBack.rotation.x = -0.14;
   chairBack.add(stitched(backPad, 0.12, -1, BACK_Y), stitched(backPad, 0.12, 1, BACK_Y));
-  // each wing stitched round: up its inner edge, over its top and back down where the carbon
-  // meets the roll
+  // each side's carbon piped round: up its front edge, over the rim at the shoulder and back
+  // down its rear edge
   for (const side of [-1, 1]) {
-    const run = Array.from({ length: 121 }, (_, k) => 0.3 + ((BOLSTER_H - 0.5) * k) / 120);
-    const loop = [...run.map((h) => [bolsterInner(h) + 0.04, h]), ...run.slice().reverse().map((h) => [backWidth(h) - WING_ROLL, h])];
-    chairBack.add(chairSeam(loop.map(([x, h]) => new THREE.Vector3(side * x, h + BACK_Y, -(backPad.depthAt(side * x, h, -1) + 0.015) + backZ(side * x, h + BACK_Y, -1)))));
+    const run = Array.from({ length: 121 }, (_, k) => 0.3 + ((SIDE_TOP - 0.3) * k) / 120);
+    const at = (h, face) => {
+      const x = side * (backWidth(h) - SIDE_BAND);
+      return new THREE.Vector3(x, h + BACK_Y, face * (backPad.depthAt(x, h, face) + 0.015) + backZ(x, h + BACK_Y, face));
+    };
+    chairBack.add(chairSeam([...run.map((h) => at(h, -1)), ...run.slice().reverse().map((h) => at(h, 1))]));
   }
-  // The raised centre panel: between the wings, then widening over the shoulders to fill
-  // the headrest, sunk a little into the back's front face
+  // The raised centre panel: between the wings, then filling the headrest, sunk a little into
+  // the back's front face
   const CENTRE_H = BACK_H - 0.35;
-  const centrePad = pillow((h) => Math.min(h < WING_FLARE ? BOLSTER_IN - 0.02 : bolsterInner(h) - 0.02, backWidth(h) - 0.22), CENTRE_H, 0.24, { cols: 28, rows: 110 });
+  const centrePad = pillow((h) => Math.min(panelEdge(h + 0.12) - 0.02, backWidth(h + 0.12) - 0.2), CENTRE_H, 0.24, { cols: 28, rows: 110 });
   const centreZ = (y) => -backDepth(y + BACK_H / 2) / 2 + 0.04;
   chairBack.add(runtime.core.mesh(bent(centrePad.geo, BACK_Y + 0.12, centreZ), leatherPanel, { outline: 0.03 }), stitched(centrePad, 0.1, -1, BACK_Y + 0.12, centreZ));
   // the lumbar knob on the left side, a little above the seat

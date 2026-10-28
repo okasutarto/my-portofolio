@@ -7,6 +7,7 @@
 import * as THREE from "three";
 import { ABOUT_STACK } from "@/data/about";
 import { FOLDER_COLORS, FILE_PAGES } from "@/data/projectFiles";
+import { WOODS } from "./woods";
 
 export const TYPE_COLORS = {
   Frontend: "#ffdd00",
@@ -1835,13 +1836,16 @@ export function drawDrawerFront(c, w, h, count) {
 // ---------- desk top: light oak planks running the desk's length, flat grain, bold seams ----------
 // Recycled messmate / Victorian ash, like a solid-timber standing desk: full-length boards in a
 // warm honey tone, dense straight grain with darker streaks, and little black gum veins
-export function drawWoodTop(c, w, h) {
-  const boards = 5;
+export function drawWoodTop(c, w, h, { wood = "oak", pattern = "planks" } = {}) {
+  const look = WOODS[wood] || WOODS.oak;
+  // Butcher block is many narrow strips; every other cut keeps the five wide boards
+  const boards = pattern === "butcher" ? 12 : 5;
   const bh = h / boards;
-  const tones = ["#cf9459", "#c4864c", "#d69f65", "#c98d52", "#d29a5f"];
+  const { tones, grain } = look;
   // A fixed seed, so the grain is the same every load
   let seed = 7;
   const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const grainStroke = (alpha) => `rgba(${grain[0] + rand() * 30}, ${grain[1] + rand() * 20}, ${grain[2]}, ${alpha})`;
   for (let i = 0; i < boards; i++) {
     const y = i * bh;
     c.fillStyle = tones[i % tones.length];
@@ -1850,19 +1854,37 @@ export function drawWoodTop(c, w, h) {
     for (let b = 0; b < 4; b++) {
       const by = y + rand() * bh;
       const band = 8 + rand() * 26;
-      c.fillStyle = rand() < 0.5 ? "rgba(120, 62, 22, 0.16)" : "rgba(255, 220, 170, 0.14)";
+      c.fillStyle = rand() < 0.5 ? `rgba(${look.dark}, 0.16)` : `rgba(${look.light}, 0.14)`;
       c.beginPath();
       for (let x = 0; x <= w; x += 40) c.lineTo(x, by + Math.sin(x / 300 + b) * 4);
       for (let x = w; x >= 0; x -= 40) c.lineTo(x, by + band + Math.sin(x / 300 + b) * 4);
       c.fill();
     }
+    // Flat-sawn cathedral grain: nested arches that open along the board into straight runs
+    if (pattern === "cathedral") {
+      const cy = y + bh / 2;
+      for (let a = 0; a < 2; a++) {
+        const x0 = rand() * w * 0.8 - w * 0.1;
+        for (let r = 0; r < 9; r++) {
+          const hr = Math.min(bh * 0.47, 5 + r * (bh / 18));
+          const reach = 90 + r * 28 + rand() * 30;
+          c.strokeStyle = grainStroke(0.18 + rand() * 0.22);
+          c.lineWidth = 1 + rand() * 2;
+          c.beginPath();
+          c.moveTo(w + 20, cy - hr);
+          for (let t = -1; t <= 1.001; t += 0.1) c.lineTo(x0 + r * 10 + reach * t * t, cy + hr * t);
+          c.lineTo(w + 20, cy + hr);
+          c.stroke();
+        }
+      }
+    }
     // Dense, nearly straight grain lines that drift a little along the board
-    for (let g = 0; g < 22; g++) {
+    for (let g = 0; g < (pattern === "cathedral" ? 8 : 22); g++) {
       const gy = y + rand() * bh;
       const amp = 1 + rand() * 4;
       const len = 200 + rand() * 300;
       const phase = rand() * 10;
-      c.strokeStyle = `rgba(${90 + rand() * 30}, ${44 + rand() * 20}, 14, ${0.12 + rand() * 0.28})`;
+      c.strokeStyle = grainStroke(0.12 + rand() * 0.28);
       c.lineWidth = 1 + rand() * 2.5;
       c.beginPath();
       for (let x = 0; x <= w; x += 20) c.lineTo(x, gy + Math.sin(x / len + phase) * amp);
@@ -1873,14 +1895,41 @@ export function drawWoodTop(c, w, h) {
       const vx = rand() * w;
       const vy = y + bh * (0.15 + rand() * 0.7);
       const len = 14 + rand() * (v === 0 ? 120 : 40);
-      c.fillStyle = "rgba(28, 16, 8, 0.85)";
+      c.fillStyle = `rgba(${look.vein}, 0.85)`;
       c.beginPath();
       c.ellipse(vx, vy, len, 1.5 + rand() * 2.5, 0, 0, Math.PI * 2);
       c.fill();
     }
-    // The glue line between boards
-    c.fillStyle = "rgba(70, 36, 12, 0.45)";
+    // The glue line between boards, and a butcher block's staggered end joints
+    c.fillStyle = `rgba(${look.glue}, 0.45)`;
     c.fillRect(0, y, w, 2);
+    if (pattern === "butcher") {
+      for (let x = rand() * w * 0.5; x < w; x += w * (0.35 + rand() * 0.4)) c.fillRect(x, y, 2, bh);
+    }
+  }
+  // Knots: a dark heart ringed by the grain swirling round it
+  if (pattern === "knotty") {
+    const knots = Math.max(3, Math.round((w * h) / 90000));
+    for (let k = 0; k < knots; k++) {
+      const kx = rand() * w;
+      const ky = rand() * h;
+      const rx = 7 + rand() * 13;
+      for (let ring = 4; ring >= 1; ring--) {
+        c.strokeStyle = grainStroke(0.12 + 0.1 * (4 - ring));
+        c.lineWidth = 1.5 + rand() * 1.5;
+        c.beginPath();
+        c.ellipse(kx, ky, rx * (1 + ring * 0.55), rx * 0.55 * (1 + ring * 0.3), 0, 0, Math.PI * 2);
+        c.stroke();
+      }
+      c.fillStyle = `rgba(${look.vein}, 0.75)`;
+      c.beginPath();
+      c.ellipse(kx, ky, rx, rx * 0.55, 0, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = `rgba(${look.dark}, 0.5)`;
+      c.beginPath();
+      c.ellipse(kx, ky, rx * 0.45, rx * 0.25, 0, 0, Math.PI * 2);
+      c.fill();
+    }
   }
 }
 

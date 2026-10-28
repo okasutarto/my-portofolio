@@ -158,36 +158,43 @@ export function createChair(runtime) {
     0.25,
   );
   // Full depth up to the lumbar, thinning over the shoulders to a slim headrest
-  const backDepth = (h) => BACK_DEPTH - 0.45 * THREE.MathUtils.smoothstep(h, 3.6, 6.6);
+  const backDepth = (h) => BACK_DEPTH - 0.45 * THREE.MathUtils.smoothstep(h, 4.2, 7.2);
   // Each height sits forward of the flat rear by however much thinner it is
   const recess = (y) => (BACK_DEPTH - backDepth(y + BACK_H / 2)) / 2;
   // The wings: the centre panel fills the headrest edge to edge, then below WING_TOP its edges
   // run down converging a little while the outline flares out to the shoulders, so each wing
   // starts as a point high on the side and widens down to the seat. Outward of the panel's
-  // edge the shell bends forward (-z), sweeping round toward the sitter into a deep U, and
-  // swells into a padded cushion, one with the shell; seen from the front or side its swell
-  // dips in at a waist below the shoulders and pushes out again round the lumbar, though from
-  // behind the back only narrows. The headrest, all panel, stays flat.
+  // edge the shell sweeps forward (-z) round the sitter into a deep U, its rim reaching
+  // `wingReach(h)` ahead of the shell's middle, and swells into a padded cushion, one with the
+  // shell. The reach is traced from the side photo: the wing tips kick out sharply below the
+  // headrest, hold steady down a waist, push out again round the lumbar, and ease back toward
+  // the seat. From behind the back only narrows. The headrest, all panel, stays flat.
   const WING_TOP = 5.85;
   const PANEL_FOOT = 1.0;
   const panelEdge = (h) => (h >= WING_TOP ? backWidth(h) : PANEL_FOOT + ((backWidth(WING_TOP) - PANEL_FOOT) * h) / WING_TOP);
-  const WING_SWELL = 0.3;
-  const wingSwell = (x, h) => {
+  const reachAlong = halfWidthAlong(
+    [[0.3, 0], [0.37, 0.3], [0.62, 0.6], [1.0, 0.9], [1.16, 1.3], [1.22, 1.8], [1.09, 2.1], [0.78, 2.6], [0.62, 3.0], [0.56, 3.4], [0.64, 4.0], [0.65, 4.6], [0.45, 4.9], [0.32, 5.2], [0.22, 5.5], [0, WING_TOP], [0, BACK_H]],
+    BACK_H,
+    0,
+  );
+  const wingReach = (h) => Math.max(0, reachAlong(h));
+  // how far out across its wing a point lies, 0 at the panel's edge to 1 at the rim
+  const acrossWing = (x, h) => {
     const inner = panelEdge(h);
     // over the headrest the panel runs to the rim, leaving no wing
     if (backWidth(h) - inner <= 0) return 0;
-    const u = (Math.abs(x) - inner) / (backWidth(h) - inner);
-    if (u <= 0 || u >= 1) return 0;
-    const fade = THREE.MathUtils.smoothstep(backWidth(h) - inner, 0, 0.7) * THREE.MathUtils.smoothstep(h, 0, 0.6);
-    const profile = 0.75 + 0.55 * Math.exp(-(((h - 1.7) / 0.9) ** 2)) - 0.35 * Math.exp(-(((h - 3.3) / 0.45) ** 2));
-    return WING_SWELL * Math.sin(Math.PI * u) ** 0.7 * fade * profile;
+    return THREE.MathUtils.clamp((Math.abs(x) - inner) / (backWidth(h) - inner), 0, 1);
+  };
+  const WING_SWELL = 0.22;
+  const wingSwell = (x, h) => {
+    const fade = THREE.MathUtils.smoothstep(backWidth(h) - panelEdge(h), 0, 0.7) * THREE.MathUtils.smoothstep(h, 0, 0.6);
+    return WING_SWELL * Math.sin(Math.PI * acrossWing(x, h)) ** 0.7 * fade;
   };
   // Low down the front also swells forward at the lumbar, easing off toward the rim so the
   // smooth rear shell stays put. `z` tells front (below 0) from rear.
-  const BEND = 0.68;
   const LUMBAR = 0.22;
   const lumbar = (x, y) => LUMBAR * Math.exp(-(((y + BACK_H / 2 - 1.8) / 1.1) ** 2)) * THREE.MathUtils.smoothstep(backWidth(y + BACK_H / 2) - Math.abs(x), 0, 0.9);
-  const backZ = (x, y, z) => recess(y) - BEND * Math.max(0, Math.abs(x) - panelEdge(y + BACK_H / 2)) ** 2 - (z < 0 ? lumbar(x, y) : 0);
+  const backZ = (x, y, z) => recess(y) - wingReach(y + BACK_H / 2) * acrossWing(x, y + BACK_H / 2) ** 2 - (z < 0 ? lumbar(x, y) : 0);
   // Lay a pad built round z = 0 onto the back: up by y0, forward by z0(y), then shaped
   const bent = (geo, y0, z0 = () => 0) => {
     geo.translate(0, y0, 0);

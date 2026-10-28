@@ -2,6 +2,7 @@
 // dock that magnifies under the pointer and bounces an app as it launches, and windows (the
 // terminal, Spotifree) that genie out of the dock and back into it. Drawn on a 2D canvas in a
 // 640 × 384 layout; clickable areas come back as hotspots in the same units.
+import { WALLPAPERS, createWallpapers } from "./wallpapers";
 import { TRACKS, trackLength } from "./lofi";
 import { createStrike, drawStrike, strikeKey, STRIKE_BOOT } from "./strawHatStrike";
 
@@ -24,19 +25,20 @@ const APPS = {
   terminal: { id: "terminal", label: "Terminal" },
   spotifree: { id: "spotifree", label: "Spotifree" },
   code: { id: "code", label: "VS Kode" },
+  wallpaper: { id: "wallpaper", label: "Wallpaper" },
   snake: { id: "snake", label: "Snake" },
   notes: { id: "notes", label: "About me", focus: "about" },
   mail: { id: "mail", label: "Mail", focus: "contact" },
   messages: { id: "messages", label: "AI Chat", focus: "chat" },
 };
 // Kept in the dock, Snake included: it's the desktop's own game, apart from the console
-const DOCK_KEPT = ["launchpad", "files", "terminal", "spotifree", "code", "snake", "notes", "mail", "messages"];
+const DOCK_KEPT = ["launchpad", "files", "terminal", "spotifree", "code", "snake", "wallpaper", "notes", "mail", "messages"];
 const LAUNCHPAD_APPS = ["terminal", "spotifree", "code", "snake", "files", "notes", "mail", "messages"];
 // The visitor's own order, if they've dragged the icons about
 const readDockOrder = () => {
   try {
     const saved = JSON.parse(localStorage.getItem("dock-order"));
-    if (Array.isArray(saved) && saved.length === DOCK_KEPT.length && DOCK_KEPT.every((id) => saved.includes(id))) return saved;
+    if (Array.isArray(saved) && saved.length && new Set(saved).size === saved.length && saved.every((id) => DOCK_KEPT.includes(id))) return [...saved, ...DOCK_KEPT.filter((id) => !saved.includes(id))];
   } catch {
     // Nothing saved, or no storage: the default order
   }
@@ -341,6 +343,12 @@ function drawWallpaper(c, name) {
   c.drawImage(wallpapers[name].canvas, 0, 0, SCREEN_W, SCREEN_H);
 }
 
+function coverImage(c, image, x, y, w, h) {
+  const scale = Math.max(w / image.naturalWidth, h / image.naturalHeight);
+  const sw = w / scale, sh = h / scale;
+  c.drawImage(image, (image.naturalWidth - sw) / 2, (image.naturalHeight - sh) / 2, sw, sh, x, y, w, h);
+}
+
 // ---------- dock icons ----------
 // Each is a little printed tile: a hard shadow, its colour, a gloss on top, grain, an outline
 function drawIcon(c, id, x, y, s, { shadow = true } = {}) {
@@ -351,7 +359,7 @@ function drawIcon(c, id, x, y, s, { shadow = true } = {}) {
     c.fill();
   }
   roundRect(c, x, y, s, s, 8 * u);
-  c.fillStyle = { launchpad: "#3a3550", files: "#ffdd00", terminal: "#1a1714", spotifree: GREEN, code: "#4f7cff", snake: "#8fd694", notes: "#fffdf5", mail: "#7fb2ff", messages: "#ff90e8" }[id];
+  c.fillStyle = { launchpad: "#3a3550", files: "#ffdd00", terminal: "#1a1714", spotifree: GREEN, code: "#4f7cff", wallpaper: "#b7c8ff", snake: "#8fd694", notes: "#fffdf5", mail: "#7fb2ff", messages: "#ff90e8" }[id];
   c.fill();
   gloss(c, x, y, s, s, { top: 0.32, foot: 0.16 });
   grainOver(c, 0.9);
@@ -381,6 +389,12 @@ function drawIcon(c, id, x, y, s, { shadow = true } = {}) {
       c.fillStyle = color;
       c.fillRect(7 + (i % 3) * 6.5, 7 + Math.floor(i / 3) * 6.5, 4.5, 4.5);
     });
+  } else if (id === "wallpaper") {
+    c.fillStyle = "#fff6bd";
+    c.beginPath(); c.arc(22, 10, 4, 0, Math.PI * 2); c.fill(); c.stroke();
+    c.fillStyle = "#589f84";
+    c.beginPath(); c.moveTo(4, 26); c.lineTo(13, 12); c.lineTo(19, 20);
+    c.lineTo(24, 16); c.lineTo(29, 26); c.closePath(); c.fill(); c.stroke();
   } else if (id === "code") {
     // Angle brackets and a slash
     c.strokeStyle = "#fff";
@@ -1003,8 +1017,14 @@ export function createDesktop({ terminal, player, actions }) {
     terminal: { id: "terminal", title: "oka@desk: ~", home: { x: 18, y: 32, w: 368, h: 212 }, bar: "#ff7a1a", ink: "#000", open: true },
     spotifree: { id: "spotifree", title: "Spotifree", home: { x: 376, y: 40, w: 250, h: 272 }, bar: "#000", ink: "#fff", open: false },
     code: { id: "code", title: "portfolio — VS Kode", home: { x: 44, y: 38, w: 420, h: 268 }, bar: "#13141c", ink: "#fff", open: false },
+    wallpaper: { id: "wallpaper", title: "Wallpaper — Toon collection", home: { x: 46, y: 38, w: 548, h: 192 }, bar: "#b7c8ff", ink: "#000", open: false },
     snake: { id: "snake", title: "Snake", home: { x: 404, y: 52, w: 212, h: 238 }, bar: "#8fd694", ink: "#000", open: false },
   };
+  const wallpaper = createWallpapers();
+  const wallpaperFrame = surface(SCREEN_W, SCREEN_H);
+  const wallpaperFrom = surface(SCREEN_W, SCREEN_H);
+  let wallpaperShown = null;
+  let wallpaperFade = null;
   const typist = createTypist();
   const snake = createSnake((name) => actions.sound?.(name));
   const strike = createStrike((name) => actions.sound?.(name));
@@ -1023,6 +1043,7 @@ export function createDesktop({ terminal, player, actions }) {
   const dockOrder = readDockOrder();
   const slots = {};
   let dockDrag = null;
+  let windowDrag = null;
   let lastDraw = 0;
 
   const rectOf = (win) => (win.max ? { x: 10, y: MENU_H + 8, w: SCREEN_W - 20, h: DOCK_Y - MENU_H - 16 } : win.home);
@@ -1082,6 +1103,47 @@ export function createDesktop({ terminal, player, actions }) {
     raise(id);
   }
 
+  function drawWallpaperPicker(c, w, h, spots) {
+    const theme = THEMES[themeName];
+    const chosen = wallpaper.selection;
+    c.fillStyle = theme.card;
+    c.fillRect(0, 0, w, h);
+    c.textBaseline = "middle";
+    c.textAlign = "left";
+    c.fillStyle = theme.ink;
+    c.font = `700 11px ${BODY}`;
+    c.fillText("Landscapes, redrawn in toon.", 14, 18);
+    c.font = `500 9px ${BODY}`;
+    c.fillText("Light and dark follow the room automatically.", 14, 36);
+    const gap = 10, left = 14, cw = (w - left * 2 - gap * 4) / 5;
+    const ph = Math.min(110, h - 104);
+    WALLPAPERS.forEach((item, i) => {
+      const x = left + i * (cw + gap), y = 52;
+      const selected = item.id === chosen.id;
+      c.save();
+      roundRect(c, x, y, cw, ph, 5);
+      c.clip();
+      c.fillStyle = item.color;
+      c.fillRect(x, y, cw, ph);
+      const img = wallpaper.image(item.id, themeName);
+      if (img) coverImage(c, img, x, y, cw, ph);
+      c.restore();
+      roundRect(c, x, y, cw, ph, 5);
+      c.lineWidth = selected ? 3 : 1;
+      c.strokeStyle = selected ? "#ffdd00" : theme.edge;
+      c.stroke();
+      c.fillStyle = theme.ink;
+      c.font = `700 10px ${BODY}`;
+      c.fillText(`${selected ? "✓ " : ""}${item.name}`, x, y + ph + 16);
+      spots.push({ id: "wallpaperSelect", wallpaper: item.id, x, y, w: cw, h: ph + 25 });
+    });
+    c.fillStyle = theme.ink;
+    c.font = `700 9px ${BODY}`;
+    c.fillText("← → choose · Enter to preview", 14, h - 14);
+    c.fillText("Show desktop ↗", w - 112, h - 14);
+    spots.push({ id: "wallpaperPreview", x: w - 122, y: h - 28, w: 118, h: 26 });
+  }
+
   // Each window paints into its own canvas, then lands on the screen: straight, or bent by
   // the genie (slices that pour toward the dock icon, the bottom ones first)
   function paintWindow(win, t, hotspots) {
@@ -1089,7 +1151,7 @@ export function createDesktop({ terminal, player, actions }) {
     if (!win.surface || win.surface.w !== r.w || win.surface.h !== r.h) win.surface = surface(r.w, r.h);
     const { c } = win.surface;
     c.clearRect(0, 0, r.w, r.h);
-    const local = [];
+    const local = [{ id: "window", x: 0, y: 0, w: r.w, h: r.h }];
     c.save();
     roundRect(c, 1, 1, r.w - 2, r.h - 2, 8);
     c.clip();
@@ -1109,6 +1171,7 @@ export function createDesktop({ terminal, player, actions }) {
     } else {
       const inner = [];
       if (win.id === "spotifree") drawSpotifree(c, r.w, r.h - TITLE_H, player, inner);
+      else if (win.id === "wallpaper") drawWallpaperPicker(c, r.w, r.h - TITLE_H, inner);
       else if (win.id === "snake") drawSnake(c, r.w, r.h - TITLE_H, snake, inner);
       else {
         drawCode(c, r.w, r.h - TITLE_H, typist, t);
@@ -1214,7 +1277,27 @@ export function createDesktop({ terminal, player, actions }) {
     const t = now();
     const hotspots = [];
     const theme = THEMES[themeName];
-    drawWallpaper(c, themeName);
+    wallpaper.clean();
+    const picture = wallpaper.image(wallpaper.selection.id, themeName);
+    // Warm the opposite appearance before the room changes, retaining the current frame
+    // if the next image is still loading. A snapshot also makes interrupted fades continuous.
+    wallpaper.image(wallpaper.selection.id, themeName === "light" ? "dark" : "light");
+    if (picture && picture !== wallpaperShown) {
+      if (wallpaperShown) {
+        wallpaperFrom.c.drawImage(wallpaperFrame.canvas, 0, 0, SCREEN_W, SCREEN_H);
+        wallpaperFade = { t0: t };
+      }
+      wallpaperShown = picture;
+    }
+    if (wallpaperShown) {
+      const blend = wallpaperFade ? easeInOut(clamp01((t - wallpaperFade.t0) / 1.6)) : 1;
+      if (wallpaperFade) wallpaperFrame.c.drawImage(wallpaperFrom.canvas, 0, 0, SCREEN_W, SCREEN_H);
+      wallpaperFrame.c.globalAlpha = blend;
+      coverImage(wallpaperFrame.c, wallpaperShown, 0, 0, SCREEN_W, SCREEN_H);
+      wallpaperFrame.c.globalAlpha = 1;
+      c.drawImage(wallpaperFrame.canvas, 0, 0, SCREEN_W, SCREEN_H);
+      if (blend === 1) wallpaperFade = null;
+    } else drawWallpaper(c, themeName);
     // The editor types on while it's showing; the snake only moves while it's the front window
     if (windows.code.open && !windows.code.min) typist.step(t);
     if (front()?.id === "snake") snake.step(t);
@@ -1491,6 +1574,11 @@ export function createDesktop({ terminal, player, actions }) {
       return launch(hs.app);
     }
     if (hs.focusWin) raise(hs.focusWin);
+    if (hs.id === "wallpaperSelect") return wallpaper.select(hs.wallpaper);
+    if (hs.id === "wallpaperPreview") {
+      Object.values(windows).forEach((win) => { if (win.open) { win.min = true; win.anim = null; } });
+      return;
+    }
     if (hs.id === "close") return close(hs.win);
     if (hs.id === "min") return minimize(hs.win);
     if (hs.id === "max") return toggleMax(hs.win);
@@ -1520,18 +1608,43 @@ export function createDesktop({ terminal, player, actions }) {
       tv.on = false;
       return true;
     },
-    // A press on the screen (layout units): on a dock icon it may turn into a drag along the
-    // dock. True when it's the dock's, so the scene follows the pointer from here.
+    // Window title bars and dock icons share the scene's captured screen pointer.
     press(x, y) {
-      if (tv.on || pad.open || y < DOCK_Y || y > DOCK_Y + DOCK_H) return false;
-      const layout = dockLayout(dockOrder);
-      const i = Math.floor((x - layout.x - ICON_GAP / 2) / (ICON + ICON_GAP));
-      if (i < 0 || i >= dockOrder.length) return false;
-      dockDrag = { id: dockOrder[i], x0: x, y0: y, x, y, moved: false };
-      return true;
+      if (tv.on || pad.open) return false;
+      if (y >= DOCK_Y && y <= DOCK_Y + DOCK_H) {
+        const layout = dockLayout(dockOrder);
+        const i = Math.floor((x - layout.x - ICON_GAP / 2) / (ICON + ICON_GAP));
+        if (i < 0 || i >= dockOrder.length) return false;
+        dockDrag = { id: dockOrder[i], x0: x, y0: y, x, y, moved: false };
+        return true;
+      }
+      for (const id of [...order].reverse()) {
+        const win = windows[id];
+        if (!win.open || win.min || win.anim) continue;
+        const r = rectOf(win);
+        if (x < r.x || x > r.x + r.w || y < r.y || y > r.y + r.h) continue;
+        if (y > r.y + TITLE_H || x < r.x + 52) return false;
+        raise(id);
+        windowDrag = { id, x0: x, y0: y, dx: x - r.x, dy: y - r.y, width: r.w, moved: false };
+        return true;
+      }
+      return false;
     },
     // The pointer moved while pressed; true once it's really a drag (and needs a redraw)
     dragTo(x, y) {
+      if (windowDrag) {
+        const drag = windowDrag;
+        if (!drag.moved && Math.hypot(x - drag.x0, y - drag.y0) < 5) return false;
+        const win = windows[drag.id];
+        if (win.max) {
+          drag.dx *= win.home.w / drag.width;
+          win.max = false;
+        }
+        drag.moved = true;
+        win.home.x = Math.min(SCREEN_W - win.home.w, Math.max(0, x - drag.dx));
+        win.home.y = Math.min(DOCK_Y - TITLE_H - 4, Math.max(MENU_H + 4, y - drag.dy));
+        return true;
+      }
       if (!dockDrag) return false;
       if (!dockDrag.moved && Math.hypot(x - dockDrag.x0, y - dockDrag.y0) < 5) return false;
       if (!dockDrag.moved) actions.sound?.("tick");
@@ -1549,6 +1662,11 @@ export function createDesktop({ terminal, player, actions }) {
     },
     // Let go: true when an icon was dragged (so it isn't also a click), and the order is kept
     release() {
+      if (windowDrag) {
+        const moved = windowDrag.moved;
+        windowDrag = null;
+        return moved;
+      }
       const drag = dockDrag;
       dockDrag = null;
       if (!drag?.moved) return false;
@@ -1564,6 +1682,9 @@ export function createDesktop({ terminal, player, actions }) {
     busy: () => {
       const t = now();
       return !!(
+        wallpaper.dirty ||
+        wallpaperFade ||
+        windowDrag?.moved ||
         tv.on ||
         dockDrag?.moved ||
         dockSettling() ||
@@ -1582,6 +1703,16 @@ export function createDesktop({ terminal, player, actions }) {
         if (e.key === "Backspace" || e.key === "q" || e.key === "Q") tv.on = false;
         else strikeKey(strike, e, true);
         // Everything else is swallowed: no typing into the terminal behind the game
+        return true;
+      }
+      if (front()?.id === "wallpaper") {
+        const current = wallpaper.selection;
+        const index = WALLPAPERS.findIndex((item) => item.id === current.id);
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+          const step = e.key === "ArrowLeft" ? -1 : 1;
+          wallpaper.select(WALLPAPERS[(index + step + WALLPAPERS.length) % WALLPAPERS.length].id);
+        }
+        if (e.key === "Enter") click({ id: "wallpaperPreview" });
         return true;
       }
       if (front()?.id !== "snake") return false;

@@ -1654,7 +1654,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     paintingTurn.add(at(mesh(new THREE.BoxGeometry(0.018, 2.62, 0.015), frameLip, { outline: 0 }), side * 1.865, 0, 0.105));
   });
   let paintingArt = 0;
-  const painting = printed(3.75, 2.65, 220, (c, w, h) => drawPainting(c, w, h, { art: paintingArt }));
+  const painting = printed(3.75, 2.65, 300, (c, w, h) => drawPainting(c, w, h, { art: paintingArt }));
   painting.position.z = 0.09;
   paintingTurn.add(paintingFrame, painting);
   const nail = mesh(new THREE.SphereGeometry(0.07, 10, 8), toon("#9ca3af"), { outline: 0.015 });

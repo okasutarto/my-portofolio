@@ -48,4 +48,22 @@ assert.ok(bounds.max.x < 2 && bounds.min.x > -2, 'bar stays inside screen width'
 assert.ok(bounds.max.x - bounds.min.x > 3.9, 'bar spans almost the full 4.22-unit monitor width');
 assert.ok(source.includes('setLamp(isDark);\n    updateLightbar();'), 'initial theme sets lightbar state');
 assert.ok(source.includes('updateLampGlow();\n    updateLightbar();'), 'lightbar follows the smooth day/night transition');
+assert.ok(source.includes('register(lightbar,'), 'lightbar is registered as interactive prop');
+
+// Day: toggle attempts do not turn on light
+roomLight.night = 0;
+run('toggleLightbar()');
+assert.equal(light.intensity, 0, 'lightbar stays off when toggled during day');
+
+// Night: toggles on and off
+roomLight.night = 1;
+run('updateLightbar()');
+assert.equal(light.intensity, 9, 'lightbar is on at night');
+run('toggleLightbar()');
+assert.equal(light.intensity, 0, 'clicking at night turns lightbar off');
+assert.equal(light.castShadow, false);
+run('toggleLightbar()');
+assert.equal(light.intensity, 9, 'clicking again at night turns lightbar back on');
+assert.equal(light.castShadow, true);
+
 console.log('Lightbar geometry, toon texture, beam direction, night fade and lamp colour/power checks passed.');

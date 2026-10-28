@@ -2,7 +2,7 @@
 // dock that magnifies under the pointer and bounces an app as it launches, and windows (the
 // terminal, Spotifree) that genie out of the dock and back into it. Drawn on a 2D canvas in a
 // 640 × 384 layout; clickable areas come back as hotspots in the same units.
-import { WALLPAPERS, createWallpapers } from "./wallpapers";
+import { WALLPAPERS, createWallpapers, paintScenery } from "./wallpapers";
 import { TRACKS, trackLength } from "./lofi";
 import { createStrike, drawStrike, strikeKey, STRIKE_BOOT } from "./strawHatStrike";
 
@@ -150,7 +150,7 @@ const THEMES = {
 // ---------- wallpaper: abstract cut-paper shapes over the site's dot grid, drawn once a theme ----------
 // Big shapes hug the edges and corners, so the middle stays calm behind the windows
 const wallpapers = {};
-function drawWallpaper(c, name) {
+function originalSheet(name) {
   if (!wallpapers[name]) {
     const paper = surface(SCREEN_W, SCREEN_H);
     const w = paper.c;
@@ -340,13 +340,23 @@ function drawWallpaper(c, name) {
     w.fillRect(0, 0, SCREEN_W, SCREEN_H);
     wallpapers[name] = paper;
   }
-  c.drawImage(wallpapers[name].canvas, 0, 0, SCREEN_W, SCREEN_H);
+  return wallpapers[name];
+}
+// Any wallpaper's sheet for the room's look: the original, or a landscape cut from the same paper
+function sheetOf(id, name) {
+  if (id === "original") return originalSheet(name);
+  const key = `${id}-${name}`;
+  if (!wallpapers[key]) {
+    wallpapers[key] = surface(SCREEN_W, SCREEN_H);
+    paintScenery(wallpapers[key].c, id, name, { halftone, grainOver, seeded });
+  }
+  return wallpapers[key];
 }
 
 function coverImage(c, image, x, y, w, h) {
-  const scale = Math.max(w / image.naturalWidth, h / image.naturalHeight);
+  const scale = Math.max(w / image.width, h / image.height);
   const sw = w / scale, sh = h / scale;
-  c.drawImage(image, (image.naturalWidth - sw) / 2, (image.naturalHeight - sh) / 2, sw, sh, x, y, w, h);
+  c.drawImage(image, (image.width - sw) / 2, (image.height - sh) / 2, sw, sh, x, y, w, h);
 }
 
 // ---------- dock icons ----------
@@ -1017,7 +1027,7 @@ export function createDesktop({ terminal, player, actions }) {
     terminal: { id: "terminal", title: "oka@desk: ~", home: { x: 18, y: 32, w: 368, h: 212 }, bar: "#ff7a1a", ink: "#000", open: true },
     spotifree: { id: "spotifree", title: "Spotifree", home: { x: 376, y: 40, w: 250, h: 272 }, bar: "#000", ink: "#fff", open: false },
     code: { id: "code", title: "portfolio — VS Kode", home: { x: 44, y: 38, w: 420, h: 268 }, bar: "#13141c", ink: "#fff", open: false },
-    wallpaper: { id: "wallpaper", title: "Wallpaper — Toon collection", home: { x: 46, y: 38, w: 548, h: 192 }, bar: "#b7c8ff", ink: "#000", open: false },
+    wallpaper: { id: "wallpaper", title: "Wallpaper — cut paper", home: { x: 46, y: 38, w: 548, h: 192 }, bar: "#b7c8ff", ink: "#000", open: false },
     snake: { id: "snake", title: "Snake", home: { x: 404, y: 52, w: 212, h: 238 }, bar: "#8fd694", ink: "#000", open: false },
   };
   const wallpaper = createWallpapers();
@@ -1112,10 +1122,10 @@ export function createDesktop({ terminal, player, actions }) {
     c.textAlign = "left";
     c.fillStyle = theme.ink;
     c.font = `700 11px ${BODY}`;
-    c.fillText("Landscapes, redrawn in toon.", 14, 18);
+    c.fillText("Landscapes, cut from the desk's own paper.", 14, 18);
     c.font = `500 9px ${BODY}`;
     c.fillText("Light and dark follow the room automatically.", 14, 36);
-    const gap = 10, left = 14, cw = (w - left * 2 - gap * 4) / 5;
+    const gap = 10, left = 14, cw = (w - left * 2 - gap * (WALLPAPERS.length - 1)) / WALLPAPERS.length;
     const ph = Math.min(110, h - 104);
     WALLPAPERS.forEach((item, i) => {
       const x = left + i * (cw + gap), y = 52;
@@ -1123,10 +1133,7 @@ export function createDesktop({ terminal, player, actions }) {
       c.save();
       roundRect(c, x, y, cw, ph, 5);
       c.clip();
-      c.fillStyle = item.color;
-      c.fillRect(x, y, cw, ph);
-      const img = wallpaper.image(item.id, themeName);
-      if (img) coverImage(c, img, x, y, cw, ph);
+      coverImage(c, sheetOf(item.id, themeName).canvas, x, y, cw, ph);
       c.restore();
       roundRect(c, x, y, cw, ph, 5);
       c.lineWidth = selected ? 3 : 1;
@@ -1278,26 +1285,22 @@ export function createDesktop({ terminal, player, actions }) {
     const hotspots = [];
     const theme = THEMES[themeName];
     wallpaper.clean();
-    const picture = wallpaper.image(wallpaper.selection.id, themeName);
-    // Warm the opposite appearance before the room changes, retaining the current frame
-    // if the next image is still loading. A snapshot also makes interrupted fades continuous.
-    wallpaper.image(wallpaper.selection.id, themeName === "light" ? "dark" : "light");
-    if (picture && picture !== wallpaperShown) {
+    // A new sheet fades in over a snapshot of the last frame, so interrupted fades stay continuous
+    const picture = sheetOf(wallpaper.selection.id, themeName);
+    if (picture !== wallpaperShown) {
       if (wallpaperShown) {
         wallpaperFrom.c.drawImage(wallpaperFrame.canvas, 0, 0, SCREEN_W, SCREEN_H);
         wallpaperFade = { t0: t };
       }
       wallpaperShown = picture;
     }
-    if (wallpaperShown) {
-      const blend = wallpaperFade ? easeInOut(clamp01((t - wallpaperFade.t0) / 1.6)) : 1;
-      if (wallpaperFade) wallpaperFrame.c.drawImage(wallpaperFrom.canvas, 0, 0, SCREEN_W, SCREEN_H);
-      wallpaperFrame.c.globalAlpha = blend;
-      coverImage(wallpaperFrame.c, wallpaperShown, 0, 0, SCREEN_W, SCREEN_H);
-      wallpaperFrame.c.globalAlpha = 1;
-      c.drawImage(wallpaperFrame.canvas, 0, 0, SCREEN_W, SCREEN_H);
-      if (blend === 1) wallpaperFade = null;
-    } else drawWallpaper(c, themeName);
+    const blend = wallpaperFade ? easeInOut(clamp01((t - wallpaperFade.t0) / 1.6)) : 1;
+    if (wallpaperFade) wallpaperFrame.c.drawImage(wallpaperFrom.canvas, 0, 0, SCREEN_W, SCREEN_H);
+    wallpaperFrame.c.globalAlpha = blend;
+    wallpaperFrame.c.drawImage(wallpaperShown.canvas, 0, 0, SCREEN_W, SCREEN_H);
+    wallpaperFrame.c.globalAlpha = 1;
+    c.drawImage(wallpaperFrame.canvas, 0, 0, SCREEN_W, SCREEN_H);
+    if (blend === 1) wallpaperFade = null;
     // The editor types on while it's showing; the snake only moves while it's the front window
     if (windows.code.open && !windows.code.min) typist.step(t);
     if (front()?.id === "snake") snake.step(t);

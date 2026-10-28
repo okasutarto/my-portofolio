@@ -4,78 +4,83 @@ const vm = require('node:vm');
 const root = `${__dirname}/../`;
 const strip = (path) => fs.readFileSync(root + path, 'utf8').replace(/^import .*;\n/gm, '').replace(/export /g, '');
 const saved = new Map([['dock-order', JSON.stringify(['messages', 'mail', 'notes', 'snake', 'code', 'spotifree', 'terminal', 'files', 'launchpad'])]]);
-const images = [];
 let time = 0;
 const imageDraws = [];
 let nextContext = 0;
-const context2d = () => new Proxy({
+// Each mock canvas keeps one context, and each context knows its canvas
+const context2d = (canvas) => new Proxy({
+  canvas,
   contextId: nextContext++,
   drawImage(image) { imageDraws.push({ image, contextId: this.contextId, alpha: this.globalAlpha ?? 1 }); },
   measureText: (text) => ({ width: text.length * 5 }),
   createLinearGradient: () => ({ addColorStop() {} }),
   createRadialGradient: () => ({ addColorStop() {} }),
 }, { get: (target, key) => target[key] ?? (() => {}) });
-const c = context2d();
+const makeCanvas = () => {
+  const canvas = { width: 0, height: 0 };
+  let ctx;
+  canvas.getContext = () => (ctx ??= context2d(canvas));
+  return canvas;
+};
+const c = makeCanvas().getContext();
 const context = vm.createContext({
-  console, Date, Math, Set, Map, WeakMap, process: { env: { BASE_URL: '/' } },
+  console, Date, Math, Set, Map, WeakMap,
   localStorage: { getItem: (key) => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value) },
-  Image: class { constructor() { this.complete = false; this.naturalWidth = 0; images.push(this); } },
-  document: { createElement: () => ({ width: 0, height: 0, getContext: context2d }) },
+  document: { createElement: makeCanvas },
   performance: { now: () => time }, TRACKS: [],
   createStrike: () => ({ keys: new Set() }), drawStrike() {}, strikeKey() {}, STRIKE_BOOT: 1,
 });
 vm.runInContext(strip('src/components/features/desk/wallpapers.js') + strip('src/components/features/desk/desktop.js') + `
-  globalThis.collection = createWallpapers();
   globalThis.desktop = createDesktop({ terminal: { canvas: { width: 1280, height: 768 } }, player: {}, actions: {} });
 `, context);
 const desktop = context.desktop;
 let spots = desktop.draw(c);
 assert.equal(spots.filter((s) => s.id === 'dock').length, 10);
 assert.equal(spots.filter((s) => s.id === 'dock')[0].app, 'wallpaper', 'new app appended after saved order');
+// The screen's first picture each frame is the wallpaper frame; its context receives the sheets
+const frameContext = () => {
+  const mark = imageDraws.length;
+  desktop.draw(c);
+  return imageDraws.slice(mark).find((draw) => draw.contextId === c.contextId).image.getContext().contextId;
+};
+const frameId = frameContext();
+const lastPicture = () => imageDraws.filter((draw) => draw.contextId === frameId).at(-1);
 desktop.launch('wallpaper');
 time = 2000;
 spots = desktop.draw(c);
-assert.equal(spots.filter((s) => s.id === 'wallpaperSelect').length, 5);
+assert.equal(spots.filter((s) => s.id === 'wallpaperSelect').length, 6, 'the original sheet and five landscapes');
 for (const spot of spots) assert.ok(spot.x >= 0 && spot.y >= 0 && spot.x + spot.w <= 640 && spot.y + spot.h <= 384);
 desktop.click(spots.find((s) => s.id === 'wallpaperSelect' && s.wallpaper === 'mojave'));
 assert.deepEqual(JSON.parse(saved.get('desk-wallpaper')), { id: 'mojave' });
-desktop.setTheme(false);
-desktop.draw(c);
-assert.ok(images.some((image) => image.src === '/wallpapers/mojave-light.webp?v=toon-v3'));
 desktop.setTheme(true);
 desktop.draw(c);
-assert.ok(images.some((image) => image.src === '/wallpapers/mojave-dark.webp?v=toon-v3'));
-assert.equal(desktop.key({ key: 'ArrowRight' }), true);
-assert.equal(JSON.parse(saved.get('desk-wallpaper')).id, 'monterey');
-images.forEach((image) => { image.complete = true; image.naturalWidth = 1600; image.naturalHeight = 1000; image.onload(); });
-assert.equal(desktop.busy(), true, 'loaded images trigger a redraw');
+time += 1600;
 desktop.draw(c);
-assert.equal(desktop.busy(), false, 'static wallpaper does not redraw continuously');
-// A loaded appearance blends with the last visible frame over 1.6 seconds.
-const lastPicture = () => imageDraws.filter((draw) => draw.image?.src && draw.contextId === 1).at(-1);
+assert.equal(desktop.busy(), false, 'a static wallpaper does not redraw continuously');
+const darkSheet = lastPicture().image;
+// A new appearance blends over the last visible frame for 1.6 seconds
 desktop.setTheme(false);
 desktop.draw(c);
 assert.equal(desktop.busy(), true, 'crossfade keeps screen redraws active');
-assert.equal(lastPicture().alpha, 0, 'incoming picture starts transparent');
+assert.equal(lastPicture().alpha, 0, 'incoming sheet starts transparent');
+const lightSheet = lastPicture().image;
+assert.notEqual(lightSheet, darkSheet, 'light and dark are separate sheets');
 time += 800;
 desktop.draw(c);
 assert.ok(Math.abs(lastPicture().alpha - 0.5) < 1e-6, 'halfway through the fade both appearances mix');
 desktop.setTheme(true);
 desktop.draw(c);
 assert.equal(lastPicture().alpha, 0, 'a reversal begins from a snapshot of the current mix');
+assert.equal(lastPicture().image, darkSheet, 'sheets are painted once and reused');
 time += 1600;
 desktop.draw(c);
 assert.equal(lastPicture().alpha, 1);
 assert.equal(desktop.busy(), false, 'completed crossfade returns to idle');
-const pending = images.find((image) => image.src.includes('monterey-light'));
-pending.complete = false;
-desktop.setTheme(false);
+assert.equal(desktop.key({ key: 'ArrowRight' }), true);
+assert.equal(JSON.parse(saved.get('desk-wallpaper')).id, 'monterey');
+assert.equal(desktop.busy(), true, 'a new choice asks for a redraw');
 desktop.draw(c);
-assert.ok(lastPicture().image.src.includes('monterey-dark'), 'keep the old image while the new appearance loads');
-pending.complete = true;
-pending.onload();
-desktop.draw(c);
-assert.equal(lastPicture().alpha, 0, 'fade begins only when the new image is ready');
+assert.notEqual(lastPicture().image, darkSheet, 'the chosen landscape fades in');
 time += 1600;
 desktop.draw(c);
 
@@ -114,11 +119,12 @@ desktop.key({ key: 'Enter' });
 assert.equal(desktop.active(), null, 'preview minimizes all windows');
 saved.set('desk-wallpaper', '{broken');
 vm.runInContext('globalThis.invalid = createWallpapers()', context);
-assert.equal(context.invalid.selection.id, 'big-sur');
-context.invalid.select('unknown', 'dark');
-assert.equal(context.invalid.selection.id, 'big-sur');
-// Both appearances are shipped for every choice.
-for (const id of ['big-sur', 'catalina', 'mojave', 'monterey', 'sonoma']) {
-  for (const mode of ['light', 'dark']) assert.ok(fs.statSync(`${root}public/wallpapers/${id}-${mode}.webp`).size > 1000);
+assert.equal(context.invalid.selection.id, 'original', 'a broken save falls back to the original sheet');
+context.invalid.select('unknown');
+assert.equal(context.invalid.selection.id, 'original');
+// Every landscape paints in both appearances without throwing
+for (const { id } of context.WALLPAPERS ?? vm.runInContext('WALLPAPERS', context)) {
+  if (id === 'original') continue;
+  for (const mode of ['light', 'dark']) vm.runInContext(`paintScenery(document.createElement('canvas').getContext('2d'), ${JSON.stringify(id)}, ${JSON.stringify(mode)}, { halftone, grainOver, seeded })`, context);
 }
-console.log('Wallpaper picker, crossfade/reversal/loading, window dragging/bounds/restore, persistence and ten assets passed.');
+console.log('Wallpaper picker, painted sheets, crossfade/reversal, window dragging/bounds/restore and persistence passed.');

@@ -4488,19 +4488,6 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
     c.stroke();
   }
 
-  // The window's own cross bars: wood, like the frame, with a black outline and a lighter
-  // bevel down the middle
-  const bar = u * 2.4;
-  c.fillStyle = "#000";
-  c.fillRect(w / 2 - bar / 2 - line, 0, bar + line * 2, h);
-  c.fillRect(0, h / 2 - bar / 2 - line, w, bar + line * 2);
-  c.fillStyle = "#b8743c";
-  c.fillRect(w / 2 - bar / 2, 0, bar, h);
-  c.fillRect(0, h / 2 - bar / 2, w, bar);
-  c.fillStyle = "rgba(255,220,170,.35)";
-  c.fillRect(w / 2 - bar * 0.15, 0, bar * 0.3, h);
-  c.fillRect(0, h / 2 - bar * 0.15, w, bar * 0.3);
-
   // Water on the glass. Each drop is a little lens: it shows the view behind it upside down
   // and shrunk, with a dark rim along its top, a bright caustic inside its lower edge and a
   // pinpoint of light. The bigger ones cling and swell, then let go and run in a quick

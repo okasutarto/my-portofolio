@@ -1074,8 +1074,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   windowGroup.position.set(SIDE_X + 0.12 - WINDOW_DEPTH, WINDOW_AT.y, WINDOW_AT.z);
   windowGroup.rotation.y = Math.PI / 2;
   room.add(windowGroup);
-  // A wooden frame and sill (the desk's grain, a shade warmer), a darker moulding round the glass,
-  // an apron board under the sill, a brass catch where the bars cross, and a faint glare
+  // One wooden frame, matching glazing bars and sill, with a brass catch and faint glare.
   const windowWood = canvasTexture(512, 512);
   track(windowWood.texture);
   drawWoodTop(windowWood.ctx, 512, 512);
@@ -1106,21 +1105,32 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const apron = mesh(rbox(4.1, 0.26, 0.08, 0.03), frameWood, { cast: false, outline: 0.02 });
   apron.position.set(0, -2.25 - 0.29, WINDOW_DEPTH + 0.04);
   windowGroup.add(sill, apron);
-  const moulding = toon("#7a4a26");
-  [[0, 2.05, 4.12, 0.1], [0, -2.05, 4.12, 0.1], [2.0, 0, 0.1, 4.2], [-2.0, 0, 0.1, 4.2]].forEach(([x, y, w, h]) => {
-    const strip = mesh(rbox(w, h, 0.08, 0.02), moulding, { cast: false, outline: 0.015 });
-    strip.position.set(x, y, 0.13);
-    windowGroup.add(strip);
-  });
+  // A single cross avoids overlapping faces and outline seams at the centre joint.
+  const windowBars = 0.15;
+  const halfBar = windowBars / 2;
+  const crossShape = new THREE.Shape();
+  [[-halfBar, 2.05], [halfBar, 2.05], [halfBar, halfBar], [2, halfBar],
+    [2, -halfBar], [halfBar, -halfBar], [halfBar, -2.05], [-halfBar, -2.05],
+    [-halfBar, -halfBar], [-2, -halfBar], [-2, halfBar], [-halfBar, halfBar]]
+    .forEach(([x, y], i) => i ? crossShape.lineTo(x, y) : crossShape.moveTo(x, y));
+  crossShape.closePath();
+  const glazingBars = mesh(new THREE.ExtrudeGeometry(crossShape, { depth: 0.08, bevelEnabled: false }), frameWood, { cast: false, outline: 0.015 });
+  const crossPositions = glazingBars.geometry.attributes.position;
+  const crossUV = glazingBars.geometry.attributes.uv;
+  for (let i = 0; i < crossUV.count; i++) {
+    crossUV.setXY(i, crossPositions.getX(i) / 4.4 + 0.5, crossPositions.getY(i) / 4.5 + 0.5);
+  }
+  glazingBars.position.z = 0.09;
+  windowGroup.add(glazingBars);
   const brass = toon("#d4a72c");
   const catchPlate = mesh(rbox(0.18, 0.12, 0.04, 0.02), brass, { cast: false, outline: 0.01 });
-  catchPlate.position.set(0, 0, 0.14);
+  catchPlate.position.set(0, 0, 0.20);
   const catchLever = mesh(rbox(0.05, 0.22, 0.04, 0.02), brass, { cast: false, outline: 0.01 });
-  catchLever.position.set(0.06, -0.08, 0.17);
+  catchLever.position.set(0.06, -0.08, 0.23);
   catchLever.rotation.z = 0.5;
   // The catch turns around the spindle in the fixed plate.
   const windowCatch = new THREE.Group();
-  windowCatch.position.z = 0.17;
+  windowCatch.position.z = 0.23;
   catchLever.position.z = 0;
   windowCatch.add(catchLever);
   windowGroup.add(catchPlate, windowCatch);
@@ -1141,8 +1151,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   windowGlare.position.z = 0.115;
   windowGlare.raycast = noRaycast;
   windowGroup.add(windowGlare);
-  // What stands in the window light's way (see windowLight): the glazing bars painted on the
-  // view, and the blind. They're drawn only into that light's shadow map (skipped in every other
+  // Dedicated shadows for the glazing bars and blind, drawn only into the window light's
+  // shadow map (skipped in every other
   // pass), so the sun doesn't see them and nothing of them shows. The light's cookie keeps
   // the beam inside the glass opening.
   const shadowOnly = track(new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, side: THREE.DoubleSide }));
@@ -1160,7 +1170,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
     m.onAfterRender = restoreDraw;
     return m;
   };
-  const windowBars = 0.15; // as wide as drawWindowView paints them
   [
     track(new THREE.BoxGeometry(windowBars, 4.1, 0.04)),
     track(new THREE.BoxGeometry(4.0, windowBars, 0.04)),
@@ -1174,7 +1183,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // the sunlit patch on the wall and desk shrinks with it.
   const BLIND_W = 4.5;
   const ROLL_Y = 2.42; // the roller's axis, just above the frame
-  const ROLL_Z = 0.36; // clear of the catch and the moulding
+  const ROLL_Z = 0.36; // clear of the catch and the glazing bars
   const ROLL_CORE = 0.05;
   const ROLL_FULL = 0.045; // what the whole length of fabric adds to the roll's radius
   const BAR_H = 0.08;

@@ -155,7 +155,7 @@ import { useMediaQuery } from "@vueuse/core";
 import { projects } from "@/data/projects";
 import { experiences } from "@/data/experience";
 import { useTheme } from "@/composables/useTheme";
-import { useSfx } from "@/composables/useSfx";
+import { useSfx, initializeAudio, sfx } from "@/composables/useSfx";
 import { hideBootLoader } from "@/utils/bootLoader";
 import { WOODS, WOOD_PATTERNS, WOOD_TARGETS, DEFAULT_WOOD } from "@/components/features/desk/woods";
 
@@ -313,6 +313,14 @@ onMounted(async () => {
       onEvent,
     });
     setTimeout(() => (introPlaying.value = false), 1600);
+    if (process.env.NODE_ENV === "development" && new URLSearchParams(window.location.search).get("preview") === "secret") {
+      secretTimer = setTimeout(async () => {
+        await initializeAudio();
+        if (!stageRef.value) return;
+        sfx.ding({ pitch: 1.15, volume: 0.22 });
+        onEvent("secret", { id: "snap", found: 1, total: Object.keys(SECRET_NAMES).length });
+      }, 2200);
+    }
   } catch (err) {
     console.error(err);
     unsupported.value = true;
@@ -321,6 +329,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  clearTimeout(secretTimer);
   hideBootLoader();
   scene.value?.destroy();
 });

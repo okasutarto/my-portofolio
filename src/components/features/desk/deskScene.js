@@ -257,17 +257,20 @@ export function createDeskScene({ container, projects, experiences, dark = false
   aoPass.depthRenderMaterial.defines.PERSPECTIVE_CAMERA = 0;
   // Keep shallow wall gaps (sword racks, boards and shelf backs) readable even in diffuse
   // light. More near-contact samples and a narrower denoise preserve thin silhouettes.
-  aoPass.updateGtaoMaterial({ radius: 1.6, thickness: 1.4, distanceExponent: 2, scale: 1.8, samples: 18 });
-  aoPass.updatePdMaterial({ radius: 2.5, samples: 12, rings: 2 });
+  aoPass.updateGtaoMaterial({ radius: 1.6, thickness: 1.4, distanceExponent: 2, scale: 1.8, samples: 12 });
+  aoPass.updatePdMaterial({ radius: 2.5, samples: 8, rings: 2 });
   // The occlusion is the costliest pass, and most of the time the room holds still: it's worked
   // out afresh whenever the view or anything in it moves (see the frame loop), a few times a
   // second otherwise (idle motion, the cat's breathing, is slow enough for the shading to trail
   // it by a frame or two), and in between the last result is laid over the frame again
   let aoDue = true;
   const aoSetSize = aoPass.setSize.bind(aoPass);
+  // Occlusion is soft, so it's worked out per CSS pixel and blended up onto a Retina frame:
+  // a quarter of the work at 2×, where it was the heaviest pass by far
   aoPass.setSize = (width, height) => {
     aoDue = true;
-    aoSetSize(width, height);
+    const density = Math.max(1, renderer.getPixelRatio());
+    aoSetSize(Math.ceil(width / density), Math.ceil(height / density));
   };
   const aoRenderFresh = aoPass.render.bind(aoPass);
   aoPass.render = (r, writeBuffer, readBuffer, ...rest) => {
@@ -11176,7 +11179,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   let aoCamZoom = 0;
   const frameIntervals = [];
   const updateToonBatch = benchmark === "no-batch" ? () => {} : createToonBatch(scene, renderer, track);
-  [sun, windowLight, lampLight].forEach((light) => {
+  [sun, windowLight, lampLight, lightbarLight].forEach((light) => {
     light.shadow.autoUpdate = false;
     light.shadow.needsUpdate = true;
   });
@@ -11206,6 +11209,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
     updateSpotlight(dt);
     // the chair stands between the camera and the tickets' close-up, so it's put away for it
     chair.visible = focus.name !== "experience";
+    // At 2× and up the pixels are small enough to hide stair-steps, and multisampling a Retina
+    // frame costs more memory traffic than an integrated GPU can spare
+    const samples = postDensity() >= 2 ? 0 : 4;
+    [composer.renderTarget1, composer.renderTarget2].forEach((target) => {
+      if (target.samples === samples) return;
+      target.samples = samples;
+      target.dispose();
+    });
     poseFolders();
     const pointerBlend = 1 - Math.pow(0.94, dt * 60);
     parallax.x += (parallax.tx - parallax.x) * pointerBlend;
@@ -11310,10 +11321,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
       chatDirty = false;
       redrawChat();
     }
-    // Moving props need primary shadows in the same frame, not a delayed 30Hz silhouette.
+    // Moving props need primary shadows in the same frame; a still room only has slow idle
+    // motion (the lanyard's breeze, the clock's hand) to keep up with
     if (moving || now >= mainShadowAt) {
-      mainShadowAt = now + 1000 / 30 - 0.5;
-      [sun, windowLight, lampLight].forEach((light) => {
+      mainShadowAt = now + 1000 / 12 - 0.5;
+      [sun, windowLight, lampLight, lightbarLight].forEach((light) => {
         if (light.castShadow && light.intensity > 0) light.shadow.needsUpdate = true;
       });
     }

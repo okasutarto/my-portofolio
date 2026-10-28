@@ -10,10 +10,16 @@ let density = 2;
 let postRatio = 0;
 let postWidth = 0;
 let postHeight = 0;
+let disposed = 0;
+const target = () => ({ samples: 4, dispose() { disposed++; } });
+const composerTargets = [target(), target()];
 const resolution = vm.createContext({
   renderer: { getPixelRatio: () => density },
   container: { clientWidth: 1200, clientHeight: 800 },
-  composer: { setPixelRatio: (value) => { postRatio = value; }, setSize: (w, h) => { postWidth = w; postHeight = h; } },
+  composer: {
+    renderTarget1: composerTargets[0], renderTarget2: composerTargets[1],
+    setPixelRatio: (value) => { postRatio = value; }, setSize: (w, h) => { postWidth = w; postHeight = h; },
+  },
 });
 vm.runInContext(sizing, resolution);
 const resize = vm.runInContext('sizeComposer', resolution);
@@ -23,6 +29,8 @@ for (const dpr of [0.8, 1, 1.5, 2, 2.5, 3]) {
   assert.equal(postRatio, dpr, 'postprocessing must match the canvas, including Retina and browser zoom');
   assert.equal(postWidth, 1200);
   assert.equal(postHeight, 800);
+  // Retina frames skip multisampling; 1× screens keep it for clean edges
+  composerTargets.forEach((t) => assert.equal(t.samples, dpr >= 2 ? 0 : 4, 'MSAA only below 2× density'));
   // Exercise the actual frame-statistics update with sustained overload and hitches.
   const timingStart = source.indexOf('    if (lastTick) frameMs +=');
   const timingEnd = source.indexOf('    updateTicketHover(dt)', timingStart);
@@ -30,6 +38,8 @@ for (const dpr of [0.8, 1, 1.5, 2, 2.5, 3]) {
   for (let i = 0; i < 1200; i++) stats(1 + (i % 2 ? 50 : 250));
   assert.equal(vm.runInContext('postDensity()', resolution), dpr, 'slow frames must never reduce render density');
 }
+// 0.8–1.5 keep 4 samples; 2 drops both targets to 0 once; 2.5 and 3 change nothing
+assert.equal(disposed, 2, 'targets are rebuilt only when their sample count changes');
 
 // Execute the real scheduler, stopping immediately before scene updates.
 const start = source.indexOf('  let lastTick = 0;');
@@ -38,7 +48,7 @@ for (const hz of [60, 90, 120, 144, 165]) {
   for (const active of [false, "interaction", "lighting"]) {
     const light = () => ({ shadow: {} });
     const scheduler = vm.createContext({ document: { hidden: false },
-      sun: light(), windowLight: light(), lampLight: light(), refreshMs: 1000 / 60,
+      sun: light(), windowLight: light(), lampLight: light(), lightbarLight: light(), refreshMs: 1000 / 60,
       lightingBlending: active === "lighting", responsiveUntil: active === "interaction" ? Infinity : 0, gsap: { isTweening: () => false }, cam: {}, blind: {}, catIdleTl: null, THREE: require('three'), updateShaft() {},
       benchmark: null, createToonBatch: () => () => {}, scene: {}, renderer: {}, track: (x) => x,
       mouseRunning: false, lampHopping: false, trophyCelebrating: false, lanyardDrag: null, hatDrag: null, noteDrag: null, shelfDrag: null, stickyDrag: null,

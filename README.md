@@ -255,8 +255,9 @@ per 15 minutes per IP. Frontend-only setup does not verify this external API or 
 
 | Command | What it does |
 | --- | --- |
-| `npm run dev` | Development server with hot reload |
+| `npm run dev` | Vite development server with hot reload |
 | `npm run build` | Production build into `dist/` |
+| `npm run preview` | Serve the production build locally |
 | `npm run lint` | ESLint |
 | `node scripts/check-desk-lighting.cjs` | Time cycle, sky/light alignment, rain, transitions, strip lighting and shadow sampler limits |
 | `node scripts/check-desk-quality.cjs` | Resolution, frame scheduling and decorative shadow budgets |

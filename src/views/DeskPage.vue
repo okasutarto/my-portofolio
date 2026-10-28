@@ -13,7 +13,6 @@
           <router-link to="/2d" class="hud-btn bg-white text-black">← 2D site</router-link>
           <button
             v-if="!zoomed"
-            ref="settingsButton"
             class="hud-btn text-black px-2"
             :class="settingsOpen ? 'settings-toggle--open' : 'bg-white'"
             :aria-expanded="settingsOpen"
@@ -32,12 +31,11 @@
           </transition>
         </div>
         <!-- Room settings: the wall's paint, and the wood and cut of the desk, the monitor riser,
-             the window frame and the game shelf. A click anywhere outside, or Esc, puts it away. -->
+             the window frame and the game shelf. Its close button, the gear or Esc puts it away. -->
         <transition name="hud-pop">
           <div
             v-if="settingsOpen && !zoomed"
             id="room-settings"
-            ref="settingsPanel"
             role="dialog"
             aria-label="Room settings"
             class="settings-panel pointer-events-auto w-[19.5rem] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-9rem)] flex flex-col">
@@ -290,8 +288,6 @@ const consoleOn = ref(false);
 const secretToast = ref(null);
 const settingsOpen = ref(false);
 const openGroup = ref("sky");
-const settingsPanel = ref(null);
-const settingsButton = ref(null);
 const settings = reactive(readSettings());
 let secretTimer = null;
 const zoomed = computed(() => focus.value !== "overview");
@@ -319,12 +315,7 @@ function isDarkColour(hex) {
   const n = parseInt(hex.slice(1), 16);
   return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) < 140;
 }
-// The settings put themselves away at a press anywhere outside them (the gear toggles on its
-// own) or at Esc. Captured, so a press on the room still closes them first.
-function closeSettingsOutside(e) {
-  if (!settingsOpen.value || settingsPanel.value?.contains(e.target) || settingsButton.value?.contains(e.target)) return;
-  settingsOpen.value = false;
-}
+// Esc puts the settings away, as do their close button and the gear
 function closeSettingsOnEscape(e) {
   if (e.key === "Escape" && settingsOpen.value) settingsOpen.value = false;
 }
@@ -428,7 +419,6 @@ watch(zoomed, (value) => value && (settingsOpen.value = false));
 watch(muted, (value) => scene.value?.setMuted(value));
 
 onMounted(async () => {
-  document.addEventListener("pointerdown", closeSettingsOutside, true);
   window.addEventListener("keydown", closeSettingsOnEscape);
   clockTimer = setInterval(() => (clockPart.value = partOfDay()), 60000);
   // The room opens on the visitor's part of the day (or their pick), so the page takes the night
@@ -468,7 +458,6 @@ onMounted(async () => {
 
 onUnmounted(() => {
   clearInterval(clockTimer);
-  document.removeEventListener("pointerdown", closeSettingsOutside, true);
   window.removeEventListener("keydown", closeSettingsOnEscape);
   clearTimeout(secretTimer);
   hideBootLoader();

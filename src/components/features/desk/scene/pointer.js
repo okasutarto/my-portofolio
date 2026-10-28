@@ -102,13 +102,13 @@ export function createPointer(runtime) {
     const hit = raycaster.intersectObject(runtime.workstation.screen, false)[0];
     return hit?.uv ? { x: hit.uv.x * SCREEN_W, y: (1 - hit.uv.y) * SCREEN_H } : null;
   }
-  // Returns the drag, `dropped` when a dock icon was really moved (so it isn't a click too)
+  // Returns the drag, `dropped` when a desktop window or dock icon was really moved (so it isn't a click too)
   function finishScreenDrag(pointerId = null) {
     if (!screenDrag || (pointerId !== null && pointerId !== screenDrag.pointerId)) return null;
     const drag = screenDrag;
     screenDrag = null;
     if (runtime.core.renderer.domElement.hasPointerCapture(drag.pointerId)) runtime.core.renderer.domElement.releasePointerCapture(drag.pointerId);
-    drag.dropped = drag.dock && runtime.workstation.desktop.release();
+    drag.dropped = drag.desktop && runtime.workstation.desktop.release();
     if (drag.dropped) runtime.workstation.redrawScreen();
     return drag;
   }
@@ -116,7 +116,7 @@ export function createPointer(runtime) {
     runtime.core.responsiveUntil = performance.now() + 2000;
     if (screenDrag?.pointerId === e.pointerId) {
       const at = screenPoint(e);
-      if (screenDrag.dock) {
+      if (screenDrag.desktop) {
         if (at && runtime.workstation.desktop.dragTo(at.x, at.y)) runtime.workstation.redrawScreen();
       } else if (screenDrag.unitsPerPixel) {
         // The console: the finger can be anywhere, even below the monitor, clear of the ship
@@ -269,8 +269,8 @@ export function createPointer(runtime) {
     downAt = { x: e.clientX, y: e.clientY };
     const onScreen = runtime.camera.focus.name === "monitor" && screenPoint(e);
     if (onScreen && runtime.workstation.desktop.press(onScreen.x, onScreen.y)) {
-      // A dock icon: a plain click still opens it, a drag moves it along the dock
-      screenDrag = { pointerId: e.pointerId, at: onScreen, dock: true };
+      // A title bar or dock icon: a drag moves it, a plain click still reaches its hotspot
+      screenDrag = { pointerId: e.pointerId, at: onScreen, desktop: true };
       runtime.core.renderer.domElement.setPointerCapture(e.pointerId);
       if (e.pointerType === "mouse") runtime.mouse.pressMouse();
       e.preventDefault();

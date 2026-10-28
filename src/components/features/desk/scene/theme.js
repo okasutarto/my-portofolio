@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import gsap from "gsap";
 import { loadPortrait, windowSky, drawWoodTop } from "../textures";
-import { WOODS, WOOD_PATTERNS, DEFAULT_WOOD } from "../woods";
+import { WOODS, WOOD_PATTERNS, DEFAULT_WOODS } from "../woods";
 import { PALETTES } from "../sceneConfig";
 
 export function createTheme(runtime) {
@@ -66,11 +66,11 @@ export function createTheme(runtime) {
       mats: [woodMat(runtime.shelf.shelfMat, "#f3d3b0"), woodMat(runtime.shelf.shelfBackMat, "#d9a878"), woodMat(runtime.shelf.lipMat, "#e2b384")],
     },
   };
-  const pickWood = (choice = {}) => ({
-    wood: WOODS[choice.wood] ? choice.wood : DEFAULT_WOOD.wood,
-    pattern: WOOD_PATTERNS[choice.pattern] ? choice.pattern : DEFAULT_WOOD.pattern,
+  const pickWood = (part, choice = {}) => ({
+    wood: WOODS[choice.wood] ? choice.wood : DEFAULT_WOODS[part].wood,
+    pattern: WOOD_PATTERNS[choice.pattern] ? choice.pattern : DEFAULT_WOODS[part].pattern,
   });
-  const woodChoice = Object.fromEntries(Object.keys(woodParts).map((part) => [part, pickWood(runtime.options.woods[part])]));
+  const woodChoice = Object.fromEntries(Object.keys(woodParts).map((part) => [part, pickWood(part, runtime.options.woods[part])]));
   function toneWood(part, isDark) {
     const { mats, nightly } = woodParts[part];
     const tint = new THREE.Color(WOODS[woodChoice[part].wood].tint);
@@ -246,21 +246,28 @@ export function createTheme(runtime) {
   // A new wood is drawn into the part's grain and toned at once; like the paint, both ends of a
   // running blend take it
   function setWood(part, choice) {
+    if (!woodParts[part]) return;
+    woodChoice[part] = pickWood(part, { ...woodChoice[part], ...choice });
+    paintWood(part, true);
+  }
+  function paintWood(part, redraw) {
     const target = woodParts[part];
-    if (!target) return;
-    woodChoice[part] = pickWood({ ...woodChoice[part], ...choice });
-    const { canvas, ctx } = target.grain;
-    drawWoodTop(ctx, canvas.width, canvas.height, woodChoice[part]);
-    target.grain.texture.needsUpdate = true;
+    if (redraw) {
+      const { canvas, ctx } = target.grain;
+      drawWoodTop(ctx, canvas.width, canvas.height, woodChoice[part]);
+      target.grain.texture.needsUpdate = true;
+    }
     toneWood(part, darkNow);
     target.mats.forEach(({ mat }) => {
       const at = lightingColors.indexOf(mat.color);
       if (at >= 0) [lightingFrom, lightingTarget].forEach((state) => state.colors[at].copy(mat.color));
     });
   }
+  // Each grain was first drawn in its part's default wood, so only a visitor's own pick is drawn
+  // again; every part is toned to its wood either way
   Object.keys(woodParts).forEach((part) => {
     const { wood, pattern } = woodChoice[part];
-    if (wood !== DEFAULT_WOOD.wood || pattern !== DEFAULT_WOOD.pattern) setWood(part, {});
+    paintWood(part, wood !== DEFAULT_WOODS[part].wood || pattern !== DEFAULT_WOODS[part].pattern);
   });
   // The monitor's desktop follows the room
   const setRoomTheme = (isDark) => {

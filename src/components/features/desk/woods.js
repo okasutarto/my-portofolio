@@ -89,4 +89,10 @@ export const WOOD_TARGETS = {
   shelf: "Game shelf",
 };
 
-export const DEFAULT_WOOD = { wood: "oak", pattern: "planks" };
+// Each part's wood until the visitor picks another, and the one its grain is first drawn in
+export const DEFAULT_WOODS = {
+  desk: { wood: "cherry", pattern: "butcher" },
+  riser: { wood: "cherry", pattern: "cathedral" },
+  window: { wood: "cherry", pattern: "planks" },
+  shelf: { wood: "cherry", pattern: "planks" },
+};

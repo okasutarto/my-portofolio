@@ -216,7 +216,7 @@ export function createCat(runtime) {
     desk: { parent: runtime.core.scene, position: new THREE.Vector3(-3.85, 0, -0.55), yaw: 0.45 },
     // curled on the gaming chair's seat, on the side that shows past its back (she turns with
     // the chair when it spins)
-    chair: { parent: runtime.chair.chairTop, position: new THREE.Vector3(1.3, -1.77, -0.7), yaw: -1.25 },
+    chair: { parent: runtime.chair.chairTop, position: new THREE.Vector3(0.95, runtime.chair.SEAT_TOP, -0.55), yaw: -1.25 },
     // further along under the desk, toward the dumbbells, clear of the desk's right leg
     rug: { parent: runtime.core.scene, position: new THREE.Vector3(3.7, runtime.room.FLOOR_Y + 0.08, 0.7), yaw: -0.4, via: new THREE.Vector3(3.9, runtime.room.FLOOR_Y + 0.08, 5.4) },
   };

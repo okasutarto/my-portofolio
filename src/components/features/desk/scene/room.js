@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { canvasTexture, drawWindowView, windowSky, drawWallPaint, drawWoodTop, drawWoodFloor } from "../textures";
+import { DEFAULT_WOODS } from "../woods";
 import { PALETTES } from "../sceneConfig";
 
 export function createRoom(runtime) {
@@ -16,7 +17,7 @@ export function createRoom(runtime) {
   const deskMat = runtime.core.toon(PALETTES.light.desk);
   const deskWood = canvasTexture(1400, 840);
   runtime.core.track(deskWood.texture);
-  drawWoodTop(deskWood.ctx, 1400, 840);
+  drawWoodTop(deskWood.ctx, 1400, 840, DEFAULT_WOODS.desk);
   deskMat.map = deskWood.texture;
   const desk = runtime.core.mesh(runtime.core.rbox(14, 0.7, 8.4, 0.14), deskMat, { outline: 0.06 });
   desk.position.y = -0.35;
@@ -361,7 +362,7 @@ export function createRoom(runtime) {
   // lamp and the board (which share windowWood) as they are
   const frameGrainTex = canvasTexture(512, 512);
   runtime.core.track(frameGrainTex.texture);
-  drawWoodTop(frameGrainTex.ctx, 512, 512);
+  drawWoodTop(frameGrainTex.ctx, 512, 512, DEFAULT_WOODS.window);
   const frameWood = runtime.core.toon("#f0c7a0");
   frameWood.map = frameGrainTex.texture;
   const windowFrame = runtime.core.mesh(new THREE.BoxGeometry(4.4, 4.5, 0.18), frameWood, { cast: false, outline: 0.03 });

@@ -2,6 +2,7 @@ import * as THREE from "three";
 import gsap from "gsap";
 import { sfx } from "@/composables/useSfx";
 import { canvasTexture, drawWoodTop } from "../textures";
+import { DEFAULT_WOODS } from "../woods";
 
 export function createShelf(runtime) {
   // ---------- shelf (right of the desk): books and a little game collection ----------
@@ -20,7 +21,7 @@ export function createShelf(runtime) {
   // Oak with a visible grain (the desk's wood print, toned warmer and deeper)
   const shelfWood = canvasTexture(512, 512);
   runtime.core.track(shelfWood.texture);
-  drawWoodTop(shelfWood.ctx, 512, 512);
+  drawWoodTop(shelfWood.ctx, 512, 512, DEFAULT_WOODS.shelf);
   const shelfMat = runtime.core.toon("#f3d3b0");
   shelfMat.map = shelfWood.texture;
   [-1, 1].forEach((side) => {

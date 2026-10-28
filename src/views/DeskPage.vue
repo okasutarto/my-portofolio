@@ -13,15 +13,20 @@
           <router-link to="/2d" class="hud-btn bg-white text-black">← 2D site</router-link>
           <button
             v-if="!zoomed"
-            class="hud-btn bg-white text-black px-2"
+            ref="settingsButton"
+            class="hud-btn settings-toggle text-black px-2"
+            :class="settingsOpen ? 'settings-toggle--open' : 'bg-white'"
             :aria-expanded="settingsOpen"
+            aria-controls="room-settings"
             aria-label="Room settings"
-            title="Room settings"
+            :title="settingsOpen ? 'Close room settings' : 'Room settings'"
             @click="settingsOpen = !settingsOpen">
-            <svg viewBox="0 0 24 24" class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <svg viewBox="0 0 24 24" class="settings-gear w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
+            <!-- a status light: lit green while the settings are open, grey while they're shut -->
+            <span class="settings-led" :class="{ 'settings-led--on': settingsOpen }" aria-hidden="true"></span>
           </button>
           <!-- On a phone the way back out sits beside it, not in a third row over the view -->
           <transition name="hud-pop">
@@ -29,54 +34,81 @@
           </transition>
         </div>
         <!-- Room settings: the wall's paint, and the wood and cut of the desk, the monitor riser,
-             the window frame and the game shelf -->
+             the window frame and the game shelf. A click anywhere outside, or Esc, puts it away. -->
         <transition name="hud-pop">
           <div
             v-if="settingsOpen && !zoomed"
-            class="pointer-events-auto bg-white text-black border-3 border-black shadow-neo-sm p-3 w-[17.5rem] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-8rem)] overflow-y-auto flex flex-col gap-3">
-            <section>
-              <h2 class="settings-label">Wall</h2>
-              <div class="flex flex-wrap items-center gap-1.5">
-                <button
-                  v-for="paint in WALL_PAINTS"
-                  :key="paint.hex"
-                  class="swatch"
-                  :class="{ 'swatch--on': settings.wall === paint.hex }"
-                  :style="{ background: paint.hex }"
-                  :title="paint.name"
-                  :aria-label="`${paint.name} wall`"
-                  @click="setWall(paint.hex)"></button>
-                <label class="swatch swatch--custom" title="Any colour" aria-label="Pick any wall colour">
-                  <input :value="settings.wall" type="color" class="absolute inset-0 opacity-0 cursor-pointer" @input="setWall($event.target.value)" />
-                </label>
-              </div>
-            </section>
-            <section v-for="(label, part) in WOOD_TARGETS" :key="part">
-              <h2 class="settings-label">
-                {{ label }} <span class="font-normal normal-case text-black/60">· {{ WOODS[settings.woods[part].wood].name }}</span>
-              </h2>
-              <div class="flex flex-wrap items-center gap-1.5">
-                <button
-                  v-for="(wood, key) in WOODS"
-                  :key="key"
-                  class="swatch"
-                  :class="{ 'swatch--on': settings.woods[part].wood === key }"
-                  :style="{ background: wood.swatch }"
-                  :title="wood.name"
-                  :aria-label="`${wood.name} ${label.toLowerCase()}`"
-                  @click="setWood(part, { wood: key })"></button>
-              </div>
-              <div class="flex flex-wrap gap-1 mt-1.5">
-                <button
-                  v-for="(name, key) in WOOD_PATTERNS"
-                  :key="key"
-                  class="pattern-chip"
-                  :class="{ 'pattern-chip--on': settings.woods[part].pattern === key }"
-                  @click="setWood(part, { pattern: key })">
-                  {{ name }}
-                </button>
-              </div>
-            </section>
+            id="room-settings"
+            ref="settingsPanel"
+            role="dialog"
+            aria-label="Room settings"
+            class="settings-panel pointer-events-auto w-[19.5rem] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-9rem)] flex flex-col">
+            <header class="settings-head">
+              <h2 class="font-display font-extrabold text-sm leading-none tracking-tight">ROOM SETTINGS</h2>
+              <button class="settings-close" aria-label="Close room settings" title="Close" @click="settingsOpen = false">
+                <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="square" aria-hidden="true">
+                  <path d="M5 5l14 14M19 5L5 19" />
+                </svg>
+              </button>
+            </header>
+            <div class="settings-body overflow-y-auto flex flex-col gap-3 p-3">
+              <section class="settings-card">
+                <h3 class="settings-label">
+                  <span class="settings-tag" :style="{ background: PART_ACCENTS.wall }" aria-hidden="true">🧱</span>
+                  <span class="whitespace-nowrap">Wall</span>
+                  <span class="settings-value">· {{ wallName }}</span>
+                </h3>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <button
+                    v-for="paint in WALL_PAINTS"
+                    :key="paint.hex"
+                    class="swatch"
+                    :class="{ 'swatch--on': settings.wall === paint.hex }"
+                    :style="{ background: paint.hex }"
+                    :title="paint.name"
+                    :aria-label="`${paint.name} wall`"
+                    :aria-pressed="settings.wall === paint.hex"
+                    @click="setWall(paint.hex)">
+                    <span v-if="settings.wall === paint.hex" class="swatch-tick" :class="{ 'swatch-tick--light': isDarkColour(paint.hex) }" aria-hidden="true">✓</span>
+                  </button>
+                  <label class="swatch swatch--custom" :class="{ 'swatch--on': !wallIsPreset }" title="Any colour" aria-label="Pick any wall colour">
+                    <input :value="settings.wall" type="color" class="absolute inset-0 opacity-0 cursor-pointer" @input="setWall($event.target.value)" />
+                  </label>
+                </div>
+              </section>
+              <section v-for="(label, part) in WOOD_TARGETS" :key="part" class="settings-card">
+                <h3 class="settings-label">
+                  <span class="settings-tag" :style="{ background: PART_ACCENTS[part] }" aria-hidden="true">{{ PART_ICONS[part] }}</span>
+                  <span class="whitespace-nowrap">{{ label }}</span>
+                  <span class="settings-value">· {{ WOODS[settings.woods[part].wood].name }}</span>
+                </h3>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <button
+                    v-for="(wood, key) in WOODS"
+                    :key="key"
+                    class="swatch"
+                    :class="{ 'swatch--on': settings.woods[part].wood === key }"
+                    :style="{ background: wood.swatch }"
+                    :title="wood.name"
+                    :aria-label="`${wood.name} ${label.toLowerCase()}`"
+                    :aria-pressed="settings.woods[part].wood === key"
+                    @click="setWood(part, { wood: key })">
+                    <span v-if="settings.woods[part].wood === key" class="swatch-tick" :class="{ 'swatch-tick--light': isDarkColour(wood.swatch) }" aria-hidden="true">✓</span>
+                  </button>
+                </div>
+                <div class="flex flex-wrap gap-1.5 mt-2">
+                  <button
+                    v-for="(name, key) in WOOD_PATTERNS"
+                    :key="key"
+                    class="pattern-chip"
+                    :class="{ 'pattern-chip--on': settings.woods[part].pattern === key }"
+                    :aria-pressed="settings.woods[part].pattern === key"
+                    @click="setWood(part, { pattern: key })">
+                    {{ name }}
+                  </button>
+                </div>
+              </section>
+            </div>
           </div>
         </transition>
       </div>
@@ -157,9 +189,12 @@ import { experiences } from "@/data/experience";
 import { useTheme } from "@/composables/useTheme";
 import { useSfx, initializeAudio, sfx } from "@/composables/useSfx";
 import { hideBootLoader } from "@/utils/bootLoader";
-import { WOODS, WOOD_PATTERNS, WOOD_TARGETS, DEFAULT_WOOD } from "@/components/features/desk/woods";
+import { WOODS, WOOD_PATTERNS, WOOD_TARGETS, DEFAULT_WOODS } from "@/components/features/desk/woods";
 
 const COMMAND_CHIPS = ["help", "whoami", "projects", "hobbies", "sudo hire oka"];
+// Each part's tag in the settings panel, in the room's accent colours
+const PART_ACCENTS = { wall: "#ff90e8", desk: "#ffdd00", riser: "#00e0c6", window: "#90a8ed", shelf: "#8fd694" };
+const PART_ICONS = { desk: "🪵", riser: "🖥️", window: "🪟", shelf: "🎮" };
 const WALL_PAINTS = [
   { name: "White", hex: "#ffffff" },
   { name: "Greige", hex: "#e2ddd5" },
@@ -203,6 +238,8 @@ const projectOpen = ref(false);
 const consoleOn = ref(false);
 const secretToast = ref(null);
 const settingsOpen = ref(false);
+const settingsPanel = ref(null);
+const settingsButton = ref(null);
 const settings = reactive(readSettings());
 let secretTimer = null;
 const zoomed = computed(() => focus.value !== "overview");
@@ -210,6 +247,23 @@ const isDesktop = useMediaQuery("(min-width: 768px)");
 const { isDark, toggleTheme } = useTheme();
 const { muted, toggleMute } = useSfx();
 
+
+const wallIsPreset = computed(() => WALL_PAINTS.some((paint) => paint.hex === settings.wall));
+const wallName = computed(() => WALL_PAINTS.find((paint) => paint.hex === settings.wall)?.name ?? "Custom");
+// Whether a swatch is dark enough that its tick should be drawn in white
+function isDarkColour(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) < 140;
+}
+// The settings put themselves away at a press anywhere outside them (the gear toggles on its
+// own) or at Esc. Captured, so a press on the room still closes them first.
+function closeSettingsOutside(e) {
+  if (!settingsOpen.value || settingsPanel.value?.contains(e.target) || settingsButton.value?.contains(e.target)) return;
+  settingsOpen.value = false;
+}
+function closeSettingsOnEscape(e) {
+  if (e.key === "Escape" && settingsOpen.value) settingsOpen.value = false;
+}
 
 const hint = computed(() => {
   if (introPlaying.value) return "";
@@ -266,13 +320,13 @@ function readSettings() {
   } catch {
     // no storage, or not ours: the default room it is
   }
-  const pickWood = (choice = {}) => ({
-    wood: WOODS[choice.wood] ? choice.wood : DEFAULT_WOOD.wood,
-    pattern: WOOD_PATTERNS[choice.pattern] ? choice.pattern : DEFAULT_WOOD.pattern,
+  const pickWood = (part, choice = {}) => ({
+    wood: WOODS[choice.wood] ? choice.wood : DEFAULT_WOODS[part].wood,
+    pattern: WOOD_PATTERNS[choice.pattern] ? choice.pattern : DEFAULT_WOODS[part].pattern,
   });
   return {
     wall: /^#[0-9a-f]{6}$/i.test(saved.wall || "") ? saved.wall : DEFAULT_WALL,
-    woods: Object.fromEntries(Object.keys(WOOD_TARGETS).map((part) => [part, pickWood(saved.woods?.[part])])),
+    woods: Object.fromEntries(Object.keys(WOOD_TARGETS).map((part) => [part, pickWood(part, saved.woods?.[part])])),
   };
 }
 function saveSettings() {
@@ -298,6 +352,8 @@ watch(zoomed, (value) => value && (settingsOpen.value = false));
 watch(muted, (value) => scene.value?.setMuted(value));
 
 onMounted(async () => {
+  document.addEventListener("pointerdown", closeSettingsOutside, true);
+  window.addEventListener("keydown", closeSettingsOnEscape);
   try {
     const { createDeskScene } = await import("@/components/features/desk/deskScene");
     await nextTick();
@@ -329,6 +385,8 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  document.removeEventListener("pointerdown", closeSettingsOutside, true);
+  window.removeEventListener("keydown", closeSettingsOnEscape);
   clearTimeout(secretTimer);
   hideBootLoader();
   scene.value?.destroy();
@@ -352,26 +410,115 @@ onUnmounted(() => {
   transform: translate(2px, 2px);
   box-shadow: none;
 }
+/* The settings toggle: pink and pressed in while the panel is open, its gear turned a notch,
+   with a little status light (grey shut, green open) */
+.settings-toggle {
+  @apply relative;
+}
+.settings-toggle--open {
+  background: #ff90e8;
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 #000;
+}
+.settings-toggle--open:hover {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 0 #000;
+}
+.settings-gear {
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.settings-toggle--open .settings-gear {
+  transform: rotate(90deg);
+}
+.settings-led {
+  @apply absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full border-2 border-black;
+  background: #b9b9b9;
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+.settings-led--on {
+  background: #39ff14;
+  box-shadow: 0 0 6px 1px rgba(57, 255, 20, 0.8);
+}
+/* The panel: a card with a yellow title strip, each part on its own little card */
+.settings-panel {
+  @apply bg-white text-black border-4 border-black;
+  box-shadow: 6px 6px 0 0 #000;
+}
+.settings-head {
+  @apply flex items-center justify-between gap-2 px-3 py-2 border-b-4 border-black bg-primary shrink-0;
+  background-image: radial-gradient(rgba(0, 0, 0, 0.14) 1px, transparent 1.2px);
+  background-size: 6px 6px;
+}
+.settings-close {
+  @apply w-7 h-7 flex items-center justify-center bg-white border-2 border-black transition-transform;
+  box-shadow: 2px 2px 0 0 #000;
+}
+.settings-close:hover {
+  @apply bg-black text-white;
+  transform: translate(-1px, -1px) rotate(90deg);
+  box-shadow: 3px 3px 0 0 #000;
+}
+.settings-close:active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+.settings-body {
+  background-color: #f6f3ec;
+  background-image: radial-gradient(rgba(0, 0, 0, 0.09) 1px, transparent 1.2px);
+  background-size: 10px 10px;
+}
+.settings-card {
+  @apply bg-white border-2 border-black p-2.5;
+  box-shadow: 3px 3px 0 0 #000;
+}
 .settings-label {
-  @apply text-xs font-extrabold uppercase mb-1.5;
+  @apply flex items-center gap-1.5 text-xs font-extrabold uppercase mb-2 tracking-wide min-w-0;
+}
+.settings-tag {
+  @apply inline-flex items-center justify-center w-5 h-5 border-2 border-black text-[11px] leading-none shrink-0;
+  box-shadow: 1px 1px 0 0 #000;
+}
+.settings-value {
+  @apply font-bold normal-case tracking-normal text-black/55 truncate min-w-0;
 }
 .swatch {
-  @apply relative w-7 h-7 border-2 border-black transition-transform;
+  @apply relative w-7 h-7 border-2 border-black flex items-center justify-center transition-transform;
+  box-shadow: 2px 2px 0 0 #000;
 }
 .swatch:hover {
   transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 0 #000;
 }
 .swatch--on {
+  transform: translate(1px, 1px);
   box-shadow: 0 0 0 2px #fff, 0 0 0 4px #000;
+}
+.swatch--on:hover {
+  transform: translate(1px, 1px);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #000;
+}
+.swatch-tick {
+  @apply text-sm font-black leading-none text-black pointer-events-none;
+}
+.swatch-tick--light {
+  @apply text-white;
 }
 .swatch--custom {
   background: conic-gradient(#ff90e8, #ffc900, #00e0c6, #90a8ed, #ff90e8);
 }
 .pattern-chip {
-  @apply border-2 border-black px-1.5 py-0.5 text-[11px] font-bold bg-white;
+  @apply border-2 border-black px-1.5 py-0.5 text-[11px] font-bold bg-white transition-transform;
+  box-shadow: 2px 2px 0 0 #000;
 }
-.pattern-chip--on {
+.pattern-chip:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 0 #000;
+}
+.pattern-chip--on,
+.pattern-chip--on:hover {
   @apply bg-black text-white;
+  transform: translate(2px, 2px);
+  box-shadow: none;
 }
 .hud-pop-enter-active,
 .hud-pop-leave-active {

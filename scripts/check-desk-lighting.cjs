@@ -28,7 +28,7 @@ const readabilityFill = new THREE.DirectionalLight();
 const skyFill = new THREE.HemisphereLight();
 const events = [];
 const context = vm.createContext({
-  ...vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/components/features/desk/woods.js'), 'utf8').replace(/export /g, '') + '; ({ WOODS, WOOD_PATTERNS, DEFAULT_WOOD })'),
+  ...vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/components/features/desk/woods.js'), 'utf8').replace(/export /g, '') + '; ({ WOODS, WOOD_PATTERNS, DEFAULT_WOODS })'),
   wallColor: '#3a3a3a', woods: {}, diorama: false, roomBackground: isDark => isDark ? '#d6d3e6' : '#ffffff',
   deskWood: {}, riserGrain: {}, frameGrainTex: {}, shelfWood: {},
   frameWood: material(), shelfMat: material(), shelfBackMat: material(), lipMat: material(),

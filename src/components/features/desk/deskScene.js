@@ -825,8 +825,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     room.add(part);
     return part;
   };
-  roomBox(200, 0.25, 200, floorMat, 0, FLOOR_Y - 0.17, 1.2);
-  roomBox(200, 100, 0.24, backWallMat, 0, FLOOR_Y + 50, WALL_Z);
+  const fullRoom = [
+    roomBox(200, 0.25, 200, floorMat, 0, FLOOR_Y - 0.17, 1.2),
+    roomBox(200, 100, 0.24, backWallMat, 0, FLOOR_Y + 50, WALL_Z),
+  ];
   // The wall materials already receive the real light's shadows. A separate ShadowMaterial
   // mask would darken them even outside the window cookie or an indoor light's actual reach.
   // The side wall, with a real opening cut for the window (see the window below). Built as
@@ -854,8 +856,129 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const sideWall = mesh(sideWallGeo, sideWallMat, { outline: 0.055, cast: false });
   sideWall.position.x = SIDE_X - 0.12;
   room.add(sideWall);
-  roomBox(200, 0.22, 0.16, trimMat, 0, FLOOR_Y + 0.17, WALL_Z + 0.23, 0.025);
-  roomBox(0.16, 0.22, 200, trimMat, SIDE_X + 0.23, FLOOR_Y + 0.17, 1.2, 0.025);
+  fullRoom.push(
+    sideWall,
+    roomBox(200, 0.22, 0.16, trimMat, 0, FLOOR_Y + 0.17, WALL_Z + 0.23, 0.025),
+    roomBox(0.16, 0.22, 200, trimMat, SIDE_X + 0.23, FLOOR_Y + 0.17, 1.2, 0.025),
+  );
+
+  // On a portrait screen the room is a diorama instead: the same two walls and floor cut off
+  // just past the furniture, standing on a thick slab, the whole of it framed on the page's
+  // own background (see SHOTS.overview), with a pinch to look closer
+  const DIORAMA = { x0: SIDE_X - 0.12, x1: 15.6, z0: WALL_Z - 0.12, z1: 11, top: FLOOR_Y + 15.5, slab: 0.9 };
+  const slabMat = toon("#3a332c");
+  // A box whose faces tile their texture as the endless room's do (one unit is one unit)
+  const dioramaBox = (w, h, d, material, x, y, z, uvScale, outline = 0.055) => {
+    const geo = new THREE.BoxGeometry(w, h, d);
+    const uv = geo.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * uvScale[0], uv.getY(i) * uvScale[1]);
+    const part = mesh(geo, material, { outline, cast: false });
+    part.position.set(x, y, z);
+    room.add(part);
+    return part;
+  };
+  const dioramaW = DIORAMA.x1 - DIORAMA.x0;
+  const dioramaD = DIORAMA.z1 - DIORAMA.z0;
+  const dioramaMidX = (DIORAMA.x0 + DIORAMA.x1) / 2;
+  const dioramaMidZ = (DIORAMA.z0 + DIORAMA.z1) / 2;
+  const floorTop = FLOOR_Y - 0.045;
+  const dioramaWallH = DIORAMA.top - FLOOR_Y;
+  // The floor's planks on top, the slab's raw edge on every other face
+  const slabFaces = [slabMat, slabMat, floorMat, slabMat, slabMat, slabMat];
+  const dioramaSideShape = new THREE.Shape();
+  dioramaSideShape.moveTo(-DIORAMA.z1, FLOOR_Y);
+  dioramaSideShape.lineTo(-DIORAMA.z0, FLOOR_Y);
+  dioramaSideShape.lineTo(-DIORAMA.z0, DIORAMA.top);
+  dioramaSideShape.lineTo(-DIORAMA.z1, DIORAMA.top);
+  dioramaSideShape.closePath();
+  dioramaSideShape.holes.push(opening);
+  const dioramaSideGeo = new THREE.ExtrudeGeometry(dioramaSideShape, { depth: 0.24, bevelEnabled: false });
+  dioramaSideGeo.rotateY(Math.PI / 2);
+  const dioramaSide = mesh(dioramaSideGeo, sideWallMat, { outline: 0.055, cast: false });
+  dioramaSide.position.x = SIDE_X - 0.12;
+  room.add(dioramaSide);
+  const dioramaRoom = [
+    dioramaBox(dioramaW, DIORAMA.slab, dioramaD, slabFaces, dioramaMidX, floorTop - DIORAMA.slab / 2, dioramaMidZ, [dioramaW / 200, dioramaD / 200], 0.07),
+    dioramaBox(dioramaW, dioramaWallH, 0.24, backWallMat, dioramaMidX, FLOOR_Y + dioramaWallH / 2, WALL_Z, [dioramaW / 200, dioramaWallH / 100], 0.07),
+    dioramaSide,
+    roomBox(dioramaW, 0.22, 0.16, trimMat, dioramaMidX, FLOOR_Y + 0.17, WALL_Z + 0.23, 0.025),
+    roomBox(0.16, 0.22, dioramaD, trimMat, SIDE_X + 0.23, FLOOR_Y + 0.17, dioramaMidZ, 0.025),
+  ];
+  let diorama = false;
+  const roomBackground = (isDark) => (diorama ? (isDark ? "#2a2440" : "#ffffff") : isDark ? "#d6d3e6" : "#ffffff");
+  function setDiorama(on) {
+    diorama = on;
+    fullRoom.forEach((part) => (part.visible = !on));
+    dioramaRoom.forEach((part) => (part.visible = on));
+    scene.background.set(roomBackground(darkNow));
+    // The day/night blend holds the background too: it's told the new one
+    const at = lightingColors.indexOf(scene.background);
+    [lightingFrom, lightingTarget].forEach((state) => state.colors[at].copy(scene.background));
+    if (on) drawBackdrop();
+  }
+
+  // Behind the diorama, a clean white page with the 2D site's dot grid. A screen-sized card that follows the camera (see the loop), redrawn for size and theme
+  const backdropTex = canvasTexture(4, 4);
+  track(backdropTex.texture);
+  const backdrop = new THREE.Mesh(track(new THREE.PlaneGeometry(1, 1)), track(new THREE.MeshBasicMaterial({ map: backdropTex.texture, depthWrite: false, toneMapped: false })));
+  backdrop.raycast = noRaycast;
+  backdrop.renderOrder = -2;
+  scene.add(backdrop);
+  function drawBackdrop() {
+    const scale = Math.min(window.devicePixelRatio || 1, 1.5);
+    const w = Math.round((container.clientWidth || 1) * scale);
+    const h = Math.round((container.clientHeight || 1) * scale);
+    const { canvas, ctx: c } = backdropTex;
+    if (canvas.width !== w || canvas.height !== h) {
+      Object.assign(canvas, { width: w, height: h });
+      backdropTex.texture.dispose();
+    }
+    const night = darkNow;
+    const ink = night ? "#0d0b14" : "#1a1714";
+    dioramaShadow.material.color.set(ink);
+    c.fillStyle = night ? "#2a2440" : "#ffffff";
+    c.fillRect(0, 0, w, h);
+    // the page's dot grid
+    const gap = 22 * scale;
+    c.fillStyle = night ? "rgba(255,255,255,.12)" : "rgba(26,23,20,.16)";
+    for (let y = gap / 2; y < h; y += gap) {
+      for (let x = gap / 2; x < w; x += gap) {
+        c.beginPath();
+        c.arc(x, y, 1.6 * scale, 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+    backdropTex.texture.needsUpdate = true;
+  }
+  // The diorama's own hard shadow: the block's outline as seen, in solid ink, laid flat just in
+  // front of the backdrop and nudged down to the right on screen (see the loop)
+  const dioramaShadow = new THREE.Mesh(new THREE.BufferGeometry(), track(new THREE.MeshBasicMaterial({ color: "#1a1714", toneMapped: false, depthWrite: false })));
+  dioramaShadow.raycast = noRaycast;
+  dioramaShadow.renderOrder = -1;
+  scene.add(dioramaShadow);
+  let dioramaShadowFor = null;
+  // The block's eight corners in the view's right/up coordinates, wrapped in their hull
+  function shapeDioramaShadow(right, up) {
+    const pts = [];
+    const corner = new THREE.Vector3();
+    [DIORAMA.x0, DIORAMA.x1].forEach((x) => [floorTop - DIORAMA.slab, DIORAMA.top].forEach((y) => [DIORAMA.z0, DIORAMA.z1].forEach((z) => {
+      corner.set(x, y, z);
+      pts.push(new THREE.Vector2(corner.dot(right), corner.dot(up)));
+    })));
+    pts.sort((a, b) => a.x - b.x || a.y - b.y);
+    const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+    const half = (list) => list.reduce((hull, p) => {
+      while (hull.length >= 2 && cross(hull[hull.length - 2], hull[hull.length - 1], p) <= 0) hull.pop();
+      hull.push(p);
+      return hull;
+    }, []);
+    const lower = half(pts);
+    const upper = half([...pts].reverse());
+    dioramaShadow.geometry.dispose();
+    dioramaShadow.geometry = new THREE.ShapeGeometry(new THREE.Shape([...lower.slice(0, -1), ...upper.slice(0, -1)]));
+  }
+  dioramaRoom.push(backdrop, dioramaShadow);
+  dioramaRoom.forEach((part) => (part.visible = false));
 
   // Rear LED strips illuminate surfaces through actual shadowed lights.
   const DESK_WASH = 0.45;
@@ -10459,9 +10582,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     floorMat.color.set(isDark ? "#8a82a6" : "#ffffff");
     // Night keeps the walls white, just moonlit, so the room still reads as the same room
     backWallMat.color.set(isDark ? "#d6d3e6" : "#ffffff");
-    scene.background = new THREE.Color(isDark ? "#d6d3e6" : "#ffffff");
+    scene.background = new THREE.Color(roomBackground(isDark));
     sideWallMat.color.set(isDark ? "#c9c5dc" : "#ffffff");
     trimMat.color.set(isDark ? "#b8b1da" : "#ffffff");
+    if (diorama) drawBackdrop();
     windowView.userData.tex.redraw();
     if (typeof lightbarState !== "undefined" && isDark) {
       lightbarOn = true;
@@ -10894,7 +11018,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     if (focus.name === "shelf") {
       shelfDrag = {
         pointerId: e.pointerId, startX: e.clientX, startY: e.clientY,
-        startLook: shelfLook, unitsPerPixel: viewH / cam.zoom / container.clientHeight, moved: false,
+        startLook: shelfLook, unitsPerPixel: viewH / (cam.zoom * userView.zoom) / container.clientHeight, moved: false,
       };
       renderer.domElement.setPointerCapture(e.pointerId);
       e.preventDefault();
@@ -11059,6 +11183,109 @@ export function createDeskScene({ container, projects, experiences, dark = false
     setHover(null);
     parallax.tx = parallax.ty = 0;
   };
+  // ---------- pinch to look closer ----------
+  // Two fingers zoom about the point between them and pan as they move together; once zoomed,
+  // one finger drags the overview around, and before that it turns the diorama. These run before the handlers above and keep a
+  // pinch's fingers from also tapping, dragging or sailing anything.
+  const touches = new Map();
+  let pinch = null;
+  let pan = null;
+  // A finger's offset from the canvas centre, up positive, in world units at the current zoom
+  function touchSpan() {
+    const [a, b] = [...touches.values()];
+    const rect = renderer.domElement.getBoundingClientRect();
+    const unitsPerPixel = viewH / (cam.zoom * userView.zoom) / rect.height;
+    return {
+      dist: Math.hypot(a.x - b.x, a.y - b.y),
+      mx: ((a.x + b.x) / 2 - rect.left - rect.width / 2) * unitsPerPixel,
+      my: -((a.y + b.y) / 2 - rect.top - rect.height / 2) * unitsPerPixel,
+    };
+  }
+  const onTouchDown = (e) => {
+    if (e.pointerType === "touch") touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touches.size === 2) {
+      // The first finger's tap or drag is called off: this is a pinch now
+      const [first] = touches.keys();
+      onPointerCancel({ pointerId: first });
+      downAt = null;
+      pan = null;
+      gsap.killTweensOf(userView);
+      pinch = touchSpan();
+      e.stopImmediatePropagation();
+    } else if (touches.size > 2) e.stopImmediatePropagation();
+    else if (focus.name === "overview" && e.button === 0 && (userView.zoom > 1.01 || diorama)) {
+      // One finger (or the mouse) sweeps the view: pans it once zoomed, else turns the diorama
+      pan = { pointerId: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
+    }
+  };
+  const onTouchMove = (e) => {
+    if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && touches.size === 2 && touches.has(e.pointerId)) {
+      // The world point between the fingers stays between them as they spread and move
+      const now = touchSpan();
+      const scale = pinch.dist > 0 ? now.dist / pinch.dist : 1;
+      const before = userView.zoom;
+      userView.zoom = THREE.MathUtils.clamp(before * scale, 1, USER_ZOOM_MAX);
+      const k = before / userView.zoom;
+      userView.x += pinch.mx - now.mx * k;
+      userView.y += pinch.my - now.my * k;
+      clampUserView();
+      pinch = touchSpan();
+      responsiveUntil = performance.now() + 2000;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      return;
+    }
+    if (pan?.pointerId === e.pointerId && !(chairDrag || hatDrag || lanyardDrag || noteDrag || stickyDrag)) {
+      if (!pan.moved && Math.hypot(e.clientX - pan.x, e.clientY - pan.y) < 8) return;
+      pan.moved = true;
+      if (userView.zoom > 1.01) {
+        const unitsPerPixel = viewH / (cam.zoom * userView.zoom) / renderer.domElement.clientHeight;
+        userView.x -= (e.clientX - pan.x) * unitsPerPixel;
+        userView.y += (e.clientY - pan.y) * unitsPerPixel;
+        clampUserView();
+      } else {
+        dioramaYaw = THREE.MathUtils.clamp(dioramaYaw - (e.clientX - pan.x) * 0.006, DIORAMA_YAW[0], DIORAMA_YAW[1]);
+        applyShot(true);
+      }
+      Object.assign(pan, { x: e.clientX, y: e.clientY });
+      responsiveUntil = performance.now() + 2000;
+      e.stopImmediatePropagation();
+    }
+  };
+  const onTouchUp = (e) => {
+    if (pan?.pointerId === e.pointerId) {
+      if (pan.moved) downAt = null;
+      pan = null;
+    }
+    if (!touches.delete(e.pointerId) || !pinch) return;
+    // A pinch ends only when every finger is off; the one left behind taps nothing
+    if (!touches.size) pinch = null;
+    e.stopImmediatePropagation();
+  };
+  ["pointerdown", onTouchDown, "pointermove", onTouchMove, "pointerup", onTouchUp, "pointercancel", onTouchUp].forEach((v, i, a) => {
+    if (i % 2 === 0) renderer.domElement.addEventListener(v, a[i + 1], { capture: true });
+  });
+  // A trackpad pinch arrives as a wheel with Ctrl held: the same zoom, about the pointer
+  const onPinchWheel = (e) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const rect = renderer.domElement.getBoundingClientRect();
+    const unitsPerPixel = viewH / (cam.zoom * userView.zoom) / rect.height;
+    const mx = (e.clientX - rect.left - rect.width / 2) * unitsPerPixel;
+    const my = -(e.clientY - rect.top - rect.height / 2) * unitsPerPixel;
+    const before = userView.zoom;
+    gsap.killTweensOf(userView);
+    userView.zoom = THREE.MathUtils.clamp(before * Math.exp(-e.deltaY * 0.01), 1, USER_ZOOM_MAX);
+    const k = before / userView.zoom;
+    userView.x += mx - mx * k;
+    userView.y += my - my * k;
+    clampUserView();
+    responsiveUntil = performance.now() + 2000;
+  };
+  renderer.domElement.addEventListener("wheel", onPinchWheel, { capture: true, passive: false });
+
   renderer.domElement.addEventListener("pointermove", onPointerMove);
   renderer.domElement.addEventListener("pointerdown", onPointerDown);
   renderer.domElement.addEventListener("pointerup", onPointerUp);
@@ -11075,8 +11302,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const screenNormal = new THREE.Vector3();
   const screenPos = new THREE.Vector3();
   const SHOTS = {
-    // The camera sits inside the room, with no cutaway edges or outside backdrop.
-    overview: () => ({ target: [1.8, 3.0, 0.7], dir: [0.48, 0.72, 1] }),
+    // The camera sits inside the room, with no cutaway edges or outside backdrop; on a portrait
+    // screen it stands back to take in the whole diorama instead.
+    overview: () => (diorama ? dioramaShot() : { target: [1.8, 3.0, 0.7], dir: [0.48, 0.72, 1] }),
     // Browse the tall collection in close-up, starting at the console and GAME ON sign.
     shelf: () => {
       const fit = [container.clientWidth < 900 ? 5.4 : 6.8, 4.6];
@@ -11160,10 +11388,58 @@ export function createDeskScene({ container, projects, experiences, dark = false
     mug: () => ({ target: [mug.position.x - 0.3, 0.95 + MUG_Y, mug.position.z - 0.45], dir: [-0.2, 1, 0.45], fit: [3.1, 4.1] }),
   };
   const CAM_DISTANCE = 40;
+  // The whole diorama, slab to wall tops, fitted between the page's title and its hint
+  // Seen from above and to the right; a sideways swipe turns it between nearly face-on to
+  // either wall (any further and a wall would stand between the camera and the room)
+  const DIORAMA_YAW = [0.12, 1.35];
+  let dioramaYaw = Math.atan2(0.74, 1);
+  const DIORAMA_DIR = new THREE.Vector3();
+  const DIORAMA_PAD = { top: 118, bottom: 92, side: 10 };
+  function dioramaShot() {
+    DIORAMA_DIR.set(Math.sin(dioramaYaw) * 1.244, 1.02, Math.cos(dioramaYaw) * 1.244).normalize();
+    const right = new THREE.Vector3().crossVectors(UP, DIORAMA_DIR).normalize();
+    const up = new THREE.Vector3().crossVectors(DIORAMA_DIR, right);
+    const r = [Infinity, -Infinity];
+    const u = [Infinity, -Infinity];
+    const corner = new THREE.Vector3();
+    [DIORAMA.x0, DIORAMA.x1].forEach((x) => [FLOOR_Y - 0.045 - DIORAMA.slab, DIORAMA.top].forEach((y) => [DIORAMA.z0, DIORAMA.z1].forEach((z) => {
+      corner.set(x, y, z);
+      const cr = corner.dot(right);
+      const cu = corner.dot(up);
+      r[0] = Math.min(r[0], cr), r[1] = Math.max(r[1], cr);
+      u[0] = Math.min(u[0], cu), u[1] = Math.max(u[1], cu);
+    })));
+    const w = container.clientWidth || 1;
+    const h = container.clientHeight || 1;
+    const fit = [(r[1] - r[0]) * w / Math.max(1, w - DIORAMA_PAD.side * 2), (u[1] - u[0]) * h / Math.max(1, h - DIORAMA_PAD.top - DIORAMA_PAD.bottom)];
+    const zoom = Math.min(viewH * (w / h) / fit[0], viewH / fit[1]);
+    // The free band's middle sits a little below the screen's, past the taller title
+    const lift = ((DIORAMA_PAD.top - DIORAMA_PAD.bottom) / 2) * viewH / zoom / h;
+    const target = right.multiplyScalar((r[0] + r[1]) / 2).addScaledVector(up, (u[0] + u[1]) / 2 + lift);
+    return { target: target.toArray(), dir: DIORAMA_DIR.toArray(), fit, depth: CAM_DISTANCE - 0.1 };
+  }
   // Close-ups clip everything more than this far in front of the prop (chair, lamp, other
   // props), so nothing in the room can block the view or catch the click
   const CLOSE_UP_DEPTH = 3.5;
   const cam = { tx: 0, ty: 0, tz: 0, dx: 0, dy: 1, dz: 1, zoom: 1, near: 0.1 };
+  // A pinch on top of the shot: how much closer, and how far it's panned (world units along
+  // the view's right and up). Every new shot starts from none
+  const userView = { zoom: 1, x: 0, y: 0 };
+  const USER_ZOOM_MAX = 4;
+  // Keeps the pinched view inside the shot's own frame
+  function clampUserView() {
+    userView.zoom = THREE.MathUtils.clamp(userView.zoom, 1, USER_ZOOM_MAX);
+    const halfW = (camera.right - camera.left) / 2 / cam.zoom;
+    const halfH = (camera.top - camera.bottom) / 2 / cam.zoom;
+    const roomW = halfW * (1 - 1 / userView.zoom);
+    const roomH = halfH * (1 - 1 / userView.zoom);
+    userView.x = THREE.MathUtils.clamp(userView.x, -roomW, roomW);
+    userView.y = THREE.MathUtils.clamp(userView.y, -roomH, roomH);
+  }
+  function resetUserView() {
+    gsap.killTweensOf(userView);
+    if (userView.zoom !== 1 || userView.x || userView.y) gsap.to(userView, { zoom: 1, x: 0, y: 0, duration: 0.6, ease: "power3.inOut" });
+  }
 
   function applyShot(instant = false, duration = 0.9) {
     const shot = SHOTS[focus.name]();
@@ -11219,6 +11495,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       }
     }
     catSettle();
+    resetUserView();
     applyShot();
     sfx.whoosh({ duration: 0.45, up: name !== "overview" });
     onEvent("focus", { name });
@@ -11272,6 +11549,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const density = pixelRatio();
     renderer.setPixelRatio(density);
     const aspect = w / h;
+    // Portrait screens see the room as a diorama (see DIORAMA)
+    if ((aspect < 1) !== diorama) setDiorama(aspect < 1);
+    else if (diorama) drawBackdrop();
     // Keep desk props large enough to tap while the room fills the rest of the screen.
     viewH = Math.max(VIEW_H, (aspect < 1 ? 18 : VIEW_W) / aspect);
     camera.left = (-viewH * aspect) / 2;
@@ -11283,6 +11563,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     sizeComposer();
     outlineResolution.value.set(w, h);
     if (!intro?.isActive()) applyShot(true);
+    clampUserView();
   }
 
   // Match the canvas at every zoom/density. Slow frames must never lower image sharpness.
@@ -11360,6 +11641,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const WORLD_UP = new THREE.Vector3(0, 1, 0);
   const dir = new THREE.Vector3();
   const target = new THREE.Vector3();
+  const viewRight = new THREE.Vector3();
+  const viewUp = new THREE.Vector3();
   let lastTick = 0;
   let mainShadowAt = 0;
   let aoFreshAt = 0;
@@ -11411,13 +11694,39 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const sway = focus.name === "about" ? 0 : 1 / Math.sqrt(cam.zoom);
     dir.set(cam.dx + parallax.x * 0.08 * sway, cam.dy - parallax.y * 0.05 * sway, cam.dz).normalize();
     target.set(cam.tx, cam.ty, cam.tz);
+    if (userView.x || userView.y) {
+      // The pinch's pan, across the view: right is forward × up, and up is right × forward
+      viewRight.crossVectors(WORLD_UP, dir).normalize();
+      viewUp.crossVectors(dir, viewRight);
+      target.addScaledVector(viewRight, userView.x).addScaledVector(viewUp, userView.y);
+    }
     camera.position.copy(target).addScaledVector(dir, CAM_DISTANCE);
     camera.up.copy(WORLD_UP);
     camera.lookAt(target);
-    if (camera.zoom !== cam.zoom || camera.near !== cam.near) {
-      camera.zoom = cam.zoom;
+    if (camera.zoom !== cam.zoom * userView.zoom || camera.near !== cam.near) {
+      camera.zoom = cam.zoom * userView.zoom;
       camera.near = cam.near;
       camera.updateProjectionMatrix();
+    }
+    if (diorama) {
+      // The backdrop fills the view from just inside the far plane; the shadow sits a few
+      // pixels down and to the right of the block it's cast by
+      const halfW = (camera.right - camera.left) / 2 / camera.zoom;
+      const halfH = (camera.top - camera.bottom) / 2 / camera.zoom;
+      backdrop.position.copy(camera.position).addScaledVector(dir, -(camera.far - 2));
+      backdrop.quaternion.copy(camera.quaternion);
+      backdrop.scale.set(halfW * 2.02, halfH * 2.02, 1);
+      // (the outline is taken square to the view, so the camera's sway leaves it as it is)
+      viewRight.crossVectors(WORLD_UP, dir).normalize();
+      viewUp.crossVectors(dir, viewRight);
+      if (dioramaShadowFor !== dioramaYaw) {
+        dioramaShadowFor = dioramaYaw;
+        shapeDioramaShadow(viewRight, viewUp);
+      }
+      const nudge = (halfH * 2 / (container.clientHeight || 1)) * 10;
+      dioramaShadow.quaternion.copy(camera.quaternion);
+      dioramaShadow.position.copy(viewRight).multiplyScalar(nudge).addScaledVector(viewUp, -nudge)
+        .addScaledVector(dir, (camera.position.dot(dir) - camera.far + 3));
     }
     // the occlusion is redone when the view has shifted at all, or anything's moving, and a
     // few times a second otherwise (see aoPass.render)
@@ -11599,6 +11908,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
       typer.remove();
       impactFlash.remove();
       renderer.domElement.removeEventListener("wheel", onWheel);
+      renderer.domElement.removeEventListener("wheel", onPinchWheel, { capture: true });
+      ["pointerdown", onTouchDown, "pointermove", onTouchMove, "pointerup", onTouchUp, "pointercancel", onTouchUp].forEach((v, i, a) => {
+        if (i % 2 === 0) renderer.domElement.removeEventListener(v, a[i + 1], { capture: true });
+      });
       renderer.domElement.removeEventListener("pointermove", onPointerMove);
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       renderer.domElement.removeEventListener("pointerup", onPointerUp);

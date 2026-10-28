@@ -11,15 +11,19 @@
         <div class="pointer-events-auto flex gap-2 mt-1">
           <!-- Sound and night mode live on the desk: the speakers and the lamp -->
           <router-link to="/2d" class="hud-btn bg-white text-black">← 2D site</router-link>
+          <!-- On a phone the way back out sits beside it, not in a third row over the view -->
+          <transition name="hud-pop">
+            <button v-if="zoomed && !isDesktop" class="hud-btn bg-primary text-black" @click="scene?.back()">← Back</button>
+          </transition>
         </div>
       </div>
 
       <!-- Zoomed in: the way back out -->
       <transition name="hud-pop">
-        <div v-if="zoomed" class="absolute top-[7rem] left-4 md:top-4 md:left-1/2 md:-translate-x-1/2">
-          <button class="hud-btn bg-primary text-black text-sm md:text-base" @click="scene?.back()">
+        <div v-if="zoomed && isDesktop" class="absolute top-4 left-1/2 -translate-x-1/2">
+          <button class="hud-btn bg-primary text-black text-base" @click="scene?.back()">
             ← Back to desk
-            <kbd v-if="isDesktop" class="ml-1 bg-black text-white px-1.5 text-[10px] leading-5">ESC</kbd>
+            <kbd class="ml-1 bg-black text-white px-1.5 text-[10px] leading-5">ESC</kbd>
           </button>
         </div>
       </transition>
@@ -37,7 +41,7 @@
       <!-- Bottom: monitor command chips, then the hint -->
       <div class="absolute bottom-6 inset-x-4 flex flex-col items-center gap-3 pointer-events-none">
         <transition name="hud-pop">
-          <div v-if="focus === 'monitor'" class="pointer-events-auto flex flex-wrap justify-center gap-2">
+          <div v-if="focus === 'monitor' && !consoleOn" class="pointer-events-auto flex flex-wrap justify-center gap-2">
             <button
               v-for="cmd in COMMAND_CHIPS"
               :key="cmd"
@@ -81,6 +85,7 @@ const unsupported = ref(false);
 const focus = ref("overview");
 const introPlaying = ref(true);
 const projectOpen = ref(false);
+const consoleOn = ref(false);
 const secretToast = ref("");
 let secretTimer = null;
 const zoomed = computed(() => focus.value !== "overview");
@@ -91,13 +96,14 @@ const { muted, toggleMute } = useSfx();
 
 const hint = computed(() => {
   if (introPlaying.value) return "";
+  if (focus.value === "monitor" && consoleOn.value) return isDesktop.value ? "Arrows / WASD or the mouse to sail · Space for the Gatling · Q to quit" : "Drag anywhere, even down here, to sail · Tap the red button for the Gatling";
   if (focus.value === "monitor") return isDesktop.value ? "Type a command and hit Enter, or open Spotifree from the dock ♫" : "Tap a command, or the dock to open Spotifree ♫";
-  if (focus.value === "keyboard") return "1–5 jump to a section · T terminal · C chat · Esc back";
+  if (focus.value === "keyboard") return isDesktop.value ? "1–5 jump to a section · T terminal · C chat · Esc back" : "Tap 1–5 to jump to a section · T terminal · C chat";
   if (focus.value === "window") return isDesktop.value ? "Click for birds (a shooting star at night). Three quick clicks bring the rain" : "Tap for birds or a shooting star. Three quick taps bring the rain";
   if (focus.value === "shelf") return isDesktop.value ? "Scroll / drag ↕ to explore · Click the console to play, controller for a cheat, trophy for secrets" : "Swipe ↕ to explore · Tap the console to play, controller for a cheat, trophy for secrets";
-  if (focus.value === "family") return "Our Little Family ♡ · Esc or Back to desk";
+  if (focus.value === "family") return isDesktop.value ? "Our Little Family ♡ · Esc or Back to desk" : "Our Little Family ♡";
   if (focus.value === "swords") return isDesktop.value ? "Hover a sword to read about it · Click it to draw and strike" : "Tap a sword to draw and strike";
-  if (focus.value === "mug") return "Click the mug for a sip. Finish the cup for the night shift";
+  if (focus.value === "mug") return `${isDesktop.value ? "Click" : "Tap"} the mug for a sip. Finish the cup for the night shift`;
   if (focus.value === "experience") return isDesktop.value ? "Click a pass to hold it up, again to flip it (← → to browse)" : "Tap a pass to hold it, tap again to flip it";
   if (focus.value === "projects" && projectOpen.value) return isDesktop.value ? "Click the pages to turn them (or ← →)" : "Tap the pages to turn them";
   if (focus.value === "projects") return isDesktop.value ? "Click a tab (or ← →) to flip through, the front file to pull it out" : "Tap a tab to flip through, the front file to pull it out";
@@ -105,8 +111,8 @@ const hint = computed(() => {
   if (focus.value === "chat") return isDesktop.value ? "Type a question and hit Enter (scroll to read back)" : "Tap a question or the box below to ask";
   if (focus.value === "hero") return isDesktop.value ? "Click the badge to flip it (links on the back). Drag the pin to move it" : "Tap the badge to flip it. Drag the pin to move it";
   if (focus.value === "about") return isDesktop.value ? "Drag the papers to rearrange them. Release to pin them back" : "Drag a paper to move it. Release to pin it back";
-  // The overview needs no hint: the terminal's welcome already says to look around
-  return "";
+  // On a desktop the terminal's welcome already says to look around; on a phone it's too small to read
+  return isDesktop.value ? "" : "Tap anything to take a closer look · Swipe to turn the room, pinch to zoom";
 });
 
 function onEvent(name, payload = {}) {
@@ -116,6 +122,7 @@ function onEvent(name, payload = {}) {
   else if (name === "nightShift" && payload.dark !== isDark.value) toggleTheme();
   else if (name === "toggleSound") toggleMute();
   else if (name === "projectOpen") projectOpen.value = payload.open;
+  else if (name === "console") consoleOn.value = payload.on;
   else if (name === "secret") {
     secretToast.value = payload.found === payload.total ? "🏆 All secrets found!" : `✦ Secret found ${payload.found}/${payload.total}`;
     clearTimeout(secretTimer);

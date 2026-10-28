@@ -13,34 +13,70 @@
           <router-link to="/2d" class="hud-btn bg-white text-black">← 2D site</router-link>
           <button
             v-if="!zoomed"
-            class="hud-btn bg-white text-black"
-            :aria-expanded="wallPickerOpen"
-            @click="wallPickerOpen = !wallPickerOpen">
-            <span class="w-3.5 h-3.5 border-2 border-black" :style="{ background: wallColor }"></span>
-            Wall
+            class="hud-btn bg-white text-black px-2"
+            :aria-expanded="settingsOpen"
+            aria-label="Room settings"
+            title="Room settings"
+            @click="settingsOpen = !settingsOpen">
+            <svg viewBox="0 0 24 24" class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
           </button>
           <!-- On a phone the way back out sits beside it, not in a third row over the view -->
           <transition name="hud-pop">
             <button v-if="zoomed && !isDesktop" class="hud-btn bg-primary text-black" @click="scene?.back()">← Back</button>
           </transition>
         </div>
-        <!-- The wall paint: a few house colours, or any colour at all -->
+        <!-- Room settings: the wall's paint, and the wood and cut of the desk, the monitor riser,
+             the window frame and the game shelf -->
         <transition name="hud-pop">
           <div
-            v-if="wallPickerOpen && !zoomed"
-            class="pointer-events-auto bg-white border-3 border-black shadow-neo-sm p-2 flex flex-wrap items-center gap-1.5 max-w-[15rem]">
-            <button
-              v-for="paint in WALL_PAINTS"
-              :key="paint.hex"
-              class="wall-swatch"
-              :class="{ 'wall-swatch--on': wallColor === paint.hex }"
-              :style="{ background: paint.hex }"
-              :title="paint.name"
-              :aria-label="`${paint.name} wall`"
-              @click="wallColor = paint.hex"></button>
-            <label class="wall-swatch wall-swatch--custom" title="Any colour" aria-label="Pick any wall colour">
-              <input v-model="wallColor" type="color" class="absolute inset-0 opacity-0 cursor-pointer" />
-            </label>
+            v-if="settingsOpen && !zoomed"
+            class="pointer-events-auto bg-white text-black border-3 border-black shadow-neo-sm p-3 w-[17.5rem] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-8rem)] overflow-y-auto flex flex-col gap-3">
+            <section>
+              <h2 class="settings-label">Wall</h2>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <button
+                  v-for="paint in WALL_PAINTS"
+                  :key="paint.hex"
+                  class="swatch"
+                  :class="{ 'swatch--on': settings.wall === paint.hex }"
+                  :style="{ background: paint.hex }"
+                  :title="paint.name"
+                  :aria-label="`${paint.name} wall`"
+                  @click="setWall(paint.hex)"></button>
+                <label class="swatch swatch--custom" title="Any colour" aria-label="Pick any wall colour">
+                  <input :value="settings.wall" type="color" class="absolute inset-0 opacity-0 cursor-pointer" @input="setWall($event.target.value)" />
+                </label>
+              </div>
+            </section>
+            <section v-for="(label, part) in WOOD_TARGETS" :key="part">
+              <h2 class="settings-label">
+                {{ label }} <span class="font-normal normal-case text-black/60">· {{ WOODS[settings.woods[part].wood].name }}</span>
+              </h2>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <button
+                  v-for="(wood, key) in WOODS"
+                  :key="key"
+                  class="swatch"
+                  :class="{ 'swatch--on': settings.woods[part].wood === key }"
+                  :style="{ background: wood.swatch }"
+                  :title="wood.name"
+                  :aria-label="`${wood.name} ${label.toLowerCase()}`"
+                  @click="setWood(part, { wood: key })"></button>
+              </div>
+              <div class="flex flex-wrap gap-1 mt-1.5">
+                <button
+                  v-for="(name, key) in WOOD_PATTERNS"
+                  :key="key"
+                  class="pattern-chip"
+                  :class="{ 'pattern-chip--on': settings.woods[part].pattern === key }"
+                  @click="setWood(part, { pattern: key })">
+                  {{ name }}
+                </button>
+              </div>
+            </section>
           </div>
         </transition>
       </div>
@@ -97,13 +133,14 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
 import { useMediaQuery } from "@vueuse/core";
 import { projects } from "@/data/projects";
 import { experiences } from "@/data/experience";
 import { useTheme } from "@/composables/useTheme";
 import { useSfx } from "@/composables/useSfx";
 import { hideBootLoader } from "@/utils/bootLoader";
+import { WOODS, WOOD_PATTERNS, WOOD_TARGETS, DEFAULT_WOOD } from "@/components/features/desk/woods";
 
 const COMMAND_CHIPS = ["help", "whoami", "projects", "hobbies", "sudo hire oka"];
 const WALL_PAINTS = [
@@ -115,7 +152,7 @@ const WALL_PAINTS = [
   { name: "Charcoal", hex: "#5c5c5c" },
   { name: "Graphite", hex: "#3a3a3a" },
 ];
-const WALL_KEY = "desk-wall-color";
+const SETTINGS_KEY = "desk-settings";
 const DEFAULT_WALL = "#3a3a3a";
 const stageRef = ref(null);
 const scene = ref(null);
@@ -125,8 +162,8 @@ const introPlaying = ref(true);
 const projectOpen = ref(false);
 const consoleOn = ref(false);
 const secretToast = ref("");
-const wallPickerOpen = ref(false);
-const wallColor = ref(readWallColor());
+const settingsOpen = ref(false);
+const settings = reactive(readSettings());
 let secretTimer = null;
 const zoomed = computed(() => focus.value !== "overview");
 const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -173,27 +210,43 @@ function onEvent(name, payload = {}) {
   }
 }
 
-// The pick is a per-visitor convenience: a blocked or empty storage just means the default wall
-function readWallColor() {
+// The picks are a per-visitor convenience: blocked or empty storage just means the default room
+function readSettings() {
+  let saved = {};
   try {
-    const saved = localStorage.getItem(WALL_KEY);
-    if (/^#[0-9a-f]{6}$/i.test(saved || "")) return saved;
+    saved = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {};
   } catch {
-    // no storage: the default it is
+    // no storage, or not ours: the default room it is
   }
-  return DEFAULT_WALL;
+  const pickWood = (choice = {}) => ({
+    wood: WOODS[choice.wood] ? choice.wood : DEFAULT_WOOD.wood,
+    pattern: WOOD_PATTERNS[choice.pattern] ? choice.pattern : DEFAULT_WOOD.pattern,
+  });
+  return {
+    wall: /^#[0-9a-f]{6}$/i.test(saved.wall || "") ? saved.wall : DEFAULT_WALL,
+    woods: Object.fromEntries(Object.keys(WOOD_TARGETS).map((part) => [part, pickWood(saved.woods?.[part])])),
+  };
+}
+function saveSettings() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    // no storage: the picks last this visit only
+  }
+}
+function setWall(hex) {
+  settings.wall = hex;
+  scene.value?.setWallColor(hex);
+  saveSettings();
+}
+function setWood(part, choice) {
+  Object.assign(settings.woods[part], choice);
+  scene.value?.setWood(part, choice);
+  saveSettings();
 }
 
 watch(isDark, (dark) => scene.value?.setTheme(dark));
-watch(wallColor, (hex) => {
-  scene.value?.setWallColor(hex);
-  try {
-    localStorage.setItem(WALL_KEY, hex);
-  } catch {
-    // no storage: the pick lasts this visit only
-  }
-});
-watch(zoomed, (value) => value && (wallPickerOpen.value = false));
+watch(zoomed, (value) => value && (settingsOpen.value = false));
 watch(muted, (value) => scene.value?.setMuted(value));
 
 onMounted(async () => {
@@ -207,7 +260,8 @@ onMounted(async () => {
       experiences,
       dark: isDark.value,
       muted: muted.value,
-      wallColor: wallColor.value,
+      wallColor: settings.wall,
+      woods: JSON.parse(JSON.stringify(settings.woods)),
       onEvent,
     });
     setTimeout(() => (introPlaying.value = false), 1600);
@@ -241,17 +295,26 @@ onUnmounted(() => {
   transform: translate(2px, 2px);
   box-shadow: none;
 }
-.wall-swatch {
+.settings-label {
+  @apply text-xs font-extrabold uppercase mb-1.5;
+}
+.swatch {
   @apply relative w-7 h-7 border-2 border-black transition-transform;
 }
-.wall-swatch:hover {
+.swatch:hover {
   transform: translate(-1px, -1px);
 }
-.wall-swatch--on {
+.swatch--on {
   box-shadow: 0 0 0 2px #fff, 0 0 0 4px #000;
 }
-.wall-swatch--custom {
+.swatch--custom {
   background: conic-gradient(#ff90e8, #ffc900, #00e0c6, #90a8ed, #ff90e8);
+}
+.pattern-chip {
+  @apply border-2 border-black px-1.5 py-0.5 text-[11px] font-bold bg-white;
+}
+.pattern-chip--on {
+  @apply bg-black text-white;
 }
 .hud-pop-enter-active,
 .hud-pop-leave-active {

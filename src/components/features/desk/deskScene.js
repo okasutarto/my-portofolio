@@ -109,6 +109,7 @@ import {
   drawBladeGlint,
 } from "./textures";
 import { createDesktop, SCREEN_W, SCREEN_H } from "./desktop";
+import { WOODS, WOOD_PATTERNS, DEFAULT_WOOD } from "./woods";
 import { createLofi, TRACKS } from "./lofi";
 import { createToonBatch } from "./toonBatch";
 
@@ -226,7 +227,7 @@ if (benchmark !== "no-ramp" && !THREE.ShaderChunk.gradientmap_pars_fragment.incl
 const VIEW_W = 21.5;
 const VIEW_H = 14.5;
 
-export function createDeskScene({ container, projects, experiences, dark = false, muted = false, wallColor = "#3a3a3a", onEvent = () => {} }) {
+export function createDeskScene({ container, projects, experiences, dark = false, muted = false, wallColor = "#3a3a3a", woods = {}, onEvent = () => {} }) {
   // Local preview links make each phase inspectable without waiting for the random cycle.
   const previewTime = process.env.NODE_ENV === "development" ? perfParams.get("time") : null;
   if (["morning", "day", "evening", "night"].includes(previewTime)) dark = previewTime === "night";
@@ -1075,8 +1076,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const windowWood = canvasTexture(512, 512);
   track(windowWood.texture);
   drawWoodTop(windowWood.ctx, 512, 512);
+  // The frame keeps its own copy of the grain, so a new wood for it leaves the painting, the
+  // lamp and the board (which share windowWood) as they are
+  const frameGrainTex = canvasTexture(512, 512);
+  track(frameGrainTex.texture);
+  drawWoodTop(frameGrainTex.ctx, 512, 512);
   const frameWood = toon("#f0c7a0");
-  frameWood.map = windowWood.texture;
+  frameWood.map = frameGrainTex.texture;
   const windowFrame = mesh(new THREE.BoxGeometry(4.4, 4.5, 0.18), frameWood, { cast: false, outline: 0.03 });
   // Keep the animated view at the same cadence in overview and close-up.
   // Start at a random daylight mood, then cycle in order with the room lighting.
@@ -6942,7 +6948,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const RISER_TOP = 0.5;
   const RISER_BOARD = 0.14;
   const RISER_LEG_SHADE = 0.62;
-  const riserWood = deskWood.texture.clone();
+  // Its own print of the grain (not a clone of the desk's), so it can take a different wood
+  const riserGrain = canvasTexture(1400, 840);
+  drawWoodTop(riserGrain.ctx, 1400, 840);
+  const riserWood = riserGrain.texture;
   riserWood.wrapS = riserWood.wrapT = THREE.RepeatWrapping;
   // the grain at the desk's scale: half its length, and one of its five boards
   riserWood.repeat.set(0.5, 0.2);
@@ -10561,6 +10570,45 @@ export function createDeskScene({ container, projects, experiences, dark = false
       if (isDark) mat.color.multiply(moon);
     });
   }
+  // The desk, its riser, the window frame and the game shelf can each be any of the woods, in
+  // any cut. Each material keeps its tone relative to oak's tint (the shelf's back still reads
+  // deeper than its sides), and only the desk and its riser are dimmed for the night shift, as
+  // they always were.
+  const lightDesk = new THREE.Color(PALETTES.light.desk);
+  const darkDesk = new THREE.Color(PALETTES.dark.desk);
+  const NIGHT_WOOD = new THREE.Color(darkDesk.r / lightDesk.r, darkDesk.g / lightDesk.g, darkDesk.b / lightDesk.b);
+  const oakTint = new THREE.Color(WOODS.oak.tint);
+  const woodMat = (mat, base, shade = 1) => {
+    const rel = new THREE.Color(base);
+    rel.setRGB((rel.r / oakTint.r) * shade, (rel.g / oakTint.g) * shade, (rel.b / oakTint.b) * shade);
+    return { mat, rel };
+  };
+  const woodParts = {
+    desk: { grain: deskWood, mats: [woodMat(deskMat, PALETTES.light.desk)], nightly: true },
+    riser: {
+      grain: riserGrain,
+      mats: [woodMat(riserMat, PALETTES.light.desk), woodMat(riserLegMat, PALETTES.light.desk, RISER_LEG_SHADE)],
+      nightly: true,
+    },
+    window: { grain: frameGrainTex, mats: [woodMat(frameWood, "#f0c7a0")] },
+    shelf: {
+      grain: shelfWood,
+      mats: [woodMat(shelfMat, "#f3d3b0"), woodMat(shelfBackMat, "#d9a878"), woodMat(lipMat, "#e2b384")],
+    },
+  };
+  const pickWood = (choice = {}) => ({
+    wood: WOODS[choice.wood] ? choice.wood : DEFAULT_WOOD.wood,
+    pattern: WOOD_PATTERNS[choice.pattern] ? choice.pattern : DEFAULT_WOOD.pattern,
+  });
+  const woodChoice = Object.fromEntries(Object.keys(woodParts).map((part) => [part, pickWood(woods[part])]));
+  function toneWood(part, isDark) {
+    const { mats, nightly } = woodParts[part];
+    const tint = new THREE.Color(WOODS[woodChoice[part].wood].tint);
+    mats.forEach(({ mat, rel }) => {
+      mat.color.copy(rel).multiply(tint);
+      if (nightly && isDark) mat.color.multiply(NIGHT_WOOD);
+    });
+  }
   function setTheme(isDark) {
     darkNow = isDark;
     roomLight.night = isDark ? 1 : 0;
@@ -10603,9 +10651,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     setLamp(isDark);
     updateLightbar();
     const p = isDark ? PALETTES.dark : PALETTES.light;
-    deskMat.color.set(p.desk);
-    riserMat.color.set(p.desk);
-    riserLegMat.color.set(p.desk).multiplyScalar(RISER_LEG_SHADE);
+    toneWood("desk", isDark);
+    toneWood("riser", isDark);
     shadowFill.color.set(p.shadow);
     if (!isDark) applyDaylight();
     fitSunShadow();
@@ -10716,6 +10763,25 @@ export function createDeskScene({ container, projects, experiences, dark = false
       [lightingFrom, lightingTarget].forEach((state) => state.colors[at].copy(mat.color));
     });
   }
+  // A new wood is drawn into the part's grain and toned at once; like the paint, both ends of a
+  // running blend take it
+  function setWood(part, choice) {
+    const target = woodParts[part];
+    if (!target) return;
+    woodChoice[part] = pickWood({ ...woodChoice[part], ...choice });
+    const { canvas, ctx } = target.grain;
+    drawWoodTop(ctx, canvas.width, canvas.height, woodChoice[part]);
+    target.grain.texture.needsUpdate = true;
+    toneWood(part, darkNow);
+    target.mats.forEach(({ mat }) => {
+      const at = lightingColors.indexOf(mat.color);
+      if (at >= 0) [lightingFrom, lightingTarget].forEach((state) => state.colors[at].copy(mat.color));
+    });
+  }
+  Object.keys(woodParts).forEach((part) => {
+    const { wood, pattern } = woodChoice[part];
+    if (wood !== DEFAULT_WOOD.wood || pattern !== DEFAULT_WOOD.pattern) setWood(part, {});
+  });
   // The monitor's desktop follows the room
   const setRoomTheme = (isDark) => {
     if (isDark) daylightPart = "night";
@@ -11882,6 +11948,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   return {
     setTheme: setRoomTheme,
     setWallColor,
+    setWood,
     setMuted,
     back,
     focusOn: (name) => SHOTS[name] && setFocus(name),

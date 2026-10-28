@@ -18,7 +18,7 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import emailjs from "@emailjs/browser";
-import { sfx, GROOVE_BEAT, setRainLevel, startScrape } from "@/composables/useSfx";
+import { sfx, GROOVE_BEAT, setRainLevel, startScrape, initializeAudio } from "@/composables/useSfx";
 import { ABOUT_NOTES } from "@/data/about";
 import { FOLDER_COLORS } from "@/data/projectFiles";
 import { EMAILJS_CONFIG } from "@/config/emailjs";
@@ -88,6 +88,7 @@ import {
   drawBrushedMetal,
   drawMiniTop,
   drawVentSlots,
+  drawPowerScreen,
   drawTrophyMetal,
   drawTrophyStone,
   drawSatinFinish,
@@ -7161,9 +7162,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
       gsap.to(miniLed.scale, { x: on ? 1.8 : 1, y: on ? 1.8 : 1, duration: 0.25, overwrite: true });
     },
     onClick: () => {
-      // a quick wake blink of the status light
-      gsap.fromTo(miniLedMat.color, { r: 0.3, g: 0.85, b: 0.5 }, { r: 0.96, g: 0.96, b: 0.97, duration: 0.6, ease: "power2.out" });
       gsap.fromTo(macMini.scale, { x: 1.04, y: 0.94, z: 1.04 }, { x: 1, y: 1, z: 1, duration: 0.4, ease: "elastic.out(1.2, 0.4)" });
+      toggleComputer();
     },
   });
   // Clamped task light: brushed graphite, rubber end caps and an inset opal lens,
@@ -7452,9 +7452,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
       redrawScreen();
     },
   });
+  // The Mac mini's power: off, the screen goes black and its light out; on, it boots first.
+  // `level` fades the screen's spill.
+  const computer = { on: false, booting: true, bar: 0 };
+  const screenPower = { level: 0.35 };
   // A track asked for while the sound is off: it starts once the speakers are switched on
   let pendingTrack = null;
   function startMusic(index = lofi.index) {
+    if (!computer.on) return;
     if (soundMuted) {
       pendingTrack = index;
       onEvent("toggleSound");
@@ -7518,7 +7523,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   monitor.add(screen);
   // The screen's own spill: a cool light over the keyboard and desk, faint by day, and the
   // props in front of it throw shadows towards the visitor at night
-  const screenLight = neonLight("#c4d4ff", 2.2, () => (0.25 + 0.75 * roomLight.night), { distance: 7, shadow: true });
+  const screenLight = neonLight("#c4d4ff", 2.2, () => screenPower.level * (0.25 + 0.75 * roomLight.night), { distance: 7, shadow: true });
   screenLight.position.set(0, SCREEN_Y - 0.13, 0.9);
   monitor.add(screenLight);
   const desktop = createDesktop({
@@ -7542,6 +7547,18 @@ export function createDeskScene({ container, projects, experiences, dark = false
     if ((desktop.active() === "console") !== consoleOn) {
       consoleOn = !consoleOn;
       onEvent("console", { on: consoleOn });
+      // the console is the display's own input, so it lights the screen with the Mac mini off
+      if (!computer.on && !computer.booting) gsap.to(screenPower, { level: consoleOn ? 1 : 0, duration: 0.35, overwrite: true });
+    }
+    // Off or still starting, the Mac mini shows black or its boot screen and nothing is clickable
+    if (!computer.on && !consoleOn) {
+      screenTex.ctx.save();
+      screenTex.ctx.setTransform(1, 0, 0, 1, 0, 0);
+      drawPowerScreen(screenTex.ctx, SCREEN_W * 2, SCREEN_H * 2, { booting: computer.booting, progress: computer.bar });
+      screenTex.ctx.restore();
+      screenTex.hotspots = [];
+      screenTex.texture.needsUpdate = true;
+      return;
     }
     // Hotspots come back in layout units; the canvas is printed at twice that
     screenTex.hotspots = desktop.draw(screenTex.ctx, { alert: termAlert, alertOn: cursorOn })
@@ -7577,6 +7594,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // From the welcome until someone opens the monitor, its title bar flashes for attention
   let termAlert = false;
   const redrawTerminal = () => {
+    if (!computer.on) return;
     drawTerminal(term.ctx, 640, 384, [...termLines, "> " + input], cursorOn, { alert: termAlert, alertOn: cursorOn });
     redrawScreen();
   };
@@ -7602,10 +7620,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
 
   // Types a command out by itself (clicking the screen, the HUD's command chips)
   function autotype(cmd) {
-    if (termBusy) return;
+    if (termBusy || !computer.on) return;
     termBusy = true;
     let i = 0;
     const typeNext = () => {
+      if (!computer.on) {
+        termBusy = false;
+        return;
+      }
       if (i < cmd.length) {
         input = cmd.slice(0, ++i);
         sfx.key();
@@ -7625,7 +7647,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
 
   // Real typing while zoomed in on the monitor
   function typeKey(key) {
-    if (termBusy) return;
+    if (termBusy || !computer.on) return;
     if (key === "Enter") return execute(input);
     if (key === "Backspace") input = input.slice(0, -1);
     else if (input.length < MAX_INPUT) input += key;
@@ -7635,7 +7657,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // Once the room is in view, the terminal greets whoever just arrived. The greeting stays on
   // screen when they zoom in, so it can be read there; zooming in first types it then.
   const welcome = () => {
-    if (welcomed) return;
+    if (welcomed || !computer.on) return;
     welcomed = true;
     autotype("welcome");
   };
@@ -7647,14 +7669,77 @@ export function createDeskScene({ container, projects, experiences, dark = false
     gsap.fromTo(monitor.position, { y: RISER_TOP }, { keyframes: [{ y: RISER_TOP + 0.3, duration: 0.15, ease: "power2.out" }, { y: RISER_TOP, duration: 0.4, ease: "bounce.out" }] });
     sfx.ping();
   };
-  timers.push(setTimeout(welcome, 1500));
 
   const showTerminal = () => {
+    if (!computer.on) return;
     desktop.exitConsole();
     if (desktop.active() === "terminal") return;
     desktop.launch("terminal");
     redrawScreen();
   };
+  // Clicking the Mac mini shuts the computer down (the music and any game stop, the screen
+  // goes black and its light fades) or starts it: the boot screen fills its bar, then the
+  // desktop comes back as it was. Clicks while it boots are ignored.
+  function bootComputer({ playSound = true, delay = 0.5 } = {}) {
+    computer.booting = true;
+    computer.bar = 0;
+    let playedBootSound = false;
+    const cleanGesture = () => {
+      ["pointerdown", "keydown"].forEach((evt) => window.removeEventListener(evt, onFirstGesture, true));
+    };
+    const onFirstGesture = () => {
+      cleanGesture();
+      if (computer.booting && !playedBootSound) {
+        playedBootSound = true;
+        sfx.power();
+      }
+    };
+    if (playSound) {
+      initializeAudio().then((ready) => {
+        if (ready && computer.booting && !playedBootSound) {
+          playedBootSound = true;
+          sfx.power();
+          cleanGesture();
+        }
+      });
+      ["pointerdown", "keydown"].forEach((evt) => window.addEventListener(evt, onFirstGesture, { capture: true, once: true }));
+    }
+    miniLedMat.color.set("#f4f6f8");
+    redrawScreen();
+    gsap.to(screenPower, { level: 0.35, duration: 0.4, overwrite: true });
+    gsap.to(computer, {
+      bar: 1,
+      duration: 2.2,
+      delay,
+      ease: "power1.inOut",
+      onUpdate: redrawScreen,
+      onComplete: () => {
+        cleanGesture();
+        computer.booting = false;
+        computer.on = true;
+        sfx.ding();
+        gsap.to(screenPower, { level: 1, duration: 0.4, overwrite: true });
+        redrawTerminal();
+        if (!welcomed) timers.push(setTimeout(welcome, 2000));
+      },
+    });
+  }
+
+  function toggleComputer() {
+    if (computer.booting) return;
+    gsap.killTweensOf(computer);
+    if (computer.on) {
+      if (lofi.playing) lofi.pause();
+      if (desktop.exitConsole()) redrawScreen();
+      computer.on = false;
+      sfx.powerDown();
+      miniLedMat.color.set("#2a2c30");
+      gsap.to(screenPower, { level: 0, duration: 0.35, ease: "power2.in", overwrite: true });
+      redrawScreen();
+      return;
+    }
+    bootComputer({ playSound: true, delay: 0.4 });
+  }
   const monitorEdgeRest = panelEdge.material.color.clone();
   register(monitor, {
     focus: "monitor",
@@ -7676,12 +7761,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
       gsap.to(panelEdge.material.color, { r: on ? 0.12 : monitorEdgeRest.r, g: on ? 0.25 : monitorEdgeRest.g, b: on ? 0.23 : monitorEdgeRest.b, duration: 0.25, overwrite: true });
     },
     onPointer: (hit) => {
+      if (!computer.on && !consoleOn) return;
       const moved = hit?.object === screen && hit.uv ? desktop.hover(hit.uv.x * SCREEN_W, (1 - hit.uv.y) * SCREEN_H) : desktop.hover(null);
       if (moved) redrawScreen();
     },
     // The console, Snake or Spotifree up front take their keys; anything else goes to the terminal
     onKey: (e) => {
       if (focus.name !== "monitor") return false;
+      if (!computer.on && !consoleOn) return false;
       // The console takes every key; Snake up front takes the arrows and WASD
       if (desktop.key(e)) {
         redrawScreen();
@@ -11859,7 +11946,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       frameIntervals.length = 0;
       return;
     }
-    const moving = lightingBlending || now < responsiveUntil || gsap.isTweening(cam) || catIdleTl?.isActive() || catBusy || gsap.isTweening(blind) || mouseRunning || lampHopping || trophyCelebrating || lanyardDrag || hatDrag || noteDrag || shelfDrag || stickyDrag || chairDrag;
+    const moving = lightingBlending || now < responsiveUntil || gsap.isTweening(cam) || catIdleTl?.isActive() || catBusy || gsap.isTweening(blind) || mouseRunning || lampHopping || trophyCelebrating || lanyardDrag || hatDrag || noteDrag || shelfDrag || stickyDrag || chairDrag || gsap.isTweening(screenPower);
     // Do not skip presentation frames during interaction. Idle uses a tolerant interval rather
     // than an accumulated deadline, which otherwise creates short/long frame pairs under jitter.
     if (!moving && lastTick && now - lastTick < refreshMs * 0.7) return;
@@ -12026,6 +12113,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     if (firstFrame) {
       firstFrame = false;
       onEvent("ready");
+      // Wait for the boot overlay to fade out before starting the computer's boot sound and progress bar
+      timers.push(setTimeout(() => bootComputer({ playSound: true, delay: 0.2 }), 650));
     }
   }
 
@@ -12065,6 +12154,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     back,
     focusOn: (name) => SHOTS[name] && setFocus(name),
     runCommand: (cmd) => {
+      if (!computer.on) return;
       showTerminal();
       if (focus.name === "monitor") autotype(cmd);
       else setFocus("monitor"), timers.push(setTimeout(() => autotype(cmd), 700));

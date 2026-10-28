@@ -2287,6 +2287,14 @@ export function drawMiniTop(c, w, h, { logo = 0.3 } = {}) {
   badge.addColorStop(0, "#55595f");
   badge.addColorStop(1, "#303236");
   c.fillStyle = badge;
+  wholeApple(c, "#45484d");
+  c.restore();
+}
+
+// A whole apple (no bite) in unit coordinates, about 0.9 across, y down: a round fruit with two
+// lobes either side of its dimple, a short stem and a leaf off to its right. Filled in the
+// current fill style, the stem stroked in `stem`.
+function wholeApple(c, stem) {
   c.beginPath();
   c.moveTo(0, -0.27);
   c.bezierCurveTo(0.12, -0.37, 0.45, -0.37, 0.45, -0.03);
@@ -2296,9 +2304,8 @@ export function drawMiniTop(c, w, h, { logo = 0.3 } = {}) {
   c.bezierCurveTo(-0.31, 0.46, -0.45, 0.24, -0.45, -0.03);
   c.bezierCurveTo(-0.45, -0.37, -0.12, -0.37, 0, -0.27);
   c.fill();
-  // a short stem out of the dimple, and a leaf off to its right
   c.lineCap = "round";
-  c.strokeStyle = "#45484d";
+  c.strokeStyle = stem;
   c.lineWidth = 0.045;
   c.beginPath();
   c.moveTo(0, -0.26);
@@ -2307,7 +2314,35 @@ export function drawMiniTop(c, w, h, { logo = 0.3 } = {}) {
   c.beginPath();
   c.ellipse(0.15, -0.44, 0.06, 0.13, 1.05, 0, Math.PI * 2);
   c.fill();
+}
+
+// The display while the computer is off or starting: plain black when off; while it boots, the
+// white apple with a thin progress bar under it that fills with `progress` (0 to 1)
+export function drawPowerScreen(c, w, h, { booting = false, progress = 0 } = {}) {
+  c.fillStyle = "#000000";
+  c.fillRect(0, 0, w, h);
+  if (!booting) return;
+  const s = h * 0.2;
+  c.save();
+  c.translate(w / 2, h * 0.42);
+  c.scale(s, s);
+  c.fillStyle = "#f4f4f5";
+  wholeApple(c, "#f4f4f5");
   c.restore();
+  const barW = w * 0.2;
+  const barH = Math.max(3, h * 0.012);
+  const x = (w - barW) / 2;
+  const y = h * 0.66;
+  c.fillStyle = "#3a3a3c";
+  c.beginPath();
+  c.roundRect(x, y, barW, barH, barH / 2);
+  c.fill();
+  if (progress > 0) {
+    c.fillStyle = "#f4f4f5";
+    c.beginPath();
+    c.roundRect(x, y, Math.max(barH, barW * Math.min(1, progress)), barH, barH / 2);
+    c.fill();
+  }
 }
 
 // The dark base ring's cooling vents: narrow upright slots in a row along a tile that repeats

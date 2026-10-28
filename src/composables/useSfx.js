@@ -416,6 +416,14 @@ const SOUNDS = {
     tone(t, { freq: 1318, peak: 0.25, decay: 0.5 });
     tone(t + 0.09, { freq: 1976, peak: 0.22, decay: 0.6 });
   },
+  // A crisp, clean bell ding as booting completes or a task succeeds
+  ding(t, { pitch = 1, volume = 0.28 } = {}) {
+    const f = 1174.66 * pitch;
+    tone(t, { freq: f, peak: volume, decay: 0.85, send: 0.25 });
+    tone(t, { freq: f * 1.5, peak: volume * 0.35, decay: 0.55, send: 0.15 });
+    tone(t, { freq: f * 2.76, peak: volume * 0.14, decay: 0.35 });
+    noise(t, { filter: "bandpass", freq: 3800, q: 3, peak: volume * 0.3, decay: 0.02 });
+  },
   // Receipt printer: a run of motor clicks
   printer(t, { duration = 1, steps = 18 } = {}) {
     for (let i = 0; i < steps; i++) {
@@ -862,7 +870,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { cheer: 2, applause: 4, meow: 0.3, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, rubber: 0.15, boing: 0.3, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, dumbbell: 0.12, rackLand: 0.12, dock: 0.12, rimHit: 0.12, paperBounce: 0.05, swish: 0.2, wingFlap: 0.08, strap: 0.08, badgeClick: 0.12, shing: 0.5, koiguchi: 0.12, koiguchiShut: 0.12, slash: 0.15, sheathe: 0.4, whooshAway: 0.4, power: 1.4, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
+const MIN_GAP = { cheer: 2, applause: 4, meow: 0.3, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, rubber: 0.15, boing: 0.3, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, dumbbell: 0.12, rackLand: 0.12, dock: 0.12, rimHit: 0.12, paperBounce: 0.05, swish: 0.2, wingFlap: 0.08, strap: 0.08, badgeClick: 0.12, shing: 0.5, koiguchi: 0.12, koiguchiShut: 0.12, slash: 0.15, sheathe: 0.4, whooshAway: 0.4, power: 1.4, ding: 0.3, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || (ctx.state !== "running" && !resuming) || document.hidden) return;

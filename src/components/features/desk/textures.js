@@ -171,8 +171,11 @@ export function drawBadge(c, w, h, { back = false, now = new Date() } = {}) {
   h = 780;
   c.fillStyle = "#fffdf5";
   c.fillRect(0, 0, w, h);
+  stockGrain(c, w, h, { seed: back ? 21 : 20, density: 0.6, wear: 0.04 });
+  guilloche(c, 0, 130, w, 300, "rgba(36,91,215,.06)", { lines: 6, waves: 3 });
   c.fillStyle = "#ffdd00";
   c.fillRect(0, 0, w, 112);
+  guilloche(c, 0, 0, w, 108, "rgba(0,0,0,.08)", { lines: 6, waves: 4 });
   c.fillStyle = "#17243b";
   c.fillRect(0, 108, w, 6);
   c.textAlign = "left";
@@ -217,6 +220,25 @@ export function drawBadge(c, w, h, { back = false, now = new Date() } = {}) {
     c.fillStyle = "#17243b";
     c.fillRect(140, 150, 216, 264);
     drawPortrait(c, 132, 142, 216, 264, "#00e0c6");
+    // the card's contact chip: gold, its pads cut by inked lines
+    brutalBox(c, 40, 168, 66, 54, "#e2b53c", { shadow: 4, line: 3 });
+    c.strokeStyle = "#8a6514";
+    c.lineWidth = 2.5;
+    c.beginPath();
+    c.moveTo(73, 168);
+    c.lineTo(73, 222);
+    c.moveTo(40, 186);
+    c.lineTo(62, 186);
+    c.moveTo(84, 186);
+    c.lineTo(106, 186);
+    c.moveTo(40, 204);
+    c.lineTo(62, 204);
+    c.moveTo(84, 204);
+    c.lineTo(106, 204);
+    c.rect(62, 182, 22, 26);
+    c.stroke();
+    c.fillStyle = "rgba(255,255,255,.45)";
+    c.fillRect(43, 171, 60, 5);
     c.fillStyle = "#245bd7";
     c.fillRect(310, 370, 112, 36);
     c.fillStyle = "#fff";
@@ -288,6 +310,45 @@ export function drawTicket(c, w, h, exp) {
   c.fillRect(0, 0, stub, h);
   c.fillStyle = tone;
   c.fillRect(stub, 0, w - stub, h);
+  // card stock, security waves behind the route, and a big plane watermarked into the paper
+  stockGrain(c, w, h, { seed: exp.company.length + 5, wear: 0.06 });
+  guilloche(c, 30, 88, stub - 60, 120, "rgba(0,0,0,.07)", { lines: 8, waves: 5 });
+  c.save();
+  c.translate(stub * 0.55, h * 0.58);
+  c.rotate(-0.25);
+  c.fillStyle = "rgba(0,0,0,.045)";
+  c.font = `800 ${Math.round(h * 0.55)}px ${BODY}`;
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.fillText("✈", 0, 0);
+  c.restore();
+  // halftone dots down the stub
+  c.fillStyle = "rgba(0,0,0,.08)";
+  for (let y = 12; y < h; y += 14) for (let x = stub + 12 + ((y / 14) % 2) * 7; x < w; x += 14) c.fillRect(x, y, 3, 3);
+  // a holographic seal on the stub: flat bands of rainbow foil, inked round
+  c.save();
+  c.translate(w - 62, 205);
+  c.beginPath();
+  c.roundRect(-34, -24, 68, 48, 8);
+  c.clip();
+  ["#ff90e8", "#c4b5fd", "#7fdfff", "#8fd694", "#ffdd00"].forEach((color, i) => {
+    c.fillStyle = color;
+    c.beginPath();
+    c.moveTo(-60 + i * 22, 30);
+    c.lineTo(-38 + i * 22, 30);
+    c.lineTo(-8 + i * 22, -30);
+    c.lineTo(-30 + i * 22, -30);
+    c.closePath();
+    c.fill();
+  });
+  c.fillStyle = "rgba(255,255,255,.6)";
+  c.fillRect(-34, -24, 68, 6);
+  c.restore();
+  c.lineWidth = 3;
+  c.strokeStyle = "#000";
+  c.beginPath();
+  c.roundRect(w - 96, 181, 68, 48, 8);
+  c.stroke();
   c.textBaseline = "middle";
 
   // airline: initial + company
@@ -398,6 +459,8 @@ export function drawTicketBack(c, w, h, exp) {
   const color = toneFor(exp);
   c.fillStyle = "#fffdf5";
   c.fillRect(0, 0, w, h);
+  stockGrain(c, w, h, { seed: exp.company.length + 9, wear: 0.06 });
+  guilloche(c, 20, 120, w - 330, h - 200, "rgba(0,0,0,.035)", { lines: 6, waves: 7 });
   c.fillStyle = color;
   c.fillRect(0, 0, w, 64);
   c.fillStyle = "#000";
@@ -467,9 +530,14 @@ function fileText(c, text, x, y, width, { size = 25, lines = 4, weight = 500, in
 }
 function drawClip(c, x, y, w, h, api) {
   brutalBox(c, x, y, w, h, "#fffdf5", { shadow: 7, line: 4 });
-  c.strokeStyle = "#555";
-  c.lineWidth = 6;
-  c.strokeRect(x + 35, y - 18, 20, 58);
+  c.save();
+  c.beginPath();
+  c.rect(x + 2, y + 2, w - 4, h - 4);
+  c.clip();
+  c.translate(x, y);
+  stockGrain(c, w, h, { seed: x + y, wear: 0 });
+  c.restore();
+  paperclip(c, x + 45, y - 26, 82, 0.05);
   if (api) {
     fileText(c, api.request, x + 16, y + 35, w - 32, { size: 17, weight: 800, lines: 2 });
     fileText(c, api.status, x + 16, y + 95, w - 32, { size: 16, ink: "#166534", lines: 1 });
@@ -492,11 +560,43 @@ function drawFileMetrics(c, metrics, color, y = 630) {
     fileText(c, metric.label.toUpperCase(), x + 14, y + 49, 266, { size: 14, lines: 1, weight: 800 });
   });
 }
+// Three punched holes down a sheet's hinged edge, at `x` in the 1000-wide page
+function punchHoles(c, x) {
+  [190, 370, 550].forEach((y) => {
+    c.beginPath();
+    c.arc(x, y, 11, 0, Math.PI * 2);
+    c.fillStyle = "#3a3530";
+    c.fill();
+    c.lineWidth = 3;
+    c.strokeStyle = "#1a1714";
+    c.stroke();
+    c.beginPath();
+    c.arc(x + 2, y + 2, 7, Math.PI * 0.9, Math.PI * 1.9);
+    c.strokeStyle = "rgba(255,255,255,.25)";
+    c.stroke();
+  });
+}
+// The folder's board: coloured card with a fibre grain, a scored crease along the spine (the
+// hinged left edge), a rubber stamp and the faint ring of a mug once set down on it
+function folderBoard(c, color, index, creaseX = 20) {
+  c.fillStyle = color;
+  c.fillRect(0, 0, 1000, 740);
+  stockGrain(c, 1000, 740, { seed: index + 3, density: 1.2, wear: 0.07 });
+  c.fillStyle = "rgba(0,0,0,.14)";
+  c.fillRect(creaseX, 0, 5, 740);
+  c.fillStyle = "rgba(255,255,255,.3)";
+  c.fillRect(creaseX + 5, 0, 3, 740);
+}
 export function drawFolderCover(c, w, h, project, index = 0) {
   return fileCanvas(c, w, h, () => {
     const color = FOLDER_COLORS[index % FOLDER_COLORS.length];
-    c.fillStyle = color;
-    c.fillRect(0, 0, 1000, 740);
+    folderBoard(c, color, index);
+    rubberStamp(c, 160, 655, `CASE Nº ${String(index + 1).padStart(2, "0")}`, { color: "rgba(26,23,20,.55)", size: 26, angle: -0.08, seed: index + 1 });
+    c.strokeStyle = "rgba(60,30,10,.16)";
+    c.lineWidth = 7;
+    c.beginPath();
+    c.arc(560, 640, 62, 0.5, Math.PI * 1.75);
+    c.stroke();
     brutalBox(c, 42, 42, 245, 46, "#fff", { shadow: 5, line: 4 });
     fileText(c, project.type.toUpperCase(), 58, 53, 220, { size: 20, weight: 800, lines: 1 });
     const longestWord = project.title.toUpperCase().split(/\s+/).sort((a, b) => b.length - a.length)[0];
@@ -519,6 +619,8 @@ export function drawCaseSheet(c, w, h, project, kind, { index = 0 } = {}) {
     const cf = project.caseFile || {};
     c.fillStyle = "#fffdf5";
     c.fillRect(0, 0, 1000, 740);
+    stockGrain(c, 1000, 740, { seed: index * 7 + page + 1, wear: 0.05 });
+    punchHoles(c, 17);
     brutalBox(c, 35, 28, 58, 40, "#111", { shadow: 0, line: 0 });
     fileText(c, String(page + 1).padStart(2, "0"), 46, 36, 45, { size: 23, weight: 800, lines: 1, ink: "#ffdd00" });
     fileText(c, FILE_PAGES[page].title.toUpperCase(), 110, 34, 840, { size: 31, weight: 800, lines: 1 });
@@ -608,8 +710,11 @@ export function drawCaseBack(c, w, h, project, { inside = false, index = 0, kind
   c.rotate(Math.PI);
   let hotspots = [];
   if (inside) {
-    c.fillStyle = FOLDER_COLORS[index % FOLDER_COLORS.length];
-    c.fillRect(0, 0, w, h);
+    c.save();
+    c.scale(w / 1000, h / 740);
+    // drawn turned round, so the spine's crease is on the far side here
+    folderBoard(c, FOLDER_COLORS[index % FOLDER_COLORS.length], index + 11, 972);
+    c.restore();
     c.fillStyle = "#000";
     c.font = `800 30px ${DISPLAY}`;
     c.fillText(`CASE FILE #${String(index + 1).padStart(3, "0")}`, 30, 70);
@@ -686,6 +791,9 @@ export function drawCaseBack(c, w, h, project, { inside = false, index = 0, kind
     hotspots = fileCanvas(c, w, h, () => {
       c.fillStyle = "#fffdf5";
       c.fillRect(0, 0, 1000, 740);
+      stockGrain(c, 1000, 740, { seed: index * 7 + page + 40, wear: 0.05 });
+      // the holes go through: here they sit on the far side, which turns to the hinge
+      punchHoles(c, 983);
       // Same header as the right page, for the page this sheet holds
       brutalBox(c, 35, 28, 58, 40, "#111", { shadow: 0, line: 0 });
       fileText(c, String(page + 1).padStart(2, "0"), 46, 36, 45, { size: 23, weight: 800, lines: 1, ink: "#ffdd00" });
@@ -2379,9 +2487,33 @@ export function drawPainting(c, w, h, { art = 0 } = {}) {
   c.lineCap = "round";
   let seed = 9173 + art * 137;
   const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  const ink = (path, fill) => {
+  // Where each picture's light comes from (a direction toward it): every shape is cel-shaded
+  // from it, a hard band of shade on its far side and a thin rim of light on the near one
+  const light = [[0.25, -1], [0.8, -0.6], [-0.6, -0.8]][art] || [0, -1];
+  const band = (path, dx, dy, color) => {
+    const edge = new Path2D(path);
+    edge.addPath(path, new DOMMatrix([1, 0, 0, 1, dx, dy]));
+    c.save();
+    c.clip(path);
+    c.fillStyle = color;
+    c.fill(edge, "evenodd");
+    c.restore();
+  };
+  // `blob` is for shapes built of overlapping parts (clouds): the ink goes down first and the
+  // fill over it, so the parts merge into one silhouette with no lines inside
+  const ink = (path, fill, { cel = true, shade = 0.26, blob = false } = {}) => {
+    if (blob) {
+      c.lineWidth = Math.max(8, w / 75);
+      c.strokeStyle = "#30283a";
+      c.stroke(path);
+    }
     c.fillStyle = fill;
     c.fill(path);
+    if (cel) {
+      const s = Math.max(6, w * 0.016);
+      band(path, light[0] * s, light[1] * s, mixHex(fill, "#2a1f3d", shade));
+      band(path, -light[0] * s * 0.32, -light[1] * s * 0.32, mixHex(fill, "#fffbe8", 0.42));
+    }
     c.save();
     c.clip(path);
     const pigment = c.createLinearGradient(0, 0, w * 0.3, h);
@@ -2397,13 +2529,14 @@ export function drawPainting(c, w, h, { art = 0 } = {}) {
       c.fillRect(x, y, w * (0.008 + rand() * 0.045), h * (0.001 + rand() * 0.004));
     }
     c.restore();
+    if (blob) return;
     c.lineWidth = Math.max(4, w / 150);
     c.strokeStyle = "#30283a";
     c.stroke(path);
   };
-  if (art === 1) drawNightCity(c, w, h, ink);
-  else if (art === 2) drawWave(c, w, h, ink);
-  else drawSunset(c, w, h, ink);
+  if (art === 1) drawNightCity(c, w, h, ink, rand);
+  else if (art === 2) drawWave(c, w, h, ink, rand);
+  else drawSunset(c, w, h, ink, rand);
   // Broken brush marks and fine canvas fibres, stable whenever the artwork is redrawn.
   for (let i = 0; i < 320; i++) {
     const x = rand() * w;
@@ -2447,45 +2580,155 @@ export function drawPainting(c, w, h, { art = 0 } = {}) {
   c.restore();
 }
 
-// A city at night: moon, stars, a skyline with lit windows over the river
-function drawNightCity(c, w, h, ink) {
+// Shared bits of the paintings' toon vocabulary
+// A four-pointed sparkle, for stars
+function sparkle(c, x, y, r, color = "#fffdf5") {
+  c.beginPath();
+  c.moveTo(x, y - r);
+  c.quadraticCurveTo(x, y, x + r, y);
+  c.quadraticCurveTo(x, y, x, y + r);
+  c.quadraticCurveTo(x, y, x - r, y);
+  c.quadraticCurveTo(x, y, x, y - r);
+  c.fillStyle = color;
+  c.fill();
+}
+// A crescent: the disc (cx, cy, R) less the one (ox, oy, r) biting into it, as a single shape
+// with one outline, rather than a disc painted over in the sky's colour
+function crescent(cx, cy, R, ox, oy, r) {
+  const dx = ox - cx;
+  const dy = oy - cy;
+  const d = Math.hypot(dx, dy);
+  const a = (R * R - r * r + d * d) / (2 * d);
+  const hh = Math.sqrt(Math.max(0, R * R - a * a));
+  const mx = cx + (dx * a) / d;
+  const my = cy + (dy * a) / d;
+  const p1 = [mx + (dy * hh) / d, my - (dx * hh) / d];
+  const p2 = [mx - (dy * hh) / d, my + (dx * hh) / d];
+  const ang = (x, y, px, py) => Math.atan2(py - y, px - x);
+  const path = new Path2D();
+  path.arc(cx, cy, R, ang(cx, cy, ...p1), ang(cx, cy, ...p2), true);
+  path.arc(ox, oy, r, ang(ox, oy, ...p2), ang(ox, oy, ...p1), false);
+  path.closePath();
+  return path;
+}
+// A stylised cloud: a stack of rounded pills, the way flat-colour illustration draws them
+function pillCloud(x, y, w, h) {
+  const path = new Path2D();
+  path.roundRect(x, y, w, h, h / 2);
+  path.roundRect(x + w * 0.18, y - h * 0.8, w * 0.5, h * 1.1, h * 0.55);
+  path.roundRect(x + w * 0.45, y - h * 0.45, w * 0.42, h, h / 2);
+  return path;
+}
+// Hard horizontal brush streaks across a band of sky, lighter and darker by turns
+function skyStreaks(c, w, y0, y1, rand, light, dark) {
+  for (let i = 0; i < 26; i++) {
+    const y = y0 + rand() * (y1 - y0);
+    const x = rand() * w;
+    c.fillStyle = rand() < 0.6 ? light : dark;
+    c.beginPath();
+    c.roundRect(x, y, w * (0.06 + rand() * 0.18), Math.max(2, (y1 - y0) * 0.012), 3);
+    c.fill();
+  }
+}
+
+// A city at night: moon, stars, a skyline with lit windows over the river, and the city
+// broken into wobbling bands of colour in the water
+function drawNightCity(c, w, h, ink, rand) {
   c.fillStyle = "#1e2a5a";
   c.fillRect(0, 0, w, h);
+  c.fillStyle = "#16204a";
+  c.fillRect(0, 0, w, h * 0.12);
   c.fillStyle = "#26356b";
   c.fillRect(0, h * 0.4, w, h * 0.3);
+  c.fillStyle = "#2e3f7a";
+  c.fillRect(0, h * 0.55, w, h * 0.25);
+  skyStreaks(c, w, 0, h * 0.55, rand, "rgba(127,178,255,.12)", "rgba(10,15,40,.18)");
+  [[0.1, 0.12, 1], [0.25, 0.22, 0.7], [0.4, 0.09, 1.2], [0.6, 0.18, 0.8], [0.92, 0.32, 0.7], [0.52, 0.3, 0.6], [0.16, 0.34, 0.8], [0.68, 0.07, 0.6], [0.32, 0.17, 0.5]]
+    .forEach(([x, y, k]) => sparkle(c, w * x, h * y, w * 0.012 * k));
   c.fillStyle = "#fffdf5";
-  [[0.1, 0.12], [0.25, 0.22], [0.4, 0.09], [0.6, 0.18], [0.92, 0.3], [0.52, 0.3], [0.16, 0.34]].forEach(([x, y]) => c.fillRect(w * x, h * y, w * 0.01, w * 0.01));
-  const moon = new Path2D();
-  moon.arc(w * 0.8, h * 0.2, h * 0.11, 0, Math.PI * 2);
-  ink(moon, "#ffdd00");
-  c.fillStyle = "#1e2a5a";
+  for (let i = 0; i < 30; i++) c.fillRect(rand() * w, rand() * h * 0.38, w * 0.003, w * 0.003);
+  // the moon, a ring of its light round it
   c.beginPath();
-  c.arc(w * 0.84, h * 0.17, h * 0.1, 0, Math.PI * 2);
+  c.arc(w * 0.8, h * 0.2, h * 0.16, 0, Math.PI * 2);
+  c.fillStyle = "rgba(255,221,0,.12)";
   c.fill();
+  ink(crescent(w * 0.8, h * 0.2, h * 0.11, w * 0.84, h * 0.17, h * 0.1), "#ffdd00");
+  ink(pillCloud(w * 0.6, h * 0.27, w * 0.2, h * 0.04), "#3b4a85", { blob: true });
+  ink(pillCloud(w * 0.05, h * 0.2, w * 0.16, h * 0.035), "#34437c", { blob: true });
   const towers = [[0.04, 0.5, 0.1, "#7fb2ff"], [0.15, 0.36, 0.09, "#ff90e8"], [0.25, 0.56, 0.08, "#00e0c6"], [0.34, 0.28, 0.11, "#ffb35c"],
     [0.46, 0.48, 0.09, "#c4b5fd"], [0.56, 0.4, 0.1, "#ff6b6b"], [0.67, 0.54, 0.08, "#8fd694"], [0.76, 0.44, 0.1, "#7fb2ff"], [0.87, 0.58, 0.1, "#ff90e8"]];
   towers.forEach(([x, top, bw, color], i) => {
+    // rooftop furniture first, so the tower's ink sits over its foot: an antenna, a water tank
+    // or a stepped-back top storey
+    c.strokeStyle = "#30283a";
+    c.lineWidth = Math.max(3, w / 220);
+    if (i % 3 === 0) {
+      c.beginPath();
+      c.moveTo(w * (x + bw * 0.5), h * top);
+      c.lineTo(w * (x + bw * 0.5), h * (top - 0.09));
+      c.moveTo(w * (x + bw * 0.38), h * (top - 0.05));
+      c.lineTo(w * (x + bw * 0.62), h * (top - 0.05));
+      c.stroke();
+      sparkle(c, w * (x + bw * 0.5), h * (top - 0.095), w * 0.008, "#ff6b6b");
+    } else if (i % 3 === 1) {
+      const tank = new Path2D();
+      tank.roundRect(w * (x + bw * 0.55), h * (top - 0.06), w * bw * 0.3, h * 0.06, 4);
+      ink(tank, "#8b5a2b", { cel: false });
+    } else {
+      const step = new Path2D();
+      step.rect(w * (x + bw * 0.2), h * (top - 0.05), w * bw * 0.6, h * 0.06);
+      ink(step, mixHex(color, "#1e2a5a", 0.25));
+    }
     const tower = new Path2D();
     tower.rect(w * x, h * top, w * bw, h * (0.8 - top));
     ink(tower, color);
-    c.fillStyle = "#ffdd00";
+    // windows: a grid, most lit, a few dark, each lit one with a ledge
     for (let wy = top + 0.05; wy < 0.74; wy += 0.07) {
-      for (let wx = 0; wx < 3; wx++) if ((i + wx + Math.round(wy * 20)) % 3) c.fillRect(w * (x + 0.015 + wx * bw * 0.3), h * wy, w * bw * 0.16, h * 0.035);
+      for (let wx = 0; wx < 3; wx++) {
+        const lit = (i + wx + Math.round(wy * 20)) % 3;
+        const px = w * (x + 0.015 + wx * bw * 0.3);
+        const py = h * wy;
+        c.fillStyle = lit ? "#ffdd00" : mixHex(color, "#1e2a5a", 0.55);
+        c.fillRect(px, py, w * bw * 0.16, h * 0.035);
+        if (lit) {
+          c.fillStyle = "#fff6b0";
+          c.fillRect(px, py, w * bw * 0.16, h * 0.008);
+        }
+        c.fillStyle = "rgba(48,40,58,.6)";
+        c.fillRect(px, py + h * 0.035, w * bw * 0.16, h * 0.005);
+      }
     }
   });
   const river = new Path2D();
   river.rect(-10, h * 0.8, w + 20, h * 0.25);
-  ink(river, "#172554");
+  ink(river, "#172554", { cel: false });
+  // the city in the water: each tower a stack of broken bands, sliding a little side to side
+  towers.forEach(([x, , bw, color], i) => {
+    for (let k = 0; k < 6; k++) {
+      const y = h * (0.815 + k * 0.03);
+      const off = Math.sin(i * 1.7 + k * 1.3) * w * 0.012;
+      c.fillStyle = mixHex(color, "#172554", 0.35 + k * 0.08);
+      c.fillRect(w * x + off, y, w * bw * (0.9 - k * 0.08), h * 0.014);
+    }
+  });
   c.fillStyle = "#ffdd00";
-  for (let i = 0; i < 6; i++) c.fillRect(w * (0.08 + i * 0.15), h * (0.86 + (i % 2) * 0.04), w * 0.06, h * 0.012);
+  for (let i = 0; i < 8; i++) c.fillRect(w * (0.06 + i * 0.12) + Math.sin(i) * w * 0.01, h * (0.84 + (i % 3) * 0.04), w * 0.04, h * 0.01);
+  c.fillStyle = "#fff6b0";
+  for (let k = 0; k < 4; k++) c.fillRect(w * (0.77 + Math.sin(k * 2) * 0.01), h * (0.83 + k * 0.035), w * (0.07 - k * 0.012), h * 0.01);
 }
 
-// A neo-brutalist great wave: a curling crest with foam claws, a small mountain far behind
-function drawWave(c, w, h, ink) {
+// A neo-brutalist great wave: a curling crest with foam claws, a small mountain far behind,
+// the water drawn in Hokusai's bands, and a boat riding the trough
+function drawWave(c, w, h, ink, rand) {
   c.fillStyle = "#fffdf5";
   c.fillRect(0, 0, w, h);
   c.fillStyle = "#ffdd00";
   c.fillRect(0, 0, w, h * 0.45);
+  c.fillStyle = "#ffe866";
+  c.fillRect(0, h * 0.3, w, h * 0.15);
+  skyStreaks(c, w, 0, h * 0.45, rand, "rgba(255,253,245,.35)", "rgba(255,150,0,.12)");
+  ink(pillCloud(w * 0.6, h * 0.16, w * 0.22, h * 0.045), "#fff4b0", { blob: true });
+  ink(pillCloud(w * 0.82, h * 0.3, w * 0.15, h * 0.035), "#fff4b0", { blob: true });
   const sun = new Path2D();
   sun.arc(w * 0.2, h * 0.22, h * 0.1, 0, Math.PI * 2);
   ink(sun, "#ff6b6b");
@@ -2504,7 +2747,21 @@ function drawWave(c, w, h, ink) {
   ink(cap, "#fffdf5");
   const sea = new Path2D();
   sea.rect(-10, h * 0.7, w + 20, h * 0.35);
-  ink(sea, "#3b82f6");
+  ink(sea, "#3b82f6", { cel: false });
+  // a long boat down in the trough, its rowers bent to the oars
+  const boat = new Path2D();
+  boat.moveTo(w * 0.5, h * 0.79);
+  boat.quadraticCurveTo(w * 0.62, h * 0.86, w * 0.78, h * 0.8);
+  boat.lineTo(w * 0.76, h * 0.83);
+  boat.quadraticCurveTo(w * 0.62, h * 0.88, w * 0.52, h * 0.82);
+  boat.closePath();
+  ink(boat, "#ffb35c");
+  c.fillStyle = "#30283a";
+  for (let i = 0; i < 6; i++) {
+    c.beginPath();
+    c.arc(w * (0.55 + i * 0.035), h * (0.805 + Math.sin(i) * 0.004), w * 0.007, 0, Math.PI * 2);
+    c.fill();
+  }
   // The big wave rising from the left and curling over to the right
   const wave = new Path2D();
   wave.moveTo(-10, h);
@@ -2514,23 +2771,47 @@ function drawWave(c, w, h, ink) {
   wave.bezierCurveTo(w * 0.42, h * 0.58, w * 0.55, h * 0.75, w * 0.62, h);
   wave.closePath();
   ink(wave, "#1e40af");
+  // its water in bands: lines following the wave's sweep, pale over the dark blue
+  c.save();
+  c.clip(wave);
+  c.strokeStyle = "#7fb2ff";
+  c.lineWidth = Math.max(3, w / 260);
+  for (let k = 1; k <= 7; k++) {
+    const t = k / 8;
+    c.beginPath();
+    c.moveTo(-10, h * (0.6 + t * 0.4));
+    c.bezierCurveTo(w * (0.05 + t * 0.06), h * (0.25 + t * 0.35), w * (0.36 - t * 0.04), h * (0.16 + t * 0.3), w * (0.47 - t * 0.02), h * (0.3 + t * 0.3));
+    c.stroke();
+  }
+  c.restore();
   const inner = new Path2D();
   inner.moveTo(w * 0.04, h);
   inner.bezierCurveTo(w * 0.02, h * 0.6, w * 0.18, h * 0.38, w * 0.3, h * 0.36);
   inner.bezierCurveTo(w * 0.24, h * 0.5, w * 0.36, h * 0.8, w * 0.42, h);
   inner.closePath();
   ink(inner, "#00e0c6");
-  // foam claws along the crest
-  c.fillStyle = "#fffdf5";
-  c.strokeStyle = "#000";
+  // foam along the crest: round heads, each with a little claw curling off it, and spray
   c.lineWidth = Math.max(4, w / 140);
-  [[0.38, 0.17], [0.43, 0.2], [0.47, 0.25], [0.3, 0.16], [0.22, 0.2], [0.5, 0.31]].forEach(([x, y], i) => {
+  [[0.38, 0.17], [0.43, 0.2], [0.47, 0.25], [0.3, 0.16], [0.22, 0.2], [0.5, 0.31], [0.14, 0.27], [0.34, 0.15]].forEach(([x, y], i) => {
+    const r = h * (0.035 - (i % 2) * 0.01);
+    const foam = new Path2D();
+    foam.arc(w * x, h * y, r, 0, Math.PI * 2);
+    ink(foam, "#fffdf5");
+    c.strokeStyle = "#30283a";
     c.beginPath();
-    c.arc(w * x, h * y, h * (0.035 - (i % 2) * 0.01), 0, Math.PI * 2);
-    c.fill();
+    c.arc(w * x + r * 0.9, h * y + r * 0.5, r * 0.6, Math.PI * 1.2, Math.PI * 0.2);
     c.stroke();
   });
-  // small waves in the foreground
+  [[0.52, 0.14], [0.55, 0.2], [0.47, 0.1], [0.58, 0.26], [0.42, 0.08], [0.6, 0.18]].forEach(([x, y]) => {
+    c.beginPath();
+    c.arc(w * x, h * y, w * 0.006, 0, Math.PI * 2);
+    c.fillStyle = "#fffdf5";
+    c.fill();
+    c.lineWidth = 2;
+    c.strokeStyle = "#30283a";
+    c.stroke();
+  });
+  // small waves in the foreground, each capped with foam
   for (let i = 0; i < 5; i++) {
     const small = new Path2D();
     const x = w * (0.55 + i * 0.1);
@@ -2538,33 +2819,56 @@ function drawWave(c, w, h, ink) {
     small.quadraticCurveTo(x, h * 0.8, x + w * 0.05, h * 0.9);
     small.closePath();
     ink(small, "#7fb2ff");
+    c.beginPath();
+    c.arc(x, h * 0.856, w * 0.009, 0, Math.PI * 2);
+    c.fillStyle = "#fffdf5";
+    c.fill();
   }
 }
 
-function drawSunset(c, w, h, ink) {
-  // sky bands
-  [["#ff90e8", 0], ["#ffb35c", 0.28], ["#ffdd00", 0.46]].forEach(([color, y]) => {
+function drawSunset(c, w, h, ink, rand) {
+  // sky bands, with thin steps between them and hard brush streaks across
+  [["#ff90e8", 0], ["#ffa3d8", 0.2], ["#ffb35c", 0.28], ["#ffc85a", 0.38], ["#ffdd00", 0.46]].forEach(([color, y]) => {
     c.fillStyle = color;
     c.fillRect(0, h * y, w, h);
   });
-  // stars and a ringed planet
-  c.fillStyle = "#fffdf5";
-  [[0.08, 0.1], [0.2, 0.2], [0.36, 0.08], [0.55, 0.16], [0.9, 0.1], [0.78, 0.24]].forEach(([x, y]) => {
-    c.fillRect(w * x, h * y, w * 0.012, w * 0.012);
-  });
+  skyStreaks(c, w, 0, h * 0.6, rand, "rgba(255,253,245,.22)", "rgba(200,60,120,.1)");
+  // stars as sparkles
+  [[0.08, 0.1, 1], [0.2, 0.2, 0.7], [0.36, 0.08, 1], [0.55, 0.16, 0.8], [0.9, 0.08, 0.9], [0.66, 0.06, 0.6], [0.28, 0.3, 0.5]].forEach(([x, y, k]) => sparkle(c, w * x, h * y, w * 0.013 * k));
+  // a ringed planet: the ring's far half behind it, its near half in front
+  const ring = (front) => {
+    c.save();
+    c.translate(w * 0.82, h * 0.2);
+    c.rotate(-0.35);
+    c.beginPath();
+    c.ellipse(0, 0, h * 0.15, h * 0.035, 0, front ? 0 : Math.PI, front ? Math.PI : Math.PI * 2);
+    c.lineWidth = Math.max(9, w / 70);
+    c.strokeStyle = "#30283a";
+    c.stroke();
+    c.lineWidth = Math.max(5, w / 130);
+    c.strokeStyle = "#fffdf5";
+    c.stroke();
+    c.restore();
+  };
+  ring(false);
   const planet = new Path2D();
   planet.arc(w * 0.82, h * 0.2, h * 0.08, 0, Math.PI * 2);
   ink(planet, "#7fb2ff");
   c.save();
-  c.translate(w * 0.82, h * 0.2);
-  c.rotate(-0.35);
-  c.lineWidth = Math.max(5, w / 110);
-  c.strokeStyle = "#000";
-  c.beginPath();
-  c.ellipse(0, 0, h * 0.15, h * 0.035, 0, 0, Math.PI * 2);
-  c.stroke();
+  c.clip(planet);
+  c.fillStyle = "#6a9cf0";
+  c.fillRect(w * 0.7, h * 0.17, w * 0.25, h * 0.018);
+  c.fillRect(w * 0.7, h * 0.22, w * 0.25, h * 0.012);
   c.restore();
-  // big sun, half behind the hills
+  ring(true);
+  // clouds, stacked pills catching the low light on their undersides
+  ink(pillCloud(w * 0.06, h * 0.26, w * 0.24, h * 0.045), "#ffc6e8", { blob: true });
+  ink(pillCloud(w * 0.6, h * 0.38, w * 0.2, h * 0.04), "#ffd9a8", { blob: true });
+  // big sun, half behind the hills, a ring of glow round it
+  c.beginPath();
+  c.arc(w * 0.42, h * 0.6, h * 0.31, 0, Math.PI * 2);
+  c.fillStyle = "rgba(255,253,245,.22)";
+  c.fill();
   const sun = new Path2D();
   sun.arc(w * 0.42, h * 0.6, h * 0.26, 0, Math.PI * 2);
   ink(sun, "#ff6b6b");
@@ -2588,11 +2892,55 @@ function drawSunset(c, w, h, ink) {
     path.lineTo(w, h);
     path.closePath();
     ink(path, fill);
+    return path;
   };
   hill([[0, 0.7], [0.18, 0.55], [0.34, 0.68], [0.52, 0.5], [0.72, 0.66], [0.88, 0.56], [1, 0.62]], "#00e0c6");
-  hill([[0, 0.82], [0.22, 0.7], [0.45, 0.8], [0.66, 0.72], [0.84, 0.8], [1, 0.74]], "#3b82f6");
+  // a row of round trees along the middle ridge
+  [[0.12, 0.66], [0.2, 0.62], [0.27, 0.66], [0.58, 0.6], [0.63, 0.63]].forEach(([x, y], i) => {
+    c.fillStyle = "#30283a";
+    c.fillRect(w * x - w * 0.003, h * y, w * 0.006, h * 0.05);
+    const crown = new Path2D();
+    crown.arc(w * x, h * y, w * (0.018 + (i % 2) * 0.006), 0, Math.PI * 2);
+    ink(crown, "#16a34a");
+  });
+  const mid = hill([[0, 0.82], [0.22, 0.7], [0.45, 0.8], [0.66, 0.72], [0.84, 0.8], [1, 0.74]], "#3b82f6");
+  // a winding path down the middle hill
+  c.save();
+  c.clip(mid);
+  c.strokeStyle = "#ffdd00";
+  c.lineWidth = Math.max(5, w / 90);
+  c.beginPath();
+  c.moveTo(w * 0.7, h * 0.82);
+  c.bezierCurveTo(w * 0.6, h * 0.86, w * 0.78, h * 0.9, w * 0.62, h * 0.98);
+  c.stroke();
+  c.restore();
   hill([[0, 0.92], [0.3, 0.84], [0.55, 0.9], [0.8, 0.83], [1, 0.9]], "#8fd694");
-  // a tiny house with a lit window
+  // grass tufts and a few flowers across the front hill
+  c.strokeStyle = "#16a34a";
+  c.lineWidth = Math.max(2, w / 300);
+  c.beginPath();
+  for (let i = 0; i < 26; i++) {
+    const x = rand() * w;
+    const y = h * (0.92 + rand() * 0.06);
+    c.moveTo(x - w * 0.006, y - h * 0.018);
+    c.lineTo(x, y);
+    c.lineTo(x + w * 0.006, y - h * 0.02);
+  }
+  c.stroke();
+  [[0.1, 0.94, "#ff6b6b"], [0.36, 0.93, "#fffdf5"], [0.48, 0.96, "#ff90e8"], [0.9, 0.93, "#ffdd00"]].forEach(([x, y, color]) => {
+    const bloom = new Path2D();
+    bloom.arc(w * x, h * y, w * 0.007, 0, Math.PI * 2);
+    ink(bloom, color, { cel: false });
+  });
+  // a tiny house with a lit window, a chimney puffing and a fence beside it
+  const chimney = new Path2D();
+  chimney.rect(w * 0.73, h * 0.68, w * 0.012, h * 0.04);
+  ink(chimney, "#8b5a2b", { cel: false });
+  [[0.738, 0.655, 0.008], [0.748, 0.625, 0.011], [0.762, 0.59, 0.014]].forEach(([x, y, r]) => {
+    const puff = new Path2D();
+    puff.arc(w * x, h * y, w * r, 0, Math.PI * 2);
+    ink(puff, "#fffdf5", { cel: false });
+  });
   const house = new Path2D();
   house.rect(w * 0.68, h * 0.74, w * 0.07, h * 0.08);
   ink(house, "#fffdf5");
@@ -2604,6 +2952,18 @@ function drawSunset(c, w, h, ink) {
   ink(roof, "#ff6b6b");
   c.fillStyle = "#ffdd00";
   c.fillRect(w * 0.7, h * 0.765, w * 0.025, h * 0.03);
+  c.fillStyle = "#30283a";
+  c.fillRect(w * 0.73, h * 0.78, w * 0.012, h * 0.04);
+  c.strokeStyle = "#30283a";
+  c.lineWidth = Math.max(2, w / 300);
+  c.beginPath();
+  for (let i = 0; i < 5; i++) {
+    c.moveTo(w * (0.77 + i * 0.018), h * 0.82);
+    c.lineTo(w * (0.77 + i * 0.018), h * 0.795);
+  }
+  c.moveTo(w * 0.765, h * 0.802);
+  c.lineTo(w * 0.85, h * 0.802);
+  c.stroke();
 }
 
 // ---------- rug under the desk: plain charcoal with a thin cream inset border ----------
@@ -2894,10 +3254,14 @@ function mixHex(a, b, k) {
   const ch = (shift) => Math.round(((pa >> shift) & 255) * (1 - k) + ((pb >> shift) & 255) * k);
   return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, "0")}`;
 }
+// Grass tufts on the near shore: where each stands (0–1 across, 0–1 down the bank) and how tall
+const GRASS_TUFTS = Array.from({ length: 30 }, (_, i) => ({ x: (i * 0.6180339 + 0.03) % 1, y: (i * 0.3819 + 0.12) % 1, s: 0.7 + ((i * 0.7071) % 1) * 0.6 }));
+// A snapshot of the view, for the raindrops on the glass to refract
+let glassCopy = null;
 // Raindrops stuck to the glass: where each sits, how big, and how fast it slides
 const GLASS_DROPS = Array.from({ length: 22 }, (_, i) => ({ x: (i * 0.383 + 0.07) % 1, y: (i * 0.617) % 1, r: 1.1 + ((i * 0.29) % 1) * 1.5, v: 0.004 + ((i * 0.53) % 1) * 0.02 }));
 // Fine beads of water stuck to the glass between the drops
-const GLASS_BEADS = Array.from({ length: 70 }, (_, i) => ({ x: (i * 0.6180339 + 0.11) % 1, y: (i * 0.4142 + 0.37) % 1, r: 0.25 + ((i * 0.7071) % 1) * 0.45 }));
+const GLASS_BEADS = Array.from({ length: 70 }, (_, i) => ({ x: (i * 0.6180339 + 0.11) % 1, y: (i * 0.4142 + 0.37) % 1, r: 0.2 + ((i * 0.7071) % 1) * 0.3 }));
 // The sky through the day: top band, middle, horizon; the sun's height, colour and side
 const SKIES = {
   morning: { sky: ["#ffb98a", "#ffd4a8", "#fff0d6"], sun: [0.26, 0.38, "#ffcf5c"], cloud: "#fff3e3" },
@@ -2939,11 +3303,68 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
     });
   };
   const wrapX = (x, margin) => ((x % (w + margin * 2)) + w + margin * 2) % (w + margin * 2) - margin;
+  // Painted like a background plate: the sun (or moon) picks a side, every form gets a lit face
+  // toward it and a cool shade face away from it, and shadows fall the other way
+  const lightSide = look.sun[0] < 0.5 ? -1 : 1;
+  const SHADE = dark ? "#0b1030" : time === "evening" ? "#3a1f5c" : "#3b3a7a";
+  const shade = (color, k = 0.3) => mixHex(color, SHADE, k);
+  const glow = (color, k = 0.3) => mixHex(color, dark ? "#c9d4ff" : time === "evening" ? "#ffc58f" : "#fffdf5", k);
+  // Wind instead of every stalk on its own metronome: a light breeze rolling across the view,
+  // and every few seconds a gust sweeping in from the left. Each thing leans as the gust reaches
+  // it, then springs back past upright and settles; `lag` lets a crown trail its trunk.
+  const GUST_EVERY = 7;
+  const gustFront = ((t / GUST_EVERY) % 1) * 1.8 - 0.4;
+  const wind = (x, lag = 0) => {
+    const tt = t - lag;
+    const breeze = Math.sin(tt * 1.3 - x * 4) * 0.25 + Math.sin(tt * 2.9 - x * 9) * 0.08;
+    const behind = ((tt / GUST_EVERY) % 1) * 1.8 - 0.4 - x;
+    const gust = behind > 0 ? (1 - Math.exp(-behind * 40)) * Math.exp(-behind * 5) * Math.cos(behind * 14) : 0;
+    return (breeze + gust * 1.1) * (1 + rain * 0.8);
+  };
+  const lumps = (parts, dx = 0, dy = 0, grow = 1) => {
+    c.beginPath();
+    parts.forEach(([x, y, r, rw, rh]) => {
+      if (rw) c.rect(x + dx, y + dy, rw, rh);
+      else {
+        c.moveTo(x + dx + r * grow, y + dy);
+        c.arc(x + dx, y + dy, r * grow, 0, Math.PI * 2);
+      }
+    });
+  };
+  // A blob in two tones: its own colour where the light reaches, shade in the crescent beneath
+  // and away from the sun, and a small sheen on the bigger lumps facing it
+  const celBlob = (parts, color, size, shadow) => {
+    blob(parts, color, shadow);
+    c.save();
+    lumps(parts);
+    c.clip();
+    c.fillStyle = shade(color, 0.28);
+    c.fillRect(-w * 2, -h * 2, w * 4, h * 4);
+    lumps(parts, lightSide * size * 0.12, -size * 0.16, 0.96);
+    c.fillStyle = color;
+    c.fill();
+    c.beginPath();
+    parts.forEach(([x, y, r, rw]) => {
+      if (rw || r < size * 0.3) return;
+      const hx = x + lightSide * r * 0.38;
+      const hy = y - r * 0.45;
+      c.moveTo(hx + r * 0.22, hy);
+      c.ellipse(hx, hy, r * 0.22, r * 0.12, 0, 0, Math.PI * 2);
+    });
+    c.fillStyle = glow(color, 0.4);
+    c.fill();
+    c.restore();
+  };
 
   // Sky in flat bands, lighter toward the horizon
   const SKY = look.sky.map(grey);
   c.fillStyle = SKY[0];
   c.fillRect(0, 0, w, h);
+  // a deeper zenith and an in-between band, so the steps down to the horizon stay small
+  c.fillStyle = shade(SKY[0], dark ? 0.25 : 0.08);
+  c.fillRect(0, 0, w, h * 0.1);
+  c.fillStyle = mixHex(SKY[0], SKY[1], 0.5);
+  c.fillRect(0, h * 0.21, w, h * 0.09);
   c.fillStyle = SKY[1];
   c.fillRect(0, h * 0.3, w, h * 0.1);
   c.fillStyle = SKY[2];
@@ -2989,26 +3410,35 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   c.globalAlpha = 1 - rain * 0.9;
   c.fillStyle = halo;
   c.fillRect(sx - sr * 4, sy - sr * 4, sr * 8, sr * 8);
+  // A ring of light swelling out from it now and then, fading as it grows
+  const ring = (t * 0.22) % 1;
+  c.globalAlpha = (1 - ring) * 0.4 * (1 - rain);
+  c.beginPath();
+  c.arc(sx, sy, sr * (1.25 + ring * 1.9), 0, Math.PI * 2);
+  stroke(line * (1.4 - ring), dark ? "#fffdf5" : glow(sunColor, 0.5));
   c.globalAlpha = 1 - rain * 0.85;
+  // it breathes: a slow swell, and the rays stretching in a wave that runs round the disc
+  const breathe = 1 + 0.03 * Math.sin(t * 1.6);
   if (!dark) {
     c.save();
     c.translate(sx, sy);
     c.rotate(t * 0.25);
     for (let i = 0; i < 10; i++) {
       c.rotate((Math.PI * 2) / 10);
+      const tip = sr * ((i % 2 ? 1.55 : 1.72) + 0.13 * Math.sin(t * 2.4 - i * 1.25));
       c.beginPath();
       c.moveTo(sr * 1.3, 0);
-      c.lineTo(sr * 1.65, 0);
+      c.lineTo(tip, 0);
       stroke(line * 3.2, "#000");
       c.beginPath();
       c.moveTo(sr * 1.3, 0);
-      c.lineTo(sr * 1.65, 0);
+      c.lineTo(tip, 0);
       stroke(line * 1.4, sunColor);
     }
     c.restore();
-    blob([[sx, sy, sr]], sunColor);
+    celBlob([[sx, sy, sr * breathe]], sunColor, sr);
   } else {
-    blob([[sx, sy, sr]], "#fffdf5");
+    celBlob([[sx, sy, sr * breathe]], "#fffdf5", sr);
     [[-0.3, -0.2, 0.22], [0.3, 0.25, 0.16], [0.15, -0.38, 0.1]].forEach(([dx, dy, r]) => {
       c.beginPath();
       c.arc(sx + dx * sr, sy + dy * sr, r * sr, 0, Math.PI * 2);
@@ -3019,12 +3449,17 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   }
   c.globalAlpha = 1;
 
-  // Clouds drifting across (more, lower and heavier when it rains)
+  // Clouds drifting across (more, lower and heavier when it rains); where each is, so its
+  // shadow can slide over the mountains below it
+  const cloudSpots = [];
   [[0.1, 0.12, 1, 6], [0.55, 0.3, 0.75, 9], [0.85, 0.08, 0.6, 4.5]].forEach(([bx, by, size, speed], i) => {
     const x = wrapX(bx * w + t * speed * u, w * 0.2);
     const y = by * h + Math.sin(t * 0.4 + i) * u * 0.4;
     const s = size * u * 9;
-    blob([[x - s * 0.55, y + s * 0.1, s * 0.42], [x, y - s * 0.15, s * 0.58], [x + s * 0.55, y + s * 0.08, s * 0.45], [x - s * 0.55, y + s * 0.1, 0, s * 1.1, s * 0.42]], grey(look.cloud));
+    // each puff swells and settles on its own beat, so the cloud slowly changes shape as it drifts
+    const puff = (k) => s * (1 + 0.05 * Math.sin(t * 0.6 + i * 2.3 + k * 1.9));
+    cloudSpots.push([x, s]);
+    celBlob([[x - s * 0.55, y + s * 0.1, puff(0) * 0.42], [x, y - s * 0.15, puff(1) * 0.58], [x + s * 0.55, y + s * 0.08, puff(2) * 0.45], [x - s * 0.55, y + s * 0.1, 0, s * 1.1, s * 0.42]], grey(look.cloud), s);
   });
   if (rain > 0.05) {
     c.globalAlpha = Math.min(1, rain * 1.5);
@@ -3042,6 +3477,11 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
     const hx = wrapX(w * 0.15 + t * u * 1.6, u * 12);
     const hy = h * 0.2 + Math.sin(t * 0.5) * u * 1.5;
     const r = u * 4.2;
+    // swinging gently from the envelope, the basket trailing behind the drift
+    c.save();
+    c.translate(hx, hy);
+    c.rotate(Math.sin(t * 0.9) * 0.07 - 0.03);
+    c.translate(-hx, -hy);
     c.beginPath();
     c.moveTo(hx - r * 0.55, hy + r * 0.85);
     c.lineTo(hx - r * 0.3, hy + r * 1.75);
@@ -3059,6 +3499,7 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
     c.fillStyle = "#fffdf5";
     c.fillRect(hx - r, hy - r * 0.12, r * 2, r * 0.24);
     c.restore();
+    c.restore();
   }
 
   // A far range, paler and softer-edged, the haze between it and the near peaks
@@ -3070,28 +3511,97 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   c.fillStyle = grey(mixHex(dark ? "#3b3570" : time === "evening" ? "#9b7fd4" : "#c4b5fd", SKY[2], 0.55));
   c.fill();
   stroke(line * 0.6, "rgba(0,0,0,.45)");
-  // Mountains behind the lake
-  c.beginPath();
-  c.moveTo(-line, h * 0.6);
-  [[0, 0.46], [0.14, 0.34], [0.3, 0.5], [0.45, 0.38], [0.62, 0.52], [0.8, 0.36], [1, 0.48]].forEach(([x, y]) => c.lineTo(w * x, h * y));
-  c.lineTo(w + line, h * 0.6);
-  c.closePath();
-  c.fillStyle = grey(dark ? "#3b3570" : time === "evening" ? "#9b7fd4" : "#c4b5fd");
+  // Mountains behind the lake (drawn again, upside down, in the water)
+  const RIDGE = [[0, 0.46], [0.14, 0.34], [0.3, 0.5], [0.45, 0.38], [0.62, 0.52], [0.8, 0.36], [1, 0.48]];
+  const ridge = (mapY = (y) => y) => {
+    c.beginPath();
+    c.moveTo(-line, mapY(h * 0.6));
+    RIDGE.forEach(([x, y]) => c.lineTo(w * x, mapY(h * y)));
+    c.lineTo(w + line, mapY(h * 0.6));
+    c.closePath();
+  };
+  const mountainColor = grey(dark ? "#3b3570" : time === "evening" ? "#9b7fd4" : "#c4b5fd");
+  ridge();
+  c.fillStyle = mountainColor;
   c.fill();
+  c.save();
+  c.clip();
+  // Each peak's far side from the light in shade, the edge kinked on the way down so it reads
+  // as a rock face rather than a wedge; a few gullies scored down the lit side
+  [1, 3, 5].forEach((p) => {
+    const [px, py] = RIDGE[p];
+    const [vx, vy] = RIDGE[p - lightSide];
+    c.beginPath();
+    c.moveTo(w * px, h * py);
+    c.lineTo(w * vx, h * vy);
+    c.lineTo(w * vx, h * 0.6);
+    c.lineTo(w * (px - lightSide * 0.012), h * 0.6);
+    c.lineTo(w * (px + lightSide * 0.014), h * (py + (0.6 - py) * 0.5));
+    c.lineTo(w * (px - lightSide * 0.004), h * (py + (0.6 - py) * 0.22));
+    c.closePath();
+    c.fillStyle = shade(mountainColor, 0.3);
+    c.fill();
+    c.beginPath();
+    [[0.024, 0.085, 0.036, 0.15], [0.058, 0.1, 0.07, 0.16], [0.012, 0.13, 0.016, 0.2]].forEach(([x0, y0, x1, y1]) => {
+      c.moveTo(w * (px + lightSide * x0), h * (py + y0));
+      c.lineTo(w * (px + lightSide * x1), h * (py + y1));
+    });
+    stroke(line * 0.55, shade(mountainColor, 0.18));
+  });
+  // the clouds' shadows sliding over the slopes, cast away from the light
+  c.fillStyle = SHADE;
+  c.globalAlpha = (dark ? 0.2 : 0.14) * (1 + rain * 0.5);
+  cloudSpots.forEach(([x, s], i) => {
+    c.beginPath();
+    c.ellipse(x - lightSide * s * 0.7, h * (0.44 + (i % 2) * 0.06), s * 1.25, s * 0.42, -lightSide * 0.12, 0, Math.PI * 2);
+    c.fill();
+  });
+  c.globalAlpha = 1;
+  c.restore();
+  ridge();
   stroke();
-  // Snow caps
+  // Snow caps, their shaded half a cool blue-grey
   [[0.14, 0.34], [0.45, 0.38], [0.8, 0.36]].forEach(([x, y]) => {
+    const cap = () => {
+      c.beginPath();
+      c.moveTo(w * x, h * y);
+      c.lineTo(w * (x + 0.045), h * (y + 0.05));
+      c.lineTo(w * (x + 0.015), h * (y + 0.04));
+      c.lineTo(w * (x - 0.02), h * (y + 0.055));
+      c.lineTo(w * (x - 0.05), h * (y + 0.05));
+      c.closePath();
+    };
+    const snow = dark ? "#c9c5dc" : "#fffdf5";
+    cap();
+    c.fillStyle = snow;
+    c.fill();
+    c.save();
+    c.clip();
     c.beginPath();
     c.moveTo(w * x, h * y);
-    c.lineTo(w * (x + 0.045), h * (y + 0.05));
-    c.lineTo(w * (x + 0.015), h * (y + 0.04));
-    c.lineTo(w * (x - 0.02), h * (y + 0.055));
-    c.lineTo(w * (x - 0.05), h * (y + 0.05));
+    c.lineTo(w * (x - lightSide * 0.06), h * (y + 0.06));
+    c.lineTo(w * (x + lightSide * 0.004), h * (y + 0.06));
     c.closePath();
-    c.fillStyle = dark ? "#c9c5dc" : "#fffdf5";
+    c.fillStyle = shade(snow, 0.2);
     c.fill();
+    c.restore();
+    cap();
     stroke(line * 0.8);
   });
+
+  // Mist hanging along the foot of the mountains, drifting and thinning as it goes
+  c.fillStyle = mixHex(SKY[2], "#ffffff", dark ? 0.1 : 0.45);
+  for (let i = 0; i < 4; i++) {
+    const mw = w * (0.22 + (i % 2) * 0.1);
+    const mx = wrapX(((i * 0.31) % 1) * w + t * u * (0.5 + i * 0.25), mw);
+    const my = h * (0.535 + (i % 3) * 0.015) + Math.sin(t * 0.5 + i * 2) * u * 0.4;
+    const mh = u * (1.4 + (i % 2) * 0.6) * (0.85 + 0.15 * Math.sin(t * 0.7 + i));
+    c.globalAlpha = (dark ? 0.25 : 0.45) * (0.7 + 0.3 * Math.sin(t * 0.4 + i * 1.7));
+    c.beginPath();
+    c.roundRect(mx - mw / 2, my - mh / 2, mw, mh, mh / 2);
+    c.fill();
+  }
+  c.globalAlpha = 1;
 
   // The far shore: a low green bank with round bushes, a few houses (lit up at night, smoke
   // curling from a chimney) and a lighthouse on the point, its beam sweeping after dark
@@ -3101,7 +3611,8 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   for (let x = 0; x <= 1.001; x += 0.05) c.lineTo(w * x, bank - h * (0.012 + 0.01 * Math.sin(x * 17)));
   c.lineTo(w + line, bank + line);
   c.closePath();
-  c.fillStyle = grey(dark ? "#245239" : "#5fbf6a");
+  const bankColor = grey(dark ? "#245239" : "#5fbf6a");
+  c.fillStyle = bankColor;
   c.fill();
   stroke(line * 0.8);
   [0.04, 0.11, 0.17, 0.42, 0.5, 0.84, 0.9].forEach((x, i) => blob([[w * x, bank - h * 0.018, u * (1.6 + (i % 3) * 0.5)]], grey(dark ? "#1f5c3a" : "#2f9e57"), 0));
@@ -3110,18 +3621,32 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
     const hw = u * (3.4 + (i % 2) * 0.6);
     const hh = u * 2.6;
     const base = bank - h * 0.008;
+    c.fillStyle = grey("#fffdf5");
+    c.fillRect(hx - hw / 2, base - hh, hw, hh);
+    // the gable end turned from the light, and the roof's slope on that side, in shade
+    c.fillStyle = shade(grey("#fffdf5"), 0.25);
+    c.fillRect(lightSide > 0 ? hx - hw / 2 : hx + hw * 0.18, base - hh, hw * 0.32, hh);
     c.beginPath();
     c.rect(hx - hw / 2, base - hh, hw, hh);
-    c.fillStyle = grey("#fffdf5");
-    c.fill();
     stroke(line * 0.7);
-    c.beginPath();
-    c.moveTo(hx - hw * 0.62, base - hh);
-    c.lineTo(hx, base - hh - u * 2.2);
-    c.lineTo(hx + hw * 0.62, base - hh);
-    c.closePath();
+    const gable = () => {
+      c.beginPath();
+      c.moveTo(hx - hw * 0.62, base - hh);
+      c.lineTo(hx, base - hh - u * 2.2);
+      c.lineTo(hx + hw * 0.62, base - hh);
+      c.closePath();
+    };
+    gable();
     c.fillStyle = grey(roof);
     c.fill();
+    c.beginPath();
+    c.moveTo(hx, base - hh - u * 2.2);
+    c.lineTo(hx - lightSide * hw * 0.62, base - hh);
+    c.lineTo(hx, base - hh);
+    c.closePath();
+    c.fillStyle = shade(grey(roof), 0.3);
+    c.fill();
+    gable();
     stroke(line * 0.7);
     c.fillStyle = dark ? "#ffdd00" : "#30437f";
     c.fillRect(hx - u * 0.6, base - hh * 0.7, u * 1.2, u * 1.1);
@@ -3167,6 +3692,8 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   c.clip();
   c.fillStyle = grey("#e5484d");
   [0.25, 0.6].forEach((k) => c.fillRect(lx - u * 2, lBase - (lBase - lTop) * k - u * 0.7, u * 4, u * 1.4));
+  c.fillStyle = dark ? "rgba(11,16,48,.35)" : "rgba(59,58,122,.22)";
+  c.fillRect(lightSide > 0 ? lx - u * 2 : lx + u * 0.35, lTop, u * 1.65, lBase - lTop);
   c.restore();
   stroke(line * 0.7);
   c.beginPath();
@@ -3186,19 +3713,112 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   // The lake: ripples sliding, the sun/moon's reflection wobbling, a little sailboat
   const lakeTop = h * 0.58;
   const lakeBottom = h * 0.78;
-  c.fillStyle = grey(dark ? "#172554" : "#3b82f6");
+  const lakeColor = grey(dark ? "#172554" : "#3b82f6");
+  c.fillStyle = lakeColor;
   c.fillRect(0, lakeTop, w, lakeBottom - lakeTop);
+  c.save();
+  c.beginPath();
+  c.rect(0, lakeTop, w, lakeBottom - lakeTop);
+  c.clip();
+  // The far bank and the mountains mirrored in the water: squashed, sunk into its colour and
+  // cut into thin bands that each sway on their own beat, more the further out from the bank
+  // and fainter too, so the reflection wobbles like water instead of sitting there as a stamp
+  const mirrored = (y) => lakeTop + (lakeTop - y) * 0.55;
+  const reflectFill = mixHex(lakeColor, mountainColor, dark ? 0.3 : 0.38);
+  const band = u * 1.1;
+  for (let y = lakeTop, k = 0; y < lakeTop + h * 0.14; y += band, k++) {
+    const depth = (y - lakeTop) / (h * 0.14);
+    const dx = (Math.sin(t * 1.7 + k * 0.9) * 0.6 + Math.sin(t * 0.9 - k * 0.45) * 0.4) * u * (0.3 + depth * 1.6);
+    c.save();
+    c.beginPath();
+    c.rect(0, y, w, band + 0.5);
+    c.clip();
+    c.translate(dx, 0);
+    c.globalAlpha = 1 - depth * 0.55;
+    ridge(mirrored);
+    c.fillStyle = reflectFill;
+    c.fill();
+    c.restore();
+  }
+  // the far bank's green right under it, its lower edge rippling
+  c.beginPath();
+  c.moveTo(0, lakeTop);
+  for (let x = 0; x <= w + u * 2; x += u * 2) c.lineTo(x, lakeTop + u * (1.6 + 0.35 * Math.sin(t * 2 + x / (u * 3))));
+  c.lineTo(w + u * 2, lakeTop);
+  c.closePath();
+  c.fillStyle = mixHex(lakeColor, bankColor, 0.5);
+  c.fill();
+  // soft breaks of open water drifting through it, rounded at the ends, stretching and easing
+  for (let i = 0; i < 7; i++) {
+    const y = lakeTop + u * (2.6 + i * 1.9);
+    const len = w * (0.12 + (i % 3) * 0.06) * (0.75 + 0.25 * Math.sin(t * 0.7 + i * 2.3));
+    const x = wrapX(((i * 0.37) % 1) * w + t * u * (0.6 + (i % 3) * 0.35) + Math.sin(t * 0.8 + i * 1.7) * u * 3, w * 0.3);
+    c.beginPath();
+    c.moveTo(x, y);
+    c.quadraticCurveTo(x + len / 2, y + Math.sin(t * 1.3 + i) * u * 0.5, x + len, y);
+    stroke(u * (0.5 + (i % 2) * 0.35), lakeColor);
+  }
+  // deeper water toward the near shore
+  c.fillStyle = shade(lakeColor, 0.18);
+  c.fillRect(0, lakeBottom - u * 3.2, w, u * 3.2);
+  // the gust darkening the water as it crosses (a cat's paw), ruffled with short strokes
+  if (gustFront > -0.1 && gustFront < 1.1) {
+    const gx = gustFront * w;
+    const gy = lakeTop + (lakeBottom - lakeTop) * 0.55;
+    c.globalAlpha = 0.18;
+    c.fillStyle = SHADE;
+    c.beginPath();
+    c.ellipse(gx - w * 0.06, gy, w * 0.14, (lakeBottom - lakeTop) * 0.32, 0, 0, Math.PI * 2);
+    c.fill();
+    c.globalAlpha = 0.6;
+    c.beginPath();
+    for (let k = 0; k < 6; k++) {
+      const rx = gx - w * (0.02 + ((k * 0.37) % 1) * 0.16);
+      const ry = gy + ((k * 0.61) % 1 - 0.5) * (lakeBottom - lakeTop) * 0.45;
+      c.moveTo(rx, ry);
+      c.lineTo(rx + u * 2, ry);
+    }
+    stroke(line * 0.5, glow(lakeColor, 0.5));
+    c.globalAlpha = 1;
+  }
+  // glints twinkling on the water under the sun (or moon)
+  c.fillStyle = dark ? "#fffdf5" : glow(sunColor, 0.6);
+  for (let k = 0; k < 6; k++) {
+    const g = Math.max(0, Math.sin(t * 2.6 + k * 2.1));
+    const gs = u * 1.3 * g * g * g * (1 - rain);
+    if (gs < u * 0.1) continue;
+    const gx = sx + ((k * 0.618) % 1 - 0.5) * sr * 3.2;
+    const gy = lakeTop + u * 2.5 + ((k * 0.382) % 1) * (lakeBottom - lakeTop) * 0.6;
+    c.beginPath();
+    c.moveTo(gx, gy - gs);
+    c.quadraticCurveTo(gx, gy, gx + gs, gy);
+    c.quadraticCurveTo(gx, gy, gx, gy + gs);
+    c.quadraticCurveTo(gx, gy, gx - gs, gy);
+    c.quadraticCurveTo(gx, gy, gx, gy - gs);
+    c.fill();
+  }
+  c.restore();
   c.beginPath();
   c.moveTo(0, lakeTop);
   c.lineTo(w, lakeTop);
   stroke();
-  for (let i = 0; i < 4; i++) {
-    const bar = sr * (1.5 - i * 0.3) * (1 + 0.15 * Math.sin(t * 3 + i));
-    c.globalAlpha = 1 - rain * 0.85;
-    c.fillStyle = sunColor;
-    c.fillRect(sx - bar / 2 + Math.sin(t * 2 + i * 2) * u, lakeTop + u * 2 + i * u * 2.6, bar, u * 1.2);
-    c.globalAlpha = 1;
+  // the sun's (or moon's) path on the water: broken dashes that slide, stretch and blink,
+  // narrowing with distance from the bank
+  c.fillStyle = sunColor;
+  for (let i = 0; i < 5; i++) {
+    const rowY = lakeTop + u * 2 + i * u * 2.3;
+    const span = sr * (1.6 - i * 0.22);
+    for (let k = 0; k < 3; k++) {
+      const phase = t * (1.4 + k * 0.3) + i * 1.9 + k * 2.4;
+      const len = span * (0.24 + 0.16 * Math.sin(phase));
+      const cx = sx + Math.sin(phase * 0.7 + k) * span * 0.18 + (k - 1) * span * 0.32;
+      c.globalAlpha = (1 - rain * 0.85) * (0.7 + 0.3 * Math.sin(phase * 1.3));
+      c.beginPath();
+      c.roundRect(cx - len / 2, rowY, len, u, u * 0.5);
+      c.fill();
+    }
   }
+  c.globalAlpha = 1;
   // Rings spreading on the lake where the rain lands
   for (let i = 0; i < Math.round(rain * 10); i++) {
     const life = (t * 0.9 + i * 0.37) % 1;
@@ -3210,16 +3830,24 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
     stroke(line * 0.5, "#cdf6ff");
     c.globalAlpha = 1;
   }
-  for (let i = 0; i < 9; i++) {
-    const row = i % 4;
-    const dir = row % 2 ? 1 : -1;
-    const x = wrapX(((i * 0.29) % 1) * w + dir * t * u * (2 + row), u * 10);
-    const y = lakeTop + u * 3.5 + row * (lakeBottom - lakeTop - u * 6) / 3;
+  // Currents: little wavy strokes that fade in, drift along stretching out, and fade away
+  // again somewhere new, each lane at its own pace (quicker nearer the shore)
+  for (let i = 0; i < 10; i++) {
+    const lane = i % 4;
+    const dir = lane % 2 ? 1 : -1;
+    const run = t * (0.12 + lane * 0.05) + i * 0.37;
+    const life = run % 1;
+    const fade = Math.sin(life * Math.PI);
+    const x0 = ((i * 0.29 + Math.floor(run) * 0.53) % 1) * w * 0.9 + dir * life * u * 14;
+    const y = lakeTop + u * 3.5 + lane * (lakeBottom - lakeTop - u * 6) / 3 + Math.sin(t + i) * u * 0.3;
+    const len = u * (4 + (i % 3) * 2) * (0.6 + fade * 0.6);
+    c.globalAlpha = fade * (dark ? 0.8 : 0.95);
     c.beginPath();
-    c.moveTo(x, y);
-    c.lineTo(x + u * (5 + (i % 3) * 2), y);
-    stroke(line * 0.8, dark ? "#7fb2ff" : "#cdf6ff");
+    c.moveTo(x0, y);
+    for (let k = 1; k <= 4; k++) c.quadraticCurveTo(x0 + (len * (k - 0.5)) / 4, y + (k % 2 ? -1 : 1) * u * 0.55, x0 + (len * k) / 4, y);
+    stroke(line * 0.7, dark ? "#7fb2ff" : "#cdf6ff");
   }
+  c.globalAlpha = 1;
   const bx = w * 0.3 + Math.sin(t * 0.22) * w * 0.14;
   const by = lakeTop + (lakeBottom - lakeTop) * 0.45 + Math.sin(t * 2) * u * 0.6;
   c.save();
@@ -3272,21 +3900,57 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   }
 
   // Grass, flowers, and trees swaying on the near shore
-  c.fillStyle = grey(dark ? "#2f6b45" : "#8fd694");
+  const grassColor = grey(dark ? "#2f6b45" : "#8fd694");
+  c.fillStyle = grassColor;
   c.fillRect(0, lakeBottom, w, h - lakeBottom);
+  // the bank's lip in shade where it drops to the water, and tufts swaying in the breeze
+  c.fillStyle = shade(grassColor, 0.2);
+  c.fillRect(0, lakeBottom, w, u * 1.4);
+  c.beginPath();
+  GRASS_TUFTS.forEach(({ x, y, s: k }) => {
+    const gx = w * x;
+    const gy = lakeBottom + u * 3 + y * (h - lakeBottom - u * 3);
+    const sway = wind(x, y * 0.1) * u * 0.9;
+    const g = u * 1.5 * k;
+    c.moveTo(gx - g * 0.5 + sway, gy - g * 1.1);
+    c.quadraticCurveTo(gx - g * 0.2, gy - g * 0.3, gx, gy);
+    c.quadraticCurveTo(gx + sway * 0.5, gy - g * 0.8, gx + sway * 1.3, gy - g * 1.5);
+    c.moveTo(gx, gy);
+    c.quadraticCurveTo(gx + g * 0.3, gy - g * 0.4, gx + g * 0.7 + sway, gy - g * 0.95);
+  });
+  stroke(line * 0.5, shade(grassColor, 0.32));
   c.beginPath();
   c.moveTo(0, lakeBottom);
   c.lineTo(w, lakeBottom);
   stroke();
   // A sandy path winding down to a little wooden pier
-  c.beginPath();
-  c.moveTo(w * 0.47, h + line);
-  c.bezierCurveTo(w * 0.44, h * 0.9, w * 0.6, h * 0.86, w * 0.53, lakeBottom);
-  c.lineTo(w * 0.58, lakeBottom);
-  c.bezierCurveTo(w * 0.66, h * 0.86, w * 0.52, h * 0.92, w * 0.57, h + line);
-  c.closePath();
-  c.fillStyle = grey(dark ? "#8a7a5a" : "#f3d9a4");
+  const path = () => {
+    c.beginPath();
+    c.moveTo(w * 0.47, h + line);
+    c.bezierCurveTo(w * 0.44, h * 0.9, w * 0.6, h * 0.86, w * 0.53, lakeBottom);
+    c.lineTo(w * 0.58, lakeBottom);
+    c.bezierCurveTo(w * 0.66, h * 0.86, w * 0.52, h * 0.92, w * 0.57, h + line);
+    c.closePath();
+  };
+  const pathColor = grey(dark ? "#8a7a5a" : "#f3d9a4");
+  path();
+  c.fillStyle = pathColor;
   c.fill();
+  // pebbles pressed into it, each with a shaded underside
+  c.save();
+  c.clip();
+  [[0.505, 0.975, 1], [0.54, 0.94, 0.8], [0.52, 0.915, 0.6], [0.565, 0.885, 0.9], [0.585, 0.85, 0.7], [0.56, 0.815, 0.6], [0.55, 0.79, 0.5]].forEach(([x, y, k]) => {
+    c.beginPath();
+    c.ellipse(w * x, h * y, u * 1.1 * k, u * 0.6 * k, 0, 0, Math.PI * 2);
+    c.fillStyle = shade(pathColor, 0.35);
+    c.fill();
+    c.beginPath();
+    c.ellipse(w * x + lightSide * u * 0.15 * k, h * y - u * 0.18 * k, u * 0.8 * k, u * 0.38 * k, 0, 0, Math.PI * 2);
+    c.fillStyle = glow(pathColor, 0.35);
+    c.fill();
+  });
+  c.restore();
+  path();
   stroke(line * 0.7);
   const pierTop = lakeBottom - (lakeBottom - lakeTop) * 0.34;
   [0.535, 0.575].forEach((x) => {
@@ -3314,7 +3978,7 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   }
   // Reeds and cattails at the water's edge, swaying
   [0.24, 0.255, 0.27, 0.285, 0.72, 0.735, 0.75].forEach((x, i) => {
-    const sway = Math.sin(t * 1.4 + i) * u * 0.6;
+    const sway = (wind(x) + Math.sin(t * 2.2 + i) * 0.08) * u * 1.3;
     const top = lakeBottom - u * (4 + (i % 3) * 1.4);
     c.beginPath();
     c.moveTo(w * x, lakeBottom + u * 1.5);
@@ -3331,113 +3995,244 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
       c.restore();
     }
   });
-  // Flowers on the near shore, each on a swaying stem with a leaf or two: daisies (a ring of
-  // petals round a yellow eye), tulips (a cupped head of three petals) and round blooms
+  // Flowers on the near shore, drawn the way the rest of the view is: one clean black
+  // silhouette (stroked wide, then filled over), a shade side away from the light and a sheen
+  // toward it. Daisies face us a little tilted, tulips are closed cups, lavender stands in
+  // spikes. Stems are inked too, and each has a leaf or two reaching up and out.
   const stemColor = dark ? "#14532d" : "#166534";
+  const leafColor = dark ? "#1f5c3a" : "#2f9e57";
+  const ink = (width = line * 1.1) => stroke(width, "#000");
   const leaf = (x, y, side, size) => {
+    const L = size * 1.3;
     c.save();
     c.translate(x, y);
-    c.rotate(side * 0.9);
+    c.scale(side, 1);
+    c.rotate(-0.55);
     c.beginPath();
     c.moveTo(0, 0);
-    c.quadraticCurveTo(size * 0.6, -size * 0.45, size * 1.2, 0);
-    c.quadraticCurveTo(size * 0.6, size * 0.45, 0, 0);
-    c.fillStyle = dark ? "#1f5c3a" : "#2f9e57";
+    c.quadraticCurveTo(L * 0.45, -L * 0.4, L, 0);
+    c.quadraticCurveTo(L * 0.5, L * 0.32, 0, 0);
+    c.closePath();
+    ink();
+    c.fillStyle = leafColor;
     c.fill();
-    stroke(line * 0.5);
+    c.beginPath();
+    c.moveTo(0, 0);
+    c.lineTo(L, 0);
+    c.quadraticCurveTo(L * 0.5, L * 0.32, 0, 0);
+    c.fillStyle = shade(leafColor, 0.3);
+    c.fill();
+    c.beginPath();
+    c.moveTo(L * 0.08, 0);
+    c.quadraticCurveTo(L * 0.5, -L * 0.06, L * 0.86, 0);
+    stroke(line * 0.35, shade(leafColor, 0.5));
     c.restore();
   };
   const FLOWERS = [
     [0.36, 0.86, "#ff90e8", "daisy"], [0.43, 0.93, "#ffdd00", "tulip"], [0.62, 0.885, "#fffdf5", "daisy"],
-    [0.69, 0.95, "#ff6b6b", "tulip"], [0.3, 0.95, "#ffdd00", "round"], [0.75, 0.86, "#c4b5fd", "round"], [0.4, 0.99, "#fffdf5", "daisy"],
+    [0.69, 0.95, "#ff6b6b", "tulip"], [0.3, 0.95, "#a78bfa", "lavender"], [0.75, 0.86, "#c4b5fd", "lavender"], [0.4, 0.99, "#fffdf5", "daisy"],
   ];
   FLOWERS.forEach(([x, y, color, kind], i) => {
     // big enough to read their petals in the window close-up
     const fu = u * 1.7;
-    const sway = Math.sin(t * 1.5 + i) * fu * 0.4;
+    // the heads trail their stems a beat, and bob a touch on their own
+    const sway = (wind(x, 0.12) + Math.sin(t * 2.4 + i * 1.7) * 0.06) * fu * 0.7;
     const bx = w * x;
     const by = h * y + fu * 3.4;
     const fx = bx + sway;
     const fy = h * y;
     const petal = dark ? mixHex(color, "#3b3570", 0.45) : color;
-    c.beginPath();
-    c.moveTo(bx, by);
-    c.quadraticCurveTo(bx, (by + fy) / 2, fx, fy);
-    stroke(line * 0.7, stemColor);
-    leaf(bx + sway * 0.3, by - fu * 1.3, i % 2 ? 1 : -1, fu * 1.6);
-    if (kind === "daisy") {
-      for (let k = 0; k < 7; k++) {
-        const a = (k / 7) * Math.PI * 2 + t * 0.2 + i;
-        c.save();
-        c.translate(fx + Math.cos(a) * fu * 0.95, fy + Math.sin(a) * fu * 0.95);
-        c.rotate(a);
-        c.beginPath();
-        c.ellipse(0, 0, fu * 0.85, fu * 0.42, 0, 0, Math.PI * 2);
-        c.fillStyle = petal;
-        c.fill();
-        stroke(line * 0.45);
-        c.restore();
-      }
-      blob([[fx, fy, fu * 0.6]], dark ? "#b8a24a" : "#ffb35c", 0);
-    } else if (kind === "tulip") {
-      c.save();
-      c.translate(fx, fy);
-      c.rotate(sway / (fu * 8));
+    const tilt = sway / (fu * 6);
+    const stem = () => {
       c.beginPath();
-      c.moveTo(-fu * 1.1, -fu * 0.6);
-      c.lineTo(-fu * 0.55, -fu * 1.5);
-      c.lineTo(0, -fu * 0.75);
-      c.lineTo(fu * 0.55, -fu * 1.5);
-      c.lineTo(fu * 1.1, -fu * 0.6);
-      c.quadraticCurveTo(fu * 1.1, fu * 0.8, 0, fu * 0.8);
-      c.quadraticCurveTo(-fu * 1.1, fu * 0.8, -fu * 1.1, -fu * 0.6);
-      c.closePath();
+      c.moveTo(bx, by);
+      c.quadraticCurveTo(bx, (by + fy) / 2, fx, fy + fu * 0.3);
+    };
+    stem();
+    ink(line * 1.25);
+    stem();
+    stroke(line * 0.6, stemColor);
+    leaf(bx + sway * 0.25, by - fu * 1.1, i % 2 ? 1 : -1, fu * 1.4);
+    if (kind === "lavender") leaf(bx + sway * 0.1, by - fu * 0.4, i % 2 ? -1 : 1, fu * 1.1);
+    c.save();
+    c.translate(fx, fy);
+    c.rotate(tilt);
+    if (kind === "daisy") {
+      // seen a little from above: squashed, nine petals, each with a crease down its middle
+      c.scale(1, 0.82);
+      const N = 9;
+      const petals = () => {
+        c.beginPath();
+        for (let k = 0; k < N; k++) {
+          const a = (k / N) * Math.PI * 2 + i;
+          const px = Math.cos(a) * fu * 1.05;
+          const py = Math.sin(a) * fu * 1.05;
+          c.moveTo(px + Math.cos(a) * fu * 0.68, py + Math.sin(a) * fu * 0.68);
+          c.ellipse(px, py, fu * 0.68, fu * 0.3, a, 0, Math.PI * 2);
+        }
+      };
+      petals();
+      ink();
       c.fillStyle = petal;
       c.fill();
-      stroke(line * 0.55);
-      c.beginPath();
-      c.moveTo(0, -fu * 0.6);
-      c.lineTo(0, fu * 0.5);
-      stroke(line * 0.35, "rgba(0,0,0,.35)");
+      c.save();
+      c.clip();
+      c.fillStyle = shade(petal, 0.22);
+      c.fillRect(-fu * 3, fu * 0.2, fu * 6, fu * 3);
       c.restore();
-    } else {
-      // a round bloom: five petals of overlapping circles, a darker heart
-      const parts = [];
-      for (let k = 0; k < 5; k++) {
-        const a = (k / 5) * Math.PI * 2 - Math.PI / 2;
-        parts.push([fx + Math.cos(a) * fu * 0.7, fy + Math.sin(a) * fu * 0.7, fu * 0.7]);
+      c.beginPath();
+      for (let k = 0; k < N; k++) {
+        const a = (k / N) * Math.PI * 2 + i;
+        c.moveTo(Math.cos(a) * fu * 0.65, Math.sin(a) * fu * 0.65);
+        c.lineTo(Math.cos(a) * fu * 1.4, Math.sin(a) * fu * 1.4);
       }
-      blob(parts, petal, 0);
-      blob([[fx, fy, fu * 0.4]], dark ? "#2a2f45" : "#1a1714", 0);
+      stroke(line * 0.3, shade(petal, 0.35));
+      // the eye: a domed yellow heart, freckled, lit on top
+      const eye = dark ? "#c9a227" : "#ffb800";
+      c.beginPath();
+      c.arc(0, 0, fu * 0.55, 0, Math.PI * 2);
+      ink();
+      c.fillStyle = eye;
+      c.fill();
+      c.beginPath();
+      c.arc(0, 0, fu * 0.55, 0.15, Math.PI - 0.15);
+      c.fillStyle = shade(eye, 0.28);
+      c.fill();
+      c.fillStyle = shade(eye, 0.45);
+      [[-0.2, -0.05], [0.18, 0.08], [0.02, 0.25], [-0.05, -0.28], [0.25, -0.2]].forEach(([dx, dy]) => c.fillRect(fu * dx - u * 0.18, fu * dy - u * 0.18, u * 0.36, u * 0.36));
+      c.beginPath();
+      c.ellipse(lightSide * fu * 0.18, -fu * 0.22, fu * 0.2, fu * 0.11, 0, 0, Math.PI * 2);
+      c.fillStyle = glow(eye, 0.6);
+      c.fill();
+    } else if (kind === "tulip") {
+      // a closed cup: two petals behind, one in front with its edges overlapping theirs
+      const cup = () => {
+        c.beginPath();
+        c.moveTo(-fu * 0.95, -fu * 0.85);
+        c.quadraticCurveTo(-fu * 1.2, fu * 0.75, 0, fu * 0.85);
+        c.quadraticCurveTo(fu * 1.2, fu * 0.75, fu * 0.95, -fu * 0.85);
+        c.quadraticCurveTo(fu * 0.8, -fu * 0.4, fu * 0.42, -fu * 0.55);
+        c.quadraticCurveTo(fu * 0.28, -fu * 1.3, 0, -fu * 1.3);
+        c.quadraticCurveTo(-fu * 0.28, -fu * 1.3, -fu * 0.42, -fu * 0.55);
+        c.quadraticCurveTo(-fu * 0.8, -fu * 0.4, -fu * 0.95, -fu * 0.85);
+        c.closePath();
+      };
+      cup();
+      ink();
+      c.fillStyle = petal;
+      c.fill();
+      c.save();
+      c.clip();
+      c.fillStyle = shade(petal, 0.25);
+      c.fillRect(lightSide > 0 ? -fu * 2 : fu * 0.3, -fu * 2, fu * 1.7, fu * 4);
+      c.restore();
+      c.beginPath();
+      c.moveTo(-fu * 0.42, -fu * 0.55);
+      c.quadraticCurveTo(-fu * 0.5, fu * 0.2, -fu * 0.15, fu * 0.75);
+      c.moveTo(fu * 0.42, -fu * 0.55);
+      c.quadraticCurveTo(fu * 0.5, fu * 0.2, fu * 0.15, fu * 0.75);
+      stroke(line * 0.4, shade(petal, 0.45));
+      c.beginPath();
+      c.moveTo(lightSide * fu * 0.68, -fu * 0.45);
+      c.quadraticCurveTo(lightSide * fu * 0.78, 0, lightSide * fu * 0.6, fu * 0.35);
+      stroke(line * 0.55, glow(petal, 0.55));
+    } else {
+      // lavender: a spike of florets, smaller toward the tip, alternating sides
+      const florets = [];
+      for (let k = 0; k < 7; k++) {
+        const s = 1 - k * 0.09;
+        florets.push([(k % 2 ? 1 : -1) * fu * 0.22 * s, fu * 0.6 - k * fu * 0.42, fu * 0.42 * s, fu * 0.3 * s]);
+      }
+      const spike = () => {
+        c.beginPath();
+        florets.forEach(([dx, dy, rx, ry]) => {
+          c.moveTo(dx + rx, dy);
+          c.ellipse(dx, dy, rx, ry, 0, 0, Math.PI * 2);
+        });
+      };
+      spike();
+      ink();
+      c.fillStyle = petal;
+      c.fill();
+      c.beginPath();
+      florets.forEach(([dx, dy, rx, ry]) => {
+        c.moveTo(dx - lightSide * rx * 0.2 + rx * 0.75, dy + ry * 0.25);
+        c.ellipse(dx - lightSide * rx * 0.2, dy + ry * 0.25, rx * 0.75, ry * 0.7, 0, 0, Math.PI * 2);
+      });
+      c.fillStyle = shade(petal, 0.3);
+      c.fill();
+      c.fillStyle = glow(petal, 0.55);
+      florets.forEach(([dx, dy, rx, ry]) => c.fillRect(dx + lightSide * rx * 0.35 - u * 0.2, dy - ry * 0.45, u * 0.4, u * 0.3));
     }
+    c.restore();
   });
   const tree = (x, scale, i, round) => {
     const base = h * 0.97;
+    // its shadow stretched across the grass, away from the light
+    c.globalAlpha = dark ? 0.32 : 0.24;
+    c.fillStyle = SHADE;
+    c.beginPath();
+    c.ellipse(w * x - lightSide * u * 5 * scale, base, u * 9 * scale, u * 1.8 * scale, 0, 0, Math.PI * 2);
+    c.fill();
+    c.globalAlpha = 1;
     c.save();
     c.translate(w * x, base);
-    c.rotate(Math.sin(t * 1.1 + i * 1.3) * 0.035);
+    // the trunk bends a little with the wind, the crown a beat later and a little further
+    const bend = wind(x);
+    c.rotate(bend * 0.035);
+    const bark = "#8b5a2b";
+    const tw = u * 1.2 * scale;
+    c.fillStyle = bark;
+    c.fillRect(-tw, -u * 10 * scale, tw * 2, u * 10 * scale);
+    // a shaded side down the trunk, and a few knots and grain marks in the bark
+    c.fillStyle = shade(bark, 0.35);
+    c.fillRect(lightSide > 0 ? -tw : tw * 0.2, -u * 10 * scale, tw * 0.8, u * 10 * scale);
     c.beginPath();
-    c.rect(-u * 1.2 * scale, -u * 10 * scale, u * 2.4 * scale, u * 10 * scale);
-    c.fillStyle = "#8b5a2b";
-    c.fill();
+    [[-0.3, 2.5, 1.6], [0.35, 5, 1.2], [-0.1, 7.5, 1.4]].forEach(([bx, by, len]) => {
+      c.moveTo(tw * bx, -u * by * scale);
+      c.quadraticCurveTo(tw * (bx + 0.3), -u * (by + len * 0.5) * scale, tw * bx, -u * (by + len) * scale);
+    });
+    stroke(line * 0.45, shade(bark, 0.55));
+    c.beginPath();
+    c.rect(-tw, -u * 10 * scale, tw * 2, u * 10 * scale);
     stroke();
+    c.translate(0, -u * 10 * scale);
+    c.rotate((wind(x, 0.28) * 1.4 - bend) * 0.035 + Math.sin(t * 1.7 + i) * 0.006);
+    c.translate(0, u * 10 * scale);
     if (round) {
       const r = u * 6 * scale;
-      blob([[-r * 0.6, -u * 13 * scale, r * 0.75], [r * 0.6, -u * 13 * scale, r * 0.7], [0, -u * 18 * scale, r]], dark ? "#1f5c3a" : "#22a65c");
+      celBlob([[-r * 0.6, -u * 13 * scale, r * 0.75], [r * 0.6, -u * 13 * scale, r * 0.7], [0, -u * 18 * scale, r]], dark ? "#1f5c3a" : "#22a65c", r);
     } else {
+      const pine = dark ? "#14532d" : "#166534";
       [[-u * 8, -u * 18, u * 7], [-u * 14, -u * 30, u * 5.5]].forEach(([bottom, top, half]) => {
-        c.beginPath();
-        c.moveTo(0, top * scale);
-        c.lineTo(half * scale, bottom * scale);
-        c.lineTo(-half * scale, bottom * scale);
-        c.closePath();
+        const tier = () => {
+          c.beginPath();
+          c.moveTo(0, top * scale);
+          c.lineTo(half * scale, bottom * scale);
+          c.lineTo(-half * scale, bottom * scale);
+          c.closePath();
+        };
+        tier();
         c.fillStyle = "#000";
         c.save();
         c.translate(line * 1.4, line * 1.4);
         c.fill();
         c.restore();
-        c.fillStyle = dark ? "#14532d" : "#166534";
+        c.fillStyle = pine;
         c.fill();
+        // the half turned from the light in shade, a lit edge catching it on the other
+        c.beginPath();
+        c.moveTo(0, top * scale);
+        c.lineTo(-lightSide * half * scale, bottom * scale);
+        c.lineTo(lightSide * half * 0.12 * scale, bottom * scale);
+        c.closePath();
+        c.fillStyle = shade(pine, 0.35);
+        c.fill();
+        c.beginPath();
+        c.moveTo(lightSide * half * 0.12 * scale, (top + (bottom - top) * 0.22) * scale);
+        c.lineTo(lightSide * half * 0.72 * scale, (bottom - u * 0.9) * scale);
+        stroke(line * 0.7, glow(pine, 0.35));
+        tier();
         stroke();
       });
     }
@@ -3447,6 +4242,24 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   tree(0.22, 0.9, 1, true);
   tree(0.85, 1.05, 2, false);
   tree(0.96, 0.8, 3, true);
+
+  // Petals and leaves carried along in the gust, tumbling as they go
+  if (!dark && rain < 0.3 && gustFront > 0 && gustFront < 1.3) {
+    for (let k = 0; k < 6; k++) {
+      const px = (gustFront - 0.04 - k * 0.05) * w;
+      const py = h * (0.6 + ((k * 0.377) % 1) * 0.3) - gustFront * h * 0.08 + Math.sin(t * 3 + k * 2) * u * 2;
+      c.save();
+      c.translate(px, py);
+      c.rotate(t * (4 + k) + k);
+      c.scale(1, 0.35 + 0.65 * Math.abs(Math.sin(t * 5 + k)));
+      c.beginPath();
+      c.ellipse(0, 0, u * 1.1, u * 0.6, 0, 0, Math.PI * 2);
+      c.fillStyle = k % 3 ? "#ff90e8" : "#8fd694";
+      c.fill();
+      stroke(line * 0.4);
+      c.restore();
+    }
+  }
 
   // Birds by day (a few always about, a flock when called), fireflies by night
   const bird = (x, y, s, flap) => {
@@ -3472,16 +4285,38 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
       }
     }
   } else if (dark && rain < 0.3) {
+    // Fireflies wander on two loose loops at different beats, so no two paths fall in step,
+    // and blink the way they do: a quick swell, a slower fade, then dark for a while. A lit one
+    // leaves a short fading trail of where it just was.
+    const flyAt = (fly, at) => [
+      w * fly.x + (Math.sin(at * 0.43 + fly.p) * 3 + Math.sin(at * 1.13 + fly.p * 2.3) * 1.2) * u,
+      h * fly.y + (Math.sin(at * 0.61 + fly.p * 1.7) * 1.8 + Math.cos(at * 1.37 + fly.p) * 0.8) * u - Math.max(0, Math.sin(at * 0.2 + fly.p)) * u * 4,
+    ];
     VIEW_FLIES.forEach((fly) => {
-      const on = Math.sin(t * 2.3 + fly.p);
-      if (on < 0.1) return;
-      const x = w * fly.x + Math.sin(t * 0.7 + fly.p) * u * 3;
-      const y = h * fly.y + Math.sin(t * 1.1 + fly.p * 2) * u * 1.5;
-      const s = u * 0.9 * (0.6 + on * 0.6);
-      c.fillStyle = "#000";
-      c.fillRect(x - s / 2 - line * 0.4, y - s / 2 - line * 0.4, s + line * 0.8, s + line * 0.8);
-      c.fillStyle = "#ffdd00";
-      c.fillRect(x - s / 2, y - s / 2, s, s);
+      const cyc = (t * 0.32 + fly.p * 0.37) % 1;
+      const rise = cyc < 0.1 ? cyc / 0.1 : cyc < 0.45 ? 1 - (cyc - 0.1) / 0.35 : 0;
+      const g = rise * rise * (3 - 2 * rise);
+      if (g < 0.03) return;
+      const [x, y] = flyAt(fly, t);
+      const halo = c.createRadialGradient(x, y, 0, x, y, u * 3.4 * (0.5 + g * 0.5));
+      halo.addColorStop(0, `rgba(255,240,120,${0.6 * g})`);
+      halo.addColorStop(1, "rgba(255,240,120,0)");
+      c.fillStyle = halo;
+      c.fillRect(x - u * 3.5, y - u * 3.5, u * 7, u * 7);
+      c.fillStyle = "#fff6a0";
+      [0.12, 0.24].forEach((ago, k) => {
+        const [px, py] = flyAt(fly, t - ago);
+        c.globalAlpha = g * (0.45 - k * 0.2);
+        c.beginPath();
+        c.arc(px, py, u * (0.4 - k * 0.1), 0, Math.PI * 2);
+        c.fill();
+      });
+      c.globalAlpha = 1;
+      c.beginPath();
+      c.arc(x, y, u * (0.4 + g * 0.25), 0, Math.PI * 2);
+      c.fillStyle = mixHex("#8a7a2a", "#fffbd0", g);
+      c.fill();
+      stroke(line * 0.35, "#1a1714");
     });
   }
 
@@ -3513,50 +4348,61 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   c.fillRect(w / 2 - bar * 0.15, 0, bar * 0.3, h);
   c.fillRect(0, h / 2 - bar * 0.15, w, bar * 0.3);
 
-  // Water on the glass: fine beads all over, and bigger drops that cling, then run, leaving a
-  // tapering wet trail with a few beads left behind in it
+  // Water on the glass. Each drop is a little lens: it shows the view behind it upside down
+  // and shrunk, with a dark rim along its top, a bright caustic inside its lower edge and a
+  // pinpoint of light. The bigger ones cling and swell, then let go and run in a quick
+  // stick-slip zigzag, leaving a wet trail that dries again while they wait.
   if (rain > 0.05) {
     const wet = Math.min(1, rain * 1.3);
-    // a drop: a rounded teardrop, clear and a touch blue, catching the light at its top-left
-    // and glinting at its bottom-right, with a faint shadow cast on the glass beside it
-    const drop = (x, y, r, stretch = 1) => {
-      const tip = r * (1.5 + (stretch - 1) * 1.2);
+    // the drops refract a snapshot of the finished view, not the canvas they're drawing into
+    if (!glassCopy) glassCopy = document.createElement("canvas");
+    if (glassCopy.width !== w || glassCopy.height !== h) Object.assign(glassCopy, { width: w, height: h });
+    glassCopy.getContext("2d").drawImage(c.canvas, 0, 0);
+    const lens = (x, y, rx, ry, stretch = 0) => {
+      // a dome, its weight low; running, it draws up into a short tail
       const shape = () => {
         c.beginPath();
-        c.moveTo(x, y - tip);
-        c.bezierCurveTo(x + r * 0.35, y - tip * 0.55, x + r, y - r * 0.4, x + r, y);
-        c.arc(x, y, r, 0, Math.PI);
-        c.bezierCurveTo(x - r, y - r * 0.4, x - r * 0.35, y - tip * 0.55, x, y - tip);
+        c.moveTo(x - rx, y);
+        c.bezierCurveTo(x - rx, y - ry * 1.33 * (1 + stretch * 1.4), x + rx, y - ry * 1.33 * (1 + stretch * 1.4), x + rx, y);
+        c.bezierCurveTo(x + rx, y + ry * 1.38, x - rx, y + ry * 1.38, x - rx, y);
         c.closePath();
       };
       c.save();
-      c.translate(r * 0.35, r * 0.4);
       shape();
-      c.fillStyle = "rgba(10,20,40,.18)";
+      c.clip();
+      const R = Math.max(rx, ry) * 3.2;
+      c.translate(x, y);
+      c.scale(1, -1);
+      c.drawImage(glassCopy, x - R, y - R, R * 2, R * 2, -rx * 1.15, -ry * 1.4, rx * 2.3, ry * 2.8);
+      c.restore();
+      c.save();
+      shape();
+      c.clip();
+      c.fillStyle = dark ? "rgba(140,170,255,.18)" : "rgba(200,230,255,.22)";
       c.fill();
+      // the dark rim along the top, the bright caustic low inside
+      c.beginPath();
+      c.ellipse(x, y - ry * 0.25, rx * 1.05, ry * 1.1, 0, Math.PI * 1.05, Math.PI * 1.95);
+      c.lineWidth = Math.max(1.5, ry * 0.5);
+      c.strokeStyle = "rgba(10,20,45,.55)";
+      c.stroke();
+      c.beginPath();
+      c.ellipse(x, y + ry * 0.05, rx * 0.7, ry * 0.75, 0, Math.PI * 0.2, Math.PI * 0.8);
+      c.lineWidth = Math.max(1.2, ry * 0.28);
+      c.strokeStyle = "rgba(255,255,255,.8)";
+      c.stroke();
       c.restore();
       shape();
-      const body = c.createLinearGradient(x, y - tip, x, y + r);
-      body.addColorStop(0, "rgba(255,255,255,.55)");
-      body.addColorStop(0.55, dark ? "rgba(150,180,240,.35)" : "rgba(190,225,255,.4)");
-      body.addColorStop(1, dark ? "rgba(70,95,160,.55)" : "rgba(110,160,215,.55)");
-      c.fillStyle = body;
-      c.fill();
-      c.lineWidth = Math.max(1, u * 0.22);
-      c.strokeStyle = "rgba(10,20,40,.55)";
-      c.stroke();
-      // the highlight: a crescent hugging the upper-left, and a glint low on the right
-      c.beginPath();
-      c.arc(x - r * 0.12, y - r * 0.05, r * 0.62, Math.PI * 1.05, Math.PI * 1.6);
-      c.lineWidth = Math.max(1, r * 0.28);
-      c.strokeStyle = "rgba(255,255,255,.9)";
+      c.lineWidth = Math.max(1, u * 0.2);
+      c.strokeStyle = "rgba(10,20,45,.6)";
       c.stroke();
       c.beginPath();
-      c.arc(x + r * 0.45, y + r * 0.45, r * 0.16, 0, Math.PI * 2);
-      c.fillStyle = "rgba(255,255,255,.85)";
+      c.ellipse(x - rx * 0.35, y - ry * 0.4, rx * 0.2, ry * 0.15, -0.5, 0, Math.PI * 2);
+      c.fillStyle = "#fff";
       c.fill();
     };
     c.globalAlpha = wet;
+    // fine beads: little domes, a darker top edge and a pinpoint of light
     GLASS_BEADS.forEach((b, i) => {
       if (i / GLASS_BEADS.length > rain + 0.15) return;
       const x = b.x * w;
@@ -3564,44 +4410,56 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
       const r = b.r * u;
       c.beginPath();
       c.arc(x, y, r, 0, Math.PI * 2);
-      c.fillStyle = dark ? "rgba(170,195,255,.35)" : "rgba(220,240,255,.5)";
+      c.fillStyle = dark ? "rgba(170,195,255,.22)" : "rgba(230,245,255,.35)";
       c.fill();
-      c.lineWidth = Math.max(0.8, u * 0.12);
-      c.strokeStyle = "rgba(10,20,40,.35)";
-      c.stroke();
-      c.fillStyle = "rgba(255,255,255,.9)";
       c.beginPath();
-      c.arc(x - r * 0.3, y - r * 0.3, r * 0.3, 0, Math.PI * 2);
-      c.fill();
+      c.arc(x, y, r, Math.PI * 1.1, Math.PI * 1.9);
+      c.lineWidth = Math.max(1, r * 0.35);
+      c.strokeStyle = "rgba(10,20,45,.35)";
+      c.stroke();
+      c.beginPath();
+      c.arc(x, y, r * 0.7, Math.PI * 0.25, Math.PI * 0.75);
+      c.lineWidth = Math.max(0.8, r * 0.25);
+      c.strokeStyle = "rgba(255,255,255,.7)";
+      c.stroke();
     });
     GLASS_DROPS.forEach((d, i) => {
-      // They hold still most of the time, then run
-      const slide = Math.max(0, Math.sin(t * 0.6 + i * 1.9)) ** 6;
-      const y = ((d.y + t * d.v + slide * 0.04) % 1) * h;
-      const x = d.x * w + Math.sin(i + (y / h) * 6) * u * 0.4;
-      const r = d.r * u;
-      // the wet trail above it: a narrow, fading streak, longer while it's running
-      const trail = r * (3 + slide * 9);
+      // stick-slip: hold and swell for most of each beat, then run down a step and stop
+      const beat = t * (0.18 + d.v * 6) + i * 0.61;
+      const n = Math.floor(beat);
+      const f = beat - n;
+      const run = f < 0.72 ? 0 : 1 - (1 - (f - 0.72) / 0.28) ** 3;
+      const step = 0.05 + d.v * 2;
+      const y = (((d.y + (n + run) * step) % 1.1) - 0.05) * h;
+      const sideAt = (k) => Math.sin(k * 1.9 + i * 2.7) * u * 1.6;
+      const x = d.x * w + sideAt(n) + (sideAt(n + 1) - sideAt(n)) * run;
+      const r = d.r * u * 0.8 * (0.85 + 0.25 * Math.min(1, f / 0.72));
+      // fading in at the top so a drop that wraps round never pops
+      const fadeIn = Math.min(1, (y + 0.05 * h) / (0.08 * h));
+      c.globalAlpha = wet * fadeIn;
+      // the wet trail: drawn out while it runs, drying back while it holds
+      const trail = r * (1.5 + (f < 0.72 ? 9 * Math.exp(-f * 5) : 2 + run * 9));
       const streak = c.createLinearGradient(x, y - trail, x, y);
-      streak.addColorStop(0, "rgba(255,255,255,0)");
-      streak.addColorStop(1, dark ? "rgba(190,210,255,.35)" : "rgba(235,248,255,.5)");
+      streak.addColorStop(0, "rgba(220,240,255,0)");
+      streak.addColorStop(1, dark ? "rgba(170,195,255,.35)" : "rgba(230,245,255,.45)");
+      const tail = x - (sideAt(n + 1) - sideAt(n)) * run;
       c.beginPath();
-      c.moveTo(x - r * 0.12, y - trail);
-      c.quadraticCurveTo(x - r * 0.5, y - trail * 0.4, x - r * 0.55, y - r);
-      c.lineTo(x + r * 0.55, y - r);
-      c.quadraticCurveTo(x + r * 0.5, y - trail * 0.4, x + r * 0.12, y - trail);
+      c.moveTo(tail - r * 0.15, y - trail);
+      c.quadraticCurveTo(tail - r * 0.35, y - trail * 0.4, x - r * 0.4, y - r * 0.4);
+      c.lineTo(x + r * 0.4, y - r * 0.4);
+      c.quadraticCurveTo(tail + r * 0.35, y - trail * 0.4, tail + r * 0.15, y - trail);
       c.closePath();
       c.fillStyle = streak;
       c.fill();
-      // beads left behind in the trail
-      [0.45, 0.75].forEach((k, j) => {
-        if (slide < 0.05 && j) return;
+      // a bead or two left behind in it
+      if (trail > r * 3) {
+        c.fillStyle = "rgba(255,255,255,.6)";
         c.beginPath();
-        c.arc(x + (j ? -1 : 1) * r * 0.15, y - trail * k, r * (0.22 - j * 0.06), 0, Math.PI * 2);
-        c.fillStyle = "rgba(255,255,255,.7)";
+        c.arc(tail + r * 0.1, y - trail * 0.6, r * 0.16, 0, Math.PI * 2);
+        c.arc(tail - r * 0.12, y - trail * 0.85, r * 0.11, 0, Math.PI * 2);
         c.fill();
-      });
-      drop(x, y, r, 1 + slide * 0.5);
+      }
+      lens(x, y, r, r * 0.9, run * (1 - run) * 2);
     });
     c.globalAlpha = 1;
   }
@@ -3757,42 +4615,6 @@ export function drawRepBadge(c, w, h, text, fill = "#ffdd00") {
   c.textBaseline = "alphabetic";
 }
 
-// The wastebasket's wrap-round sticker: a little basketball and "TRASH" on a white band, in the
-// same thick-lined, hard-shadow style as the rest of the room's print
-export function drawBinLabel(c, w, h) {
-  c.clearRect(0, 0, w, h);
-  brutalBox(c, 8, 8, w - 26, h - 26, "#fffdf5", { shadow: 10, line: 7 });
-  const r = h * 0.24;
-  const bx = 40 + r * 1.35;
-  const by = (h - 18) / 2;
-  c.fillStyle = "#ff7a1a";
-  c.strokeStyle = "#000";
-  c.lineWidth = 6;
-  c.beginPath();
-  c.arc(bx, by, r, 0, Math.PI * 2);
-  c.fill();
-  c.stroke();
-  c.lineWidth = 4;
-  c.beginPath();
-  c.moveTo(bx - r, by);
-  c.lineTo(bx + r, by);
-  c.moveTo(bx, by - r);
-  c.lineTo(bx, by + r);
-  c.stroke();
-  c.beginPath();
-  c.arc(bx - r * 1.25, by, r * 0.85, -0.85, 0.85);
-  c.stroke();
-  c.beginPath();
-  c.arc(bx + r * 1.25, by, r * 0.85, Math.PI - 0.85, Math.PI + 0.85);
-  c.stroke();
-  c.fillStyle = "#000";
-  c.textBaseline = "middle";
-  const left = bx + r + 22;
-  fitFont(c, "TRASH", 800, DISPLAY, Math.round(h * 0.4), w - left - 36);
-  c.fillText("TRASH", left, by + 4);
-  c.textBaseline = "alphabetic";
-}
-
 // A sheet that's been screwed up and thrown away, wrapped round a paper ball: a page torn from
 // a lined notebook (blue rules, a red margin, a few lines of pencil scrawl, a crossed-out bit) or
 // a printed page (grey type in blocks). Wrinkles are drawn in, a soft shadow along each crease
@@ -3939,9 +4761,9 @@ export function drawHakiAura(c, w, h) {
   c.save();
   c.scale(1, h / w);
   const g = c.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
-  g.addColorStop(0, "rgba(46,14,80,.7)");
-  g.addColorStop(0.35, "rgba(110,40,190,.45)");
-  g.addColorStop(0.7, "rgba(168,85,247,.16)");
+  g.addColorStop(0, "rgba(46,14,80,.82)");
+  g.addColorStop(0.35, "rgba(110,40,190,.58)");
+  g.addColorStop(0.7, "rgba(168,85,247,.24)");
   g.addColorStop(1, "rgba(168,85,247,0)");
   c.fillStyle = g;
   c.fillRect(0, 0, w, w);
@@ -4110,8 +4932,54 @@ export function drawSayaLacquer(c, w, h, { color }) {
   }
 }
 
-// Fine longitudinal polishing lines follow the blade's curve and remain inside its edge.
+// Fine longitudinal polishing lines follow the blade's curve and remain inside its edge. Over
+// them, the steel in toon terms: the shinogi (the ridge line) inked along the blade, a bright
+// band of polished steel just under it and a burnished, darker one above, a hard white line
+// down the cutting edge, the yokote where the point begins, slanted bars of reflected light,
+// and the fine sparkle of nie scattered along the temper line.
 function drawBladePolish(c, w, h, { bow, length, width, yMin, yMax }) {
+  const row = (x, f) => {
+    const edge = bow(x) - 0.055 * (1 - 0.3 * x / length);
+    return (1 - (edge + (bow(x) + 0.05 - edge) * f - yMin) / (yMax - yMin)) * h;
+  };
+  const strip = (f0, f1, color) => {
+    c.beginPath();
+    for (let px = 0; px <= w; px += 4) {
+      const x = Math.min(px / w * width, length);
+      (px ? c.lineTo : c.moveTo).call(c, px, row(x, f0));
+    }
+    for (let px = w; px >= 0; px -= 4) c.lineTo(px, row(Math.min(px / w * width, length), f1));
+    c.closePath();
+    c.fillStyle = color;
+    c.fill();
+  };
+  strip(0.5, 0.6, "rgba(255,255,255,.42)");
+  strip(0.64, 0.86, "rgba(0,0,0,.16)");
+  strip(0.6, 0.64, "rgba(26,23,20,.55)");
+  strip(0.02, 0.07, "rgba(255,255,255,.75)");
+  const yx = (length / width) * w;
+  c.fillStyle = "rgba(26,23,20,.5)";
+  c.fillRect(yx - 1, row(length, 1), 2.5, row(length, 0) - row(length, 1));
+  // slanted bars of light: a broad one and a thin one, twice along the blade
+  c.fillStyle = "rgba(255,255,255,.28)";
+  [[0.28, 0.03], [0.32, 0.008], [0.66, 0.025], [0.695, 0.007]].forEach(([at, wd]) => {
+    c.beginPath();
+    c.moveTo(w * at, h);
+    c.lineTo(w * (at + wd), h);
+    c.lineTo(w * (at + wd + 0.03), 0);
+    c.lineTo(w * (at + 0.03), 0);
+    c.closePath();
+    c.fill();
+  });
+  let r = 4447;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  c.fillStyle = "rgba(255,255,255,.85)";
+  for (let i = 0; i < 260; i++) {
+    const px = rand() * w;
+    const x = px / w * width;
+    if (x > length) continue;
+    c.fillRect(px, row(x, 0.12 + rand() * 0.3), 1.5, 1.5);
+  }
   c.save();
   c.lineWidth = 0.6;
   for (let i = 1; i < 14; i++) {
@@ -4916,171 +5784,357 @@ export function weatherKind(code) {
   return ["—", "cloudy"];
 }
 
-// A little flat icon for a kind of weather, `s` across, centred on (x, y)
+// A little icon for a kind of weather, `s` across, centred on (x, y): flat colours with a
+// shaded underside and a sheen up top, like the rest of the desk's cartoon props
 function weatherIcon(c, x, y, s, kind, night = false) {
   const ink = "#1a1714";
+  c.save();
   c.lineJoin = "round";
   c.lineCap = "round";
   c.lineWidth = s * 0.05;
   c.strokeStyle = ink;
-  const sun = (cx, cy, r) => {
-    if (night) {
-      c.beginPath();
-      c.arc(cx, cy, r, Math.PI * 0.35, Math.PI * 1.65);
-      c.arc(cx + r * 0.45, cy - r * 0.1, r * 0.8, Math.PI * 1.55, Math.PI * 0.45, true);
-      c.closePath();
-      c.fillStyle = "#fff3b0";
-      c.fill();
-      c.stroke();
-      return;
-    }
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 8) * Math.PI * 2;
-      c.beginPath();
-      c.moveTo(cx + Math.cos(a) * r * 1.3, cy + Math.sin(a) * r * 1.3);
-      c.lineTo(cx + Math.cos(a) * r * 1.65, cy + Math.sin(a) * r * 1.65);
-      c.stroke();
-    }
-    c.beginPath();
-    c.arc(cx, cy, r, 0, Math.PI * 2);
-    c.fillStyle = "#ffcf3a";
-    c.fill();
-    c.stroke();
-  };
-  const cloud = (cx, cy, r, fill = "#fffdf5") => {
-    c.beginPath();
-    c.arc(cx - r * 0.75, cy + r * 0.15, r * 0.55, Math.PI * 0.5, Math.PI * 1.5);
-    c.arc(cx - r * 0.15, cy - r * 0.25, r * 0.7, Math.PI * 1.05, Math.PI * 1.9);
-    c.arc(cx + r * 0.65, cy + r * 0.1, r * 0.6, Math.PI * 1.35, Math.PI * 0.5);
-    c.closePath();
+  // fill a shape, shade the part of it `below` traces (it may name a fill rule), add a sheen,
+  // then ink its edge
+  const cel = (path, fill, below, sheen) => {
+    path();
     c.fillStyle = fill;
     c.fill();
+    c.save();
+    c.clip();
+    c.fillStyle = mixHex(fill, "#3b3a7a", 0.22);
+    c.fill(below() || "nonzero");
+    if (sheen) {
+      c.fillStyle = "rgba(255,255,255,.75)";
+      sheen();
+      c.fill();
+    }
+    c.restore();
+    path();
     c.stroke();
   };
-  if (kind === "clear") return sun(x, y, s * 0.26);
-  if (kind === "partly") {
-    sun(x - s * 0.14, y - s * 0.12, s * 0.19);
-    return cloud(x + s * 0.08, y + s * 0.1, s * 0.3);
-  }
-  if (kind === "cloudy") {
+  const sun = (cx, cy, r) => {
+    if (night) {
+      const moon = () => {
+        c.beginPath();
+        c.arc(cx, cy, r, Math.PI * 0.35, Math.PI * 1.65);
+        c.arc(cx + r * 0.45, cy - r * 0.1, r * 0.8, Math.PI * 1.55, Math.PI * 0.45, true);
+        c.closePath();
+      };
+      cel(moon, "#fff3b0", () => {
+        c.beginPath();
+        c.arc(cx - r * 0.2, cy + r * 0.35, r * 0.9, 0, Math.PI * 2);
+      });
+      c.fillStyle = "#e6d27a";
+      [[-0.55, -0.2, 0.13], [-0.35, 0.35, 0.09]].forEach(([dx, dy, k]) => {
+        c.beginPath();
+        c.arc(cx + dx * r, cy + dy * r, k * r, 0, Math.PI * 2);
+        c.fill();
+      });
+      return;
+    }
+    // rays: long and short in turn, each a rounded wedge
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const len = i % 2 ? 1.5 : 1.75;
+      c.save();
+      c.translate(cx, cy);
+      c.rotate(a);
+      c.beginPath();
+      c.moveTo(r * 1.22, -r * 0.13);
+      c.lineTo(r * len, 0);
+      c.lineTo(r * 1.22, r * 0.13);
+      c.closePath();
+      c.fillStyle = i % 2 ? "#ffb02e" : "#ffcf3a";
+      c.fill();
+      c.stroke();
+      c.restore();
+    }
+    cel(() => {
+      c.beginPath();
+      c.arc(cx, cy, r, 0, Math.PI * 2);
+    }, "#ffcf3a", () => {
+      // everything outside a circle nudged up and left: a crescent of shade low on the right
+      c.beginPath();
+      c.arc(cx - r * 0.25, cy - r * 0.3, r * 1.05, 0, Math.PI * 2);
+      c.rect(cx - r * 2, cy - r * 2, r * 4, r * 4);
+      return "evenodd";
+    }, () => {
+      c.beginPath();
+      c.ellipse(cx - r * 0.38, cy - r * 0.42, r * 0.26, r * 0.15, -0.6, 0, Math.PI * 2);
+    });
+  };
+  const cloud = (cx, cy, r, fill = "#fffdf5") => {
+    const shape = () => {
+      c.beginPath();
+      c.arc(cx - r * 0.75, cy + r * 0.15, r * 0.55, Math.PI * 0.5, Math.PI * 1.5);
+      c.arc(cx - r * 0.15, cy - r * 0.25, r * 0.7, Math.PI * 1.05, Math.PI * 1.9);
+      c.arc(cx + r * 0.65, cy + r * 0.1, r * 0.6, Math.PI * 1.35, Math.PI * 0.5);
+      c.closePath();
+    };
+    cel(shape, fill, () => {
+      c.beginPath();
+      c.rect(cx - r * 2, cy + r * 0.28, r * 4, r * 2);
+    }, () => {
+      c.beginPath();
+      c.ellipse(cx - r * 0.3, cy - r * 0.55, r * 0.26, r * 0.11, -0.25, 0, Math.PI * 2);
+    });
+  };
+  const drop = (px, py, k) => {
+    c.beginPath();
+    c.moveTo(px, py - k * 1.3);
+    c.quadraticCurveTo(px + k, py + k * 0.2, px, py + k);
+    c.quadraticCurveTo(px - k, py + k * 0.2, px, py - k * 1.3);
+    c.fillStyle = "#5fb3ff";
+    c.fill();
+    c.stroke();
+    c.beginPath();
+    c.arc(px - k * 0.3, py + k * 0.05, k * 0.22, 0, Math.PI * 2);
+    c.fillStyle = "#fffdf5";
+    c.fill();
+  };
+  if (kind === "clear") sun(x, y, s * 0.24);
+  else if (kind === "partly") {
+    sun(x - s * 0.14, y - s * 0.12, s * 0.18);
+    cloud(x + s * 0.08, y + s * 0.1, s * 0.3);
+  } else if (kind === "cloudy") {
     cloud(x + s * 0.12, y - s * 0.08, s * 0.24, "#c9d1dc");
-    return cloud(x - s * 0.04, y + s * 0.08, s * 0.32);
-  }
-  if (kind === "fog") {
+    cloud(x - s * 0.04, y + s * 0.08, s * 0.32);
+  } else if (kind === "fog") {
     cloud(x, y - s * 0.12, s * 0.28, "#dfe4ea");
     [0.16, 0.3].forEach((dy, i) => {
       c.beginPath();
-      c.moveTo(x - s * (0.32 - i * 0.06), y + s * dy);
-      c.lineTo(x + s * (0.32 - i * 0.1), y + s * dy);
+      const x0 = x - s * (0.32 - i * 0.06);
+      const x1 = x + s * (0.32 - i * 0.1);
+      c.moveTo(x0, y + s * dy);
+      for (let k = 1; k <= 4; k++) c.quadraticCurveTo(x0 + ((k - 0.5) / 4) * (x1 - x0), y + s * (dy + (k % 2 ? -0.03 : 0.03)), x0 + (k / 4) * (x1 - x0), y + s * dy);
       c.stroke();
     });
-    return;
-  }
-  cloud(x, y - s * 0.1, s * 0.3, kind === "storm" ? "#9aa5b5" : "#dfe6f0");
-  if (kind === "storm") {
-    c.beginPath();
-    c.moveTo(x + s * 0.02, y + s * 0.06);
-    c.lineTo(x - s * 0.1, y + s * 0.26);
-    c.lineTo(x + s * 0.02, y + s * 0.26);
-    c.lineTo(x - s * 0.06, y + s * 0.44);
-    c.lineTo(x + s * 0.16, y + s * 0.18);
-    c.lineTo(x + s * 0.04, y + s * 0.18);
-    c.closePath();
-    c.fillStyle = "#ffdd00";
-    c.fill();
-    c.stroke();
-    return;
-  }
-  [-0.16, 0, 0.16].forEach((dx, i) => {
-    const px = x + s * dx;
-    const py = y + s * (0.22 + (i % 2) * 0.08);
-    c.beginPath();
-    if (kind === "snow") c.arc(px, py, s * 0.035, 0, Math.PI * 2);
-    else {
-      c.moveTo(px, py - s * 0.06);
-      c.quadraticCurveTo(px + s * 0.045, py + s * 0.02, px, py + s * 0.05);
-      c.quadraticCurveTo(px - s * 0.045, py + s * 0.02, px, py - s * 0.06);
+  } else {
+    cloud(x, y - s * 0.1, s * 0.3, kind === "storm" ? "#9aa5b5" : "#dfe6f0");
+    if (kind === "storm") {
+      const bolt = () => {
+        c.beginPath();
+        c.moveTo(x + s * 0.02, y + s * 0.06);
+        c.lineTo(x - s * 0.1, y + s * 0.26);
+        c.lineTo(x + s * 0.02, y + s * 0.26);
+        c.lineTo(x - s * 0.06, y + s * 0.44);
+        c.lineTo(x + s * 0.16, y + s * 0.18);
+        c.lineTo(x + s * 0.04, y + s * 0.18);
+        c.closePath();
+      };
+      cel(bolt, "#ffdd00", () => {
+        c.beginPath();
+        c.rect(x + s * 0.03, y, s * 0.3, s * 0.5);
+      });
+    } else {
+      [-0.16, 0, 0.16].forEach((dx, i) => {
+        const px = x + s * dx;
+        const py = y + s * (0.24 + (i % 2) * 0.08);
+        if (kind !== "snow") return drop(px, py, s * 0.05);
+        c.beginPath();
+        for (let k = 0; k < 3; k++) {
+          const a = (k / 3) * Math.PI;
+          c.moveTo(px - Math.cos(a) * s * 0.05, py - Math.sin(a) * s * 0.05);
+          c.lineTo(px + Math.cos(a) * s * 0.05, py + Math.sin(a) * s * 0.05);
+        }
+        c.stroke();
+      });
     }
-    c.fillStyle = kind === "snow" ? "#fffdf5" : "#5fb3ff";
-    c.fill();
-    c.stroke();
-  });
+  }
+  c.restore();
 }
 
 // The card: where and when, the weather right now (icon, temperature, what it's doing,
 // humidity and wind), then the next few days. `weather` is null while it loads, or has
-// `error` when it couldn't be fetched.
+// `error` when it couldn't be fetched. Card stock with a fine grain, taped to the wall.
 export function drawWeatherCard(c, w, h, { place, weather }) {
   c.clearRect(0, 0, w, h);
   const pad = w * 0.06;
   const ink = "#1a1714";
-  brutalBox(c, 6, 6, w - 30, h - 30, "#fffdf5", { shadow: 16, line: 7 });
-  // header
+  const cardW = w - 30;
+  const cardH = h - 30;
+  brutalBox(c, 6, 6, cardW, cardH, "#fffdf5", { shadow: 16, line: 7 });
+  c.save();
+  c.beginPath();
+  c.rect(10, 10, cardW - 8, cardH - 8);
+  c.clip();
+  // the stock: a faint grid and a scatter of fibres and flecks
+  c.fillStyle = "rgba(47,124,246,.06)";
+  for (let gx = 10; gx < cardW; gx += 36) c.fillRect(gx, 10, 2, cardH);
+  for (let gy = 10; gy < cardH; gy += 36) c.fillRect(10, gy, cardW, 2);
+  for (let i = 0; i < 700; i++) {
+    const fx = 10 + ((i * 0.6180339) % 1) * cardW;
+    const fy = 10 + ((i * 0.7548776 + 0.3) % 1) * cardH;
+    c.fillStyle = i % 3 ? "rgba(26,23,20,.07)" : "rgba(160,120,60,.09)";
+    c.fillRect(fx, fy, i % 5 ? 2 : 5, 2);
+  }
+  // header band: sky blue, a shaded lower edge, light diagonal stripes
   const bandH = h * 0.11;
   c.fillStyle = "#7fdfff";
-  c.fillRect(9, 9, w - 36, bandH);
+  c.fillRect(9, 9, cardW - 6, bandH);
+  c.fillStyle = "rgba(255,255,255,.28)";
+  for (let sx = -bandH; sx < cardW; sx += 34) {
+    c.beginPath();
+    c.moveTo(sx, 9 + bandH);
+    c.lineTo(sx + 12, 9 + bandH);
+    c.lineTo(sx + 12 + bandH, 9);
+    c.lineTo(sx + bandH, 9);
+    c.closePath();
+    c.fill();
+  }
+  c.fillStyle = "#4fc3ea";
+  c.fillRect(9, 9 + bandH - 9, cardW - 6, 9);
+  c.restore();
   c.fillStyle = ink;
-  c.fillRect(9, 9 + bandH, w - 36, 6);
+  c.fillRect(9, 9 + bandH, cardW - 6, 6);
+  // a map pin, then the place
+  const pinX = pad + h * 0.018;
+  const pinY = 9 + bandH / 2;
+  const pr = h * 0.02;
+  c.beginPath();
+  c.arc(pinX, pinY - pr * 0.4, pr, Math.PI * 0.85, Math.PI * 0.15);
+  c.lineTo(pinX, pinY + pr * 1.5);
+  c.closePath();
+  c.fillStyle = "#ff6b6b";
+  c.fill();
+  c.lineWidth = 4;
+  c.strokeStyle = ink;
+  c.lineJoin = "round";
+  c.stroke();
+  c.beginPath();
+  c.arc(pinX, pinY - pr * 0.4, pr * 0.38, 0, Math.PI * 2);
+  c.fillStyle = "#fffdf5";
+  c.fill();
+  c.stroke();
   c.textBaseline = "middle";
-  c.font = `900 ${Math.round(h * 0.045)}px 'Lexend Mega', sans-serif`;
-  c.fillText(`WEATHER · ${place.toUpperCase()}`, pad, 9 + bandH / 2 + 2);
-  const right = w - 30 - pad;
+  c.fillStyle = ink;
+  const title = `WEATHER · ${place.toUpperCase()}`;
+  const titleX = pinX + pr * 1.8;
+  let size = Math.round(h * 0.045);
+  c.font = `900 ${size}px 'Lexend Mega', sans-serif`;
+  while (c.measureText(title).width > cardW - titleX - pad * 0.4 && size > 12) c.font = `900 ${--size}px 'Lexend Mega', sans-serif`;
+  c.fillText(title, titleX, pinY + 2);
+  const right = cardW - pad;
   if (!weather || weather.error) {
     c.font = `600 ${Math.round(h * 0.04)}px 'Space Grotesk', sans-serif`;
     c.textAlign = "center";
-    c.fillText(weather?.error ? "Couldn't reach the forecast right now." : "Checking the sky…", (w - 30) / 2, h * 0.45);
+    c.fillText(weather?.error ? "Couldn't reach the forecast right now." : "Checking the sky…", cardW / 2, h * 0.45);
     c.textAlign = "left";
+    tape(c, w);
     return;
   }
   const { current, days, updated } = weather;
   const [label, kind] = weatherKind(current.code);
   const top = 9 + bandH + 6;
-  // now
-  weatherIcon(c, pad + w * 0.16, top + h * 0.17, w * 0.34, kind, !current.isDay);
-  c.font = `900 ${Math.round(h * 0.13)}px 'Lexend Mega', sans-serif`;
+  // now: the icon on a round badge tinted by the sky it shows
+  const badgeX = pad + w * 0.16;
+  const badgeY = top + h * 0.17;
+  const badgeR = w * 0.14;
+  const tint = !current.isDay ? "#c9c5ff" : kind === "clear" || kind === "partly" ? "#fff1b8" : kind === "storm" ? "#d9dcef" : "#d6ecff";
+  c.beginPath();
+  c.arc(badgeX + 7, badgeY + 7, badgeR, 0, Math.PI * 2);
   c.fillStyle = ink;
-  c.fillText(`${Math.round(current.temp)}°`, pad + w * 0.38, top + h * 0.13);
+  c.fill();
+  c.beginPath();
+  c.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
+  c.fillStyle = tint;
+  c.fill();
+  c.lineWidth = 5;
+  c.stroke();
+  weatherIcon(c, badgeX, badgeY, w * 0.3, kind, !current.isDay);
+  // the temperature in big type with a hard pink shadow
+  const temp = `${Math.round(current.temp)}°`;
+  c.font = `900 ${Math.round(h * 0.13)}px 'Lexend Mega', sans-serif`;
+  c.fillStyle = "#ff90e8";
+  c.fillText(temp, pad + w * 0.38 + 7, top + h * 0.13 + 7);
+  c.fillStyle = ink;
+  c.fillText(temp, pad + w * 0.38, top + h * 0.13);
   c.font = `700 ${Math.round(h * 0.042)}px 'Space Grotesk', sans-serif`;
   c.fillText(label, pad + w * 0.39, top + h * 0.235);
   c.font = `500 ${Math.round(h * 0.032)}px 'Space Grotesk', sans-serif`;
   c.fillStyle = "#4b4f57";
   c.fillText(`Now · updated ${updated}`, pad + w * 0.39, top + h * 0.285);
-  // humidity and wind chips
+  // humidity and wind chips, each with a drawn icon
   const chipY = top + h * 0.34;
-  [[`💧 ${current.humidity}%`, "#c4e6ff"], [`🌬 ${Math.round(current.wind)} km/h`, "#d9f7d6"]].forEach(([text, fill], i) => {
+  const chipH = h * 0.06;
+  [["humidity", `${current.humidity}%`, "#c4e6ff"], ["wind", `${Math.round(current.wind)} km/h`, "#d9f7d6"]].forEach(([icon, text, fill], i) => {
     c.font = `700 ${Math.round(h * 0.034)}px 'Space Grotesk', sans-serif`;
-    const cw = c.measureText(text).width + pad * 1.1;
+    const iconW = chipH * 0.7;
+    const cw = c.measureText(text).width + iconW + pad * 1.2;
     const cx = pad + i * (w * 0.4);
     c.fillStyle = ink;
-    c.fillRect(cx + 4, chipY + 4, cw, h * 0.06);
+    c.fillRect(cx + 5, chipY + 5, cw, chipH);
     c.fillStyle = fill;
-    c.fillRect(cx, chipY, cw, h * 0.06);
+    c.fillRect(cx, chipY, cw, chipH);
     c.lineWidth = 4;
     c.strokeStyle = ink;
-    c.strokeRect(cx, chipY, cw, h * 0.06);
+    c.strokeRect(cx, chipY, cw, chipH);
+    const ix = cx + pad * 0.45 + iconW / 2;
+    const iy = chipY + chipH / 2;
+    c.lineWidth = 3.5;
+    c.lineCap = "round";
+    if (icon === "humidity") {
+      const k = chipH * 0.22;
+      c.beginPath();
+      c.moveTo(ix, iy - k * 1.4);
+      c.quadraticCurveTo(ix + k * 1.1, iy + k * 0.2, ix, iy + k);
+      c.quadraticCurveTo(ix - k * 1.1, iy + k * 0.2, ix, iy - k * 1.4);
+      c.fillStyle = "#2f7cf6";
+      c.fill();
+      c.stroke();
+    } else {
+      const k = chipH * 0.24;
+      c.beginPath();
+      c.moveTo(ix - k * 1.3, iy - k * 0.6);
+      c.lineTo(ix + k * 0.6, iy - k * 0.6);
+      c.arc(ix + k * 0.6, iy - k * 1.05, k * 0.45, Math.PI / 2, -Math.PI * 0.9, true);
+      c.moveTo(ix - k * 1.3, iy + k * 0.35);
+      c.lineTo(ix + k * 1, iy + k * 0.35);
+      c.arc(ix + k * 1, iy + k * 0.85, k * 0.5, -Math.PI / 2, Math.PI * 0.9);
+      c.stroke();
+    }
     c.fillStyle = ink;
-    c.fillText(text, cx + pad * 0.55, chipY + h * 0.032);
+    c.fillText(text, cx + pad * 0.75 + iconW, chipY + h * 0.032);
   });
-  // the next days
+  // the next days, each on its own little card; today's picked out in yellow
   const rowY = top + h * 0.45;
   c.fillStyle = ink;
   c.fillRect(pad, rowY, right - pad, 4);
   const colW = (right - pad) / days.length;
+  const dayTop = rowY + h * 0.022;
+  const dayH = h * 0.29;
   days.forEach((d, i) => {
-    const cx = pad + colW * (i + 0.5);
+    const bx = pad + colW * i + 5;
+    const bw = colW - 16;
+    const cx = bx + bw / 2;
+    brutalBox(c, bx, dayTop, bw, dayH, i === 0 ? "#fff1a6" : "#eef8ff", { shadow: 6, line: 4 });
     c.textAlign = "center";
     c.fillStyle = ink;
-    c.font = `800 ${Math.round(h * 0.034)}px 'Space Grotesk', sans-serif`;
-    c.fillText(d.label, cx, rowY + h * 0.05);
-    weatherIcon(c, cx, rowY + h * 0.13, colW * 0.6, weatherKind(d.code)[1]);
+    c.font = `800 ${Math.round(h * 0.032)}px 'Space Grotesk', sans-serif`;
+    c.fillText(d.label, cx, dayTop + h * 0.03);
+    weatherIcon(c, cx, dayTop + h * 0.1, bw * 0.62, weatherKind(d.code)[1]);
     c.fillStyle = ink;
     c.font = `800 ${Math.round(h * 0.036)}px 'Space Grotesk', sans-serif`;
-    c.fillText(`${Math.round(d.max)}°`, cx, rowY + h * 0.225);
+    c.fillText(`${Math.round(d.max)}°`, cx - bw * 0.16, dayTop + h * 0.18);
     c.fillStyle = "#6b7280";
-    c.font = `600 ${Math.round(h * 0.03)}px 'Space Grotesk', sans-serif`;
-    c.fillText(`${Math.round(d.min)}°`, cx, rowY + h * 0.265);
+    c.font = `600 ${Math.round(h * 0.028)}px 'Space Grotesk', sans-serif`;
+    c.fillText(`${Math.round(d.min)}°`, cx + bw * 0.2, dayTop + h * 0.182);
+    // chance of rain as a little gauge
+    const rain = d.rain ?? 0;
+    const gx = bx + bw * 0.14;
+    const gw = bw * 0.72;
+    const gy = dayTop + h * 0.212;
+    const gh = h * 0.016;
+    c.fillStyle = "#fffdf5";
+    c.fillRect(gx, gy, gw, gh);
+    c.fillStyle = "#5fb3ff";
+    c.fillRect(gx, gy, (gw * rain) / 100, gh);
+    c.lineWidth = 3;
+    c.strokeStyle = ink;
+    c.strokeRect(gx, gy, gw, gh);
     c.fillStyle = "#2f7cf6";
-    c.fillText(`💧${d.rain ?? 0}%`, cx, rowY + h * 0.305);
+    c.font = `700 ${Math.round(h * 0.026)}px 'Space Grotesk', sans-serif`;
+    c.fillText(`${rain}% rain`, cx, dayTop + h * 0.258);
   });
   c.textAlign = "left";
   // attribution, as the forecast's licence asks
@@ -5089,6 +6143,30 @@ export function drawWeatherCard(c, w, h, { place, weather }) {
   c.textAlign = "right";
   c.fillText("Weather data by Open-Meteo.com", right, h - 30 - pad * 0.6);
   c.textAlign = "left";
+  tape(c, w);
+}
+// Two strips of yellow tape holding the card's top corners to the wall
+function tape(c, w) {
+  [[w * 0.1, 16, -0.45], [w * 0.86, 16, 0.4]].forEach(([x, y, a]) => {
+    c.save();
+    c.translate(x, y);
+    c.rotate(a);
+    const tw = 120;
+    const th = 34;
+    c.beginPath();
+    c.moveTo(-tw / 2, -th / 2);
+    for (let k = 0; k <= 4; k++) c.lineTo(-tw / 2 + (k % 2 ? 5 : 0), -th / 2 + (k * th) / 4);
+    for (let k = 0; k <= 4; k++) c.lineTo(tw / 2 - (k % 2 ? 5 : 0), th / 2 - (k * th) / 4);
+    c.closePath();
+    c.fillStyle = "rgba(255,221,0,.78)";
+    c.fill();
+    c.fillStyle = "rgba(255,255,255,.35)";
+    c.fillRect(-tw / 2 + 8, -th / 2 + 5, tw - 16, 5);
+    c.lineWidth = 2;
+    c.strokeStyle = "rgba(26,23,20,.35)";
+    c.stroke();
+    c.restore();
+  });
 }
 
 // ---------- book spines on the shelf ----------
@@ -5385,4 +6463,402 @@ export function drawInvaders(c, w, h, t = 0) {
     c.fillText("STAGE CLEAR!", w / 2, p * 22);
     c.textAlign = "left";
   }
+}
+
+// ---------- shared print details ----------
+// Card or paper stock: a fine scatter of flecks and a few short fibres, with the edges a shade
+// darker where hands have worn it. Flat, hard-edged marks, so it stays a printed toon surface.
+function stockGrain(c, w, h, { seed = 1, density = 1, fibre = "rgba(90,60,20,.09)", wear = 0.08 } = {}) {
+  let r = Math.abs(Math.round(seed * 9301 + 49297)) % 2147483646 + 1;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  const n = Math.round(((w * h) / 900) * density);
+  for (let i = 0; i < n; i++) {
+    c.fillStyle = rand() < 0.5 ? "rgba(0,0,0,.04)" : "rgba(255,255,255,.12)";
+    c.fillRect(rand() * w, rand() * h, 1 + rand() * 2, 1 + rand());
+  }
+  c.strokeStyle = fibre;
+  c.lineWidth = 1;
+  c.beginPath();
+  for (let i = 0; i < n / 30; i++) {
+    const x = rand() * w;
+    const y = rand() * h;
+    const a = rand() * Math.PI;
+    const l = 4 + rand() * 10;
+    c.moveTo(x, y);
+    c.quadraticCurveTo(x + Math.cos(a) * l * 0.5 + rand() * 3, y + Math.sin(a) * l * 0.5, x + Math.cos(a) * l, y + Math.sin(a) * l);
+  }
+  c.stroke();
+  if (wear) {
+    // a flat worn band round the edge, and the corners rubbed lighter
+    const band = Math.min(w, h) * 0.025;
+    c.fillStyle = `rgba(0,0,0,${wear})`;
+    c.fillRect(0, 0, w, band);
+    c.fillRect(0, h - band, w, band);
+    c.fillRect(0, 0, band, h);
+    c.fillRect(w - band, 0, band, h);
+    c.fillStyle = "rgba(255,255,255,.22)";
+    [[0, 0], [w, 0], [0, h], [w, h]].forEach(([x, y]) => {
+      c.beginPath();
+      c.arc(x, y, band * 2.2, 0, Math.PI * 2);
+      c.fill();
+    });
+  }
+}
+// Security-print waves (guilloche): fine sine lines weaving over each other
+function guilloche(c, x, y, w, h, color, { lines = 7, waves = 6 } = {}) {
+  c.save();
+  c.beginPath();
+  c.rect(x, y, w, h);
+  c.clip();
+  c.strokeStyle = color;
+  c.lineWidth = 1.2;
+  for (let k = 0; k < lines; k++) {
+    c.beginPath();
+    for (let px = 0; px <= w; px += 4) {
+      const a = (px / w) * Math.PI * 2 * waves;
+      const py = y + h / 2 + Math.sin(a + k * 0.9) * h * 0.32 + Math.sin(a * 0.5 - k * 1.3) * h * 0.12;
+      if (px === 0) c.moveTo(x + px, py);
+      else c.lineTo(x + px, py);
+    }
+    c.stroke();
+  }
+  c.restore();
+}
+// A rubber stamp, inked a little unevenly (gaps knocked out of the ink)
+function rubberStamp(c, x, y, text, { color = "#d62828", size = 30, angle = -0.12, seed = 1 } = {}) {
+  c.save();
+  c.translate(x, y);
+  c.rotate(angle);
+  c.font = `800 ${size}px ${DISPLAY}`;
+  const tw = c.measureText(text).width;
+  const pw = tw + size * 0.9;
+  const ph = size * 1.6;
+  c.strokeStyle = color;
+  c.fillStyle = color;
+  c.lineWidth = size * 0.14;
+  c.strokeRect(-pw / 2, -ph / 2, pw, ph);
+  c.lineWidth = size * 0.05;
+  c.strokeRect(-pw / 2 + size * 0.2, -ph / 2 + size * 0.2, pw - size * 0.4, ph - size * 0.4);
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.fillText(text, 0, size * 0.06);
+  c.globalCompositeOperation = "destination-out";
+  let r = seed * 7919 + 13;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 40; i++) c.fillRect((rand() - 0.5) * pw, (rand() - 0.5) * ph, 2 + rand() * 6, 1.5 + rand() * 2);
+  c.restore();
+}
+// A paperclip seen from above: one wire bent into nested loops, inked, with a bright line
+function paperclip(c, x, y, len, angle = 0) {
+  const W = len * 0.36;
+  const wire = () => {
+    c.beginPath();
+    c.moveTo(-0.15 * W, len * 0.62);
+    c.lineTo(-0.15 * W, len * 0.22);
+    c.arc(0, len * 0.22, 0.15 * W, Math.PI, 0);
+    c.lineTo(0.15 * W, len - 0.25 * W);
+    c.arc(-0.1 * W, len - 0.25 * W, 0.25 * W, 0, Math.PI);
+    c.lineTo(-0.35 * W, 0.35 * W);
+    c.arc(0, 0.35 * W, 0.35 * W, Math.PI, 0);
+    c.lineTo(0.35 * W, len * 0.78);
+  };
+  c.save();
+  c.translate(x, y);
+  c.rotate(angle);
+  c.lineCap = "round";
+  c.lineJoin = "round";
+  [[0.1, "#1a1714"], [0.055, "#b9c2cf"], [0.016, "#ffffff"]].forEach(([k, color]) => {
+    wire();
+    c.lineWidth = len * k;
+    c.strokeStyle = color;
+    c.stroke();
+  });
+  c.restore();
+}
+
+// ---------- mug, coffee and coaster ----------
+// The coffee's top, for a cylinder's cap: a ring of darker brew round the edge where it meets
+// the cup, the crema in two flat tones, a layered latte-art heart and a hard-edged sheen of the
+// window across it
+export function drawCoffeeTop(c, w, h) {
+  const cx = w / 2;
+  const cy = h / 2;
+  const R = w / 2;
+  c.fillStyle = "#3b2412";
+  c.fillRect(0, 0, w, h);
+  c.beginPath();
+  c.arc(cx, cy, R * 0.9, 0, Math.PI * 2);
+  c.fillStyle = "#8a5428";
+  c.fill();
+  c.beginPath();
+  c.arc(cx, cy, R * 0.74, 0, Math.PI * 2);
+  c.fillStyle = "#a96b36";
+  c.fill();
+  // the art: a layered heart, as when milk is poured in a wobble and pulled through. Nested
+  // hearts alternate milk and crema, bunched toward the point the pour came from, and a thin
+  // pulled line runs down through them, dragging each ring into the point. Flat tones, the
+  // outermost lightly inked.
+  const milk = "#f8ecd8";
+  const ring = "#b47740";
+  const heart = (s, dy) => {
+    const k = R * s;
+    const y = cy + dy;
+    c.beginPath();
+    c.moveTo(cx, y + k * 0.62);
+    c.bezierCurveTo(cx - k * 1.05, y + k * 0.05, cx - k * 0.62, y - k * 0.82, cx, y - k * 0.34);
+    c.bezierCurveTo(cx + k * 0.62, y - k * 0.82, cx + k * 1.05, y + k * 0.05, cx, y + k * 0.62);
+    c.closePath();
+  };
+  // mottled crema round it, darker flecks where the espresso shows through
+  let seed = 7121;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  c.fillStyle = "#94592b";
+  for (let i = 0; i < 40; i++) {
+    const a = rand() * Math.PI * 2;
+    const d = R * (0.55 + rand() * 0.3);
+    c.beginPath();
+    c.ellipse(cx + Math.cos(a) * d, cy + Math.sin(a) * d, R * (0.015 + rand() * 0.03), R * (0.01 + rand() * 0.015), a, 0, Math.PI * 2);
+    c.fill();
+  }
+  heart(0.76, -R * 0.02);
+  c.lineWidth = w * 0.012;
+  c.strokeStyle = "#7a4a22";
+  c.stroke();
+  [[0.76, 0, milk], [0.61, 0.035, ring], [0.49, 0.065, milk], [0.37, 0.09, ring], [0.24, 0.115, milk]].forEach(([size, dy, color]) => {
+    heart(size, R * (dy - 0.02));
+    c.fillStyle = color;
+    c.fill();
+  });
+  c.beginPath();
+  // from the cleft at the top down to the point, no further
+  c.moveTo(cx - R * 0.022, cy - R * 0.29);
+  c.lineTo(cx + R * 0.022, cy - R * 0.29);
+  c.lineTo(cx + R * 0.005, cy + R * 0.44);
+  c.lineTo(cx - R * 0.005, cy + R * 0.44);
+  c.closePath();
+  c.fillStyle = milk;
+  c.fill();
+  // the window's sheen: a hard-edged crescent near the far rim
+  c.save();
+  c.beginPath();
+  c.arc(cx, cy, R * 0.96, 0, Math.PI * 2);
+  c.clip();
+  c.beginPath();
+  c.arc(cx - R * 0.15, cy - R * 0.2, R * 0.9, Math.PI * 1.08, Math.PI * 1.42);
+  c.lineWidth = w * 0.035;
+  c.strokeStyle = "rgba(255,255,255,.55)";
+  c.stroke();
+  c.restore();
+}
+// Cork: a warm ground packed with granules in three browns
+export function drawCork(c, w, h) {
+  c.fillStyle = "#c08b52";
+  c.fillRect(0, 0, w, h);
+  let r = 3331;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  const tones = ["#a8743f", "#d9a86d", "#8a5a2e", "#e6bd85"];
+  for (let i = 0; i < (w * h) / 40; i++) {
+    c.fillStyle = tones[Math.floor(rand() * tones.length)];
+    c.beginPath();
+    c.ellipse(rand() * w, rand() * h, 1 + rand() * 3, 1 + rand() * 2.2, rand() * 3, 0, Math.PI * 2);
+    c.fill();
+  }
+}
+
+// ---------- mushroom figure ----------
+// Its cap, on a hemisphere's uv (the canvas's top row is the crown, its bottom the rim): red,
+// with big white spots inked round, a pale lip at the rim and a lighter band of sheen
+export function drawMushroomCap(c, w, h) {
+  c.fillStyle = "#e11d48";
+  c.fillRect(0, 0, w, h);
+  // a band of sheen high on the cap, and the rim a shade deeper
+  c.fillStyle = "#f43f6a";
+  c.fillRect(0, h * 0.22, w, h * 0.12);
+  c.fillStyle = "#be123c";
+  c.fillRect(0, h * 0.9, w, h * 0.1);
+  // spots: sized on the cap, so stretched across the canvas the nearer they are to the crown
+  const spot = (u, v, a) => {
+    const theta = v * Math.PI / 2;
+    const ry = (a / (Math.PI / 2)) * h;
+    const rx = Math.min(w / 2, (a / (2 * Math.PI * Math.max(0.15, Math.sin(theta)))) * w);
+    [u * w - w, u * w, u * w + w].forEach((x) => {
+      c.beginPath();
+      c.ellipse(x, v * h, rx, ry, 0, 0, Math.PI * 2);
+      c.fillStyle = "#fffdf5";
+      c.fill();
+      c.lineWidth = 3;
+      c.strokeStyle = "#1a1714";
+      c.stroke();
+      c.beginPath();
+      c.ellipse(x - rx * 0.2, v * h + ry * 0.3, rx * 0.7, ry * 0.45, 0, 0, Math.PI);
+      c.fillStyle = "#e9e2d4";
+      c.fill();
+    });
+  };
+  // the crown spot covers the pole: a band across the top
+  c.fillStyle = "#fffdf5";
+  c.fillRect(0, 0, w, h * 0.17);
+  c.fillStyle = "#e9e2d4";
+  c.fillRect(0, h * 0.12, w, h * 0.05);
+  c.fillStyle = "#1a1714";
+  c.fillRect(0, h * 0.17, w, 3);
+  [[0.0, 0.6, 0.3], [0.25, 0.55, 0.26], [0.5, 0.62, 0.32], [0.75, 0.58, 0.27], [0.13, 0.85, 0.14], [0.62, 0.86, 0.13], [0.88, 0.84, 0.12]].forEach(([u, v, a]) => spot(u, v, a));
+}
+// The stem, on a cylinder's uv (u = 0 faces front): cream, with two tall eyes and a blush
+export function drawMushroomFace(c, w, h) {
+  c.fillStyle = "#fff6e6";
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = "#f1e2c6";
+  c.fillRect(0, h * 0.82, w, h * 0.18);
+  // the canvas squeezes the stem's width ~1.35x more than its height, so eyes are drawn wider
+  [-0.06, 0.06].forEach((u) => {
+    [u * w, u * w + w].forEach((x) => {
+      c.beginPath();
+      c.ellipse(x, h * 0.4, w * 0.018, h * 0.13, 0, 0, Math.PI * 2);
+      c.fillStyle = "#1a1714";
+      c.fill();
+      c.beginPath();
+      c.ellipse(x - w * 0.005, h * 0.33, w * 0.007, h * 0.04, 0, 0, Math.PI * 2);
+      c.fillStyle = "#ffffff";
+      c.fill();
+    });
+  });
+  c.fillStyle = "rgba(255,120,150,.55)";
+  [-0.11, 0.11].forEach((u) => [u * w, u * w + w].forEach((x) => {
+    c.beginPath();
+    c.ellipse(x, h * 0.6, w * 0.025, h * 0.06, 0, 0, Math.PI * 2);
+    c.fill();
+  }));
+}
+// The underside of the cap: gills fanning out from the stem
+export function drawMushroomGills(c, w, h) {
+  c.fillStyle = "#f3e2c4";
+  c.fillRect(0, 0, w, h);
+  c.strokeStyle = "#c9a874";
+  c.lineWidth = 2;
+  c.beginPath();
+  for (let i = 0; i < 48; i++) {
+    const a = (i / 48) * Math.PI * 2;
+    c.moveTo(w / 2 + Math.cos(a) * w * 0.12, h / 2 + Math.sin(a) * h * 0.12);
+    c.lineTo(w / 2 + Math.cos(a) * w * 0.49, h / 2 + Math.sin(a) * h * 0.49);
+  }
+  c.stroke();
+}
+
+// ---------- wastebasket and hoop ----------
+// Moulded plastic for the bin's lathe: upright ribs round it and a fine stipple, as a light tile
+// its material tints
+export function drawBinRibs(c, w, h) {
+  c.fillStyle = "#ffffff";
+  c.fillRect(0, 0, w, h);
+  const ribs = 28;
+  for (let i = 0; i < ribs; i++) {
+    const x = (i / ribs) * w;
+    c.fillStyle = "rgba(0,40,40,.13)";
+    c.fillRect(x, 0, w / ribs * 0.28, h);
+    c.fillStyle = "rgba(0,40,40,.06)";
+    c.fillRect(x + w / ribs * 0.28, 0, w / ribs * 0.12, h);
+  }
+  let r = 1777;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < (w * h) / 60; i++) {
+    c.fillStyle = rand() < 0.5 ? "rgba(0,0,0,.05)" : "rgba(255,255,255,.4)";
+    c.fillRect(rand() * w, rand() * h, 1.5, 1.5);
+  }
+  // the inside of the bin (the canvas's top half) a step darker
+  c.fillStyle = "rgba(0,30,40,.18)";
+  c.fillRect(0, 0, w, h * 0.43);
+}
+// The backboard's face: a yellow board with an inked border, the shooter's square over the
+// ring, the league's name, bolts in the corners and the scuffs of a hundred paper balls
+export function drawBackboard(c, w, h) {
+  const ink = "#1a1714";
+  c.fillStyle = "#ffdd00";
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = "#ffe94d";
+  c.fillRect(0, 0, w, h * 0.18);
+  c.lineWidth = w * 0.03;
+  c.strokeStyle = ink;
+  c.strokeRect(w * 0.05, h * 0.07, w * 0.9, h * 0.86);
+  c.fillStyle = "#ff7a1a";
+  c.fillRect(w * 0.06, h * 0.86, w * 0.88, h * 0.05);
+  c.strokeRect(w * 0.32, h * 0.42, w * 0.36, h * 0.38);
+  c.fillStyle = ink;
+  c.font = `800 ${Math.round(h * 0.12)}px ${DISPLAY}`;
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.fillText("DESK LEAGUE", w / 2, h * 0.25);
+  [[0.1, 0.13], [0.9, 0.13], [0.1, 0.8], [0.9, 0.8]].forEach(([x, y]) => {
+    c.beginPath();
+    c.arc(w * x, h * y, w * 0.018, 0, Math.PI * 2);
+    c.fillStyle = "#9aa3ad";
+    c.fill();
+    c.lineWidth = 2;
+    c.strokeStyle = ink;
+    c.stroke();
+  });
+  c.fillStyle = "rgba(60,50,30,.18)";
+  [[0.42, 0.55, 0.06], [0.6, 0.62, 0.05], [0.47, 0.7, 0.045], [0.55, 0.5, 0.035]].forEach(([x, y, s]) => {
+    c.beginPath();
+    c.ellipse(w * x, h * y, w * s, w * s * 0.8, 0.4, 0, Math.PI * 2);
+    c.fill();
+  });
+}
+// The net, for an open cylinder's uv: a diamond mesh of white cord, inked, on a clear ground
+export function drawHoopNet(c, w, h) {
+  c.clearRect(0, 0, w, h);
+  const cells = 6;
+  const rows = 3;
+  const cord = () => {
+    c.beginPath();
+    for (let i = -rows; i <= cells + rows; i++) {
+      const x = (i / cells) * w;
+      c.moveTo(x, 0);
+      c.lineTo(x + (rows / cells) * w, h);
+      c.moveTo(x, 0);
+      c.lineTo(x - (rows / cells) * w, h);
+    }
+    c.moveTo(0, 3);
+    c.lineTo(w, 3);
+  };
+  cord();
+  c.lineWidth = 7;
+  c.strokeStyle = "#1a1714";
+  c.stroke();
+  cord();
+  c.lineWidth = 3.5;
+  c.strokeStyle = "#fffdf5";
+  c.stroke();
+}
+
+// ---------- glossy overlays ----------
+// A hard-edged gloss for glass or a vinyl sleeve: two slanted streaks of light, nothing else
+export function drawGlassSheen(c, w, h, { strength = 0.22 } = {}) {
+  c.clearRect(0, 0, w, h);
+  c.fillStyle = `rgba(255,255,255,${strength})`;
+  [[0.08, 0.16], [0.3, 0.06]].forEach(([x, wd]) => {
+    c.beginPath();
+    c.moveTo(w * x, h);
+    c.lineTo(w * (x + wd), h);
+    c.lineTo(w * (x + wd + 0.55), 0);
+    c.lineTo(w * (x + 0.55), 0);
+    c.closePath();
+    c.fill();
+  });
+}
+// The shine that runs along a blade as it clears the saya: a bright slanted bar between two
+// thin ones, black around them (it's used as an emissive map)
+export function drawBladeGlint(c, w, h) {
+  c.fillStyle = "#000";
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = "#ffffff";
+  [[0.47, 0.035], [0.43, 0.008], [0.53, 0.008]].forEach(([x, wd]) => {
+    c.beginPath();
+    c.moveTo(w * (x - 0.03), h);
+    c.lineTo(w * (x - 0.03 + wd), h);
+    c.lineTo(w * (x + 0.03 + wd), 0);
+    c.lineTo(w * (x + 0.03), 0);
+    c.closePath();
+    c.fill();
+  });
 }

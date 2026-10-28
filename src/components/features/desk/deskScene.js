@@ -56,7 +56,6 @@ import {
   drawGameSpine,
   drawGameCover,
   drawRepBadge,
-  drawBinLabel,
   drawCrumpledPaper,
   drawGlint,
   drawHakiAura,
@@ -97,6 +96,16 @@ import {
   drawRug,
   drawDrawerFront,
   SIP_QUOTES,
+  drawCoffeeTop,
+  drawCork,
+  drawMushroomCap,
+  drawMushroomFace,
+  drawMushroomGills,
+  drawBinRibs,
+  drawBackboard,
+  drawHoopNet,
+  drawGlassSheen,
+  drawBladeGlint,
 } from "./textures";
 import { createDesktop, SCREEN_W, SCREEN_H } from "./desktop";
 import { createLofi, TRACKS } from "./lofi";
@@ -320,6 +329,32 @@ export function createDeskScene({ container, projects, experiences, dark = false
   sun.shadow.normalBias = 0.02;
   sun.shadow.radius = 14;
   scene.add(sun, sun.target);
+  // Square, so texels stay square and the blur round; see fitSunShadow
+  const SUN_SPAN = 40;
+  const SUN_BLUR = sun.shadow.radius * SUN_SPAN;
+  const sunCasters = new THREE.Box3();
+  const sunCorner = new THREE.Vector3();
+  const sunFootprint = new THREE.Box3();
+  function fitSunShadow() {
+    if (sunCasters.isEmpty()) return;
+    const cam = sun.shadow.camera;
+    cam.position.copy(sun.position);
+    cam.lookAt(sun.target.position);
+    cam.updateMatrixWorld();
+    sunFootprint.makeEmpty();
+    for (let i = 0; i < 8; i++) {
+      sunCorner.set(i & 1 ? sunCasters.max.x : sunCasters.min.x, i & 2 ? sunCasters.max.y : sunCasters.min.y, i & 4 ? sunCasters.max.z : sunCasters.min.z);
+      sunFootprint.expandByPoint(sunCorner.applyMatrix4(cam.matrixWorldInverse));
+    }
+    const half = Math.min(SUN_SPAN, Math.max(sunFootprint.max.x - sunFootprint.min.x, sunFootprint.max.y - sunFootprint.min.y) + 1) / 2;
+    const cx = (sunFootprint.min.x + sunFootprint.max.x) / 2;
+    const cy = (sunFootprint.min.y + sunFootprint.max.y) / 2;
+    Object.assign(cam, { left: cx - half, right: cx + half, bottom: cy - half, top: cy + half });
+    cam.updateProjectionMatrix();
+    // the same penumbra in world units, now drawn from finer texels
+    sun.shadow.radius = SUN_BLUR / (half * 2);
+    sun.shadow.needsUpdate = true;
+  }
 
   const timers = [];
   let destroyed = false;
@@ -409,6 +444,69 @@ export function createDeskScene({ container, projects, experiences, dark = false
   }
   const UP = new THREE.Vector3(0, 1, 0);
   const rbox = (w, h, d, r = 0.08) => new RoundedBoxGeometry(w, h, d, 2, Math.min(r, Math.min(w, h, d) / 2 - 1e-3));
+
+  // ---------- paper that bends ----------
+  // Sheets, covers and passes flex instead of moving as rigid boards. Each keeps its meshes'
+  // rest shapes and, whenever its `bend` changes, curls them along its root's x: from one edge
+  // (`from`, a page on its hinge) or out both ways from the middle (`centre`, a pass held in
+  // the hand). A bend of 1 lifts the far edge a quarter of `length`; negative curls it down.
+  // The outline hulls bend with them, so the ink follows the paper. Meshes given here need
+  // geometry split along x (see bendable) to curve smoothly.
+  const bendable = (w, d, h = 0) => (h ? new THREE.BoxGeometry(w, h, d, 16, 1, 1) : new THREE.PlaneGeometry(w, d, 16, 1));
+  const paperFlexes = [];
+  function paperFlex(root, meshes, { from = 0, length, centre = false }) {
+    root.updateMatrixWorld(true);
+    const rootInv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+    const parts = [];
+    meshes.forEach((m) => m.traverse((o) => {
+      if (!o.isMesh) return;
+      o.geometry = track(o.geometry.clone());
+      const toRoot = new THREE.Matrix4().multiplyMatrices(rootInv, o.matrixWorld);
+      parts.push({ o, base: o.geometry.attributes.position.array.slice(), toRoot, fromRoot: toRoot.clone().invert() });
+    }));
+    const flex = { bend: 0, applied: 0, parts, from, length, centre };
+    paperFlexes.push(flex);
+    return flex;
+  }
+  const flexV = new THREE.Vector3();
+  function updatePaperFlex() {
+    paperFlexes.forEach((flex) => {
+      if (Math.abs(flex.bend - flex.applied) < 1e-4) return;
+      flex.applied = flex.bend;
+      const { from, length, centre } = flex;
+      const lift = flex.bend * length * 0.25;
+      flex.parts.forEach(({ o, base, toRoot, fromRoot }) => {
+        const pos = o.geometry.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          flexV.fromArray(base, i * 3).applyMatrix4(toRoot);
+          const t = Math.max(0, (centre ? Math.abs(flexV.x - from) : flexV.x - from) / length);
+          // a curl, pulled in a touch along x so the paper doesn't stretch as it lifts
+          const rise = lift * t * t;
+          flexV.y += rise;
+          flexV.x -= Math.sign(flexV.x - from || 1) * (rise * rise) / (length * 1.5) * t;
+          flexV.applyMatrix4(fromRoot);
+          pos.setXYZ(i, flexV.x, flexV.y, flexV.z);
+        }
+        pos.needsUpdate = true;
+        o.geometry.computeVertexNormals();
+        o.geometry.computeBoundingSphere();
+      });
+    });
+  }
+  // A springy flex: a quick curl to `peak`, then back through flat, overshooting a little and
+  // quivering out, as paper does
+  const flexTo = (flex, peak, { duration = 0.9, delay = 0, rise = 0.14 } = {}) => gsap.to(flex, {
+    keyframes: [{ bend: peak, duration: rise, ease: "power2.out" }, { bend: 0, duration, ease: "elastic.out(1, 0.35)" }],
+    delay,
+    overwrite: true,
+  });
+  // The same, for paper lying among other paper: one curl one way and an easing back, never
+  // swinging through flat to the other side, where it would cut into its neighbours
+  const flexSettle = (flex, peak, { duration = 0.5, delay = 0, rise = 0.12 } = {}) => gsap.to(flex, {
+    keyframes: [{ bend: peak, duration: rise, ease: "power2.out" }, { bend: 0, duration, ease: "sine.out" }],
+    delay,
+    overwrite: true,
+  });
   // A rounded rectangle in the xy plane, centred on the origin
   const roundedRectShape = (w, h, r) => {
     const shape = new THREE.Shape();
@@ -793,9 +891,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
 
   // A framed illustration on the left wall: four panes, a sun/moon and angular trees.
   const windowGroup = new THREE.Group();
-  // Set back in the wall's opening: the group's origin is the frame's plane, WINDOW_DEPTH
-  // behind the wall's face
-  const WINDOW_DEPTH = 0.42;
+  // Seated in the wall's opening, the frame's face all but flush with the wall's, so the wall
+  // runs straight up to the wood: the group's origin is the frame's plane, WINDOW_DEPTH behind
+  // the wall's face
+  const WINDOW_DEPTH = 0.1;
   windowGroup.position.set(SIDE_X + 0.12 - WINDOW_DEPTH, WINDOW_AT.y, WINDOW_AT.z);
   windowGroup.rotation.y = Math.PI / 2;
   room.add(windowGroup);
@@ -818,36 +917,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const windowView = printed(4.0, 4.1, 220, (c, w, h) => drawWindowView(c, w, h, { ...outside, time: dayPart() }), { unlit: true });
   windowView.position.z = 0.105;
   windowGroup.add(windowFrame, windowView);
-  // The reveal: wooden linings round the opening (the frame's wood), from the frame out to the wall's face
-  // (they fill the cut wall's edges and run on behind it), with a soft shadow cast in from
-  // above and the side so the frame reads as set into the wall
-  const JAMB = 0.12;
-  const REVEAL = WINDOW_DEPTH + 0.1;
-  // (no lining along the bottom: the sill is the opening's floor)
-  [[0, 2.25 + JAMB / 2, 4.4 + JAMB * 2, JAMB], [2.2 + JAMB / 2, 0, JAMB, 4.5], [-2.2 - JAMB / 2, 0, JAMB, 4.5]].forEach(([x, y, w, h]) => {
-    const jamb = mesh(new THREE.BoxGeometry(w, h, REVEAL), frameWood, { cast: false, outline: 0.015 });
-    // Stands just proud of the wall's face, a thin wooden lip round the opening: ending behind
-    // it let the white cut edge of the wall show as a line, and flush, the two faces flicker
-    jamb.position.set(x, y, WINDOW_DEPTH + 0.02 - REVEAL / 2);
-    windowGroup.add(jamb);
-  });
-  const revealShade = printed(4.4, 4.5, 64, (c, w, h) => {
-    c.clearRect(0, 0, w, h);
-    const top = c.createLinearGradient(0, 0, 0, h * 0.22);
-    top.addColorStop(0, "rgba(40,30,60,0.45)");
-    top.addColorStop(1, "rgba(40,30,60,0)");
-    c.fillStyle = top;
-    c.fillRect(0, 0, w, h * 0.22);
-    const side = c.createLinearGradient(w, 0, w * 0.86, 0);
-    side.addColorStop(0, "rgba(40,30,60,0.35)");
-    side.addColorStop(1, "rgba(40,30,60,0)");
-    c.fillStyle = side;
-    c.fillRect(w * 0.86, 0, w * 0.14, h);
-  }, { unlit: true });
-  revealShade.material.transparent = true;
-  revealShade.material.depthWrite = false;
-  revealShade.position.z = 0.125;
-  revealShade.raycast = noRaycast;
   // The sill runs out from the frame past the wall's face, with an apron board under it. Its
   // top sits clearly above the opening's floor and the frame's foot (both end inside it), so
   // no two faces share a plane and flicker as the camera moves.
@@ -855,7 +924,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   sill.position.set(0, -2.25 - 0.03, (WINDOW_DEPTH + 0.45) / 2);
   const apron = mesh(rbox(4.1, 0.26, 0.08, 0.03), frameWood, { cast: false, outline: 0.02 });
   apron.position.set(0, -2.25 - 0.29, WINDOW_DEPTH + 0.04);
-  windowGroup.add(sill, apron, revealShade);
+  windowGroup.add(sill, apron);
   const moulding = toon("#7a4a26");
   [[0, 2.05, 4.12, 0.1], [0, -2.05, 4.12, 0.1], [2.0, 0, 0.1, 4.2], [-2.0, 0, 0.1, 4.2]].forEach(([x, y, w, h]) => {
     const strip = mesh(rbox(w, h, 0.08, 0.02), moulding, { cast: false, outline: 0.015 });
@@ -891,6 +960,190 @@ export function createDeskScene({ container, projects, experiences, dark = false
   windowGlare.position.z = 0.115;
   windowGlare.raycast = noRaycast;
   windowGroup.add(windowGlare);
+  // What stops the light coming in through the window (see windowLight): the wall round the
+  // glass, the glazing bars painted on the view and the blind. They're drawn only into that
+  // light's shadow map (skipped in every other pass), so the wall still doesn't darken the room
+  // for the sun, and nothing of them shows.
+  const shadowOnly = track(new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, side: THREE.DoubleSide }));
+  const skipDraw = (r, s, c, geometry) => geometry.setDrawRange(0, 0);
+  const restoreDraw = (r, s, c, geometry) => geometry.setDrawRange(0, Infinity);
+  const windowShadow = (geo) => {
+    const m = new THREE.Mesh(geo, shadowOnly);
+    m.castShadow = true;
+    m.frustumCulled = false;
+    m.raycast = noRaycast;
+    m.userData.windowShadow = true;
+    m.onBeforeShadow = (r, o, c, shadowCamera, g) => g.setDrawRange(0, shadowCamera === windowLight.shadow.camera ? Infinity : 0);
+    m.onAfterShadow = (r, o, c, shadowCamera, g) => g.setDrawRange(0, Infinity);
+    m.onBeforeRender = skipDraw;
+    m.onAfterRender = restoreDraw;
+    return m;
+  };
+  const windowWall = new THREE.Shape();
+  windowWall.moveTo(-40, -40);
+  windowWall.lineTo(40, -40);
+  windowWall.lineTo(40, 40);
+  windowWall.lineTo(-40, 40);
+  windowWall.closePath();
+  const glassHole = new THREE.Path();
+  glassHole.moveTo(-2.0, -2.05);
+  glassHole.lineTo(-2.0, 2.05);
+  glassHole.lineTo(2.0, 2.05);
+  glassHole.lineTo(2.0, -2.05);
+  glassHole.closePath();
+  windowWall.holes.push(glassHole);
+  const windowBars = 0.15; // as wide as drawWindowView paints them
+  [
+    track(new THREE.ShapeGeometry(windowWall)),
+    track(new THREE.BoxGeometry(windowBars, 4.1, 0.04)),
+    track(new THREE.BoxGeometry(4.0, windowBars, 0.04)),
+  ].forEach((geo) => windowGroup.add(at(windowShadow(geo), 0, 0, 0.06)));
+
+  // ---------- a roller blind over the window ----------
+  // Grey cloth on a roller above the frame, worked by a bead chain on the left (the
+  // side nearer the desk's view, easy to reach). It starts rolled up, out of the view; the
+  // chain lets it down in two steps and draws it back up. The roll fattens as the fabric winds
+  // onto it, the chain runs while it turns, and the fabric really stops the window's light, so
+  // the sunlit patch on the wall and desk shrinks with it.
+  const BLIND_W = 4.5;
+  const ROLL_Y = 2.42; // the roller's axis, just above the frame
+  const ROLL_Z = 0.36; // clear of the catch and the moulding
+  const ROLL_CORE = 0.05;
+  const ROLL_FULL = 0.045; // what the whole length of fabric adds to the roll's radius
+  const BAR_H = 0.08;
+  const FULL_DROP = ROLL_Y - (-2.18 + BAR_H / 2 + 0.01); // down to the sill
+  const MIN_DROP = 0.13; // rolled up, the bottom bar tucks under the roll
+  const FABRIC_TILE = 0.7; // world size of one repeat of the weave
+  const blindGroup = new THREE.Group();
+  windowGroup.add(blindGroup);
+  // The cloth, drawn like the rest of the room: a flat cool grey with only a hint of cloth in
+  // it (faint weft lines and a few lighter slubs), so it stays cartoon
+  const blindPrint = canvasTexture(256, 256);
+  track(blindPrint.texture);
+  {
+    const c = blindPrint.ctx;
+    c.fillStyle = "#a4aab3";
+    c.fillRect(0, 0, 256, 256);
+    let seed = 913;
+    const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    c.fillStyle = "rgba(40,44,54,.05)";
+    for (let y = 0; y < 256; y += 8) c.fillRect(0, y, 256, 1);
+    for (let k = 0; k < 12; k++) {
+      c.fillStyle = `rgba(232,236,242,${0.25 + rand() * 0.15})`;
+      c.fillRect(rand() * 256, Math.floor(rand() * 32) * 8 + 3, 14 + rand() * 30, 2);
+    }
+  }
+  blindPrint.texture.wrapS = blindPrint.texture.wrapT = THREE.RepeatWrapping;
+  blindPrint.texture.needsUpdate = true;
+  blindPrint.texture.repeat.set(BLIND_W / FABRIC_TILE, 1);
+  // By day the sun behind it shows through a little, so the cloth glows; by night it doesn't
+  const blindFabric = toon("#ffffff");
+  blindFabric.map = blindPrint.texture;
+  blindFabric.emissive.set("#ffe9c8");
+  blindFabric.emissiveMap = blindPrint.texture;
+  blindFabric.emissiveIntensity = 0.2;
+  // Each moving part shadows the window's light alone, through a twin drawn only in its pass
+  const blindPart = (geo, material, outline) => {
+    const part = mesh(geo, material, { outline, cast: false });
+    part.add(windowShadow(geo));
+    return part;
+  };
+  // the roll: a flat-shaded cylinder along x, scaled to the cloth wound on it
+  const roll = blindPart(new THREE.CylinderGeometry(1, 1, BLIND_W, 20, 1).rotateZ(Math.PI / 2), toon("#7f858f"), 0.025);
+  roll.position.set(0, ROLL_Y, ROLL_Z);
+  // the hanging cloth: a thin unit slab hung from its top edge, stretched to the drop, with
+  // the same ink outline as every other prop
+  const fabricSlab = track(new THREE.BoxGeometry(1, 1, 0.015).translate(0, -0.5, 0));
+  const fabric = blindPart(fabricSlab, blindFabric, 0.03);
+  // White end brackets on the wall, carrying the roll
+  const bracketMat = toon("#f4f4f2");
+  [-1, 1].forEach((side) => {
+    const x = side * (BLIND_W / 2 + 0.04);
+    const plate = mesh(rbox(0.07, 0.28, ROLL_Z - WINDOW_DEPTH + 0.1, 0.025), bracketMat, { outline: 0.02, cast: false });
+    plate.position.set(x, ROLL_Y + 0.02, (ROLL_Z + WINDOW_DEPTH) / 2 + 0.02);
+    blindGroup.add(plate);
+  });
+  // The control end on the left: a round housing the chain runs over
+  const blindHousing = mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.08, 20).rotateZ(Math.PI / 2), bracketMat, { outline: 0.02, cast: false });
+  blindHousing.position.set(-BLIND_W / 2 - 0.02, ROLL_Y, ROLL_Z);
+  // The bottom bar: a chunky charcoal rail at the hem, with a brass pull at its middle (the
+  // window catch's brass)
+  const blindInk = toon("#3a3d44");
+  const bottomBar = blindPart(rbox(BLIND_W + 0.04, BAR_H, 0.07, 0.03), blindInk, 0.02);
+  const pull = new THREE.Group();
+  const pullCord = mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.16, 6), blindInk, { outline: 0.008, cast: false });
+  pullCord.position.y = -0.1;
+  const pullKnob = mesh(new THREE.SphereGeometry(0.045, 12, 10), brass, { outline: 0.012, cast: false });
+  pullKnob.position.y = -0.2;
+  pull.add(pullCord, pullKnob);
+  bottomBar.add(pull);
+  blindGroup.add(roll, fabric, bottomBar, blindHousing);
+  // The bead chain: a loop hanging from the housing, front run and back run, as chunky white
+  // inked beads (instanced, outline and all). The beads slide along the loop as the roller turns.
+  const CHAIN_LEN = 2.3;
+  const BEAD_GAP = 0.075;
+  const BEADS = Math.floor(CHAIN_LEN / BEAD_GAP);
+  const chainX = -BLIND_W / 2 - 0.06;
+  const beadGeo = track(new THREE.SphereGeometry(0.03, 10, 8));
+  const beads = new THREE.InstancedMesh(beadGeo, bracketMat, BEADS * 2);
+  beads.frustumCulled = false;
+  beads.raycast = noRaycast;
+  const beadOutline = new THREE.InstancedMesh(hullGeometry(beadGeo), outlineMat(0.008), BEADS * 2);
+  beadOutline.instanceMatrix = beads.instanceMatrix;
+  beadOutline.frustumCulled = false;
+  beadOutline.raycast = noRaycast;
+  const blindChain = new THREE.Group();
+  blindChain.position.set(chainX, ROLL_Y, ROLL_Z);
+  // a fat invisible handle, so the thin chain is easy to catch: brought out into the room past
+  // the cloth, so from the desk's angle a ray meets it before the blind or the window
+  const chainHit = new THREE.Mesh(track(new THREE.BoxGeometry(0.36, CHAIN_LEN + 0.2, 0.5)), shadowOnly);
+  chainHit.position.set(-0.04, -CHAIN_LEN / 2, 0.2);
+  chainHit.visible = false;
+  // a brass weight at the bottom of the loop keeps the chain hanging straight
+  const chainWeight = mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.12, 12), brass, { outline: 0.012, cast: false });
+  chainWeight.position.y = -CHAIN_LEN - 0.06;
+  blindChain.add(beads, beadOutline, chainHit, chainWeight);
+  blindGroup.add(blindChain);
+  // lift: 1 rolled up (the start, so the view stays clear), 0 all the way down
+  // sway: the cloth swinging out from the roll a little as it settles
+  const blind = { lift: 1, sway: 0 };
+  const beadAt = new THREE.Matrix4();
+  // The chain swings like a loose string, not a rod: each bead is carried out by the swing in
+  // proportion to how far down it hangs (more than linearly, so the bottom whips), and the
+  // weight goes with the last of them. x is across the blind, z out into the room.
+  const chainSwing = { x: 0, z: 0 };
+  let chainRun = 0;
+  function placeBeads() {
+    const bend = (depth) => (Math.max(0, depth) / CHAIN_LEN) ** 1.6;
+    for (let i = 0; i < BEADS; i++) {
+      const front = i * BEAD_GAP + chainRun;
+      const back = i * BEAD_GAP + BEAD_GAP - chainRun;
+      beads.setMatrixAt(i, beadAt.makeTranslation(chainSwing.x * bend(front), -front, 0.04 + chainSwing.z * bend(front)));
+      beads.setMatrixAt(BEADS + i, beadAt.makeTranslation(chainSwing.x * bend(back), -back, -0.04 + chainSwing.z * bend(back)));
+    }
+    beads.instanceMatrix.needsUpdate = true;
+    chainWeight.position.set(chainSwing.x, -CHAIN_LEN - 0.06, chainSwing.z);
+    chainWeight.rotation.set(chainSwing.z * 1.5, 0, -chainSwing.x * 1.5);
+  }
+  // a nudge: out one way, then swinging back and forth, smaller each time, until it hangs still
+  const swingChain = (x, z) => gsap.fromTo(chainSwing, { x, z }, { x: 0, z: 0, duration: 2.2, ease: "elastic.out(1, 0.18)", onUpdate: placeBeads, overwrite: true });
+  function updateBlind() {
+    const drop = FULL_DROP + (MIN_DROP - FULL_DROP) * blind.lift;
+    const radius = ROLL_CORE + ROLL_FULL * (1 - drop / FULL_DROP);
+    roll.scale.set(1, radius, radius);
+    // hung from the roll's front, straight down to the bar
+    fabric.position.set(0, ROLL_Y, ROLL_Z + radius);
+    fabric.scale.set(BLIND_W, drop, 1);
+    fabric.rotation.x = blind.sway;
+    // the print stays put on the cloth, anchored at the hem, as it unrolls
+    blindPrint.texture.repeat.y = drop / FABRIC_TILE;
+    bottomBar.position.set(0, ROLL_Y - drop * Math.cos(blind.sway), ROLL_Z + radius - drop * Math.sin(blind.sway));
+    bottomBar.rotation.x = blind.sway;
+    // the chain runs down the front and up the back as the roll turns
+    chainRun = ((drop * 3) % BEAD_GAP + BEAD_GAP) % BEAD_GAP;
+    placeBeads();
+  }
+  updateBlind();
   // Weather: a quarter of visits open on a shower; after that a shower now and then, a minute
   // or two long, every few minutes at most
   function weather(first = false) {
@@ -1221,24 +1474,60 @@ export function createDeskScene({ container, projects, experiences, dark = false
     },
   });
 
-  // Project the four window panes onto receiving surfaces, including desk props.
-  const paneLight = canvasTexture(512, 512);
-  track(paneLight.texture);
-  paneLight.ctx.fillStyle = "#000";
-  paneLight.ctx.fillRect(0, 0, 512, 512);
-  paneLight.ctx.fillStyle = "#fff";
-  for (const x of [80, 264]) for (const y of [80, 264]) paneLight.ctx.fillRect(x, y, 168, 168);
-  paneLight.texture.needsUpdate = true;
-  const windowLight = new THREE.SpotLight(0xffe5ad, 110, 55, 0.58, 0.04, 2);
-  windowLight.position.set(SIDE_X + 0.48, 5.6, -1.1);
-  windowLight.target.position.set(1, -1, 1);
-  windowLight.map = paneLight.texture;
+  // Sun (or moon) through the window: a narrow spot far outside it, its rays all but parallel,
+  // aimed through the glass from wherever the sky's light stands. The wall round the glass, the
+  // glazing bars and the blind's slats shadow it for real, and its map spans only the beam, so
+  // slats a few centimetres apart still print as crisp stripes.
+  const WINDOW_SUN_FAR = 30;
+  const windowLight = new THREE.SpotLight(0xffe5ad, 2.2, 0, 0.13, 0.12, 0);
   windowLight.castShadow = true;
-  windowLight.shadow.mapSize.set(1024, 1024);
+  windowLight.shadow.mapSize.set(2048, 2048);
+  windowLight.shadow.camera.near = WINDOW_SUN_FAR - 6;
+  windowLight.shadow.camera.far = WINDOW_SUN_FAR + 30;
   windowLight.shadow.bias = -0.0002;
-  windowLight.shadow.normalBias = 0.03;
-  windowLight.shadow.radius = 6;
+  windowLight.shadow.normalBias = 0.02;
+  windowLight.shadow.radius = 3;
   scene.add(windowLight, windowLight.target);
+  const windowGlass = new THREE.Vector3(SIDE_X + 0.12 - WINDOW_DEPTH + 0.06, WINDOW_AT.y, WINDOW_AT.z);
+  const windowRay = new THREE.Vector3();
+  // `from`: where the sun or moon stands, seen from the room (the same place the room's sun uses)
+  function aimWindowLight(from) {
+    windowRay.set(...from).sub(sun.target.position).normalize();
+    windowLight.position.copy(windowGlass).addScaledVector(windowRay, WINDOW_SUN_FAR);
+    windowLight.target.position.copy(windowGlass).addScaledVector(windowRay, -1);
+    windowLight.target.updateMatrixWorld();
+    windowLight.shadow.needsUpdate = true;
+  }
+  // The chain (or the pull on the bottom bar) works the blind: halfway down, all the way down,
+  // then back up
+  const BLIND_STOPS = [1, 0.45, 0];
+  let blindStop = 0;
+  const workBlind = () => {
+    blindStop = (blindStop + 1) % BLIND_STOPS.length;
+    const lift = BLIND_STOPS[blindStop];
+    const duration = 0.5 + Math.abs(lift - blind.lift) * 1.1;
+    sfx.slide({ duration: Math.min(0.8, duration * 0.5), up: lift > blind.lift });
+    // it travels, then the hem swings on and settles, a touch of give rather than a stop dead
+    const swing = lift > blind.lift ? -0.05 : 0.07;
+    gsap.killTweensOf(blind);
+    gsap.timeline({ onUpdate: updateBlind })
+      .to(blind, { lift, duration, ease: "power1.inOut" })
+      .to(blind, { sway: swing, duration: 0.18, ease: "power1.out" }, ">-0.1")
+      .to(blind, { sway: 0, duration: 1.3, ease: "elastic.out(1, 0.3)" });
+  };
+  register(blindChain, {
+    // brushed past, it swings a little; let go of, a smaller sway the other way
+    onHover: (on) => (on ? swingChain(0.05, 0.16) : swingChain(-0.03, -0.08)),
+    // pulled, it swings out harder as the blind starts to move
+    onClick: () => {
+      swingChain(0.08, 0.26);
+      workBlind();
+    },
+  });
+  register(bottomBar, {
+    onHover: (on) => gsap.to(pull.rotation, { x: on ? 0.35 : 0, duration: on ? 0.25 : 0.8, ease: on ? "power2.out" : "elastic.out(1, 0.3)", overwrite: true }),
+    onClick: workBlind,
+  });
 
   // Wall clock and a small print give the empty upper area a purpose.
   const clock = new THREE.Group();
@@ -1365,7 +1654,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     paintingTurn.add(at(mesh(new THREE.BoxGeometry(0.018, 2.62, 0.015), frameLip, { outline: 0 }), side * 1.865, 0, 0.105));
   });
   let paintingArt = 0;
-  const painting = printed(3.75, 2.65, 220, (c, w, h) => drawPainting(c, w, h, { art: paintingArt }));
+  const painting = printed(3.75, 2.65, 300, (c, w, h) => drawPainting(c, w, h, { art: paintingArt }));
   painting.position.z = 0.09;
   paintingTurn.add(paintingFrame, painting);
   const nail = mesh(new THREE.SphereGeometry(0.07, 10, 8), toon("#9ca3af"), { outline: 0.015 });
@@ -1917,6 +2206,24 @@ export function createDeskScene({ container, projects, experiences, dark = false
   lampLight.shadow.radius = 9;
   lampHead.add(socket, ...socketRibs, turnKeyStem, turnKey, bulbCollar, ...collarThreads, bulb, bulbGlint, filament, halo, lampLight);
   lamp.add(lampHead);
+  // In the window's close-up the lamp's pole stands right across the glass, so the lamp steps
+  // out of that shot; only its meshes hide, so the bulb still lights the room
+  let lampHidden = false;
+  const lampShown = new Map();
+  function hideLamp(hidden) {
+    if (hidden === lampHidden) return;
+    lampHidden = hidden;
+    if (hidden) {
+      lamp.traverse((o) => {
+        if (!o.isMesh) return;
+        lampShown.set(o, o.visible);
+        o.visible = false;
+      });
+    } else {
+      lampShown.forEach((visible, o) => (o.visible = visible));
+      lampShown.clear();
+    }
+  }
   const setLamp = (on) => {
     lampLight.intensity = on ? 55 : 0;
     lampLight.castShadow = on;
@@ -2541,7 +2848,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
 
   const PALETTE = ["#ff6b6b", "#ffdd00", "#00e0c6", "#ff90e8", "#8fd694", "#3b82f6", "#ffb35c", "#c4b5fd", "#fffdf5"];
   const black = toon("#1a1714");
-  const white = toon("#fffdf5");
 
   // Level 0: a PS5 Pro standing on its end, after the reference photo. A gloss-black core
   // between two white side panels, each a tall sweep that flares out at its top front and is
@@ -2821,12 +3127,29 @@ export function createDeskScene({ container, projects, experiences, dark = false
     return y + thick;
   }, 0);
   const STACK_TOP = 0.17 + 0.15 + 0.18;
+  // The figure: a spotted red cap (inked spots, a pale lip), gills under it, and a cream stem
+  // with a face, all printed (drawMushroomCap / Face / Gills) on its simple shapes
+  const mushroomPrint = (draw, w, h) => {
+    const tex = canvasTexture(w, h);
+    track(tex.texture);
+    draw(tex.ctx, w, h);
+    const mat = toon("#ffffff");
+    mat.map = tex.texture;
+    return mat;
+  };
+  const capMat = mushroomPrint(drawMushroomCap, 512, 256);
+  const faceMat = mushroomPrint(drawMushroomFace, 256, 128);
+  const gillMat = mushroomPrint(drawMushroomGills, 128, 128);
+  // a stem that swells a little in the middle, like a toy's
+  const stemGeo = new THREE.LatheGeometry([[0, 0], [0.2, 0], [0.21, 0.12], [0.19, 0.3], [0.16, 0.44], [0, 0.44]].map(([x, y]) => new THREE.Vector2(x, y)), 20);
+  const capGeo = new THREE.SphereGeometry(0.4, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+  capGeo.scale(1, 0.85, 1);
+  const gills = mesh(new THREE.CircleGeometry(0.39, 32), gillMat, { outline: 0, cast: false });
+  gills.rotation.x = Math.PI / 2;
   const mushroom = group(
-    at(mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.42, 14), white, { outline: 0.025 }), 0, 0.21, 0),
-    at(mesh(new THREE.SphereGeometry(0.4, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), toon("#e11d48"), { outline: 0.03 }), 0, 0.38, 0),
-  );
-  [[0.15, 0.62, 0.22], [-0.2, 0.6, 0.18], [0.02, 0.72, -0.12]].forEach(([dx, dy, dz]) =>
-    mushroom.add(at(mesh(new THREE.SphereGeometry(0.07, 10, 8), white, { outline: 0 }), dx, dy, dz)),
+    at(mesh(stemGeo, faceMat, { outline: 0.025 }), 0, 0, 0),
+    at(mesh(capGeo, capMat, { outline: 0.03 }), 0, 0.38, 0),
+    at(gills, 0, 0.379, 0),
   );
   addItem(at(mushroom, STACK_X, standOn(1) + STACK_TOP, 0.15), "figure");
 
@@ -3508,6 +3831,15 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const Y_MAX = SORI + 0.08;
 
   // Blade textures for each of the 3 swords
+  // The shine that runs down a blade as it clears the saya ("shing"): an emissive bar whose
+  // offset sweeps from the hilt to the point; parked off the blade the rest of the time
+  const GLINT_OFF = 0.7;
+  const bladeGlint = canvasTexture(512, 64);
+  track(bladeGlint.texture);
+  drawBladeGlint(bladeGlint.ctx, 512, 64);
+  bladeGlint.texture.repeat.set(1 / BLADE_SPAN, 1 / (Y_MAX - Y_MIN));
+  bladeGlint.texture.offset.set(GLINT_OFF, -Y_MIN / (Y_MAX - Y_MIN));
+  const glintBlade = (delay = 0) => gsap.fromTo(bladeGlint.texture.offset, { x: GLINT_OFF }, { x: -GLINT_OFF, duration: 0.5, delay, ease: "power1.inOut", overwrite: true });
   const createBladeMat = (drawFn) => {
     const tex = canvasTexture(2048, 256);
     track(tex.texture);
@@ -3516,6 +3848,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     tex.texture.offset.set(0, -Y_MIN / (Y_MAX - Y_MIN));
     const mat = toon("#ffffff");
     mat.map = tex.texture;
+    mat.emissive.set("#ffffff");
+    mat.emissiveMap = bladeGlint.texture;
     return mat;
   };
 
@@ -3608,7 +3942,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     haki.scale.set(HOVER_BARE * 1.6, 0.6, 1);
     haki.visible = true;
     // in as the blade comes out of the mouth, then breathing
-    gsap.fromTo(haki.material, { opacity: 0 }, { opacity: 0.9, duration: 0.4, delay: 0.3, ease: "sine.out" });
+    gsap.fromTo(haki.material, { opacity: 0 }, { opacity: 1, duration: 0.4, delay: 0.3, ease: "sine.out" });
     gsap.to(haki.scale, { y: 0.78, duration: 0.8, yoyo: true, repeat: -1, ease: "sine.inOut", delay: 0.3 });
   }
   const tipAt = new THREE.Vector3();
@@ -4101,6 +4435,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
     // clears the top sword whichever tier this one hangs on (and the raised tip stays in frame)
     const aboveRack = RACK_TIERS[0] + 0.62 - sword.yRack;
     gsap.killTweensOf([sword.drawPivot.rotation, sword.bladeGroup.position, sword.bladeGroup.rotation]);
+    // the saya stays up off its hooks, where the hover lifts it, while the blade is out; it's
+    // set back down only once the blade is home (at the sheathe, below)
+    gsap.to(sword.tierGroup.position, { y: sword.restY + 0.22, z: 0.5, duration: 0.2, overwrite: true });
+    gsap.to(sword.tierGroup.rotation, { z: 0.035, duration: 0.2, overwrite: true });
+    glintBlade(0.3);
     if (sword.style === "enma") {
       // the aura rises off the blade as it's drawn, flickering, and fades as it's sheathed
       sword.bladeGroup.add(haki);
@@ -4109,7 +4448,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       haki.visible = true;
       // it swells in, then breathes slowly while the sword is out
       gsap.killTweensOf([haki.material, haki.scale]);
-      gsap.fromTo(haki.material, { opacity: 0 }, { opacity: 0.95, duration: 0.7, delay: 0.2, ease: "sine.out" });
+      gsap.fromTo(haki.material, { opacity: 0 }, { opacity: 1, duration: 0.7, delay: 0.2, ease: "sine.out" });
       gsap.fromTo(haki.scale, { y: 0.55 }, { y: 0.95, duration: 0.7, delay: 0.2, ease: "sine.out" });
       gsap.to(haki.scale, { y: 0.8, x: BLADE_L * 1.28, duration: 0.65, yoyo: true, repeat: 3, ease: "sine.inOut", delay: 0.9 });
     }
@@ -4208,6 +4547,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
         sfx.sheathe();
         kickTassels(sword.sayaGroup, 0.8);
         sword.steel.visible = false;
+        // sheathed: only now does the saya go back down onto its hooks, with a soft knock
+        gsap.to(sword.tierGroup.position, { y: sword.restY, z: 0.2, duration: 0.35, delay: 0.15, ease: "power2.inOut", overwrite: true, onComplete: () => sfx.rackLand({ strength: 0.45 }) });
+        gsap.to(sword.tierGroup.rotation, { z: 0, duration: 0.35, delay: 0.15, ease: "power2.out", overwrite: true });
         if (sword.style === "enma") gsap.to(haki.material, { opacity: 0, duration: 0.5, ease: "sine.in", onComplete: () => (haki.visible = false) });
       })
       .fromTo(katanaRack.scale, { y: KATANA_SCALE * 0.94 }, { y: KATANA_SCALE, duration: 0.3, ease: "back.out(3)" })
@@ -4429,9 +4771,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
 
     addDetails(bladeGroup, sayaGroup, gold);
 
-    const swordObj = { tierGroup, drawPivot, bladeGroup, sayaGroup, steel, yRack, style };
-    let clicks = [];
     const restY = tierGroup.position.y;
+    const swordObj = { tierGroup, drawPivot, bladeGroup, sayaGroup, steel, yRack, style, restY };
+    let clicks = [];
     // Hover: the sword lifts up off its hooks and out past their tips, tips a touch and slides
     // a good length of steel out of the saya, its gold catching the light; off, it settles
     // back. Like every other prop, a click from further out brings the camera in to the rack;
@@ -4494,8 +4836,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
           else tossKitetsu(swordObj, restY);
           return;
         }
-        gsap.to(tierGroup.position, { y: restY, z: 0.2, duration: 0.2, overwrite: true });
-        gsap.to(tierGroup.rotation, { z: 0, duration: 0.2, overwrite: true });
         slashSword(swordObj);
       },
     });
@@ -5765,13 +6105,19 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const binProfile = [
     [0, 0], [0.4, 0], [0.5, BIN_H], [0.55, BIN_H], [0.55, BIN_H + 0.08], [0.47, BIN_H + 0.08], [0.37, 0.08], [0, 0.08],
   ].map(([x, y]) => new THREE.Vector2(x, y));
-  binBody.add(mesh(new THREE.LatheGeometry(binProfile, 28), toon("#00e0c6"), { outline: 0.045 }));
+  // moulded plastic: upright ribs round it and a fine stipple (drawBinRibs), under the teal
+  const binRibs = canvasTexture(512, 512);
+  track(binRibs.texture);
+  drawBinRibs(binRibs.ctx, 512, 512);
+  const binMat = toon("#00e0c6");
+  binMat.map = binRibs.texture;
+  binBody.add(mesh(new THREE.LatheGeometry(binProfile, 28), binMat, { outline: 0.045 }));
   const binRim = mesh(new THREE.TorusGeometry(0.54, 0.045, 8, 32), toon("#1a1714"), { outline: 0 });
   binRim.rotation.x = Math.PI / 2;
   binRim.position.y = BIN_H + 0.06;
   binBody.add(binRim);
   // Close up it wants a little more to it: a dark band round the foot and one under the rim
-  // (proud of the tapered side by a hair), and a sticker wrapped round the front
+  // (proud of the tapered side by a hair)
   const binRadius = (y) => 0.4 + (0.1 * y) / BIN_H;
   const bandMat = toon("#008f80");
   [[0.12, 0.1], [BIN_H - 0.2, 0.08]].forEach(([y, h]) => {
@@ -5779,18 +6125,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
     band.position.y = y;
     binBody.add(band);
   });
-  const LABEL_Y = [0.5, 1.0];
-  const LABEL_ARC = 1.15;
-  const binLabelTex = canvasTexture(560, 200);
-  track(binLabelTex.texture);
-  drawBinLabel(binLabelTex.ctx, 560, 200);
-  const binLabel = new THREE.Mesh(
-    track(new THREE.CylinderGeometry(binRadius(LABEL_Y[1]) + 0.01, binRadius(LABEL_Y[0]) + 0.01, LABEL_Y[1] - LABEL_Y[0], 24, 1, true, -LABEL_ARC / 2, LABEL_ARC)),
-    printMaterial(binLabelTex.texture, { transparent: true }),
-  );
-  binLabel.position.y = (LABEL_Y[0] + LABEL_Y[1]) / 2;
-  binLabel.raycast = noRaycast;
-  binBody.add(binLabel);
   // A crumpled paper ball: a lumpy, flat-faceted icosahedron (each facet a crushed plane of
   // paper catching the light its own way), squashed a little differently each time and wrapped
   // in a screwed-up sheet: lined notebook paper with pencil scrawl, or a printed page
@@ -5849,17 +6183,28 @@ export function createDeskScene({ container, projects, experiences, dark = false
   bin.add(hoopPost, hoopClamp);
   const backboard = mesh(rbox(0.9, 0.6, 0.05, 0.03), toon("#ffdd00"), { outline: 0.025 });
   backboard.position.set(0, 0.28, -0.36);
-  const boxMat = toon("#1a1714");
-  [[0, 0.17, 0.32, 0.03], [0, -0.01, 0.32, 0.03], [-0.145, 0.08, 0.03, 0.2], [0.145, 0.08, 0.03, 0.2]].forEach(([x, y, w, h]) => {
-    const bar = mesh(new THREE.BoxGeometry(w, h, 0.01), boxMat, { outline: 0, cast: false });
-    bar.position.set(x, y, 0.03);
-    backboard.add(bar);
-  });
+  // its face (drawBackboard): border, shooter's square, the league's name, bolts and scuffs
+  const hoopBoardFace = printed(0.86, 0.56, 420, drawBackboard);
+  hoopBoardFace.position.z = 0.027;
+  hoopBoardFace.raycast = noRaycast;
+  backboard.add(hoopBoardFace);
   const ring = mesh(new THREE.TorusGeometry(0.22, 0.025, 8, 24), toon("#ff7a1a"), { outline: 0.012 });
   ring.rotation.x = Math.PI / 2;
+  // the hooks the net hangs from, round the underside of the ring
+  for (let k = 0; k < 8; k++) {
+    const a = (k / 8) * Math.PI * 2;
+    const hook = mesh(new THREE.BoxGeometry(0.02, 0.04, 0.02), toon("#c2410c"), { outline: 0, cast: false });
+    hook.position.set(Math.cos(a) * 0.22, Math.sin(a) * 0.22, 0.03);
+    ring.add(hook);
+  }
+  // a diamond mesh of white cord (drawHoopNet), seen from inside as well as out
+  const netTex = canvasTexture(256, 128);
+  track(netTex.texture);
+  drawHoopNet(netTex.ctx, 256, 128);
+  netTex.texture.wrapS = THREE.RepeatWrapping;
   const net = new THREE.Mesh(
-    track(new THREE.CylinderGeometry(0.22, 0.14, 0.32, 10, 2, true)),
-    track(new THREE.MeshBasicMaterial({ color: "#fffdf5", wireframe: true })),
+    track(new THREE.CylinderGeometry(0.22, 0.14, 0.32, 16, 2, true)),
+    track(new THREE.MeshBasicMaterial({ map: netTex.texture, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide })),
   );
   net.geometry.translate(0, -0.16, 0);
   net.raycast = noRaycast;
@@ -6998,7 +7343,20 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const badgeHolder = mesh(phoneSlab(0.86, 1.34, 0.065, 0.06), toon("#d6e2ee"), { outline: 0.025 });
   const badgeLip = at(mesh(rbox(0.23, 0.1, 0.07, 0.025), pinMetal, { outline: 0.012 }), 0, 0.65, 0);
   const holderSlot = at(mesh(rbox(0.115, 0.025, 0.075, 0.01), toon("#273449"), { outline: 0 }), 0, 0.66, 0);
-  badgeCard.add(badgeHolder, badgeFront, badgeBack, badgeLip, holderSlot);
+  // the clear vinyl sleeve over each face: two hard streaks of gloss
+  const sleeveTex = canvasTexture(256, 400);
+  track(sleeveTex.texture);
+  drawGlassSheen(sleeveTex.ctx, 256, 400, { strength: 0.2 });
+  const sleeveMat = track(new THREE.MeshBasicMaterial({ map: sleeveTex.texture, transparent: true, depthWrite: false }));
+  const sleeveGeo = track(new THREE.PlaneGeometry(0.8, 1.26));
+  const sleeves = [0.041, -0.041].map((z) => {
+    const sleeve = new THREE.Mesh(sleeveGeo, sleeveMat);
+    sleeve.position.z = z;
+    if (z < 0) sleeve.rotation.y = Math.PI;
+    sleeve.raycast = noRaycast;
+    return sleeve;
+  });
+  badgeCard.add(badgeHolder, badgeFront, badgeBack, badgeLip, holderSlot, ...sleeves);
   badge.add(clip, badgeCard);
   // Zoomed in, clicking the badge turns it over: the links are printed on the back
   let badgeFlipped = false;
@@ -7570,19 +7928,22 @@ export function createDeskScene({ container, projects, experiences, dark = false
   scene.add(tickets);
   const TICKET_W = 2.6;
   const TICKET_D = 1.0;
-  const ticketGeo = track(new THREE.BoxGeometry(TICKET_W, 0.02, TICKET_D));
   const ticketBody = toon("#fffdf5");
   const ticketList = experiences.map((exp, i) => {
     const t = new THREE.Group();
     const flipper = new THREE.Group();
     t.add(flipper);
-    flipper.add(mesh(ticketGeo, ticketBody, { outline: 0.025 }));
+    // thin card, like a real pass
+    const card = mesh(bendable(TICKET_W, TICKET_D, 0.008), ticketBody, { outline: 0.018 });
+    flipper.add(card);
     const face = printed(TICKET_W, TICKET_D, 400, (c, w, h) => drawTicket(c, w, h, exp));
+    face.geometry = track(bendable(TICKET_W, TICKET_D));
     face.rotation.x = -Math.PI / 2;
-    face.position.y = 0.012;
+    face.position.y = 0.0045;
     const back = printed(TICKET_W, TICKET_D, 400, (c, w, h) => drawTicketBack(c, w, h, exp));
     back.rotation.x = Math.PI / 2;
-    back.position.y = -0.012;
+    back.position.y = -0.0045;
+    back.geometry = track(bendable(TICKET_W, TICKET_D));
     flipper.add(face, back);
     // Newest on top of the stack; fanned out they cascade toward you
     const y = 0.012 + (experiences.length - 1 - i) * 0.024;
@@ -7591,7 +7952,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
     t.position.set(stack.x, stack.y, stack.z);
     t.rotation.y = stack.r;
     tickets.add(t);
-    return { t, flipper, stack, fan, flipped: false };
+    // a pass is card: it flexes out from the middle (held up, turned over, set down), on top
+    // of which hover peels it up a touch
+    const flex = paperFlex(flipper, [card, face, back], { centre: true, length: TICKET_W / 2 });
+    // and no pass lies dead flat: they all keep the same slight curl, ends up off the desk
+    // (the same for each, so stacked passes nest instead of cutting into one another)
+    const restBend = 0.04;
+    return { t, flipper, stack, fan, flipped: false, flex, bendAnim: { bend: 0 }, hoverBend: 0, restBend, idle: 0 };
   });
   // Held up: above the fan, square to the group and tilted to face the camera
   const HOLD = { x: 0.2, y: 1.4, z: 0.8 };
@@ -7603,6 +7970,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     gsap.to(entry.t.position, { x: to.x, y: to.y, z: to.z, duration: 0.4, ease: "power2.inOut" });
     gsap.to(entry.t.rotation, { x: 0, y: to.r, duration: 0.4 });
     gsap.to(entry.t.scale, { x: 1, y: 1, z: 1, duration: 0.4 });
+    // set down, its ends flick up and settle
+    flexSettle(entry.bendAnim, 0.07, { duration: 0.5, delay: 0.3 });
   }
   // Hover works like a wallet's card stack: the selected pass peeks forward and sideways;
   // every pass over it slides back to open a gap, so its face reads clearly.
@@ -7630,6 +7999,21 @@ export function createDeskScene({ container, projects, experiences, dark = false
       p.z += entry.vz * dt;
       p.y += entry.vy * dt;
     });
+    // hover peels the pass up at its ends a little; the rest is its own flex animation. The one
+    // held up is in a hand: it never quite stops, swaying and tipping a touch and flexing as
+    // it's held, each on its own beat so the motion never loops visibly.
+    ticketList.forEach((entry, i) => {
+      const held = entry === heldTicket;
+      const goal = !held && i === hoveredIndex ? 0.07 : 0;
+      entry.hoverBend += (goal - entry.hoverBend) * Math.min(1, dt * 12);
+      entry.idle += dt;
+      const k = (entry.held = (entry.held || 0) + ((held ? 1 : 0) - (entry.held || 0)) * Math.min(1, dt * 4));
+      const s = entry.idle;
+      const breathe = k * (0.04 * Math.sin(s * 2.1) + 0.015 * Math.sin(s * 3.7 + 1));
+      entry.flex.bend = entry.restBend * (1 - k) + entry.bendAnim.bend + entry.hoverBend + breathe;
+      entry.flipper.rotation.z = k * (0.03 * Math.sin(s * 1.3) + 0.01 * Math.sin(s * 2.9));
+      entry.flipper.rotation.y = k * 0.025 * Math.sin(s * 0.9 + 0.7);
+    });
   }
   function holdTicket(entry) {
     if (heldTicket === entry) return;
@@ -7640,6 +8024,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     gsap.to(entry.t.position, { ...HOLD, duration: 0.5, ease: "back.out(1.4)" });
     gsap.to(entry.t.rotation, { x: HOLD_TILT, y: -tickets.rotation.y, duration: 0.5 });
     gsap.to(entry.t.scale, { x: 1.45, y: 1.45, z: 1.45, duration: 0.5, ease: "back.out(1.4)" });
+    // lifted by the middle, its ends droop with the swing up, then spring level
+    flexTo(entry.bendAnim, -0.35, { duration: 1.1 });
     sfx.whoosh({ duration: 0.3 });
     applyShot();
   }
@@ -7653,6 +8039,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   function flipTicket(entry) {
     entry.flipped = !entry.flipped;
     gsap.to(entry.flipper.rotation, { x: entry.flipped ? Math.PI : 0, duration: 0.55, ease: "back.out(1.3)" });
+    // turned over fast, the ends trail the turn, then whip through and settle
+    flexTo(entry.bendAnim, -0.3, { rise: 0.2 });
     sfx.whoosh({ duration: 0.3 });
   }
   const arrangeTickets = (fanned) => {
@@ -8613,8 +9001,17 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // round a screen whose corners follow the body's, the Dynamic Island printed at its top
   // (drawChatScreen), the buttons down both sides, and on the back the full-width camera
   // plateau: three big lenses in a triangle, the flash and LiDAR beside them, and the logo
-  const phoneFinish = toon("#7a2635");
-  const phoneTrim = toon("#5e1a27");
+  // anodised aluminium: a satin stipple under the colour (which it darkens a little, hence
+  // the colours a shade brighter than the finish they read as)
+  const phoneSatin = canvasTexture(128, 128);
+  track(phoneSatin.texture);
+  drawSatinFinish(phoneSatin.ctx, 128, 128, { grain: 0.08 });
+  phoneSatin.texture.wrapS = phoneSatin.texture.wrapT = THREE.RepeatWrapping;
+  phoneSatin.texture.repeat.set(3, 3);
+  const phoneFinish = toon("#922d40");
+  phoneFinish.map = phoneSatin.texture;
+  const phoneTrim = toon("#70202f");
+  phoneTrim.map = phoneSatin.texture;
   const PHONE_W = 0.95;
   const PHONE_H = 1.95;
   const phoneScreen = printed(0.87, 1.87, 700, (c, w, h) => drawChatScreen(c, w, h, chat, { unread, caret: caretOn && chat.active }), { unlit: true });
@@ -8629,6 +9026,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
     phoneScreen.geometry = track(geo);
   }
   phoneScreen.position.z = 0.059;
+  // the cover glass: two hard streaks of light over the screen, on the screen's own shape
+  const glassTex = canvasTexture(256, 512);
+  track(glassTex.texture);
+  drawGlassSheen(glassTex.ctx, 256, 512, { strength: 0.16 });
+  const phoneGlass = new THREE.Mesh(phoneScreen.geometry, track(new THREE.MeshBasicMaterial({ map: glassTex.texture, transparent: true, depthWrite: false })));
+  phoneGlass.position.z = 0.0615;
+  phoneGlass.raycast = noRaycast;
   // The chat's glow on the desk and the mug in front of it, at night
   const phoneLight = neonLight("#fff1dc", 0.5, () => (darkNow ? 1 : 0), { distance: 1.6 });
   phoneLight.position.z = 0.35;
@@ -8678,7 +9082,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   backLogo.rotation.y = Math.PI;
   backLogo.position.set(0, -0.1, -0.047);
   backLogo.raycast = noRaycast;
-  phone.add(phoneBody, phoneBezel, phoneScreen, plateau, camFlash, lidar, backLogo);
+  phone.add(phoneBody, phoneBezel, phoneScreen, phoneGlass, plateau, camFlash, lidar, backLogo);
   phoneStand.add(standBase, standBack, phone);
   const redrawChat = () => phoneScreen.userData.tex.redraw();
   function editChat() {
@@ -8812,7 +9216,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
   drawerHandle.castShadow = false;
 
   const folderGeo = track(rbox(FOLDER_W, 0.03, FOLDER_D, 0.012));
-  const sheetGeo = track(rbox(SHEET_W, 0.004, SHEET_D, 0.0015));
   const sheetMat = toon("#ffffff");
   const sheetY = (k) => 0.02 + (CASE_SHEETS.length - 1 - k) * 0.006;
   const HINGE_Y = 0.02 + CASE_SHEETS.length * 0.006 + 0.02;
@@ -8864,30 +9267,36 @@ export function createDeskScene({ container, projects, experiences, dark = false
       const restAt = sheetRest(pivot, k);
       pivot.position.set(restAt.x, restAt.y, restAt.z);
       pivot.rotation.y = restAt.ry;
-      const paper = mesh(sheetGeo, sheetMat, { outline: 0.008, cast: false });
+      const paper = mesh(bendable(SHEET_W, SHEET_D, 0.004), sheetMat, { outline: 0.008, cast: false });
       paper.position.x = SHEET_W / 2;
       const front = printed(SHEET_W, SHEET_D, 600, (c, w, h) => drawCaseSheet(c, w, h, project, kind, { index: i }));
+      front.geometry = track(bendable(SHEET_W, SHEET_D));
       front.rotation.x = -Math.PI / 2;
       front.position.set(SHEET_W / 2, 0.0025, 0);
       const backSide = printed(SHEET_W, SHEET_D, 600, (c, w, h) => drawCaseBack(c, w, h, project, { index: i, kind }));
+      backSide.geometry = track(bendable(SHEET_W, SHEET_D));
       backSide.rotation.x = Math.PI / 2;
       backSide.position.set(SHEET_W / 2, -0.0025, 0);
       pivot.add(paper, front, backSide);
       body.add(pivot);
+      pivot.userData.flex = paperFlex(pivot, [paper, front, backSide], { length: SHEET_W });
       return pivot;
     });
     const hinge = new THREE.Group();
     hinge.position.set(-FOLDER_W / 2, HINGE_Y, 0);
-    const cover = mesh(folderGeo, folderMat, { outline: 0.02 });
+    const cover = mesh(bendable(FOLDER_W, FOLDER_D, 0.03), folderMat, { outline: 0.02 });
     cover.position.x = FOLDER_W / 2;
     const face = printed(FOLDER_W, FOLDER_D, 600, (c, w, h) => drawFolderCover(c, w, h, project, i));
+    face.geometry = track(bendable(FOLDER_W, FOLDER_D));
     face.rotation.x = -Math.PI / 2;
     face.position.set(FOLDER_W / 2, 0.016, 0);
     const inside = printed(FOLDER_W, FOLDER_D, 300, (c, w, h) => drawCaseBack(c, w, h, project, { inside: true, index: i }));
     inside.rotation.x = Math.PI / 2;
     inside.position.set(FOLDER_W / 2, -0.016, 0);
+    inside.geometry = track(bendable(FOLDER_W, FOLDER_D));
     hinge.add(cover, face, inside);
     body.add(hinge);
+    const coverFlex = paperFlex(hinge, [cover, face, inside], { length: FOLDER_W });
     // A loose sheet or two poking out past the top edge, askew
     [0, 1].slice(0, 1 + (i % 2)).forEach((k) => {
       const stray = mesh(rbox(SHEET_W * (0.7 - k * 0.15), 0.004, 0.5, 0.0015), strayMat, { outline: 0.008, cast: false });
@@ -8906,7 +9315,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     hinge.rotation.z = rest;
     folders.add(f);
     const lean = { x: wobble(i, 2) * 0.07, y: wobble(i, 3) * 0.05, z: wobble(i, 4) * 0.05, dx: wobble(i, 5) * 0.07 };
-    return { project, index: i, f, body, hinge, sheets, order: sheets.map((_, k) => k), flipping: false, out: 0, rest, lean };
+    return { project, index: i, f, body, hinge, coverFlex, sheets, order: sheets.map((_, k) => k), flipping: false, out: 0, rest, lean };
   });
   let openFolder = null;
   // Standing in the drawer, the folder's -z edge (with its tab) points up and its cover faces
@@ -9004,7 +9413,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
     });
     entry.flipping = false;
     // Shut the cover, then back into its slot at the front of the drawer
-    gsap.to(entry.hinge.rotation, { z: entry.rest, duration: 0.4, delay: 0.1, ease: "power2.in", onComplete: () => sfx.slap() });
+    // the board lags its swing shut, curling up at the free edge, and slaps flat with a quiver
+    gsap.to(entry.coverFlex, { bend: 0.3, duration: 0.3, delay: 0.1, ease: "power1.out", overwrite: true });
+    gsap.to(entry.hinge.rotation, { z: entry.rest, duration: 0.4, delay: 0.1, ease: "power2.in", onComplete: () => {
+      sfx.slap();
+      // it lands on the pile and the free edge bounces up off it, never down into it
+      flexSettle(entry.coverFlex, 0.1);
+    } });
     gsap.to(entry, { out: 0, duration: 0.95, delay: 0.45, ease: "power2.inOut", overwrite: true, onComplete: () => sfx.knock({ strength: 0.8 }) });
   }
   // Pull the front folder out onto the desk, open its cover out flat, and move the camera in close
@@ -9019,7 +9434,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
       if (openFolder !== entry) return;
       sfx.folderSlide({ duration: 0.6 });
       gsap.to(entry, { out: 1, duration: 1.0, ease: "power2.inOut", overwrite: true, onComplete: () => sfx.flop({ strength: 0.5, recorded: false }) });
-      gsap.to(entry.hinge.rotation, { z: Math.PI - OPEN_TILT, duration: 0.6, delay: 1.0, ease: "power2.inOut", onStart: () => sfx.coverOpen({ duration: 0.6 }), onComplete: () => sfx.flop({ strength: 0.3, recorded: false }) });
+      // swung open by its edge, the board trails the hinge (its free edge held back) and
+      // springs through flat as it lands
+      gsap.to(entry.coverFlex, { bend: -0.32, duration: 0.35, delay: 1.0, ease: "power1.out", overwrite: true });
+      gsap.to(entry.hinge.rotation, { z: Math.PI - OPEN_TILT, duration: 0.6, delay: 1.0, ease: "power2.inOut", onStart: () => sfx.coverOpen({ duration: 0.6 }), onComplete: () => {
+        sfx.flop({ strength: 0.3, recorded: false });
+        // laid open on the desk, the edge bounces up off it
+        flexSettle(entry.coverFlex, -0.12);
+      } });
     });
   }
   function closeProject() {
@@ -9037,33 +9459,41 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const { order, sheets } = entry;
     const page = dir > 0 ? order[0] : order[order.length - 1];
     const moving = sheets[page];
-    // Out: slid off to the right, lifted clear of the pile, tipped a little
-    sfx.slide({ duration: 0.22 });
-    gsap.to(moving.rotation, { y: moving.rotation.y - 0.12, duration: 0.23, ease: "power2.in", overwrite: true });
-    gsap.to(moving.position, {
-      x: moving.position.x + SHEET_W * 0.62,
-      y: sheetY(0) + 0.06,
-      z: moving.position.z - SHEET_D * 0.06,
-      duration: 0.23,
-      ease: "power2.in",
-      overwrite: true,
-      onComplete: () => {
-        entry.order = dir > 0 ? [...order.slice(1), page] : [page, ...order.slice(0, -1)];
-        // the rest settle into their new depths; the moving one drops to its own height (under
-        // the pile, or on top) while it's still clear of it, then slides back in
-        entry.order.forEach((p, depth) => {
-          if (p === page) return;
-          const restAt = sheetRest(sheets[p], depth);
-          gsap.to(sheets[p].position, { x: restAt.x, y: restAt.y, z: restAt.z, duration: 0.2 });
-          gsap.to(sheets[p].rotation, { y: restAt.ry, duration: 0.2 });
-        });
-        const restAt = sheetRest(moving, entry.order.indexOf(page));
-        moving.position.y = restAt.y;
-        sfx.slide({ duration: 0.28, up: false, delay: 0.05 });
-        gsap.to(moving.rotation, { y: restAt.ry, duration: 0.32, ease: "back.out(1.4)" });
-        gsap.to(moving.position, { x: restAt.x, z: restAt.z, duration: 0.32, ease: "back.out(1.4)", onComplete: () => (entry.flipping = false) });
-      },
-    });
+    // Paged as a hand would: the sheet is drawn right until it's clear of the pile, changes
+    // level only once it's clear (so it never passes through the others), and slides back in at
+    // its new depth. It curls up only while it's above everything else (drawn off the top, or
+    // laid back on top), and stays flat while it travels under the pile.
+    const toBottom = dir > 0;
+    const newOrder = toBottom ? [...order.slice(1), page] : [page, ...order.slice(0, -1)];
+    const restAt = sheetRest(moving, newOrder.indexOf(page));
+    const above = sheetY(0) + 0.03;
+    const clear = { x: moving.position.x + SHEET_W * 1.04, z: moving.position.z - SHEET_D * 0.04 };
+    const flex = moving.userData.flex;
+    gsap.killTweensOf([moving.position, moving.rotation, flex]);
+    sfx.slide({ duration: 0.3 });
+    const tl = gsap.timeline({ onComplete: () => (entry.flipping = false) });
+    // out
+    tl.to(moving.position, { ...clear, y: toBottom ? above : moving.position.y, duration: 0.34, ease: "power2.inOut" }, 0)
+      .to(moving.rotation, { y: moving.rotation.y - 0.1, duration: 0.34, ease: "power2.inOut" }, 0)
+      .to(flex, { bend: toBottom ? 0.3 : 0, duration: 0.2, ease: "power2.out" }, 0);
+    // clear of the pile: the others close up into their new depths, and the sheet changes level
+    tl.add(() => {
+      entry.order = newOrder;
+      newOrder.forEach((p, depth) => {
+        if (p === page) return;
+        const at = sheetRest(sheets[p], depth);
+        gsap.to(sheets[p].position, { x: at.x, y: at.y, z: at.z, duration: 0.24, ease: "power2.out" });
+        gsap.to(sheets[p].rotation, { y: at.ry, duration: 0.24, ease: "power2.out" });
+      });
+    }, 0.3)
+      .to(flex, { bend: toBottom ? 0 : 0.18, duration: 0.16, ease: "sine.inOut" }, 0.3)
+      .to(moving.position, { y: toBottom ? restAt.y : above, duration: 0.16, ease: "sine.inOut" }, 0.3);
+    // and in again, settling flat as it comes to rest
+    tl.add(() => sfx.slide({ duration: 0.3, up: false }), 0.46)
+      .to(moving.position, { x: restAt.x, z: restAt.z, duration: 0.4, ease: "power3.out" }, 0.46)
+      .to(moving.rotation, { y: restAt.ry, duration: 0.4, ease: "power3.out" }, 0.46)
+      .to(moving.position, { y: restAt.y, duration: 0.3, ease: "power2.out" }, toBottom ? 0.46 : 0.62)
+      .to(flex, { bend: 0, duration: 0.45, ease: "sine.out" }, 0.5);
   }
   const folderPoint = new THREE.Vector3();
   const clickFolder = (hit) => {
@@ -9334,7 +9764,12 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // On a cork coaster, a little closer to the envelope
   const MUG_Y = 0.06;
   mug.position.set(5.5, MUG_Y, 0.95);
-  const coaster = mesh(new THREE.CylinderGeometry(0.74, 0.74, 0.06, 32), toon("#a8743f"), { outline: 0.03, cast: false });
+  const corkTex = canvasTexture(256, 256);
+  track(corkTex.texture);
+  drawCork(corkTex.ctx, 256, 256);
+  const corkMat = toon("#ffffff");
+  corkMat.map = corkTex.texture;
+  const coaster = mesh(new THREE.CylinderGeometry(0.74, 0.74, 0.06, 32), corkMat, { outline: 0.03, cast: false });
   coaster.position.set(mug.position.x, 0.03, mug.position.z);
   const coasterRing = new THREE.Mesh(track(new THREE.TorusGeometry(0.6, 0.02, 6, 40)), track(new THREE.MeshBasicMaterial({ color: "#6e4520" })));
   coasterRing.rotation.x = Math.PI / 2;
@@ -9362,11 +9797,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
   rimLine.rotation.x = Math.PI / 2;
   rimLine.position.y = 1.1;
   rimLine.raycast = noRaycast;
-  const coffee = mesh(new THREE.CylinderGeometry(0.405, 0.405, 0.02, 32), toon("#5b3a1e"), { outline: 0, cast: false });
+  // the coffee's top (drawCoffeeTop): crema in two tones with a layered latte-art heart
+  const coffeeTex = canvasTexture(512, 512);
+  track(coffeeTex.texture);
+  drawCoffeeTop(coffeeTex.ctx, 512, 512);
+  const coffeeMat = toon("#ffffff");
+  coffeeMat.map = coffeeTex.texture;
+  const coffee = mesh(new THREE.CylinderGeometry(0.405, 0.405, 0.02, 32), coffeeMat, { outline: 0, cast: false });
   coffee.position.y = 0.93;
-  const crema = mesh(new THREE.TorusGeometry(0.3, 0.03, 6, 32), toon("#c8925a"), { outline: 0, cast: false });
-  crema.rotation.x = Math.PI / 2;
-  crema.position.y = 0.945;
   const handle = mesh(new THREE.TorusGeometry(0.28, 0.08, 10, 20, Math.PI), mugMat, { outline: 0.04 });
   handle.rotation.z = -Math.PI / 2;
   handle.position.set(0.46, 0.58, 0);
@@ -9437,7 +9875,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     steamTex.texture.needsUpdate = true;
   }
 
-  mug.add(mugBody, rimLine, coffee, crema, handle);
+  mug.add(mugBody, rimLine, coffee, handle);
 
   // Sipping: each click drinks a bit and a quote pops up over the mug. Finish the cup and the
   // desk switches to the night shift (or back to day), then it's refilled.
@@ -9449,8 +9887,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
     const r = 0.39 + (0.04 * (y - CUP_FLOOR)) / (1.1 - CUP_FLOOR) - 0.005;
     gsap.to(coffee.position, { y, duration });
     gsap.to(coffee.scale, { x: r / 0.405, z: r / 0.405, duration });
-    gsap.to(crema.position, { y: y + 0.015, duration });
-    gsap.to(crema.scale, { x: r / 0.405, y: r / 0.405, duration });
     // Steam only rises off a full cup
     puffs.forEach((puff) => (puff.visible = level >= 1));
   }
@@ -9507,7 +9943,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       if (sipping) return;
       gsap.to(mug.position, { y: on ? MUG_Y + 0.06 : MUG_Y, duration: 0.3, ease: "power2.out", overwrite: true });
       gsap.to(steam.scale, { ...(on ? STEAM_SCALE_HOVER : STEAM_SCALE), duration: 0.4, overwrite: true });
-      if (on) gsap.fromTo(crema.rotation, { z: -0.12 }, { z: 0, duration: 0.7, ease: "elastic.out(1, 0.4)", overwrite: true });
+      if (on) gsap.fromTo(coffee.rotation, { y: -0.25 }, { y: 0, duration: 0.7, ease: "elastic.out(1, 0.4)", overwrite: true });
     },
     onArrive: sip,
     onClick: sip,
@@ -9590,6 +10026,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     });
     monitorGlowMat.opacity = isDark ? 0.7 : 0;
     ambient.intensity = isDark ? 1.0 : 0.65;
+    ambient.color.set("#ffffff");
     skyFill.intensity = isDark ? 0 : 1.45;
     readabilityFill.intensity = isDark ? 0.55 : 0.35;
     jointMat.color.set(isDark ? "#3d3749" : "#1a1714");
@@ -9599,9 +10036,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
     sun.intensity = isDark ? 0.3 : 1.6;
     sun.castShadow = true;
     windowLight.color.set(isDark ? "#94b5ff" : "#ffe5ad");
-    // The daytime pane pattern is an accent; only the sun casts directional shadows.
-    windowLight.intensity = isDark ? 38 : 70;
-    windowLight.castShadow = isDark;
+    // Sun or moon, it comes in through the glass, shadowed by the wall, the bars and the blind
+    windowLight.intensity = isDark ? 0.8 : 2.2;
+    windowLight.castShadow = true;
+    if (isDark) aimWindowLight(MOON_AT);
+    blindFabric.emissiveIntensity = isDark ? 0.03 : 0.2;
     floorMat.color.set(isDark ? "#8a82a6" : "#ffffff");
     // Night keeps the walls white, just moonlit, so the room still reads as the same room
     backWallMat.color.set(isDark ? "#d6d3e6" : "#ffffff");
@@ -9616,15 +10055,22 @@ export function createDeskScene({ container, projects, experiences, dark = false
     riserLegMat.color.set(p.desk).multiplyScalar(RISER_LEG_SHADE);
     shadowFill.color.set(p.shadow);
     if (!isDark) applyDaylight();
+    fitSunShadow();
   }
   // Match the randomly selected sky: warm morning, bright midday or amber evening.
   const DAYLIGHT = {
-    morning: { sun: "#ffd6a0", sunAt: [-14, 6, 7], sunPower: 1.35, sky: "#fff1dc", skyPower: 1.25, ambient: 0.62, pane: "#ffd59a", panePower: 80 },
-    day: { sun: "#fff1cc", sunAt: [-13, 9.5, 4.5], sunPower: 1.6, sky: "#fffaf0", skyPower: 1.45, ambient: 0.65, pane: "#ffe5ad", panePower: 70 },
+    // Warm key, cool fill: the sky's blue lifts what the sun can't reach, so shadows read as
+    // cool shade rather than a grey film, at no extra cost (only colours and a little more key)
+    // The wall keeps the sun's direct light to the window's patch (`pane`), so the room's sun
+    // is the softer daylight about the room, still throwing the props' shadows
+    morning: { sun: "#ffd6a0", sunAt: [-14, 6, 7], sunPower: 1.1, sky: "#eef0ff", skyPower: 1.22, ambient: 0.64, fill: "#e9edff", pane: "#ffd59a", panePower: 2.4 },
+    day: { sun: "#fff1cc", sunAt: [-13, 9.5, 4.5], sunPower: 1.3, sky: "#f2f5ff", skyPower: 1.38, ambient: 0.66, fill: "#eef1ff", pane: "#ffe5ad", panePower: 2.2 },
     // the view's sun rises on the front side of the window and sets on the back side, so the
     // room's evening sun comes in from behind
-    evening: { sun: "#ff9e66", sunAt: [-14, 4.5, -4], sunPower: 1.25, sky: "#ffe0c4", skyPower: 1.1, ambient: 0.55, pane: "#ffb27a", panePower: 85 },
+    evening: { sun: "#ff9e66", sunAt: [-14, 4.5, -4], sunPower: 1.0, sky: "#ece4ff", skyPower: 1.08, ambient: 0.56, fill: "#e6deff", pane: "#ffb27a", panePower: 2.6 },
   };
+  // Where the moon stands for the window's night light: high and a little in front
+  const MOON_AT = [-14, 8, 2];
   function applyDaylight() {
     const light = DAYLIGHT[daylightPart];
     sun.color.set(light.sun);
@@ -9633,8 +10079,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     skyFill.color.set(light.sky);
     skyFill.intensity = light.skyPower;
     ambient.intensity = light.ambient;
+    ambient.color.set(light.fill);
     windowLight.color.set(light.pane);
     windowLight.intensity = light.panePower;
+    aimWindowLight(light.sunAt);
   }
   setTheme(dark);
   let nextDaylightAt = performance.now() + 60000 + Math.random() * 60000;
@@ -9687,7 +10135,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   };
   const visibleHits = () => raycaster.intersectObjects(pickables, true)
     .filter((h) => -viewPoint.copy(h.point).applyMatrix4(camera.matrixWorldInverse).z >= camera.near)
-    .filter((h) => (gauntlet.visible || !inside(h.object, gauntlet)) && (chair.visible || !inside(h.object, chair)));
+    .filter((h) => (gauntlet.visible || !inside(h.object, gauntlet)) && (chair.visible || !inside(h.object, chair)) && (!lampHidden || !inside(h.object, lamp)));
   const pick = (e) => {
     rayFromPointer(e);
     const hit = visibleHits()[0];
@@ -10197,6 +10645,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     byFocus.get(focus.name)?.onLeave?.();
     clearTimeout(arriveTimer);
     focus.name = name;
+    // the lamp only steps aside once the camera is well on its way, so it doesn't vanish in
+    // plain sight of the overview; leaving, it's back at once
+    hideLamp(false);
+    if (name === "window") timers.push(setTimeout(() => focus.name === "window" && hideLamp(true), 450));
     if (name === "shelf") {
       if (hit?.point) {
         // A click on the top board frames its two display props, rather than the board edge.
@@ -10295,6 +10747,21 @@ export function createDeskScene({ container, projects, experiences, dark = false
     }, 500));
   }
 
+  // The sun's map only has to cover what can throw a shadow: seen along the light, nothing
+  // outside the casters' footprint can be shadowed by them. Fitting the map to that footprint
+  // (rather than a fixed 40-unit square) packs far more texels onto the props for the same cost.
+  scene.updateMatrixWorld(true);
+  const casterBox = new THREE.Box3();
+  scene.traverse((o) => {
+    // (the window's own occluders cast for the window's light alone)
+    if (!o.isMesh || !o.castShadow || o.userData.windowShadow) return;
+    // pooled bits (crumble dust) wait far below the floor until they're used
+    if (casterBox.setFromObject(o).max.y > FLOOR_Y - 5) sunCasters.union(casterBox);
+  });
+  // room for props that get dragged, knocked or jumped on a little beyond where they start
+  sunCasters.expandByScalar(0.5);
+  fitSunShadow();
+
   let frame = null;
   let lastBlink = 0;
   const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -10315,7 +10782,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       frameIntervals.length = 0;
       return;
     }
-    const moving = now < responsiveUntil || gsap.isTweening(cam) || catIdleTl?.isActive() || mouseRunning || lampHopping || trophyCelebrating || lanyardDrag || hatDrag || noteDrag || shelfDrag || stickyDrag;
+    const moving = now < responsiveUntil || gsap.isTweening(cam) || catIdleTl?.isActive() || gsap.isTweening(blind) || mouseRunning || lampHopping || trophyCelebrating || lanyardDrag || hatDrag || noteDrag || shelfDrag || stickyDrag;
     // Do not skip presentation frames during interaction. Idle uses a tolerant interval rather
     // than an accumulated deadline, which otherwise creates short/long frame pairs under jitter.
     if (!moving && lastTick && now - lastTick < refreshMs * 0.7) return;
@@ -10433,6 +10900,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       });
     }
     updateNeonLights(now, moving);
+    updatePaperFlex();
     constrainHat();
     updateToonBatch();
     renderFrame();

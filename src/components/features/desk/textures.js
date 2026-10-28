@@ -2266,6 +2266,62 @@ export function drawBrushedMetal(c, w, h) {
   c.fillRect(0, 0, w, h);
 }
 
+// A small computer's square top, its brushed silver softened like the display's, a soft sheen
+// across it and a dark whole-apple badge in the middle: a round fruit with two lobes either
+// side of its dimple, a short stem and a leaf. The badge spans `logo` of the tile's width.
+export function drawMiniTop(c, w, h, { logo = 0.3 } = {}) {
+  drawBrushedMetal(c, w, h);
+  c.fillStyle = "rgba(255,255,255,0.78)";
+  c.fillRect(0, 0, w, h);
+  const sheen = c.createRadialGradient(w * 0.35, h * 0.3, 0, w * 0.35, h * 0.3, w * 0.8);
+  sheen.addColorStop(0, "rgba(255,255,255,.35)");
+  sheen.addColorStop(1, "rgba(120,124,130,.12)");
+  c.fillStyle = sheen;
+  c.fillRect(0, 0, w, h);
+  // the badge in unit coordinates (about 0.9 across), y down, its stem toward the canvas top
+  const s = (w * logo) / 0.9;
+  c.save();
+  c.translate(w / 2, h / 2 + s * 0.06);
+  c.scale(s, s);
+  const badge = c.createLinearGradient(0, -0.5, 0, 0.5);
+  badge.addColorStop(0, "#55595f");
+  badge.addColorStop(1, "#303236");
+  c.fillStyle = badge;
+  c.beginPath();
+  c.moveTo(0, -0.27);
+  c.bezierCurveTo(0.12, -0.37, 0.45, -0.37, 0.45, -0.03);
+  c.bezierCurveTo(0.45, 0.24, 0.31, 0.46, 0.19, 0.47);
+  c.bezierCurveTo(0.11, 0.48, 0.07, 0.43, 0, 0.43);
+  c.bezierCurveTo(-0.07, 0.43, -0.11, 0.48, -0.19, 0.47);
+  c.bezierCurveTo(-0.31, 0.46, -0.45, 0.24, -0.45, -0.03);
+  c.bezierCurveTo(-0.45, -0.37, -0.12, -0.37, 0, -0.27);
+  c.fill();
+  // a short stem out of the dimple, and a leaf off to its right
+  c.lineCap = "round";
+  c.strokeStyle = "#45484d";
+  c.lineWidth = 0.045;
+  c.beginPath();
+  c.moveTo(0, -0.26);
+  c.quadraticCurveTo(-0.01, -0.38, 0.04, -0.46);
+  c.stroke();
+  c.beginPath();
+  c.ellipse(0.15, -0.44, 0.06, 0.13, 1.05, 0, Math.PI * 2);
+  c.fill();
+  c.restore();
+}
+
+// The dark base ring's cooling vents: narrow upright slots in a row along a tile that repeats
+export function drawVentSlots(c, w, h) {
+  c.fillStyle = "#2c2e33";
+  c.fillRect(0, 0, w, h);
+  for (let x = 2; x < w; x += 8) {
+    c.fillStyle = "#08090b";
+    c.fillRect(x, h * 0.22, 4, h * 0.56);
+    c.fillStyle = "rgba(255,255,255,.12)";
+    c.fillRect(x, h * 0.78, 4, 1);
+  }
+}
+
 // A satin-painted cabinet, as a light tile its material tints: a fine even stipple with a
 // faint grain running along it, so a flat panel reads as a finished surface. Tiles both ways.
 export function drawSatinFinish(c, w, h, { grain = 0.06 } = {}) {

@@ -10,7 +10,8 @@ const end = source.indexOf('  // The monitor has the same cyan/pink', start);
 const monitor = new THREE.Group();
 const lampLight = new THREE.PointLight(0xffd394, 5);
 const roomLight = { night: 0 };
-const context = vm.createContext({ THREE, monitor, lampLight, roomLight,
+const SCREEN_Y = Number(source.match(/const SCREEN_Y = ([\d.]+)/)[1]);
+const context = vm.createContext({ THREE, monitor, lampLight, roomLight, SCREEN_Y,
   brushed: { texture: new THREE.Texture() }, noRaycast() {},
   toon: (color) => new THREE.MeshToonMaterial({ color }),
   rbox: (w, h, d) => new THREE.BoxGeometry(w, h, d),
@@ -43,7 +44,8 @@ assert.ok(run('lightbarMetal.map').isTexture, 'graphite shell retains brushed te
 monitor.updateMatrixWorld(true);
 const bar = monitor.getObjectByName('monitor-lightbar');
 const bounds = new THREE.Box3().setFromObject(bar);
-assert.ok(bounds.min.y > 3.92 - 0.5, 'clamp fits around top bezel');
+// the body's top edge is 1.31 over the screen's centre
+assert.ok(bounds.min.y > SCREEN_Y + 1.31 - 0.5, 'clamp fits around top bezel');
 assert.ok(bounds.max.x < 2 && bounds.min.x > -2, 'bar stays inside screen width');
 assert.ok(bounds.max.x - bounds.min.x > 3.9, 'bar spans almost the full 4.22-unit monitor width');
 assert.ok(source.includes('setLamp(isDark);\n    updateLightbar();'), 'initial theme sets lightbar state');

@@ -4,7 +4,7 @@
 
 **Oka Sutarto Putra's portfolio, as a 3D desk you can explore.**
 
-Click anything. Just don't try to use the Infinity Gauntlet. 🫰
+Click anything. Play a game on the console. Repaint the walls. Just don't try to use the Infinity Gauntlet. 🫰
 
 [**okasp.dev**](https://okasp.dev) · [2D version](https://okasp.dev/2d)
 
@@ -15,7 +15,7 @@ Click anything. Just don't try to use the Infinity Gauntlet. 🫰
 ![Web Audio](https://img.shields.io/badge/Web_Audio-synthesized-ff90e8?style=flat-square)
 ![Vercel](https://img.shields.io/badge/Vercel-deployed-000000?style=flat-square&logo=vercel&logoColor=white)
 
-<img src="public/readme-desk.jpg" alt="The Desk: a neo-brutalist 3D room with a desk, monitor, About board, bookshelf, katana and the Infinity Gauntlet" width="100%" />
+<img src="public/readme-desk.jpg" alt="The Desk: a neo-brutalist 3D room with graphite walls, an oak desk, monitor, About board, game shelf, katana and the Infinity Gauntlet" width="100%" />
 
 </div>
 
@@ -30,13 +30,23 @@ outlines and hard shadows.
 
 Prefer a classic page? The same content lives at [`/2d`](https://okasp.dev/2d).
 
+### ✨ At a glance
+
+- 🧭 **30-odd props to poke**, each with its own close-up, sound and secret
+- 🖥️ **A real little desktop** on the monitor: dock, terminal, music player, Snake and an AI chat
+- 🏴‍☠️ **A whole shoot-'em-up** on the console: *Straw Hat Strike*, Going Merry vs. the Marines
+- 🌦️ **A living room**: morning to moonlight, rain, neon and a sleepy cat
+- 🎨 **Make it yours**: repaint the walls, swap the wood and the grain of the furniture
+- 📱 **Phone-friendly**: a pocket diorama you pinch, pan and turn
+- 🖌️ **Painted in code**: the props' surfaces are canvas textures, and the music and guitar are synthesized
+
 ## Things to click
 
 | Prop | What it does |
 | --- | --- |
 | 🪪 **ID badge** | Flips to reveal the links. Drag its pin to re-pin it anywhere on the wall, or pull the lanyard and let it swing. |
 | 📌 **About board** | Notes about me, pinned up. Drag them around and they pin back in place. |
-| 🖥️ **Monitor** | A working terminal. Type `help`, `whoami`, `projects`, or `sudo hire oka`. |
+| 🖥️ **Monitor** | A tiny desktop with a draggable dock: a working terminal (`help`, `whoami`, `projects`, `sudo hire oka`), the Spotifree lo-fi player, VS Kode, Snake and more. |
 | ⌨️ **Keyboard** | Every key on your keyboard presses the same key on the desk. Keys `1`–`5` jump between sections. |
 | 🗂️ **Drawer** | Project files: flip through the tabs, pull one out and turn its pages. |
 | 🎫 **Boarding passes** | My experience, one pass per job. Hold one up, flip it for the itinerary. |
@@ -57,11 +67,56 @@ Prefer a classic page? The same content lives at [`/2d`](https://okasp.dev/2d).
 | ⚔️ **Sword rack** | Inspect three swords, draw one and strike, with technique cards, manga effects and falling sakura. Its close-up has an independent spotlight. |
 | 🏋️ **Dumbbells & calendar** | Count reps (ten is a PR) and stamp today on the gym streak. |
 | 🧤 **Infinity Gauntlet** | Please don't. |
-| 🎮 **Game shelf & console** | Explore the collection, power the console and play its monitor app. Drag vertically to browse the shelf. |
+| 🎮 **Game shelf & console** | Explore the collection and power the console: the monitor becomes a TV running **Straw Hat Strike**. Drag vertically to browse the shelf. |
 | 🤖 **Robot** | A small animated companion on the shelf. |
 | 🐈 **Oyen** | An animated desk cat that watches, settles and reacts to activity around the room. |
 | 🗑️ **Wastebasket** | Crumple papers and throw them into the basket. |
 | 🏆 **Secrets trophy** | Tracks 20 discoveries and celebrates when the collection is complete; click it to replay the celebration. |
+
+## 🏴‍☠️ Straw Hat Strike
+
+Switch on the console on the shelf and the monitor turns into a TV. *Straw Hat Strike* is a
+side-scrolling shoot-'em-up in the room's toon style: sail the Going Merry against Marine
+gunboats, frigates and gulls, fire Gomu Gomu no Pistol, grab meat to power up, and save the
+Gatling to clear the sky. A Sea King surfaces at the end of every stage.
+
+| Play with | |
+| --- | --- |
+| ⌨️ Keyboard | Arrows / WASD to sail · Space for the Gatling · Q to quit |
+| 🖱️ Mouse | The ship follows the pointer |
+| 👆 Touch | Drag anywhere to sail · the red button fires the Gatling |
+| 🎮 Gamepad | A real controller works too |
+
+Chain kills for a multiplier, and if you go down you get your own wanted poster.
+
+## 🎨 Make it your room
+
+The ⚙️ gear next to **2D site** opens the room settings. Every pick applies instantly, by day
+and by night, and is remembered in your browser.
+
+| Part | Choices |
+| --- | --- |
+| 🧱 **Wall** | Seven house paints from white to graphite (the default), or any colour at all |
+| 🪵 **Desk** | Six woods × four cuts |
+| 🖥️ **Monitor riser** | Six woods × four cuts |
+| 🪟 **Window frame** | Six woods × four cuts |
+| 🎮 **Game shelf** | Six woods × four cuts |
+
+**Woods:** Oak · Maple · White ash · Cherry · Walnut · Ebony stain
+**Cuts:** Planks · Cathedral · Knotty · Butcher block
+
+The grain is painted on a canvas at runtime, so every combination is drawn on the fly: no
+texture files.
+
+## 📱 On your phone
+
+On a portrait screen the room becomes an isometric **diorama**: walls cut away just past the
+furniture, standing on a thick slab on a dotted backdrop.
+
+- **Pinch** (or Ctrl + scroll on a trackpad) to zoom around your fingers
+- **Drag** to pan once zoomed in
+- **Swipe sideways** to turn the diorama
+- **Tap** any prop for its close-up; hints speak in taps, not keys
 
 ## Light, weather and atmosphere
 
@@ -74,7 +129,7 @@ night shift trades the daylight for cyan and pink neon.
     <td width="50%"><img src="public/readme-desk-night.jpg" alt="Night shift: cyan and pink LEDs behind the desk and monitor" width="100%" /></td>
   </tr>
   <tr>
-    <td align="center"><strong>☀️ Day shift</strong><br />Warm wood, window light and crisp shadows.</td>
+    <td align="center"><strong>☀️ Day shift</strong><br />Warm wood, graphite walls, window light and crisp shadows.</td>
     <td align="center"><strong>🌙 Night shift</strong><br />Neon, a glowing screen and a quiet desk lamp.</td>
   </tr>
 </table>
@@ -114,7 +169,7 @@ part of the scene, not a video playing behind the page.
 
 | | What makes it work |
 | --- | --- |
-| 🎨 **Drawn at runtime** | Canvas textures paint the notes, tickets, terminal, landscape and artwork. The portrait uses a supplied image. |
+| 🎨 **Drawn at runtime** | Canvas textures paint the notes, tickets, terminal, landscape, artwork and every wood grain. The portrait uses a supplied image. |
 | 🎛️ **Sound without audio files** | Web Audio synthesizes guitar chords, paper riffles, coffee slurps and the lo-fi player. |
 | ✒️ **Lines that stay sharp** | Screen-space outlines keep their weight as you zoom in. Rendering follows device density, up to 3×. |
 | 🎬 **Every prop gets a close-up** | GSAP moves between framed camera shots; foreground props clip out of the way so they don't block the view or clicks. |
@@ -231,14 +286,17 @@ the-desk/
 │   └── readme-desk-night.jpg     # Nighttime README screenshot
 ├── src/
 │   ├── views/
-│   │   ├── DeskPage.vue          # The 3D desk: HUD and hints around the scene
+│   │   ├── DeskPage.vue          # The 3D desk: HUD, hints and the settings panel
 │   │   └── HomePage.vue          # The classic 2D page at /2d
 │   ├── components/
 │   │   ├── features/desk/
 │   │   │   ├── deskScene.js      # Props, lighting, weather, interactions and camera shots
-│   │   │   ├── textures.js       # Canvas surfaces and shared sky palettes
+│   │   │   ├── textures.js       # Canvas surfaces, wood grains and shared sky palettes
+│   │   │   ├── woods.js          # Woods, cuts and paintable parts for the settings panel
 │   │   │   ├── toonBatch.js      # Toon batching, shadow proxies and picking fallback
-│   │   │   └── desktop.js        # Interactive monitor desktop and apps
+│   │   │   ├── desktop.js        # Interactive monitor desktop, dock and apps
+│   │   │   ├── strawHatStrike.js # The console's shoot-'em-up
+│   │   │   └── lofi.js           # The synthesized lo-fi player
 │   │   ├── sections/             # 2D page sections
 │   │   └── features/             # Chatbot, file drawer, theme switch, …
 │   ├── composables/useSfx.js     # The synthesized sound effects

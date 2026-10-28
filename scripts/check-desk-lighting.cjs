@@ -5,108 +5,239 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const source = fs.readFileSync(path.join(__dirname, '../src/components/features/desk/deskScene.js'), 'utf8');
+const THREE = require('three');
+const textures = fs.readFileSync(path.join(__dirname, '../src/components/features/desk/textures.js'), 'utf8');
+const skySource = textures.slice(textures.indexOf('function mixHex('), textures.indexOf('// `time` is the part of the day outside')).replace('export function', 'function');
+const windowSky = vm.runInNewContext(skySource + '; windowSky');
 const moodCode = source.slice(source.indexOf('  const daylightParts ='), source.indexOf('  const windowView ='));
 for (const [random, expected] of [[0, 'morning'], [0.5, 'day'], [0.999, 'evening']]) {
   let draws = 0;
   const mood = vm.runInNewContext(moodCode + '; ({ dayPart, outside })', {
-    dark: false, outside: { night: false }, Math: { floor: Math.floor, random: () => { draws++; return random; } },
+    windowSky, previewTime: null, dark: false, outside: { night: false }, Math: { floor: Math.floor, random: () => { draws++; return random; } },
   });
   assert.equal(mood.dayPart(), expected);
-  mood.outside.night = true;
-  assert.equal(mood.dayPart(), 'night');
-  mood.outside.night = false;
-  assert.equal(mood.dayPart(), expected, 'returning to light mode restores the selected mood');
-  assert.equal(draws, 1, 'redraws and theme changes must not reroll the sky');
+  assert.equal(draws, 1);
 }
-{
-  let updates = 0;
-  let redraws = 0;
-  const lamps = [];
-  const events = [];
-  const cycle = vm.createContext({
-    dark: false, outside: { night: false }, darkNow: false, performance: { now: () => 0 },
-    Math: { floor: Math.floor, random: () => 0.5 },
-    setTheme: (isDark) => { cycle.darkNow = isDark; updates++; },
-    lampSwitch: (on) => lamps.push(on), onEvent: (name, payload) => events.push([name, payload.dark]),
-    setNeon() {}, catSettle() {}, desktop: { setTheme() {} }, redrawScreen() {},
-    windowView: { userData: { tex: { redraw: () => redraws++ } } },
-  });
-  const start = source.indexOf('  let nextDaylightAt =');
-  vm.runInContext(moodCode + source.slice(start, source.indexOf('  // ---------- pointer', start)), cycle);
-  assert.equal(vm.runInContext('nextDaylightAt', cycle), 90000);
-  vm.runInContext('updateDaylight(89999)', cycle);
-  assert.equal(updates, 0, 'wait until the selected interval has elapsed');
-  for (const [now, expected] of [[90000, 'evening'], [180000, 'night'], [270000, 'morning'], [360000, 'day']]) {
-    vm.runInContext(`updateDaylight(${now})`, cycle);
-    assert.equal(vm.runInContext('dayPart()', cycle), expected);
-  }
-  assert.deepEqual(lamps, [false, true, false, false], 'lamps turn on at night and off in the morning');
-  assert.deepEqual(events, [['nightShift', true], ['nightShift', false]], 'keep the page theme in sync');
-  assert.equal(updates, 4);
-  assert.equal(redraws, updates, 'sky and room lighting must update together');
-}
-const lampCode = source.slice(source.indexOf('  const setLamp ='), source.indexOf('  // Switched on, the bulb'));
-const themeCode = source.slice(source.indexOf('  function setTheme('), source.indexOf('  setTheme(dark);'));
-const color = () => ({ set(value) { this.value = value; return this; }, copy(other) { this.value = other.value; return this; }, multiplyScalar() { return this; } });
-const material = () => ({ color: color() });
-const sun = { color: color(), position: { set(...xyz) { this.xyz = xyz; } } };
-const windowLight = { color: color() };
-const lampLight = {};
-const ambient = { color: color() };
-const readabilityFill = {};
-const skyFill = { color: color() };
+let now = 0;
+const material = () => ({ color: new THREE.Color() });
+const sun = new THREE.DirectionalLight();
+const windowLight = new THREE.SpotLight();
+const lampLight = new THREE.PointLight();
+const ambient = new THREE.AmbientLight();
+const readabilityFill = new THREE.DirectionalLight();
+const skyFill = new THREE.HemisphereLight();
+const events = [];
 const context = vm.createContext({
-  deskNeons: [{ strip: {}, washMat: {} }, { strip: {}, washMat: {} }], fitSunShadow() {}, aimWindowLight() {}, blindFabric: {},
-  DESK_WASH: 0.45, monitorGlowMat: {}, updateLampGlow() {}, daylightPart: 'day',
+  THREE, windowSky, previewTime: null, roomLight: { night: 0 }, dark: false, outside: { night: false, rain: 0 },
+  performance: { now: () => now }, Math: Object.assign(Object.create(Math), { random: () => 0.5 }),
+  deskNeons: [{ strip: {}, washMat: {} }, { strip: {}, washMat: {} }], fitSunShadow() {},
+  aimWindowLight: (at) => { windowLight.userData.sky = [...at]; }, blindFabric: {}, shadowedNeons: [{}, {}, {}],
+  cookieRain: 0, drawGlassCookie() {}, DESK_WASH: 0.45, monitorGlowMat: {}, updateLampGlow() {}, updateLightbar() {},
   riserMat: material(), riserLegMat: material(), RISER_LEG_SHADE: 0.8,
-  darkNow: false, roomDark: false, sun, windowLight, lampLight, ambient, readabilityFill, skyFill,
-  chairFrameMat: material(), jointMat: material(),
-  bulbMat: material(), floorMat: material(), backWallMat: material(),
+  sun, windowLight, lampLight, ambient, readabilityFill, skyFill,
+  jointMat: material(), floorMat: material(), backWallMat: material(),
   sideWallMat: material(), trimMat: material(), deskMat: material(), shadowFill: material(),
-  scene: {}, THREE: { Color: class { constructor(value) { this.value = value; } } },
+  scene: {}, gsap: { killTweensOf() {} }, setNeon() {}, catSettle() {}, desktop: { setTheme() {} }, redrawScreen() {},
+  onEvent: (name, payload) => events.push([name, payload.dark]),
   windowView: { userData: { tex: { redraw() {} } } },
   PALETTES: { light: { desk: '#a388ee', shadow: '#000' }, dark: { desk: '#6b5bc4', shadow: '#000' } },
 });
-vm.runInContext(lampCode + themeCode, context);
-const theme = (dark) => vm.runInContext(`setTheme(${dark})`, context);
-
-theme(false);
-assert.ok(context.deskNeons.every(({ strip, washMat }) => !strip.visible && washMat.opacity === 0), 'desk neon must be completely off in daylight');
-const daySun = sun.intensity;
-const dayWindow = windowLight.intensity;
-const dayDirection = sun.position.xyz;
-const dayBaseFill = ambient.intensity + skyFill.intensity + readabilityFill.intensity;
-assert.equal(sun.castShadow, true);
-assert.equal(windowLight.castShadow, true, 'daylight through the window is shadowed by the wall, the glazing bars and the blind');
-assert.ok(windowLight.intensity > 0, 'window pane accent must remain visible during the day');
-assert.equal(lampLight.intensity, 0);
-assert.equal(lampLight.castShadow, false);
-assert.ok(skyFill.intensity > 0 && readabilityFill.intensity > 0, 'daylight must fill areas beyond the window patch');
-
-theme(true);
-assert.ok(context.deskNeons.every(({ strip, washMat }) => strip.visible && washMat.opacity > 0), 'desk neon grows brighter at night');
-assert.ok(dayBaseFill > ambient.intensity + skyFill.intensity + readabilityFill.intensity,
-  'the broad daytime fill must be stronger than the night fill');
-assert.ok(readabilityFill.intensity > 0, 'front fill must reveal dark object details at night');
-assert.ok(lampLight.intensity > 0, 'the real desk bulb must light the night scene');
-assert.equal(lampLight.castShadow, true, 'night shadows must come from the desk lamp');
-assert.equal(sun.castShadow, true, 'cool fill must preserve shadows outside the lamp cone');
-assert.notDeepEqual(sun.position.xyz, dayDirection, 'night fill must make shorter shadows than window sunlight');
-assert.equal(windowLight.castShadow, true, 'window panes and occluding objects must still project shadows at night');
-// daylight's direct light is the room's sun plus the sun through the window
-assert.ok(sun.intensity > 0 && sun.intensity < (daySun + dayWindow) / 5, 'night fill must stay much weaker than daylight');
-assert.ok(windowLight.intensity < dayWindow / 2, 'moonlight through the window must stay well below sunlight');
-assert.ok(windowLight.intensity > 0, 'moonlit panes must remain visible at night');
-
-theme(false);
-assert.equal(sun.intensity, daySun);
-assert.deepEqual(sun.position.xyz, dayDirection);
-assert.equal(windowLight.intensity, dayWindow);
-assert.equal(sun.castShadow, true);
+const lampCode = source.slice(source.indexOf('  const setLamp ='), source.indexOf('  // Like a desk lamp with a mind'));
+const themeStart = source.indexOf('  // ---------- theme ----------');
+vm.runInContext(moodCode + lampCode + source.slice(themeStart, source.indexOf('  // ---------- pointer', themeStart)), context);
+const run = (code) => vm.runInContext(code, context);
+const update = (at) => { now = at; run(`updateLighting(${at})`); };
+update(0);
+const clearDay = windowLight.intensity;
+const clearAmbient = ambient.intensity;
+const clearShadowRadius = windowLight.shadow.radius;
+assert.equal(sun.castShadow, true, 'room bounce retains soft cast shadows on all props outside the direct window patch');
 assert.equal(windowLight.castShadow, true);
+assert.ok(clearDay > sun.intensity * 5, 'window is the dominant direct light');
+assert.equal(lampLight.intensity, 0);
+context.outside.rain = 1;
+update(10);
+assert.ok(windowLight.intensity < clearDay * 0.15, 'rain obscures the sun');
+assert.ok(windowLight.shadow.radius > clearShadowRadius * 2, 'rain softens the exterior light shadow');
+assert.ok(ambient.intensity > clearAmbient * 0.7, 'cloudy sky still provides diffuse light');
+update(20);
+assert.ok(Math.abs(windowLight.intensity - clearDay * 0.12) < 1e-10, 'rain attenuation must not compound every frame');
+context.outside.rain = 0;
+update(30);
+assert.equal(windowLight.intensity, clearDay, 'clear weather restores daylight');
+assert.equal(windowLight.shadow.radius, clearShadowRadius, 'clear weather restores crisp daylight shadows');
+const dayColor = context.scene.background.clone();
+const daySky = context.outside.sky.sun.slice();
+now = 90000;
+run('updateDaylight(90000)');
+assert.equal(run('dayPart()'), 'evening');
+assert.equal(windowLight.intensity, clearDay, 'theme request does not jump the light');
+update(91000);
+assert.ok(Math.abs(windowLight.intensity - (clearDay + 1.8) / 2) < 1e-10);
+assert.ok(context.outside.sky.sun[1] > daySky[1], 'sun lowers smoothly toward the evening horizon');
+assert.deepEqual(windowLight.userData.sky, [...context.outside.sky.sun], 'painted sun and shadow light use the same coordinates');
+update(92000);
+assert.equal(windowLight.intensity, 1.8);
+now = 180000;
+run('updateDaylight(180000)');
+update(181000);
+assert.ok(lampLight.intensity > 0 && lampLight.intensity < 5, 'desk lamp fades in with night');
+assert.ok(!context.scene.background.equals(dayColor));
+const halfwayNight = windowLight.intensity;
+const halfwaySky = [...context.outside.sky.sun];
+run('setRoomTheme(false)');
+assert.equal(windowLight.intensity, halfwayNight, 'interrupted transition starts at its current light');
+assert.deepEqual([...context.outside.skyFrom.sun], halfwaySky, 'interrupted sky starts at its current position');
+update(183000);
 assert.equal(lampLight.intensity, 0);
 assert.equal(lampLight.castShadow, false);
-assert.ok(readabilityFill.intensity > 0);
+assert.equal(run('dayPart()'), 'morning');
+now = 200000;
+run('setRoomTheme(true)');
+update(202000);
+assert.equal(lampLight.intensity, 5);
+assert.ok(ambient.intensity < clearAmbient / 2, 'night ambient must leave the desk lamp and neons in charge');
+assert.ok(windowLight.intensity < clearDay / 10, 'moonlight stays subtle compared with sunlight');
+assert.ok(windowLight.intensity < clearDay / 2);
+assert.ok(context.shadowedNeons.every((light) => light.castShadow));
+assert.deepEqual(events, [['nightShift', true]]);
+// The exposed bulb uses an omnidirectional light at the filament, not a displaced cone.
+{
+  const lampStart = source.indexOf('  const lampLight = new THREE.');
+  const lampEnd = source.indexOf('  lampHead.add(', lampStart);
+  const bulb = vm.runInNewContext(source.slice(lampStart, lampEnd) + '; lampLight', { THREE, BULB_Y: -0.86 });
+  assert.ok(bulb.isPointLight, 'an exposed bulb must illuminate both wall and desk');
+  assert.equal(bulb.position.y, -0.86, 'light originates inside the bulb');
+  assert.ok(bulb.shadow.camera.near < 0.1, 'nearby socket can occlude the bulb');
+}
+// The desk light spans the entire rear edge, with overlapping samples and no monitor hotspots.
+{
+  const scene = new THREE.Scene();
+  const ctx = vm.createContext({ THREE, scene, WALL_Z: -4.58, track: (value) => value, noRaycast() {}, DESK_WASH: 0.45 });
+  const start = source.indexOf('  const neonLights =');
+  const end = source.indexOf('  // A framed illustration on the left wall:', start);
+  vm.runInContext(source.slice(start, end), ctx);
+  const lights = vm.runInContext('deskNeons.flatMap(({ lights }) => lights)', ctx);
+  assert.equal(lights.length, 4);
+  assert.ok(lights.every((light) => light.isSpotLight && light.castShadow && light.penumbra > 0 && light.penumbra < 0.2), 'strip samples are feathered and shadowed');
+  assert.ok(lights.every((light) => light.decay === 0 && light.angle > 1.3), 'line samples must overlap without near-wall inverse-square hotspots');
+  assert.ok(lights[0].position.x < -5 && lights.at(-1).position.x > 5, 'illumination spans the full fourteen-unit desk');
+  for (let i = 1; i < lights.length; i++) assert.ok(Math.abs(lights[i].position.x - lights[i - 1].position.x - 3.5) < 1e-10, 'uniform spacing avoids concentrated light centres');
+  assert.ok(lights.every((light) => light.position.z === -4.23 && light.position.y === -0.3), 'every source belongs to the actual rear LED strip');
+  vm.runInContext('updateNeonLights(0)', ctx);
+  assert.ok(lights.every((light) => light.intensity === 0), 'strip is off in daylight');
+  vm.runInContext('deskNeons.forEach(({ washMat }) => washMat.opacity = DESK_WASH); updateNeonLights(100)', ctx);
+  assert.ok(lights.every((light) => Math.abs(light.intensity - 1.65) < 1e-10), 'even output across the strip at night');
+  const monitor = new THREE.Group();
+  ctx.monitor = monitor;
+  const biasStart = source.indexOf('  // The monitor has the same cyan/pink bias strip.');
+  vm.runInContext(source.slice(biasStart, source.indexOf('  // Sticky notes on the right', biasStart)), ctx);
+  const bias = monitor.children.filter((child) => child.isSpotLight);
+  assert.equal(bias.length, 2, 'monitor has matching rear-facing strip lighting');
+  assert.ok(bias.every((light) => light.position.z < -0.07 && light.target.position.z < light.position.z && light.castShadow));
+  assert.deepEqual(bias.map((light) => light.color.getHex()), [0x00e0c6, 0xff90e8]);
+  assert.equal(vm.runInContext('shadowedNeons.length', ctx), 6, 'desk and monitor leave sampler headroom for the task light and textured materials');
+  vm.runInContext('monitorGlowMat.opacity = 0.7; updateNeonLights(200)', ctx);
+  assert.ok(bias.every((light) => light.intensity === 2.2));
+}
+assert.ok(source.includes('const LIGHTING_TRANSITION = 2000'), 'phase fades complete in two seconds');
+now = 250000;
+run('updateDaylight(250000)');
+assert.equal(run('nextDaylightAt') - now, 25000, 'next phase uses the faster 20–30 second interval');
+
+// Preserve texture/detail samplers when night and close-up lights compete for GPU slots.
+{
+  const scene = new THREE.Scene();
+  const detailed = new THREE.MeshToonMaterial({ map: new THREE.Texture(), emissiveMap: new THREE.Texture(),
+    gradientMap: new THREE.Texture(), bumpMap: new THREE.Texture() });
+  scene.add(new THREE.Mesh(new THREE.BoxGeometry(), detailed));
+  const light = () => new THREE.SpotLight(0xffffff, 1);
+  const swordSpotlight = light();
+  swordSpotlight.intensity = 0;
+  const windowLight = light();
+  windowLight.map = new THREE.Texture();
+  const sun = new THREE.DirectionalLight(0xffffff, 1);
+  const lampLight = light(), lightbarLight = light(), signLight = light(), screenLight = light();
+  const shadowedNeons = [signLight, screenLight, ...Array.from({ length: 6 }, light)];
+  const ctx = vm.createContext({ scene, renderer: { capabilities: { maxTextures: 16 } }, swordSpotlight,
+    windowLight, sun, lampLight, lightbarLight, signLight, screenLight, shadowedNeons,
+    darkNow: true, lightingBlending: false });
+  const start = source.indexOf('  const materialMapKeys =');
+  vm.runInContext(source.slice(start, source.indexOf('  let frame = null;', start)), ctx);
+  const checkBudget = () => {
+    vm.runInContext('updateShadowBudget()', ctx);
+    const shadows = vm.runInContext('shadowLights.filter((light) => light.castShadow).length', ctx);
+    assert.ok(shadows + 4 + 1 <= 16, 'shadows plus material textures and window cookie must fit the fragment limit');
+    assert.equal(sun.castShadow, true, 'retain the room-wide shadow before redundant strip samples');
+  };
+  checkBudget();
+  assert.equal(swordSpotlight.castShadow, false, 'inactive spotlight must not consume a sampler');
+  swordSpotlight.intensity = 1.25;
+  checkBudget();
+  assert.equal(swordSpotlight.castShadow, true, 'focused swords retain priority without dropping printed detail');
+  assert.ok(detailed.map && detailed.emissiveMap && detailed.gradientMap && detailed.bumpMap, 'keep material detail intact');
+  ctx.darkNow = false;
+  checkBudget();
+  assert.ok(shadowedNeons.every((light) => !light.castShadow), 'daylight releases decorative shadow slots');
+  ctx.lightingBlending = true;
+  checkBudget();
+}
+
+// Exercise the production aiming function, not a duplicate of its direction formula.
+{
+  const windowGroup = new THREE.Group();
+  windowGroup.rotation.y = Math.PI / 2;
+  const windowGlass = new THREE.Vector3(-7.3, 4.7, -1.1);
+  const windowRay = new THREE.Vector3();
+  const light = new THREE.SpotLight();
+  const aimContext = vm.createContext({ windowGroup, windowGlass, windowRay, windowLight: light,
+    sun: new THREE.DirectionalLight(), WINDOW_SUN_FAR: 30, drawGlassCookie() {} });
+  const start = source.indexOf('  function aimWindowLight(');
+  vm.runInContext(source.slice(start, source.indexOf('  // The beam through the window:', start)), aimContext);
+  const direction = (time) => {
+    aimContext.from = windowSky(time).sun;
+    vm.runInContext('aimWindowLight(from)', aimContext);
+    assert.ok(light.position.x < windowGlass.x, `${time}: source stays outside the window`);
+    return windowRay.clone().negate();
+  };
+  const morning = direction('morning');
+  const midday = direction('day');
+  const evening = direction('evening');
+  const night = direction('night');
+  // The monitor face is at Z=-2.66, centred at X=-0.2, Y=3.13.
+  const hitMonitor = new THREE.Ray(windowGlass, morning).intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 2.66), new THREE.Vector3());
+  assert.ok(hitMonitor && Math.abs(hitMonitor.x + 0.2) < 1 && hitMonitor.y > 1.8 && hitMonitor.y < 4.4,
+    'morning central ray must hit the monitor face, not the chair');
+  const hitDesk = new THREE.Ray(windowGlass, midday).intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
+  assert.ok(hitDesk && Math.abs(hitDesk.x) < 7 && Math.abs(hitDesk.z) < 4.2, 'noon central ray lands on the desktop');
+  const morningElevation = Math.atan2(-morning.y, Math.hypot(morning.x, morning.z)) * 180 / Math.PI;
+  assert.ok(morningElevation > 22 && morningElevation < 30, 'morning sun must rise enough to cast useful tabletop shadows');
+  const lowerMonitor = new THREE.Vector3(-0.2, 1.9, -2.66);
+  const monitorShadow = new THREE.Ray(lowerMonitor, morning).intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
+  assert.ok(monitorShadow && Math.abs(monitorShadow.x) < 7 && Math.abs(monitorShadow.z) < 4.2,
+    'morning shadow of the lower monitor reaches the desk instead of passing beyond its edge');
+  assert.ok(morning.z < 0 && evening.z > 0, 'sunrise faces the monitor, sunset reaches toward the front');
+  assert.ok(Math.abs(midday.y) > Math.abs(morning.y) && Math.abs(midday.y) > Math.abs(evening.y), 'noon gives shorter shadows');
+  assert.ok(night.x > 0 && night.y < 0 && night.z > 0, 'moonlight follows the upper-right moon in the window');
+}
+// Rain must attenuate and recover correctly in every phase.
+for (const part of ['morning', 'day', 'evening', 'night']) {
+  now += 10000;
+  run(`daylightPart = '${part}'; setRoomTheme(${part === 'night'})`);
+  update(now + 5000);
+  const clear = windowLight.intensity;
+  const clearRadius = windowLight.shadow.radius;
+  const localLamp = lampLight.intensity;
+  context.outside.rain = 1;
+  update(now + 1);
+  assert.ok(Math.abs(windowLight.intensity - clear * 0.12) < 1e-10, `${part}: rain dims direct light`);
+  assert.ok(windowLight.shadow.radius > clearRadius, `${part}: rain softens exterior shadows`);
+  assert.equal(lampLight.intensity, localLamp, `${part}: rain does not dim the indoor lamp`);
+  context.outside.rain = 0;
+  update(now + 1);
+  assert.equal(windowLight.intensity, clear, `${part}: clear weather restores direct light`);
+  assert.equal(windowLight.shadow.radius, clearRadius, `${part}: shadow softness recovers`);
+}
 
 // Exercise the same per-frame contact update used by the moving mouse and lifted mug.
 const object = { position: { x: 5.6, y: 0, z: -0.6 }, rotation: { y: 0.2 } };
@@ -129,12 +260,13 @@ console.log('Day/night light-source and shadow switching checks passed.');
 {
   const THREE = require('three');
   const shelfLeds = Array.from({ length: 4 }, () => ({ ledMat: { color: new THREE.Color() }, glowMat: { color: new THREE.Color(), opacity: 0 } }));
-  const shelfContext = vm.createContext({ shelfLeds, shelfLights: [{ color: new THREE.Color() }], ledColor: new THREE.Color(), ledPartyUntil: 0, darkNow: false });
+  const shelfContext = vm.createContext({ shelfLeds, shelfLights: [{ color: new THREE.Color() }], ledColor: new THREE.Color(), ledPartyUntil: 0, roomLight: { night: 0 }, darkNow: false });
   const start = source.indexOf('  function updateShelfLeds(');
   vm.runInContext(source.slice(start, source.indexOf('  // A neon sign', start)), shelfContext);
   vm.runInContext('updateShelfLeds(0)', shelfContext);
   assert.ok(shelfLeds.every(({ glowMat }) => glowMat.opacity === 0), 'shelf glow off by day');
   shelfContext.darkNow = true;
+  shelfContext.roomLight.night = 1;
   vm.runInContext('updateShelfLeds(100)', shelfContext);
   const hue = shelfLeds[0].ledMat.color.getHex();
   vm.runInContext('updateShelfLeds(50000)', shelfContext);

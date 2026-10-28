@@ -77,7 +77,7 @@ const THREE = require('three');
   let destination;
   let app;
   const ctx = vm.createContext({
-    discover() {}, sfx: { power() {} }, led: { material: { color: { set() {} } }, children: [] }, pad1: { userData: { moves: { rotation: {} } } }, pad2: { userData: { moves: { rotation: {} } } }, setNeon() {},
+    discover() {}, sfx: { power() {} }, led: { children: [] }, ledMat: { color: { set() {} } }, pad1: { userData: { moves: { rotation: {} } } }, pad2: { userData: { moves: { rotation: {} } } }, setNeon() {},
     gsap: { fromTo() {} }, shelfBubble: { hide() { hidden++; } }, shelfSay() { throw new Error('console must not show a bubble'); },
     timers: [], setTimeout(fn) { callbacks.push(fn); return callbacks.length; },
     setFocus: (name) => { destination = name; }, desktop: { playConsole: () => { app = 'console'; } }, redrawScreen() {},

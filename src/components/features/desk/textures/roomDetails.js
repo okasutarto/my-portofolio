@@ -256,27 +256,6 @@ export function drawStraw(c, w, h) {
   }
 }
 
-// The chair's carbon-weave edging: a fine, low-contrast twill of small tiles of alternating
-// sheen that repeat seamlessly
-export function drawCarbonWeave(c, w, h) {
-  c.fillStyle = "#2a2725";
-  c.fillRect(0, 0, w, h);
-  const n = 4;
-  const s = w / n;
-  for (let row = 0; row < n; row++) {
-    for (let col = 0; col < n; col++) {
-      // each tile's strands run across or down, alternating like a twill
-      const across = (row + col) % 2 === 0;
-      const sheen = c.createLinearGradient(col * s, row * s, across ? col * s : (col + 1) * s, across ? (row + 1) * s : row * s);
-      sheen.addColorStop(0, "#322e2c");
-      sheen.addColorStop(0.5, "#423d3a");
-      sheen.addColorStop(1, "#322e2c");
-      c.fillStyle = sheen;
-      c.fillRect(col * s + 1, row * s + 1, s - 2, s - 2);
-    }
-  }
-}
-
 // Brushed metal, as a light tile its material tints: fine streaks drawn across in slightly
 // different greys, with a broad soft sheen through the middle. Tiles across.
 export function drawBrushedMetal(c, w, h) {

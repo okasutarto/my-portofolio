@@ -1,6 +1,6 @@
 # Toon wallpaper collection
 
-Revision 2: redrawn with the built-in Imagegen tool after the initial painterly images proved too realistic. Thick ink contours, simplified flat shapes, cel shading, halftone dots, and graphic hatching. Five choices, each with automatic day/night artwork. Final project assets are the ten adjacent WebP files at 1280px width.
+Revision 3: the Imagegen output below was still too painterly, so every file is flattened with `scripts/toon-wallpapers.py` (mean-shift smoothing, a 12-colour poster palette, small islands merged, navy ink on every colour border). Revision 2: redrawn with the built-in Imagegen tool after the initial painterly images proved too realistic. Thick ink contours, simplified flat shapes, cel shading, halftone dots, and graphic hatching. Five choices, each with automatic day/night artwork. Final project assets are the ten adjacent WebP files at 1280px width.
 
 ## Exact revision prompts
 

@@ -20,7 +20,7 @@ export function createWallpapers() {
       const img = new Image();
       images.set(key, img);
       img.onload = img.onerror = () => { dirty = true; };
-      img.src = `${process.env.BASE_URL}wallpapers/${key}.webp?v=toon-v2`;
+      img.src = `${process.env.BASE_URL}wallpapers/${key}.webp?v=toon-v3`;
     }
     const img = images.get(key);
     return img.complete && img.naturalWidth ? img : null;

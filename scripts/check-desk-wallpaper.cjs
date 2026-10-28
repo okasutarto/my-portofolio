@@ -41,10 +41,10 @@ desktop.click(spots.find((s) => s.id === 'wallpaperSelect' && s.wallpaper === 'm
 assert.deepEqual(JSON.parse(saved.get('desk-wallpaper')), { id: 'mojave' });
 desktop.setTheme(false);
 desktop.draw(c);
-assert.ok(images.some((image) => image.src === '/wallpapers/mojave-light.webp?v=toon-v2'));
+assert.ok(images.some((image) => image.src === '/wallpapers/mojave-light.webp?v=toon-v3'));
 desktop.setTheme(true);
 desktop.draw(c);
-assert.ok(images.some((image) => image.src === '/wallpapers/mojave-dark.webp?v=toon-v2'));
+assert.ok(images.some((image) => image.src === '/wallpapers/mojave-dark.webp?v=toon-v3'));
 assert.equal(desktop.key({ key: 'ArrowRight' }), true);
 assert.equal(JSON.parse(saved.get('desk-wallpaper')).id, 'monterey');
 images.forEach((image) => { image.complete = true; image.naturalWidth = 1600; image.naturalHeight = 1000; image.onload(); });

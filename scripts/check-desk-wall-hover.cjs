@@ -87,7 +87,7 @@ assert.deepEqual(stringGeo.attributes.position.array, original, 'strings settle 
 let windowHandler;
 const windowCatch = new THREE.Group();
 const windowGlare = { material: { opacity: 0.55 } };
-vm.runInNewContext(section('  register(windowGroup, {', '  // A guitar hanging'), {
+vm.runInNewContext(section('  register(windowGroup, {', '  // The rain outside the window'), {
   gsap, windowCatch, windowGlare, glareTex: { texture: new THREE.Texture() }, windowGroup: {}, register: (_, handler) => { windowHandler = handler; },
   hideWeather() {}, lookOut() { throw new Error('hover triggered lookOut'); },
 });

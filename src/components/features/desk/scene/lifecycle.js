@@ -6,6 +6,8 @@ export function createLifecycle(runtime) {
     setTheme: runtime.theme.setRoomTheme,
     setWallColor: runtime.theme.setWallColor,
     setWood: runtime.theme.setWood,
+    setTime: runtime.theme.setTime,
+    setRain: runtime.weather.setRain,
     setMuted: runtime.workstation.setMuted,
     back: runtime.camera.back,
     focusOn: (name) => runtime.camera.SHOTS[name] && runtime.camera.setFocus(name),

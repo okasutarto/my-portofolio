@@ -119,9 +119,9 @@ desktop.key({ key: 'Enter' });
 assert.equal(desktop.active(), null, 'preview minimizes all windows');
 saved.set('desk-wallpaper', '{broken');
 vm.runInContext('globalThis.invalid = createWallpapers()', context);
-assert.equal(context.invalid.selection.id, 'original', 'a broken save falls back to the original sheet');
+assert.equal(context.invalid.selection.id, 'monterey', 'a broken save falls back to Monterey');
 context.invalid.select('unknown');
-assert.equal(context.invalid.selection.id, 'original');
+assert.equal(context.invalid.selection.id, 'monterey');
 // Every landscape paints in both appearances without throwing
 for (const { id } of context.WALLPAPERS ?? vm.runInContext('WALLPAPERS', context)) {
   if (id === 'original') continue;

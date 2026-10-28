@@ -11,7 +11,7 @@ export const WALLPAPERS = [
 ];
 
 export function createWallpapers() {
-  let selection = { id: "original" };
+  let selection = { id: "monterey" };
   try {
     const saved = JSON.parse(localStorage.getItem("desk-wallpaper"));
     if (WALLPAPERS.some((item) => item.id === saved?.id)) selection = { id: saved.id };

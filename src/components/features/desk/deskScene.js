@@ -952,8 +952,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const frameWood = toon("#f0c7a0");
   frameWood.map = windowWood.texture;
   const windowFrame = mesh(new THREE.BoxGeometry(4.4, 4.5, 0.18), frameWood, { cast: false, outline: 0.03 });
-  // The view outside is animated (see drawWindowView): redrawn from the render loop, often
-  // while it's zoomed in on, a few times a second otherwise
+  // Keep the animated view at the same cadence in overview and close-up.
   // Start at a random daylight mood, then cycle in order with the room lighting.
   // Night joins the cycle and switches on the room's lamps automatically.
   const outside = { t: 0, flockAt: -99, starAt: -99, drawnAt: 0, rain: previewRain, rainTarget: previewRain, clicks: [], night: dark };
@@ -6005,6 +6004,19 @@ export function createDeskScene({ container, projects, experiences, dark = false
       .addScaledVector(trophyBubbleRight, (0.5 - tipX) * sprite.scale.x)
       .addScaledVector(trophyBubbleUp, (tipY - 0.5) * sprite.scale.y);
   }
+  // Anchor the diagonal tail above the actual pad, not the stand's floor-level origin.
+  // Sprites face the camera, so both placement axes must face it too (including during zoom).
+  function placeControllerBubble() {
+    shelfBubbleTarget.userData.moves.getWorldPosition(shelfBubbleAt);
+    trophyBubbleRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
+    trophyBubbleUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
+    shelfBubbleAt.addScaledVector(trophyBubbleUp, 0.32);
+    const [tipX, tipY] = BUBBLE_TAILS[shelfBubblePrint.tail].tip;
+    const sprite = shelfBubble.sprite;
+    sprite.position.copy(shelfBubbleAt)
+      .addScaledVector(trophyBubbleRight, (0.5 - tipX) * sprite.scale.x)
+      .addScaledVector(trophyBubbleUp, (tipY - 0.5) * sprite.scale.y);
+  }
   // `reach`: half the width of what's speaking, so the bubble starts beyond its side
   function shelfSay(obj, text, by = "the shelf", hold = 3200, lift = 0.3, reach = 0) {
     shelfBubbleTarget = obj;
@@ -6012,6 +6024,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
       shelfBubblePrint.tail = "down-left";
       shelfBubble.say({ text, by }, hold);
       placeTrophyBubble();
+      return;
+    }
+    if (obj === pad1 || obj === pad2) {
+      obj.userData.moves.getWorldPosition(shelfBubbleAt);
+      shelfBubblePrint.tail = shelfBubbleAt.clone().project(camera).x > 0 ? "right" : "left";
+      shelfBubble.say({ text, by }, hold);
+      placeControllerBubble();
       return;
     }
     obj.getWorldPosition(shelfBubbleAt);
@@ -11183,7 +11202,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       outside.heard = outside.rain;
       setRainLevel(soundMuted ? 0 : outside.rain);
     }
-    if (now - outside.drawnAt > (focus.name === "window" ? 33 : 150)) {
+    if (now - outside.drawnAt >= 1000 / 30) {
       outside.drawnAt = now;
       windowView.userData.tex.redraw();
     }
@@ -11225,7 +11244,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
       if (!termBusy) redrawTerminal();
       typing?.redraw();
     }
-    if (shelfBubbleTarget === trophy && shelfBubble.sprite.scale.x > 0.01) placeTrophyBubble();
+    if (shelfBubble.sprite.scale.x > 0.01) {
+      if (shelfBubbleTarget === trophy) placeTrophyBubble();
+      else if (shelfBubbleTarget === pad1 || shelfBubbleTarget === pad2) placeControllerBubble();
+    }
     if (trophyCelebrating) trophy.localToWorld(trophyHalo.position.set(0, 0.9, -0.2));
     if (catBubble.sprite.scale.x > 0.01) placeCatBubble(1 - Math.exp(-10 * dt));
     // The desktop animates (windows, dock, the player's visualizer) at about 30 fps

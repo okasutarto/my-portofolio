@@ -15,7 +15,7 @@ Click anything. Just don't try to use the Infinity Gauntlet. 🫰
 ![Web Audio](https://img.shields.io/badge/Web_Audio-synthesized-ff90e8?style=flat-square)
 ![Vercel](https://img.shields.io/badge/Vercel-deployed-000000?style=flat-square&logo=vercel&logoColor=white)
 
-<img src="public/og-image.png" alt="The Desk: a neo-brutalist 3D room with a desk, monitor, About board, bookshelf, katana and the Infinity Gauntlet" width="100%" />
+<img src="public/readme-desk.jpg" alt="The Desk: a neo-brutalist 3D room with a desk, monitor, About board, bookshelf, katana and the Infinity Gauntlet" width="100%" />
 
 </div>
 
@@ -64,52 +64,76 @@ Prefer a classic page? The same content lives at [`/2d`](https://okasp.dev/2d).
 
 ## Light, weather and atmosphere
 
-The room cycles through **morning → midday → evening → night**, starting in a random daytime
-phase unless night mode is selected. A phase lasts 20–30 seconds and lighting transitions take
-2 seconds. The lamp and an empty coffee cup can also switch the room theme manually.
+**Same desk. A different mood.** Sunlight moves across the room, rain rolls in, and the
+night shift trades the daylight for cyan and pink neon.
 
-- The window scenery and direct sun/moon light share the same celestial coordinates. Morning
-  light crosses the monitor area, midday light falls more steeply onto the desk, and sunset
-  uses a lower, warmer direction with dimmer diffuse light.
-- A projected window aperture, glazing-bar occluders and the blind constrain the direct beam.
-  Rain builds and clears gradually, reduces direct light more than diffuse light, cools its
-  colour and softens the window shadows. Rain ambience follows its level and the sound setting.
-- Cyan/pink LED strips run along the rear desk edge and behind the monitor. Overlapping broad
-  light samples approximate their spread; they are not a physically simulated area emitter.
-  The monitor LEDs move with the monitor. Shelf lighting has its own independent levels.
-- At night, a dim exposed bulb emits from the bulb's centre and a monitor lightbar lights the
-  work surface. Neon and screen light remain visible around them.
-- Contact shadows and full-resolution GTAO preserve depth around surfaces and gaps in every
-  phase. A broad shadowed room fill complements direct lighting. PCSS filtering softens cast
-  shadows according to separation; printed wall surfaces use a continuous lighting ramp.
-- Shadow maps are scheduled and cached. A GPU sampler budget reserves room for material
-  textures and the window projection, prioritizing active key lights over redundant decorative
-  shadow samples when necessary. This prevents printed detail from disappearing on GPUs with
-  limited texture units; some secondary lights may illuminate without an individual shadow.
+<table>
+  <tr>
+    <td width="50%"><img src="public/readme-desk.jpg" alt="Day shift: sunlight through the window across the desk" width="100%" /></td>
+    <td width="50%"><img src="public/readme-desk-night.jpg" alt="Night shift: cyan and pink LEDs behind the desk and monitor" width="100%" /></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>☀️ Day shift</strong><br />Warm wood, window light and crisp shadows.</td>
+    <td align="center"><strong>🌙 Night shift</strong><br />Neon, a glowing screen and a quiet desk lamp.</td>
+  </tr>
+</table>
 
-This is a stylized lighting setup rather than a physically based daylight or global-illumination
-simulation. Full-resolution AO, high pixel density and multiple shadows can be demanding;
-performance depends on the browser, viewport and device.
+| ☀️ Morning | 🌤️ Midday | 🌇 Evening | 🌙 Night |
+| --- | --- | --- | --- |
+| Warm light across the monitor | Brighter room, steeper sunlight | Low amber light, muted violet shade | Moonlight, cyan/pink LEDs and a task light |
+
+- **Watch the weather.** Rain fades in with its own ambience. Sunlight dims, its edges soften,
+  and the view turns cloudy. Three quick knocks on the window toggle the rain.
+- **Follow the light.** The sun and moon in the window guide the direct beam. Pull the blind
+  and the light changes with it; the rear desk and monitor LEDs bring colour after dark.
+- **Stay for the night shift.** The room changes phase every 20–30 seconds with a 2-second
+  transition. Click the lamp or finish your coffee to switch the theme yourself.
+
+<details>
+<summary><strong>🔦 How the lighting works</strong></summary>
+
+The painted sky and direct window light share celestial coordinates. A projected aperture,
+glazing-bar occluders and the blind keep that beam inside the window opening. Rain attenuates
+it more than the diffuse fill and softens its shadows.
+
+Broad, overlapping light samples approximate the desk and monitor LED strips; the monitor
+sources follow its movement. Shelf lighting is independent. A dim point light sits inside the
+exposed bulb, while the monitor lightbar illuminates the work surface.
+
+Full-resolution GTAO and contact shadows give objects depth in every phase. A broad shadowed
+room fill complements the direct lights, and PCSS softens cast shadows with separation. This
+is an artistic diorama setup, rather than a physical daylight or global-illumination simulation.
+
+</details>
 
 ## Under the hood
 
-- **Procedural surfaces and synthesized sound.** Most printed surfaces (the terminal, notes,
-  boarding passes, window view and paintings) are drawn on a `<canvas>` at runtime, alongside
-  the supplied portrait image. Sound effects are synthesized live
-  with the Web Audio API: plucked strings, a slurp, paper riffles and a finger snap.
-- **Outlines in screen space.** A small shader pushes each prop's back faces out by a fixed number
-  of pixels, so lines stay the same weight whether the camera is pulled back or zoomed right in.
-- **Camera shots.** Each prop defines where the camera looks from and the box it must fit; GSAP
-  flies between them. Close-ups clip whatever stands in front so nothing blocks the view or the
-  click.
-- **Sharp at any zoom.** The renderer follows device pixel density, including browser and pinch
-  zoom, capped at 3×. Postprocessing follows that resolution; slow frames do not lower it.
-- **Batched geometry.** Compatible toon meshes and simplified shadow proxies share native
-  `BatchedMesh` draws. Originals retain picking and animation; unsupported browsers use the
-  original meshes. Camera and active interactions follow browser frames, while idle rendering,
-  cached AO and shadow updates use their own schedules.
-- **A real first load.** An animated loader is painted with the HTML before any JavaScript runs,
-  then fades straight into the room.
+**A little room, built out of code.** The printed details, moving props and small sounds are
+part of the scene, not a video playing behind the page.
+
+| | What makes it work |
+| --- | --- |
+| 🎨 **Drawn at runtime** | Canvas textures paint the notes, tickets, terminal, landscape and artwork. The portrait uses a supplied image. |
+| 🎛️ **Sound without audio files** | Web Audio synthesizes guitar chords, paper riffles, coffee slurps and the lo-fi player. |
+| ✒️ **Lines that stay sharp** | Screen-space outlines keep their weight as you zoom in. Rendering follows device density, up to 3×. |
+| 🎬 **Every prop gets a close-up** | GSAP moves between framed camera shots; foreground props clip out of the way so they don't block the view or clicks. |
+| 🧩 **Small things, shared draws** | Compatible toon meshes and simpler shadow proxies are batched. Original meshes still handle picking and animation. |
+| 🚪 **The room starts before the scene** | An HTML boot loader appears before JavaScript, then fades into the desk. |
+
+<details>
+<summary><strong>⚙️ Rendering details and tradeoffs</strong></summary>
+
+- **Stable sharpness.** Postprocessing follows the canvas resolution. Slow frames do not lower
+  image density. Active camera moves and interactions follow browser frames.
+- **Reuse work while idle.** AO and shadow maps are cached and refreshed on schedules, with
+  more frequent updates while things move. Unsupported batching falls back to original meshes.
+- **Keep material detail visible.** Shadow maps share GPU texture slots with printed surfaces,
+  bump maps, toon ramps and the window projection. The budget prioritizes active key lights;
+  some secondary lights can stay lit without their own shadow map when slots are scarce.
+- **Quality has a cost.** Full-resolution AO, high pixel density and multiple shadows can be
+  demanding. Use the profiling controls below to compare costs on the target browser and device.
+
+</details>
 
 ## Tech stack
 
@@ -201,7 +225,9 @@ measurements. The `time`/`rain` previews themselves do not override production b
 the-desk/
 ├── public/
 │   ├── index.html                # Meta tags and the boot loader
-│   └── og-image.png              # Link preview image
+│   ├── og-image.png              # Link preview image
+│   ├── readme-desk.jpg           # Daylight README screenshot
+│   └── readme-desk-night.jpg     # Nighttime README screenshot
 ├── src/
 │   ├── views/
 │   │   ├── DeskPage.vue          # The 3D desk: HUD and hints around the scene

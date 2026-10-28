@@ -1016,9 +1016,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
   const FABRIC_TILE = 0.7; // world size of one repeat of the weave
   const blindGroup = new THREE.Group();
   windowGroup.add(blindGroup);
-  // The cloth, drawn like the rest of the room: a flat cool grey, with just enough cloth in it
-  // (faint weave lines, a soft drift in the yarn's tone, a few lighter slubs) to read as
-  // fabric without turning photographic
+  // The cloth, drawn like the rest of the room: a flat cool grey with only a hint of cloth in
+  // it (faint weft lines and a few lighter slubs), so it stays cartoon
   const blindPrint = canvasTexture(256, 256);
   track(blindPrint.texture);
   {
@@ -1027,19 +1026,11 @@ export function createDeskScene({ container, projects, experiences, dark = false
     c.fillRect(0, 0, 256, 256);
     let seed = 913;
     const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    for (let k = 0; k < 40; k++) {
-      c.fillStyle = rand() < 0.5 ? "rgba(255,255,255,.03)" : "rgba(40,44,54,.03)";
-      c.beginPath();
-      c.ellipse(rand() * 256, rand() * 256, 20 + rand() * 40, 8 + rand() * 16, 0, 0, Math.PI * 2);
-      c.fill();
-    }
-    c.fillStyle = "rgba(40,44,54,.07)";
-    for (let y = 0; y < 256; y += 4) c.fillRect(0, y, 256, 1);
-    c.fillStyle = "rgba(255,255,255,.05)";
-    for (let x = 2; x < 256; x += 4) c.fillRect(x, 0, 1, 256);
-    for (let k = 0; k < 22; k++) {
-      c.fillStyle = `rgba(232,236,242,${0.25 + rand() * 0.2})`;
-      c.fillRect(rand() * 256, Math.floor(rand() * 64) * 4 + 1, 10 + rand() * 30, 2);
+    c.fillStyle = "rgba(40,44,54,.05)";
+    for (let y = 0; y < 256; y += 8) c.fillRect(0, y, 256, 1);
+    for (let k = 0; k < 12; k++) {
+      c.fillStyle = `rgba(232,236,242,${0.25 + rand() * 0.15})`;
+      c.fillRect(rand() * 256, Math.floor(rand() * 32) * 8 + 3, 14 + rand() * 30, 2);
     }
   }
   blindPrint.texture.wrapS = blindPrint.texture.wrapT = THREE.RepeatWrapping;
@@ -1087,14 +1078,14 @@ export function createDeskScene({ container, projects, experiences, dark = false
   pull.add(pullCord, pullKnob);
   bottomBar.add(pull);
   blindGroup.add(roll, fabric, bottomBar, blindHousing);
-  // The bead chain: a loop hanging from the housing, front run and back run, as chunky inked
-  // beads (instanced, outline and all). The beads slide along the loop as the roller turns.
+  // The bead chain: a loop hanging from the housing, front run and back run, as chunky white
+  // inked beads (instanced, outline and all). The beads slide along the loop as the roller turns.
   const CHAIN_LEN = 2.3;
   const BEAD_GAP = 0.075;
   const BEADS = Math.floor(CHAIN_LEN / BEAD_GAP);
   const chainX = -BLIND_W / 2 - 0.06;
   const beadGeo = track(new THREE.SphereGeometry(0.03, 10, 8));
-  const beads = new THREE.InstancedMesh(beadGeo, blindInk, BEADS * 2);
+  const beads = new THREE.InstancedMesh(beadGeo, bracketMat, BEADS * 2);
   beads.frustumCulled = false;
   beads.raycast = noRaycast;
   const beadOutline = new THREE.InstancedMesh(hullGeometry(beadGeo), outlineMat(0.008), BEADS * 2);
@@ -1117,6 +1108,25 @@ export function createDeskScene({ container, projects, experiences, dark = false
   // sway: the cloth swinging out from the roll a little as it settles
   const blind = { lift: 1, sway: 0 };
   const beadAt = new THREE.Matrix4();
+  // The chain swings like a loose string, not a rod: each bead is carried out by the swing in
+  // proportion to how far down it hangs (more than linearly, so the bottom whips), and the
+  // weight goes with the last of them. x is across the blind, z out into the room.
+  const chainSwing = { x: 0, z: 0 };
+  let chainRun = 0;
+  function placeBeads() {
+    const bend = (depth) => (Math.max(0, depth) / CHAIN_LEN) ** 1.6;
+    for (let i = 0; i < BEADS; i++) {
+      const front = i * BEAD_GAP + chainRun;
+      const back = i * BEAD_GAP + BEAD_GAP - chainRun;
+      beads.setMatrixAt(i, beadAt.makeTranslation(chainSwing.x * bend(front), -front, 0.04 + chainSwing.z * bend(front)));
+      beads.setMatrixAt(BEADS + i, beadAt.makeTranslation(chainSwing.x * bend(back), -back, -0.04 + chainSwing.z * bend(back)));
+    }
+    beads.instanceMatrix.needsUpdate = true;
+    chainWeight.position.set(chainSwing.x, -CHAIN_LEN - 0.06, chainSwing.z);
+    chainWeight.rotation.set(chainSwing.z * 1.5, 0, -chainSwing.x * 1.5);
+  }
+  // a nudge: out one way, then swinging back and forth, smaller each time, until it hangs still
+  const swingChain = (x, z) => gsap.fromTo(chainSwing, { x, z }, { x: 0, z: 0, duration: 2.2, ease: "elastic.out(1, 0.18)", onUpdate: placeBeads, overwrite: true });
   function updateBlind() {
     const drop = FULL_DROP + (MIN_DROP - FULL_DROP) * blind.lift;
     const radius = ROLL_CORE + ROLL_FULL * (1 - drop / FULL_DROP);
@@ -1130,12 +1140,8 @@ export function createDeskScene({ container, projects, experiences, dark = false
     bottomBar.position.set(0, ROLL_Y - drop * Math.cos(blind.sway), ROLL_Z + radius - drop * Math.sin(blind.sway));
     bottomBar.rotation.x = blind.sway;
     // the chain runs down the front and up the back as the roll turns
-    const run = ((drop * 3) % BEAD_GAP + BEAD_GAP) % BEAD_GAP;
-    for (let i = 0; i < BEADS; i++) {
-      beads.setMatrixAt(i, beadAt.makeTranslation(0, -(i * BEAD_GAP + run), 0.04));
-      beads.setMatrixAt(BEADS + i, beadAt.makeTranslation(0, -(i * BEAD_GAP + BEAD_GAP - run), -0.04));
-    }
-    beads.instanceMatrix.needsUpdate = true;
+    chainRun = ((drop * 3) % BEAD_GAP + BEAD_GAP) % BEAD_GAP;
+    placeBeads();
   }
   updateBlind();
   // Weather: a quarter of visits open on a shower; after that a shower now and then, a minute
@@ -1510,8 +1516,13 @@ export function createDeskScene({ container, projects, experiences, dark = false
       .to(blind, { sway: 0, duration: 1.3, ease: "elastic.out(1, 0.3)" });
   };
   register(blindChain, {
-    onHover: (on) => gsap.to(blindChain.rotation, { x: on ? 0.06 : 0, duration: on ? 0.3 : 0.9, ease: on ? "power2.out" : "elastic.out(1, 0.3)", overwrite: true }),
-    onClick: workBlind,
+    // brushed past, it swings a little; let go of, a smaller sway the other way
+    onHover: (on) => (on ? swingChain(0.05, 0.16) : swingChain(-0.03, -0.08)),
+    // pulled, it swings out harder as the blind starts to move
+    onClick: () => {
+      swingChain(0.08, 0.26);
+      workBlind();
+    },
   });
   register(bottomBar, {
     onHover: (on) => gsap.to(pull.rotation, { x: on ? 0.35 : 0, duration: on ? 0.25 : 0.8, ease: on ? "power2.out" : "elastic.out(1, 0.3)", overwrite: true }),
@@ -3931,7 +3942,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
     haki.scale.set(HOVER_BARE * 1.6, 0.6, 1);
     haki.visible = true;
     // in as the blade comes out of the mouth, then breathing
-    gsap.fromTo(haki.material, { opacity: 0 }, { opacity: 0.9, duration: 0.4, delay: 0.3, ease: "sine.out" });
+    gsap.fromTo(haki.material, { opacity: 0 }, { opacity: 1, duration: 0.4, delay: 0.3, ease: "sine.out" });
     gsap.to(haki.scale, { y: 0.78, duration: 0.8, yoyo: true, repeat: -1, ease: "sine.inOut", delay: 0.3 });
   }
   const tipAt = new THREE.Vector3();
@@ -4424,6 +4435,10 @@ export function createDeskScene({ container, projects, experiences, dark = false
     // clears the top sword whichever tier this one hangs on (and the raised tip stays in frame)
     const aboveRack = RACK_TIERS[0] + 0.62 - sword.yRack;
     gsap.killTweensOf([sword.drawPivot.rotation, sword.bladeGroup.position, sword.bladeGroup.rotation]);
+    // the saya stays up off its hooks, where the hover lifts it, while the blade is out; it's
+    // set back down only once the blade is home (at the sheathe, below)
+    gsap.to(sword.tierGroup.position, { y: sword.restY + 0.22, z: 0.5, duration: 0.2, overwrite: true });
+    gsap.to(sword.tierGroup.rotation, { z: 0.035, duration: 0.2, overwrite: true });
     glintBlade(0.3);
     if (sword.style === "enma") {
       // the aura rises off the blade as it's drawn, flickering, and fades as it's sheathed
@@ -4433,7 +4448,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
       haki.visible = true;
       // it swells in, then breathes slowly while the sword is out
       gsap.killTweensOf([haki.material, haki.scale]);
-      gsap.fromTo(haki.material, { opacity: 0 }, { opacity: 0.95, duration: 0.7, delay: 0.2, ease: "sine.out" });
+      gsap.fromTo(haki.material, { opacity: 0 }, { opacity: 1, duration: 0.7, delay: 0.2, ease: "sine.out" });
       gsap.fromTo(haki.scale, { y: 0.55 }, { y: 0.95, duration: 0.7, delay: 0.2, ease: "sine.out" });
       gsap.to(haki.scale, { y: 0.8, x: BLADE_L * 1.28, duration: 0.65, yoyo: true, repeat: 3, ease: "sine.inOut", delay: 0.9 });
     }
@@ -4532,6 +4547,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
         sfx.sheathe();
         kickTassels(sword.sayaGroup, 0.8);
         sword.steel.visible = false;
+        // sheathed: only now does the saya go back down onto its hooks, with a soft knock
+        gsap.to(sword.tierGroup.position, { y: sword.restY, z: 0.2, duration: 0.35, delay: 0.15, ease: "power2.inOut", overwrite: true, onComplete: () => sfx.rackLand({ strength: 0.45 }) });
+        gsap.to(sword.tierGroup.rotation, { z: 0, duration: 0.35, delay: 0.15, ease: "power2.out", overwrite: true });
         if (sword.style === "enma") gsap.to(haki.material, { opacity: 0, duration: 0.5, ease: "sine.in", onComplete: () => (haki.visible = false) });
       })
       .fromTo(katanaRack.scale, { y: KATANA_SCALE * 0.94 }, { y: KATANA_SCALE, duration: 0.3, ease: "back.out(3)" })
@@ -4753,9 +4771,9 @@ export function createDeskScene({ container, projects, experiences, dark = false
 
     addDetails(bladeGroup, sayaGroup, gold);
 
-    const swordObj = { tierGroup, drawPivot, bladeGroup, sayaGroup, steel, yRack, style };
-    let clicks = [];
     const restY = tierGroup.position.y;
+    const swordObj = { tierGroup, drawPivot, bladeGroup, sayaGroup, steel, yRack, style, restY };
+    let clicks = [];
     // Hover: the sword lifts up off its hooks and out past their tips, tips a touch and slides
     // a good length of steel out of the saya, its gold catching the light; off, it settles
     // back. Like every other prop, a click from further out brings the camera in to the rack;
@@ -4818,8 +4836,6 @@ export function createDeskScene({ container, projects, experiences, dark = false
           else tossKitetsu(swordObj, restY);
           return;
         }
-        gsap.to(tierGroup.position, { y: restY, z: 0.2, duration: 0.2, overwrite: true });
-        gsap.to(tierGroup.rotation, { z: 0, duration: 0.2, overwrite: true });
         slashSword(swordObj);
       },
     });

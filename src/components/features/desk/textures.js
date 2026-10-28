@@ -4509,9 +4509,9 @@ export function drawHakiAura(c, w, h) {
   c.save();
   c.scale(1, h / w);
   const g = c.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
-  g.addColorStop(0, "rgba(46,14,80,.7)");
-  g.addColorStop(0.35, "rgba(110,40,190,.45)");
-  g.addColorStop(0.7, "rgba(168,85,247,.16)");
+  g.addColorStop(0, "rgba(46,14,80,.82)");
+  g.addColorStop(0.35, "rgba(110,40,190,.58)");
+  g.addColorStop(0.7, "rgba(168,85,247,.24)");
   g.addColorStop(1, "rgba(168,85,247,0)");
   c.fillStyle = g;
   c.fillRect(0, 0, w, w);
@@ -6326,8 +6326,8 @@ function paperclip(c, x, y, len, angle = 0) {
 
 // ---------- mug, coffee and coaster ----------
 // The coffee's top, for a cylinder's cap: a ring of darker brew round the edge where it meets
-// the cup, the crema in two flat tones, a layered latte-art heart, a few bubbles at the rim and
-// a hard-edged sheen of the window across it
+// the cup, the crema in two flat tones, a layered latte-art heart and a hard-edged sheen of the
+// window across it
 export function drawCoffeeTop(c, w, h) {
   const cx = w / 2;
   const cy = h / 2;
@@ -6386,22 +6386,6 @@ export function drawCoffeeTop(c, w, h) {
   c.closePath();
   c.fillStyle = milk;
   c.fill();
-  // bubbles clinging to the rim
-  [[0.2, 0.06], [0.9, 0.05], [1.6, 0.07], [2.5, 0.045], [3.3, 0.06], [4.4, 0.05], [5.3, 0.065]].forEach(([a, s]) => {
-    const bx = cx + Math.cos(a) * R * 0.8;
-    const by = cy + Math.sin(a) * R * 0.8;
-    c.beginPath();
-    c.arc(bx, by, w * s * 0.5, 0, Math.PI * 2);
-    c.fillStyle = "#d9a875";
-    c.fill();
-    c.lineWidth = 2;
-    c.strokeStyle = "#5b3a1e";
-    c.stroke();
-    c.beginPath();
-    c.arc(bx - w * s * 0.12, by - w * s * 0.12, w * s * 0.12, 0, Math.PI * 2);
-    c.fillStyle = "#fff6e6";
-    c.fill();
-  });
   // the window's sheen: a hard-edged crescent near the far rim
   c.save();
   c.beginPath();

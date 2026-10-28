@@ -1,9 +1,8 @@
 // Run: node scripts/check-desk-dumbbells.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const vm = require('node:vm');
 const THREE = require('three');
-const source = fs.readFileSync(`${__dirname}/../src/components/features/desk/deskScene.js`, 'utf8');
+const source = require('./helpers/desk-source.cjs').readDeskSource();
 const start = source.indexOf('  const gym = new THREE.Group();');
 const { gym, dumbbells } = vm.runInNewContext(
   source.slice(start, source.indexOf('  const repTex =', start)) + '; ({ gym, dumbbells })', {

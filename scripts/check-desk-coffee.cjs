@@ -1,10 +1,8 @@
 // Run: node scripts/check-desk-coffee.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 
-const source = fs.readFileSync(path.join(__dirname, '../src/components/features/desk/deskScene.js'), 'utf8');
+const source = require('./helpers/desk-source.cjs').readDeskSource();
 const sip = source.slice(source.indexOf('  function sip() {'), source.indexOf('  register(mug, {'));
 let now = 0;
 const pending = [];
@@ -25,12 +23,13 @@ const advance = (ms) => {
 };
 const context = vm.createContext({
   setTimeout: later,
-  gsap: { timeline({ onComplete }) {
+  gsap: { killTweensOf() {}, timeline({ onComplete }) {
     later(onComplete, 1350);
     return { to() { return this; } };
   } },
+  puffs: [],
   mug: { position: {}, rotation: {} },
-  sfx: { slurp: () => sounds.push('slurp'), thud() {}, rustle() {} },
+  sfx: { mugDown() {}, slurp: () => sounds.push('slurp'), thud() {}, rustle() {} },
   setCoffee: (level) => levels.push(level),
   say() {},
   onEvent: (name, payload) => events.push({ name, payload }),

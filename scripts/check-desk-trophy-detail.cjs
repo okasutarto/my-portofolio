@@ -11,7 +11,7 @@ const ctx = new Proxy({}, { get: (_, key) => (...args) => {
 }, set: () => true });
 textures.drawTrophyMetal(ctx, 256, 256);
 textures.drawTrophyStone(ctx, 256, 256);
-const source = fs.readFileSync(`${__dirname}/../src/components/features/desk/deskScene.js`, 'utf8');
+const source = require('./helpers/desk-source.cjs').readDeskSource();
 const materials = [];
 const trophy = vm.runInNewContext(source.slice(source.indexOf('  const trophyGold ='), source.indexOf('  const handheld =')) + '; trophy', {
   THREE, ...textures, track: value => value, scene: new THREE.Scene(),

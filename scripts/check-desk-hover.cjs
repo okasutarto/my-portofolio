@@ -1,9 +1,8 @@
 // Run: node scripts/check-desk-hover.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const vm = require('node:vm');
 const THREE = require('three');
-const source = fs.readFileSync(`${__dirname}/../src/components/features/desk/deskScene.js`, 'utf8');
+const source = require('./helpers/desk-source.cjs').readDeskSource();
 const section = (start, end) => source.slice(source.indexOf(start), source.indexOf(end, source.indexOf(start)));
 const gsap = { to(target, values) {
   for (const axis of ['x', 'y', 'z']) if (axis in values) target[axis] = values[axis];

@@ -1,10 +1,8 @@
 // Run: node scripts/check-desk-family.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 const THREE = require('three');
-const source = fs.readFileSync(path.join(__dirname, '../src/components/features/desk/deskScene.js'), 'utf8');
+const source = require('./helpers/desk-source.cjs').readDeskSource();
 let entry;
 const scene = new THREE.Group();
 const family = vm.runInNewContext(source.slice(source.indexOf('  // Family keepsake:'), source.indexOf('  // ---------- potted plant')) + '; ({ familyFrame, familyPhoto })', {

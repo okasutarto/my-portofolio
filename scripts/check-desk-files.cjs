@@ -25,7 +25,7 @@ vm.runInContext(`
   const ids = drawPostcardBack(ctx, 1000, 640, {name:'',email:'',message:'',errors:{},status:'idle'}).map(s => s.id);
   if (ids.join(',') !== 'message,name,email,send') throw new Error('postcard fields missing');
 `, context);
-const scene = read('components/features/desk/deskScene.js');
+const scene = require('./helpers/desk-source.cjs').readDeskSource();
 const dimension = (name) => Number(scene.match(new RegExp(`const ${name} = ([\\d.]+)`))[1]);
 assert.ok(dimension('FOLDER_W') > dimension('ENV_W'));
 assert.ok(dimension('FOLDER_D') > dimension('ENV_D'));

@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const THREE = require('three');
 
 (async () => {
-  const source = fs.readFileSync(require('node:path').join(__dirname, '../src/components/features/desk/deskScene.js'), 'utf8');
+  const source = require('./helpers/desk-source.cjs').readDeskSource();
   const { KEY_UNIT, KEY_GAP } = vm.runInNewContext(source.slice(source.indexOf('  const KEY_UNIT ='), source.indexOf('  const KEYS_W =')) + '; ({ KEY_UNIT, KEY_GAP })');
   const rows = vm.runInNewContext(source.slice(source.indexOf('  const letters ='), source.indexOf('  // Apple prints')) + '; KEY_ROWS');
   assert.equal(rows.flat().length, 84, 'preserve the original interactive key set');

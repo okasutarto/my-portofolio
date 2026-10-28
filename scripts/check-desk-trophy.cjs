@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const THREE = require('three');
 const { gsap } = require('gsap');
-const source = fs.readFileSync(`${__dirname}/../src/components/features/desk/deskScene.js`, 'utf8');
+const source = require('./helpers/desk-source.cjs').readDeskSource();
 const section = (a, b) => source.slice(source.indexOf(a), source.indexOf(b, source.indexOf(a)));
 const tailsSource = fs.readFileSync(`${__dirname}/../src/components/features/desk/textures.js`, 'utf8');
 const BUBBLE_TAILS = vm.runInNewContext(tailsSource.slice(tailsSource.indexOf('export const BUBBLE_TAILS'), tailsSource.indexOf('function drawMangaBubble')).replace('export ', '') + '; BUBBLE_TAILS');
@@ -93,7 +93,9 @@ const bus = {};
 let busConnections = 0;
 const param = () => ({ value: 0, setValueAtTime(value, at) { assert.ok(Number.isFinite(value) && at >= 10); }, linearRampToValueAtTime(value, at) { assert.ok(value > 0 && at >= 10); }, exponentialRampToValueAtTime(value, at) { assert.ok(value > 0 && at >= 10); } });
 const node = () => ({ connect(target) { if (target === bus) busConnections++; return target; }, frequency: param(), gain: param(), Q: param() });
-const sounds = vm.runInNewContext('({' + soundSource.slice(soundSource.indexOf('  // Three overlapping cartoon voices'), soundSource.indexOf('  // Plain UI click')) + '})', {
+const sounds = vm.runInNewContext('({' + soundSource.slice(soundSource.indexOf('  // A whole crowd shouting'), soundSource.indexOf('  // Plain UI click')) + '})', {
+  Math: Object.assign(Object.create(Math), { random: () => 0.5 }),
+  toHall() {}, tone: (at, options) => scheduled.push({ at, options }),
   ctx: {
     createOscillator() { const voice = { ...node(), start(at) { this.startAt = at; }, stop(at) { this.stopAt = at; } }; voices.push(voice); return voice; },
     createBiquadFilter: node, createGain: node,
@@ -101,11 +103,11 @@ const sounds = vm.runInNewContext('({' + soundSource.slice(soundSource.indexOf('
 });
 sounds.cheer(10);
 sounds.applause(10);
-assert.equal(voices.length, 3);
-assert.equal(busConnections, 6, 'voices route through the shared mute bus');
-assert.ok(voices.every((voice) => voice.startAt >= 10 && voice.stopAt <= 11.3));
-assert.equal(scheduled.length, 84);
-assert.ok(scheduled.every(({ at, options }) => at >= 10 && at < 12.5 && options.peak > 0 && options.peak <= 0.12));
+assert.ok(voices.length >= 8 && voices.length <= 32, 'crowd voices and vibrato oscillators stay bounded');
+assert.equal(busConnections, voices.length / 2, 'each voice and its vibrato route through one shared mute bus');
+assert.ok(voices.every((voice) => voice.startAt >= 10 && voice.stopAt <= 11.6));
+assert.ok(scheduled.length > 100 && scheduled.length < 1000, 'applause uses a bounded crowd schedule');
+assert.ok(scheduled.every(({ at, options }) => at >= 10 && at < 14 && options.peak > 0 && options.peak <= 0.16));
 console.log('Cheer voice routing and bounded applause scheduling passed.');
 
 // Trophy confetti must never cross the shelf's front plane, including at emission.

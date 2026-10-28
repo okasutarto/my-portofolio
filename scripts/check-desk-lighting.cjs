@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const source = fs.readFileSync(path.join(__dirname, '../src/components/features/desk/deskScene.js'), 'utf8');
+const source = require('./helpers/desk-source.cjs').readDeskSource();
 const THREE = require('three');
 const textures = fs.readFileSync(path.join(__dirname, '../src/components/features/desk/textures.js'), 'utf8');
 const skySource = textures.slice(textures.indexOf('function mixHex('), textures.indexOf('// `time` is the part of the day outside')).replace('export function', 'function');
@@ -28,6 +28,11 @@ const readabilityFill = new THREE.DirectionalLight();
 const skyFill = new THREE.HemisphereLight();
 const events = [];
 const context = vm.createContext({
+  ...vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/components/features/desk/woods.js'), 'utf8').replace(/export /g, '') + '; ({ WOODS, WOOD_PATTERNS, DEFAULT_WOOD })'),
+  wallColor: '#3a3a3a', woods: {}, diorama: false, roomBackground: isDark => isDark ? '#d6d3e6' : '#ffffff',
+  deskWood: {}, riserGrain: {}, frameGrainTex: {}, shelfWood: {},
+  frameWood: material(), shelfMat: material(), shelfBackMat: material(), lipMat: material(),
+  familyPhoto: { userData: { tex: { redraw() {} } } },
   THREE, windowSky, previewTime: null, roomLight: { night: 0 }, dark: false, outside: { night: false, rain: 0 },
   performance: { now: () => now }, Math: Object.assign(Object.create(Math), { random: () => 0.5 }),
   deskNeons: [{ strip: {}, washMat: {} }, { strip: {}, washMat: {} }], fitSunShadow() {},
@@ -130,6 +135,7 @@ assert.deepEqual(events, [['nightShift', true]]);
   assert.ok(lights.every((light) => Math.abs(light.intensity - 1.65) < 1e-10), 'even output across the strip at night');
   const monitor = new THREE.Group();
   ctx.monitor = monitor;
+  ctx.SCREEN_Y = 2.13;
   const biasStart = source.indexOf('  // The monitor has the same cyan/pink bias strip.');
   vm.runInContext(source.slice(biasStart, source.indexOf('  // Sticky notes on the right', biasStart)), ctx);
   const bias = monitor.children.filter((child) => child.isSpotLight);

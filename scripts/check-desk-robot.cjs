@@ -1,9 +1,8 @@
 // Run: node scripts/check-desk-robot.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const vm = require('node:vm');
 const THREE = require('three');
-const source = fs.readFileSync(`${__dirname}/../src/components/features/desk/deskScene.js`, 'utf8');
+const source = require('./helpers/desk-source.cjs').readDeskSource();
 const model = vm.runInNewContext(source.slice(source.indexOf('  // Brushed metal with real light-dependent'), source.indexOf('  // Blinks every few seconds')) + '; ({ robot, bot, botHead, botArms, botEyes, eyeMat, teal, botSilver, botSteel })', {
   THREE, track: value => value,
   toon: color => new THREE.MeshToonMaterial({ color }), black: new THREE.MeshToonMaterial(),

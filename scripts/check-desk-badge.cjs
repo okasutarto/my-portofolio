@@ -4,18 +4,19 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const THREE = require('three');
-const source = fs.readFileSync(path.join(__dirname, '../src/components/features/desk/deskScene.js'), 'utf8');
+const source = require('./helpers/desk-source.cjs').readDeskSource();
 const material = () => new THREE.MeshBasicMaterial();
 const mesh = (geo, mat) => new THREE.Mesh(geo, mat);
 const at = (obj, x, y, z) => { obj.position.set(x, y, z); return obj; };
 const context = vm.createContext({
+  drawGlassSheen() {},
   THREE, mesh, at, noRaycast() {}, toon: material, outlineMat: material, track: (x) => x,
   scene: new THREE.Scene(), WALL_Z: -4.58, WALL_LIFT: 0,
   rbox: (w, h, d) => new THREE.BoxGeometry(w, h, d),
   phoneSlab: (w, h, d) => new THREE.BoxGeometry(w, h, d),
   printed: (w, h) => mesh(new THREE.PlaneGeometry(w, h), material()),
   canvasTexture: () => ({ texture: new THREE.Texture(), ctx: { fillRect() {}, fillText() {} } }),
-  gsap: { to() {}, fromTo() {} }, sfx: { tick() {}, pop() {}, whoosh() {} }, discover() {},
+  gsap: { to() {}, fromTo() {} }, sfx: { badgeClick() {}, tick() {}, pop() {}, whoosh() {} }, discover() {},
 });
 const start = source.indexOf('  const BADGE_PIN =');
 vm.runInContext(source.slice(start, source.indexOf('  register(badge, {', start)), context);
@@ -52,7 +53,7 @@ assert.ok(state().badgeFront.position.z > 0.0325 && state().badgeBack.position.z
 const textures = fs.readFileSync(path.join(__dirname, '../src/components/features/desk/textures.js'), 'utf8');
 const badgeCode = textures.slice(textures.indexOf('export function drawBadge('), textures.indexOf('// ---------- boarding pass'));
 const canvas = new Proxy({}, { get: () => () => {} });
-const printContext = vm.createContext({ DISPLAY: 'sans-serif', BODY: 'sans-serif', brutalBox() {}, drawPortrait() {} });
+const printContext = vm.createContext({ guilloche() {}, stockGrain() {}, DISPLAY: 'sans-serif', BODY: 'sans-serif', brutalBox() {}, drawPortrait() {} });
 const draw = vm.runInContext(badgeCode.replace('export ', '') + '; drawBadge', printContext);
 for (const [w, h] of [[480, 780], [532, 854], [960, 1560]]) {
   const links = draw(canvas, w, h, { back: true });

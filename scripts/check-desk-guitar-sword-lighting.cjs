@@ -1,11 +1,10 @@
 // Run: node scripts/check-desk-guitar-sword-lighting.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const vm = require('node:vm');
 const THREE = require('three');
-const source = fs.readFileSync('src/components/features/desk/deskScene.js', 'utf8');
+const source = require('./helpers/desk-source.cjs').readDeskSource();
 
-const stringCode = source.match(/  const stringMat = .*;/)[0];
+const stringCode = source.match(/ {2}const stringMat = .*;/)[0];
 const stringMat = vm.runInNewContext(`${stringCode}; stringMat`, {
   THREE, track: value => value,
   toon: color => new THREE.MeshToonMaterial({ color }),

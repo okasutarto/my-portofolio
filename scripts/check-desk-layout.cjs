@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const THREE = require('three');
 const root = path.join(__dirname, '../src');
-const source = fs.readFileSync(path.join(root, 'components/features/desk/deskScene.js'), 'utf8');
+const source = require('./helpers/desk-source.cjs').readDeskSource();
 const data = fs.readFileSync(path.join(root, 'data/about.js'), 'utf8').replace(/export /g, '');
 const { ABOUT_NOTES } = vm.runInNewContext(data + '; ({ ABOUT_NOTES })');
 const layoutStart = source.indexOf('  const noteLayout =');

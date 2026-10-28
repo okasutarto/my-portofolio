@@ -1,0 +1,89 @@
+import * as THREE from "three";
+import gsap from "gsap";
+import { canvasTexture, drawWeatherCard, weatherKind } from "../textures";
+
+export function createWeather(runtime) {
+  // ---------- a live forecast beside the window, in its close-up ----------
+  // Today's real weather where Oka lives (Pontianak), from Open-Meteo (free, no key, and no
+  // asking visitors for their location): now, and the next few days. Fetched when the window
+  // is first looked at and at most every 15 minutes after. If it's really raining there, so is
+  // the view.
+  const WEATHER_PLACE = { name: "Pontianak", lat: -0.0263, lon: 109.3425, tz: "Asia/Pontianak" };
+  const WEATHER_URL = `https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_PLACE.lat}&longitude=${WEATHER_PLACE.lon}`
+    + "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,is_day"
+    + "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max"
+    + `&timezone=${encodeURIComponent(WEATHER_PLACE.tz)}&forecast_days=4`;
+  let weatherNow = null;
+  let weatherFetchedAt = 0;
+  let weatherLoading = false;
+  const WEATHER_CARD = { w: 2.8, h: 2.8 * (840 / 720) };
+  const weatherTex = canvasTexture(720, 840);
+  runtime.core.track(weatherTex.texture);
+  const weatherCard = new THREE.Sprite(runtime.core.track(new THREE.SpriteMaterial({ map: weatherTex.texture, depthTest: false, transparent: true })));
+  weatherCard.renderOrder = 12;
+  weatherCard.raycast = runtime.core.noRaycast;
+  weatherCard.scale.set(0.001, 0.001, 1);
+  // On the wall to the window's left as you face it, close by it and a little high, clear of
+  // the guitar below
+  weatherCard.position.set(runtime.room.SIDE_X + 0.6, runtime.room.WINDOW_AT.y + 0.4, runtime.room.WINDOW_AT.z + runtime.room.WINDOW_AT.w / 2 + 0.2 + WEATHER_CARD.w / 2);
+  runtime.core.scene.add(weatherCard);
+  const redrawWeather = () => {
+    drawWeatherCard(weatherTex.ctx, 720, 840, { place: WEATHER_PLACE.name, weather: weatherNow });
+    weatherTex.texture.needsUpdate = true;
+  };
+  async function loadWeather() {
+    if (weatherLoading || (weatherNow && !weatherNow.error && performance.now() - weatherFetchedAt < 15 * 60000)) return;
+    weatherLoading = true;
+    try {
+      const res = await fetch(WEATHER_URL);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const { current, daily } = await res.json();
+      if (runtime.core.destroyed) return;
+      weatherNow = {
+        current: { temp: current.temperature_2m, humidity: current.relative_humidity_2m, code: current.weather_code, wind: current.wind_speed_10m, isDay: current.is_day === 1 },
+        days: daily.time.map((date, i) => ({
+          label: i === 0 ? "Today" : new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }),
+          code: daily.weather_code[i],
+          max: daily.temperature_2m_max[i],
+          min: daily.temperature_2m_min[i],
+          rain: daily.precipitation_probability_max[i],
+        })),
+        updated: current.time.slice(11, 16),
+      };
+      weatherFetchedAt = performance.now();
+      // Raining for real: let it rain outside the window too
+      const kind = weatherKind(current.weather_code)[1];
+      if ((kind === "rain" || kind === "storm") && !runtime.room.outside.rainTarget) runtime.room.outside.rainTarget = kind === "storm" ? 1 : 0.7;
+    } catch {
+      weatherNow = { error: true };
+    } finally {
+      weatherLoading = false;
+    }
+    if (!runtime.core.destroyed) redrawWeather();
+  }
+  function showWeather() {
+    redrawWeather();
+    gsap.fromTo(weatherCard.scale, { x: WEATHER_CARD.w * 0.85, y: WEATHER_CARD.h * 0.85 }, { x: WEATHER_CARD.w, y: WEATHER_CARD.h, duration: 0.35, ease: "back.out(2)", overwrite: true });
+    loadWeather();
+  }
+  const hideWeather = () => gsap.to(weatherCard.scale, { x: 0.001, y: 0.001, duration: 0.15, ease: "power2.in", overwrite: true });
+  runtime.core.register(runtime.room.windowGroup, {
+    focus: "window",
+    onHover: (on) => {
+      gsap.to(runtime.room.windowCatch.rotation, { z: on ? -0.55 : 0, duration: on ? 0.25 : 0.4, ease: "power2.out", overwrite: true });
+      gsap.to(runtime.room.windowGlare.material, { opacity: on ? 1 : 0.55, duration: 0.35, overwrite: true });
+      gsap.to(runtime.room.glareTex.texture.offset, { x: on ? -0.45 : 0, duration: on ? 0.65 : 0.4, ease: "power2.out", overwrite: true });
+    },
+    onArrive: () => {
+      showWeather();
+      runtime.windowBlind.lookOut();
+    },
+    onLeave: hideWeather,
+    onClick: runtime.windowBlind.lookOut,
+  });
+
+  // Public state used by the other scene parts.
+  return {
+
+  };
+}

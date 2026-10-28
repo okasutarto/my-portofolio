@@ -1,11 +1,10 @@
 // Run: node scripts/check-desk-console.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const vm = require('node:vm');
 const THREE = require('three');
 (async () => {
   const { RoundedBoxGeometry } = await import('three/examples/jsm/geometries/RoundedBoxGeometry.js');
-  const source = fs.readFileSync(require('node:path').join(__dirname, '../src/components/features/desk/deskScene.js'), 'utf8');
+  const source = require('./helpers/desk-source.cjs').readDeskSource();
   const items = [];
   const shelf = new THREE.Group();
   const toon = (color) => new THREE.MeshToonMaterial({ color });
@@ -71,7 +70,7 @@ const THREE = require('three');
 
 // Console activation dismisses old speech, then opens the game without creating a new bubble.
 {
-  const source = fs.readFileSync(require('node:path').join(__dirname, '../src/components/features/desk/deskScene.js'), 'utf8');
+  const source = require('./helpers/desk-source.cjs').readDeskSource();
   const callbacks = [];
   let hidden = 0;
   let destination;

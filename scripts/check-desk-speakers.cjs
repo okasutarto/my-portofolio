@@ -1,10 +1,8 @@
 // Run: node scripts/check-desk-speakers.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
 const THREE = require('three');
-const source = fs.readFileSync(path.join(__dirname, '../src/components/features/desk/deskScene.js'), 'utf8');
+const source = require('./helpers/desk-source.cjs').readDeskSource();
 const start = source.indexOf('  function pump(speaker, strength = 1)');
 const end = source.indexOf('  // Spotifree on the monitor', start);
 const speakers = [];
@@ -12,6 +10,8 @@ const leds = [];
 const handlers = [];
 let toggles = 0;
 const ctx = vm.createContext({
+  canvasTexture: () => ({ texture: new THREE.Texture(), ctx: {} }),
+  drawSatinFinish() {}, drawConeRibs() {},
   THREE, speakers, speakerLeds: leds, soundMuted: true, scene: new THREE.Group(), RISER_TOP: 0.5,
   toon: (color) => new THREE.MeshToonMaterial({ color }), track: (value) => value,
   rbox: (w,h,d) => new THREE.BoxGeometry(w,h,d), mesh: (geometry, material) => new THREE.Mesh(geometry, material),

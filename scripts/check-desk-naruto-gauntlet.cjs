@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const THREE = require('three');
-const source = fs.readFileSync(`${__dirname}/../src/components/features/desk/deskScene.js`, 'utf8');
+const source = require('./helpers/desk-source.cjs').readDeskSource();
 // Build the reference-inspired armour with real Three.js geometry, without a renderer.
 const armour = vm.runInNewContext(
   source.slice(source.indexOf('  const glove = toon('), source.indexOf('  const stoneTint =')) + '; ({ glovePart, forearm, fingers, thumb, stones })', {

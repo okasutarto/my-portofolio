@@ -1,0 +1,237 @@
+import * as THREE from "three";
+import gsap from "gsap";
+import { sfx } from "@/composables/useSfx";
+import { canvasTexture } from "../textures";
+
+export function createWindowLighting(runtime) {
+  // Sun (or moon) through the window: a narrow spot far outside it, its rays all but parallel,
+  // aimed through the glass from wherever the sky's light stands. The wall round the glass, the
+  // glazing bars and the blind's slats shadow it for real, and its map spans only the beam, so
+  // slats a few centimetres apart still print as crisp stripes.
+  const WINDOW_SUN_FAR = 30;
+  const windowLight = new THREE.SpotLight(0xffe5ad, 2.2, 0, 0.13, 0.12, 0);
+  windowLight.castShadow = true;
+  windowLight.shadow.mapSize.set(2048, 2048);
+  windowLight.shadow.camera.near = WINDOW_SUN_FAR - 6;
+  windowLight.shadow.camera.far = WINDOW_SUN_FAR + 30;
+  windowLight.shadow.bias = -0.0002;
+  windowLight.shadow.normalBias = 0.02;
+  windowLight.shadow.radius = 3;
+  runtime.core.scene.add(windowLight, windowLight.target);
+  const windowGlass = new THREE.Vector3(runtime.room.SIDE_X + 0.12 - runtime.room.WINDOW_DEPTH + 0.06, runtime.room.WINDOW_AT.y, runtime.room.WINDOW_AT.z);
+  const windowRay = new THREE.Vector3();
+  // The light's cookie: the glass, as the light sees it, white in black (edges a touch soft, as
+  // the sun isn't a point), so it shines only through the window. Redrawn whenever it's aimed.
+  const glassCookie = canvasTexture(512, 512);
+  runtime.core.track(glassCookie.texture);
+  windowLight.map = glassCookie.texture;
+  const glassCorner = new THREE.Vector3();
+  let cookieRain = -1;
+  function drawGlassCookie() {
+    runtime.room.windowGroup.updateWorldMatrix(true, false);
+    windowLight.updateMatrixWorld();
+    windowLight.shadow.updateMatrices(windowLight);
+    const c = glassCookie.ctx;
+    c.fillStyle = "#000";
+    c.fillRect(0, 0, 512, 512);
+    c.filter = `blur(${2 + runtime.room.outside.rain * 6}px)`;
+    c.beginPath();
+    [[-2, -2.05], [-2, 2.05], [2, 2.05], [2, -2.05]].forEach(([x, y], k) => {
+      // the shadow matrix takes a world point to the light map's 0–1 square
+      runtime.room.windowGroup.localToWorld(glassCorner.set(x, y, 0.06)).applyMatrix4(windowLight.shadow.matrix);
+      const px = glassCorner.x * 512;
+      const py = (1 - glassCorner.y) * 512;
+      if (k) c.lineTo(px, py);
+      else c.moveTo(px, py);
+    });
+    c.closePath();
+    c.fillStyle = "#fff";
+    c.fill();
+    c.filter = "none";
+    glassCookie.texture.needsUpdate = true;
+    cookieRain = runtime.room.outside.rain;
+  }
+  // `from`: normalized coordinates of the sun or moon in the painted window view.
+  function aimWindowLight(from) {
+    // The view's horizontal axis is window-local X (world -Z). Calibrate elevation to this
+    // room: sunrise crosses the monitor face; the overhead noon sun reaches the desktop.
+    runtime.room.windowGroup.updateWorldMatrix(true, false);
+    windowRay.set((from[0] - 0.5) * 1.4, (0.65 - from[1]) * 1.3, -1)
+      .transformDirection(runtime.room.windowGroup.matrixWorld);
+    windowLight.position.copy(windowGlass).addScaledVector(windowRay, WINDOW_SUN_FAR);
+    windowLight.target.position.copy(windowGlass).addScaledVector(windowRay, -1);
+    windowLight.target.updateMatrixWorld();
+    windowLight.shadow.needsUpdate = true;
+    drawGlassCookie();
+  }
+
+  // The beam through the window: a soft shaft of light in the air, from the glass into the room
+  // along the light's own path, with dust drifting in it. A fake volume (four faint additive
+  // sides, bright at the glass and fading out along the beam and toward its edges) and a few
+  // dozen motes cost two draws, against a raymarched one's full-screen pass. It takes the
+  // window light's colour and strength, keeps to the part of the glass the blind leaves open,
+  // and thins out in the rain.
+  const SHAFT_LEN = 9;
+  const shaftGeo = runtime.core.track(new THREE.BufferGeometry());
+  const shaftPos = new THREE.BufferAttribute(new Float32Array(16 * 3), 3);
+  const shaftUv = new Float32Array(16 * 2);
+  for (let face = 0; face < 4; face++) {
+    // each side: its two glass corners (u 0 and 1) at the window (v 0), then out along the beam
+    [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(([u, v], k) => shaftUv.set([u, v], (face * 4 + k) * 2));
+  }
+  shaftGeo.setAttribute("position", shaftPos);
+  shaftGeo.setAttribute("uv", new THREE.BufferAttribute(shaftUv, 2));
+  shaftGeo.setIndex([0, 1, 2, 2, 1, 3, 4, 5, 6, 6, 5, 7, 8, 9, 10, 10, 9, 11, 12, 13, 14, 14, 13, 15]);
+  const shaftMat = runtime.core.track(new THREE.ShaderMaterial({
+    uniforms: { color: { value: new THREE.Color() }, strength: { value: 0 } },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `
+      uniform vec3 color;
+      uniform float strength;
+      varying vec2 vUv;
+      void main() {
+        // clamped: multisampling reads the uvs a little past a triangle's edge, and pow() of a
+        // negative is NaN, which comes out as a dark dashed line along the beam's edges
+        float along = pow(clamp(1.0 - vUv.y, 0.0, 1.0), 1.8);
+        float across = sin(3.14159265 * clamp(vUv.x, 0.0, 1.0));
+        gl_FragColor = vec4(color * strength * along * across * across, 1.0);
+      }`,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+  }));
+  const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+  shaft.frustumCulled = false;
+  shaft.raycast = runtime.core.noRaycast;
+  runtime.core.scene.add(shaft);
+  // dust: points scattered through the beam (across, up, along), drifting slowly down it
+  const MOTES = 60;
+  const moteAt = Array.from({ length: MOTES }, () => [Math.random(), Math.random(), Math.random(), Math.random() * Math.PI * 2]);
+  const moteGeo = runtime.core.track(new THREE.BufferGeometry());
+  const motePos = new THREE.BufferAttribute(new Float32Array(MOTES * 3), 3);
+  const moteCol = new THREE.BufferAttribute(new Float32Array(MOTES * 3), 3);
+  moteGeo.setAttribute("position", motePos);
+  moteGeo.setAttribute("color", moteCol);
+  const moteDot = canvasTexture(32, 32);
+  runtime.core.track(moteDot.texture);
+  const moteGlow = moteDot.ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+  moteGlow.addColorStop(0, "rgba(255,255,255,1)");
+  moteGlow.addColorStop(1, "rgba(255,255,255,0)");
+  moteDot.ctx.fillStyle = moteGlow;
+  moteDot.ctx.fillRect(0, 0, 32, 32);
+  const motes = new THREE.Points(moteGeo, runtime.core.track(new THREE.PointsMaterial({
+    size: 5, sizeAttenuation: false, map: moteDot.texture, vertexColors: true,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  })));
+  motes.frustumCulled = false;
+  motes.raycast = runtime.core.noRaycast;
+  runtime.core.scene.add(motes);
+  const shaftCorner = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+  const shaftInto = new THREE.Vector3();
+  const shaftTint = new THREE.Color();
+  const shaftPoint = new THREE.Vector3();
+  const shaftReach = [SHAFT_LEN, SHAFT_LEN, SHAFT_LEN, SHAFT_LEN];
+  const BACK_WALL = runtime.room.WALL_Z + 0.12;
+  // How far a ray from `from` along the beam (shaftInto) goes before it meets the back wall, the
+  // desk's top (within its edges) or else the floor; never further than SHAFT_LEN
+  function beamReach(from) {
+    let reach = SHAFT_LEN;
+    if (shaftInto.z < -1e-4) reach = Math.min(reach, (BACK_WALL - from.z) / shaftInto.z);
+    if (shaftInto.y < -1e-4) {
+      const toDesk = -from.y / shaftInto.y;
+      const x = from.x + shaftInto.x * toDesk;
+      const z = from.z + shaftInto.z * toDesk;
+      const onDesk = Math.abs(x) < 7 && Math.abs(z) < 4.2;
+      reach = Math.min(reach, onDesk ? toDesk : (runtime.room.FLOOR_Y - from.y) / shaftInto.y);
+    }
+    return Math.max(0, reach);
+  }
+  function updateShaft(now) {
+    // the open part of the glass, below the blind's bottom bar
+    const top = Math.min(2.05, runtime.windowBlind.bottomBar.position.y - runtime.windowBlind.BAR_H / 2);
+    const strength = windowLight.intensity * 0.028 * (1 - 0.7 * runtime.room.outside.rain) * (1 - 0.75 * runtime.core.roomLight.night);
+    shaft.visible = motes.visible = top > -1.95 && strength > 0.002;
+    if (!shaft.visible) return;
+    // glass corners, clockwise from the bottom left as seen from the room, then the beam's way in
+    [[-2, -2.05], [-2, top], [2, top], [2, -2.05]].forEach(([x, y], k) => runtime.room.windowGroup.localToWorld(shaftCorner[k].set(x, y, 0.12)));
+    shaftInto.copy(windowRay).negate();
+    // Each edge of the beam stops where it meets the room: the back wall, the desk's top or the
+    // floor, whichever comes first, its glow already faded to nothing there. Run on through them,
+    // its sides cut across the wall as bright streaks no real beam leaves.
+    shaftCorner.forEach((corner, k) => (shaftReach[k] = beamReach(corner)));
+    // the four sides: left, top, right, bottom; each one corner pair, near then far
+    [[0, 1], [1, 2], [2, 3], [3, 0]].forEach(([a, b], face) => {
+      const i = face * 4;
+      shaftPos.setXYZ(i, shaftCorner[a].x, shaftCorner[a].y, shaftCorner[a].z);
+      shaftPos.setXYZ(i + 1, shaftCorner[b].x, shaftCorner[b].y, shaftCorner[b].z);
+      shaftPos.setXYZ(i + 2, shaftCorner[a].x + shaftInto.x * shaftReach[a], shaftCorner[a].y + shaftInto.y * shaftReach[a], shaftCorner[a].z + shaftInto.z * shaftReach[a]);
+      shaftPos.setXYZ(i + 3, shaftCorner[b].x + shaftInto.x * shaftReach[b], shaftCorner[b].y + shaftInto.y * shaftReach[b], shaftCorner[b].z + shaftInto.z * shaftReach[b]);
+    });
+    shaftPos.needsUpdate = true;
+    shaftTint.copy(windowLight.color);
+    shaftMat.uniforms.color.value.copy(shaftTint);
+    shaftMat.uniforms.strength.value = strength;
+    // motes: across the glass (u from left to right, w from bottom to top), drifting along the
+    // beam and bobbing a little, brightest in its middle
+    const t = now / 1000;
+    moteAt.forEach(([u, w, along, phase], k) => {
+      const s = (along + t * 0.012) % 1;
+      const bob = Math.sin(t * 0.6 + phase) * 0.06;
+      shaftPoint.copy(shaftCorner[0]).lerp(shaftCorner[3], u);
+      shaftPoint.y += (top + 2.05) * w + bob;
+      // as far in as the beam reaches at that height, short of where it lands
+      const reach = THREE.MathUtils.lerp((shaftReach[0] + shaftReach[3]) / 2, (shaftReach[1] + shaftReach[2]) / 2, w);
+      shaftPoint.addScaledVector(shaftInto, s * reach * 0.85);
+      motePos.setXYZ(k, shaftPoint.x, shaftPoint.y, shaftPoint.z);
+      const glow = Math.sin(Math.PI * s) * Math.sin(Math.PI * u) * strength * 6 * (0.6 + 0.4 * Math.sin(t * 1.3 + phase * 3));
+      moteCol.setXYZ(k, shaftTint.r * glow, shaftTint.g * glow, shaftTint.b * glow);
+    });
+    motePos.needsUpdate = true;
+    moteCol.needsUpdate = true;
+  }
+  // The chain (or the pull on the bottom bar) works the blind: halfway down, all the way down,
+  // then back up
+  const BLIND_STOPS = [1, 0.45, 0];
+  let blindStop = 0;
+  const workBlind = () => {
+    blindStop = (blindStop + 1) % BLIND_STOPS.length;
+    const lift = BLIND_STOPS[blindStop];
+    const duration = 0.5 + Math.abs(lift - runtime.windowBlind.blind.lift) * 1.1;
+    sfx.slide({ duration: Math.min(0.8, duration * 0.5), up: lift > runtime.windowBlind.blind.lift });
+    // it travels, then the hem swings on and settles, a touch of give rather than a stop dead
+    const swing = lift > runtime.windowBlind.blind.lift ? -0.05 : 0.07;
+    gsap.killTweensOf(runtime.windowBlind.blind);
+    gsap.timeline({ onUpdate: runtime.windowBlind.updateBlind })
+      .to(runtime.windowBlind.blind, { lift, duration, ease: "power1.inOut" })
+      .to(runtime.windowBlind.blind, { sway: swing, duration: 0.18, ease: "power1.out" }, ">-0.1")
+      .to(runtime.windowBlind.blind, { sway: 0, duration: 1.3, ease: "elastic.out(1, 0.3)" });
+  };
+  runtime.core.register(runtime.windowBlind.blindChain, {
+    // brushed past, it swings a little; let go of, a smaller sway the other way
+    onHover: (on) => (on ? runtime.windowBlind.swingChain(0.05, 0.16) : runtime.windowBlind.swingChain(-0.03, -0.08)),
+    // pulled, it swings out harder as the blind starts to move
+    onClick: () => {
+      runtime.windowBlind.swingChain(0.08, 0.26);
+      workBlind();
+    },
+  });
+  runtime.core.register(runtime.windowBlind.bottomBar, {
+    onHover: (on) => gsap.to(runtime.windowBlind.pull.rotation, { x: on ? 0.35 : 0, duration: on ? 0.25 : 0.8, ease: on ? "power2.out" : "elastic.out(1, 0.3)", overwrite: true }),
+    onClick: workBlind,
+  });
+
+  // Public state used by the other scene parts.
+  return {
+    windowLight,
+    aimWindowLight,
+    get cookieRain() { return cookieRain; },
+    drawGlassCookie,
+    updateShaft,
+  };
+}

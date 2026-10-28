@@ -1,9 +1,8 @@
 // Run: node scripts/check-desk-cat-shelf-hover.cjs
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const vm = require('node:vm');
 const THREE = require('three');
-const source = fs.readFileSync(`${__dirname}/../src/components/features/desk/deskScene.js`, 'utf8');
+const source = require('./helpers/desk-source.cjs').readDeskSource();
 const section = (a, b) => source.slice(source.indexOf(a), source.indexOf(b, source.indexOf(a)));
 const shelf = new THREE.Group();
 shelf.position.set(10.5, -5.2, -3.75);

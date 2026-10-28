@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import gsap from "gsap";
 import { sfx } from "@/composables/useSfx";
-import { getStreamingResponse } from "@/services/chatApi";
+import { getStreamingResponse, toHistory } from "@/services/chatApi";
 import { canvasTexture, drawChatScreen, drawSatinFinish, drawGlassSheen } from "../textures";
 
 export function createChat(runtime) {
@@ -128,6 +128,7 @@ export function createChat(runtime) {
   async function sendChat(text = chat.input) {
     text = text.trim();
     if (!text || chat.waiting) return;
+    const history = toHistory(chat.messages);
     chat.messages.push({ sender: "user", text });
     chat.input = "";
     runtime.textInput.typer.value = "";
@@ -141,7 +142,7 @@ export function createChat(runtime) {
       await getStreamingResponse(text, (token) => {
         reply.text += token;
         chatDirty = true;
-      });
+      }, history);
       sfx.pop();
     } catch {
       reply.text = "Sorry, I couldn't reach my brain just now. Try again in a bit?";

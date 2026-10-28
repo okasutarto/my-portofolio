@@ -4,11 +4,36 @@ const {
   validateInputWithAI,
   validateOutput,
   validateOutputContent,
-  postProcessResponse,
+  createResponseFilter,
   FALLBACK_RESPONSES
 } = require('../utils/aiGuardrails');
 
 const MAX_MESSAGE_LENGTH = 2000;
+// Earlier turns sent along for context: the most recent ones, within a character budget
+const MAX_HISTORY_MESSAGES = 8;
+const MAX_HISTORY_CHARS = 12000;
+const HISTORY_ROLES = ['user', 'assistant'];
+
+// Turns the visitor's history into chat messages. The client sends it, so it can be forged:
+// each turn passes the same guardrails as a live one and failing turns are dropped.
+// Returns null when the history isn't shaped like a list of turns.
+function parseHistory(history) {
+  if (history === undefined) return [];
+  if (!Array.isArray(history)) return null;
+
+  const turns = [];
+  let chars = 0;
+  for (const turn of history.slice(-MAX_HISTORY_MESSAGES).reverse()) {
+    if (!turn || !HISTORY_ROLES.includes(turn.role) || typeof turn.content !== 'string') return null;
+    const content = turn.content.trim();
+    if (!content) continue;
+    chars += content.length;
+    if (chars > MAX_HISTORY_CHARS) break;
+    const check = turn.role === 'user' ? validateInput(content) : validateOutput(content, '');
+    if (check.isValid) turns.unshift({ role: turn.role, content });
+  }
+  return turns;
+}
 
 // SSE helpers
 function openStream(res) {
@@ -48,7 +73,8 @@ async function streamChat(req, res) {
   });
 
   try {
-    const { message } = req.query;
+    // POST carries the conversation so far; GET (older clients) sends only the message
+    const { message, history } = req.method === 'POST' ? req.body ?? {} : req.query;
 
     // ===================
     // STEP 0: BASIC VALIDATION
@@ -77,6 +103,11 @@ async function streamChat(req, res) {
       });
     }
 
+    const previousTurns = parseHistory(req.method === 'POST' ? history : undefined);
+    if (!previousTurns) {
+      return res.status(400).json({ error: 'History must be a list of { role, content } turns' });
+    }
+
     // Helper function to send SSE fallback response
     const sendFallbackSSE = (fallbackMessage) => {
       openStream(res);
@@ -99,8 +130,14 @@ async function streamChat(req, res) {
     // The validator and the main completion start together so the visitor doesn't
     // wait for two OpenAI round trips back to back. Nothing from the main stream is
     // sent until the validator approves; if it rejects, the stream is aborted.
-    const validationPromise = validateInputWithAI(openai, trimmedMessage);
+    // Timings go out as a Server-Timing header, so slow replies show which step held them up
+    const startedAt = performance.now();
+    const elapsed = () => Math.round(performance.now() - startedAt);
+    const timings = {};
+    const validationPromise = validateInputWithAI(openai, trimmedMessage)
+      .finally(() => { timings.validator = elapsed(); });
     const systemMessage = await createSystemMessage();
+    timings.cv = elapsed();
     const streamPromise = openai.chat.completions.create(
       {
         // gpt-4.1-mini shuts down on 2027-01-14; this is OpenAI's recommended replacement.
@@ -109,6 +146,7 @@ async function streamChat(req, res) {
         reasoning_effort: 'none',
         messages: [
           systemMessage,
+          ...previousTurns,
           { role: 'user', content: trimmedMessage }
         ],
         stream: true,
@@ -129,6 +167,8 @@ async function streamChat(req, res) {
     }
 
     const stream = await streamPromise;
+    timings.upstream = elapsed();
+    res.setHeader('Server-Timing', Object.entries(timings).map(([name, dur]) => `${name};dur=${dur}`).join(', '));
     openStream(res);
 
     // ===================
@@ -136,6 +176,7 @@ async function streamChat(req, res) {
     // ===================
     let fullResponse = '';
     let compromiseReason = null;
+    const filter = createResponseFilter();
 
     for await (const chunk of stream) {
       const content = chunk.choices[0]?.delta?.content || '';
@@ -149,8 +190,9 @@ async function streamChat(req, res) {
         }
 
         // Post-process and stream the content
-        const processedContent = postProcessResponse(content);
+        const processedContent = filter.push(content);
         if (processedContent) {
+          timings.firstToken ??= elapsed();
           sendContent(res, processedContent);
         }
       }
@@ -161,13 +203,17 @@ async function streamChat(req, res) {
       compromiseReason = findOutputProblem(fullResponse, trimmedMessage);
     }
 
-    // If response was compromised, send fallback
+    // If response was compromised, send fallback instead of the text still held back
     if (compromiseReason) {
       const fallbackMsg = FALLBACK_RESPONSES[compromiseReason] || FALLBACK_RESPONSES.response_compromised;
       sendContent(res, '\n\n' + fallbackMsg);
+    } else {
+      const rest = filter.flush();
+      if (rest) sendContent(res, rest);
     }
 
     endStream(res);
+    console.log('Chat timings (ms):', { ...timings, total: elapsed() });
   } catch (error) {
     // The visitor left; the abort error is expected and there's no one to answer
     if (abortController.signal.aborted) return;

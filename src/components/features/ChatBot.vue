@@ -198,7 +198,7 @@ import { ref, computed, watch, onMounted } from "vue";
 import BotFace from "./BotFace.vue";
 import { sfx } from "../../composables/useSfx";
 import { useRouter } from "vue-router";
-import { getStreamingResponse } from "../../services/chatApi";
+import { getStreamingResponse, toHistory } from "../../services/chatApi";
 import { usePostHog } from "@/composables/usePostHog";
 
 export default {
@@ -291,6 +291,8 @@ export default {
       const messageText = userInput.value.trim();
       if (!messageText || isTyping.value || isStreaming.value) return;
 
+      // The conversation so far, so follow-up questions keep their context
+      const history = toHistory(messages.value);
       messages.value.push({
         sender: "user",
         text: messageText,
@@ -372,7 +374,7 @@ export default {
         await getStreamingResponse(messageText, (token) => {
           tokenBuffer += token;
           if (!isProcessingBuffer) typeToken();
-        });
+        }, history);
 
         isStreamComplete = true;
         if (!isProcessingBuffer) typeToken();

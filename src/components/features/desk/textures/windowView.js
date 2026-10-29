@@ -47,8 +47,8 @@ export function windowSky(time, from = SKIES[time], blend = 1) {
 export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt = -99, starAt = -99, skyFrom, skyBlend = 1 } = {}) {
   const look = windowSky(time, skyFrom, skyBlend);
   const dark = look.night >= 0.5;
-  // Rain greys everything over
-  const grey = (color) => mixHex(color, dark ? "#2a2f45" : "#8d97a8", rain * 0.55);
+  // Rain greys everything over: a real shower (0.7) is already a dull, overcast sky
+  const grey = (color) => mixHex(color, dark ? "#2a2f45" : "#8d97a8", Math.min(1, rain * 1.25) * 0.65);
   const u = w / 100;
   const line = Math.max(3, u * 0.7);
   c.lineJoin = "round";
@@ -171,7 +171,7 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
     }
   }
 
-  // Sun (turning rays) or moon (with craters), fading behind rain clouds
+  // Sun (turning rays) or moon (with craters), all but gone behind a shower's clouds
   const sx = w * look.sun[0];
   const sy = h * look.sun[1];
   const sr = w * 0.085;
@@ -182,7 +182,7 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   const halo = c.createRadialGradient(sx, sy, sr, sx, sy, sr * (dark ? 2.6 : 3.2) * (1 + 0.04 * Math.sin(t * 1.3)));
   halo.addColorStop(0, dark ? "rgba(255,253,245,.28)" : "rgba(255,255,230,.5)");
   halo.addColorStop(1, "rgba(255,255,255,0)");
-  c.globalAlpha = (1 - rain * 0.9) * celestial;
+  c.globalAlpha = Math.max(0, 1 - rain * 1.4) * celestial;
   c.fillStyle = halo;
   c.fillRect(sx - sr * 4, sy - sr * 4, sr * 8, sr * 8);
   // A ring of light swelling out from it now and then, fading as it grows
@@ -191,7 +191,7 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   c.beginPath();
   c.arc(sx, sy, sr * (1.25 + ring * 1.9), 0, Math.PI * 2);
   stroke(line * (1.4 - ring), dark ? "#fffdf5" : glow(sunColor, 0.5));
-  c.globalAlpha = (1 - rain * 0.85) * celestial;
+  c.globalAlpha = Math.max(0, 1 - rain * 1.3) * celestial;
   // it breathes: a slow swell, and the rays stretching in a wave that runs round the disc
   const breathe = 1 + 0.03 * Math.sin(t * 1.6);
   if (!dark) {
@@ -1100,7 +1100,7 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
     c.strokeStyle = dark ? "rgba(190,205,255,.5)" : "rgba(235,245,255,.75)";
     c.lineWidth = Math.max(1.5, u * 0.45);
     c.beginPath();
-    for (let i = 0; i < Math.round(rain * 90); i++) {
+    for (let i = 0; i < Math.round(rain * 140); i++) {
       const fall = (i * 0.291 + t * (1.4 + (i % 5) * 0.12)) % 1;
       const x = wrapX(((i * 0.137) % 1) * w - fall * u * 8, u * 4);
       const y = fall * h * 1.1 - h * 0.05;

@@ -332,7 +332,7 @@ const hint = computed(() => {
   if (focus.value === "mug") return `${isDesktop.value ? "Click" : "Tap"} the mug for a sip. Finish the cup for the night shift`;
   if (focus.value === "experience") return isDesktop.value ? "Click a pass to hold it up, again to flip it (← → to browse)" : "Tap a pass to hold it, tap again to flip it";
   if (focus.value === "projects" && projectOpen.value) return isDesktop.value ? "Click the pages to turn them (or ← →)" : "Tap the pages to turn them";
-  if (focus.value === "projects") return isDesktop.value ? "Click a tab (or ← →) to flip through, the front file to pull it out" : "Tap a tab to flip through, the front file to pull it out";
+  if (focus.value === "projects") return isDesktop.value ? "Click a tab, scroll or press ↑ ↓ to flip through, the front file to pull it out" : "Tap a tab to flip through, the front file to pull it out";
   if (focus.value === "contact") return isDesktop.value ? "Write on the card (Tab moves along), then hit SEND POSTCARD" : "Tap the card to write, then tap SEND POSTCARD";
   if (focus.value === "chat") return isDesktop.value ? "Type a question and hit Enter (scroll to read back)" : "Tap a question or the box below to ask";
   if (focus.value === "hero") return isDesktop.value ? "Click the badge to flip it (links on the back). Drag the pin to move it" : "Tap the badge to flip it. Drag the pin to move it";

@@ -56,6 +56,7 @@ export function createLifecycle(runtime) {
       runtime.textInput.typer.remove();
       runtime.swordEffects.impactFlash.remove();
       runtime.core.renderer.domElement.removeEventListener("wheel", runtime.chat.onWheel);
+      runtime.core.renderer.domElement.removeEventListener("wheel", runtime.projectFiles.onWheel);
       runtime.core.renderer.domElement.removeEventListener("wheel", runtime.touch.onPinchWheel, { capture: true });
       ["pointerdown", runtime.touch.onTouchDown, "pointermove", runtime.touch.onTouchMove, "pointerup", runtime.touch.onTouchUp, "pointercancel", runtime.touch.onTouchUp].forEach((v, i, a) => {
         if (i % 2 === 0) runtime.core.renderer.domElement.removeEventListener(v, a[i + 1], { capture: true });

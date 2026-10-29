@@ -157,7 +157,7 @@ assert.deepEqual(events, [['nightShift', true]]);
   ctx.monitor = monitor;
   ctx.SCREEN_Y = 2.13;
   const biasStart = source.indexOf('  // The monitor has the same cyan/pink bias strip.');
-  vm.runInContext(source.slice(biasStart, source.indexOf('  // Sticky notes on the right', biasStart)), ctx);
+  vm.runInContext(source.slice(biasStart, source.indexOf('  // Speakers either side of the monitor', biasStart)), ctx);
   const bias = monitor.children.filter((child) => child.isSpotLight);
   assert.equal(bias.length, 2, 'monitor has matching rear-facing strip lighting');
   assert.ok(bias.every((light) => light.position.z < -0.07 && light.target.position.z < light.position.z && light.castShadow));

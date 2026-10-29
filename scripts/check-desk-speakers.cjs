@@ -11,9 +11,9 @@ const handlers = [];
 let toggles = 0;
 const ctx = vm.createContext({
   canvasTexture: () => ({ texture: new THREE.Texture(), ctx: { fillRect() {}, beginPath() {}, moveTo() {}, bezierCurveTo() {}, stroke() {}, fillText() {} } }),
-  drawWoodTop() {},
+  drawWoodTop() {}, drawBrushedMetal() {},
   DEFAULT_WOODS: { speakers: { wood: "oak", pattern: "planks" } },
-  SPEAKER_FINISHES: { wood: { color: null, shell: '#4a4c50', baffle: '#2b2c2f' } },
+  SPEAKER_FINISHES: { wood: { color: null, shell: '#4a4c50', baffle: '#64676b' } },
   THREE, speakers, speakerLeds: leds, soundMuted: true, scene: new THREE.Group(), RISER_TOP: 0.5,
   toon: (color) => new THREE.MeshToonMaterial({ color }), track: (value) => value,
   rbox: (w,h,d) => new THREE.BoxGeometry(w,h,d), mesh: (geometry, material) => new THREE.Mesh(geometry, material),
@@ -31,16 +31,17 @@ speakers.forEach((speaker, index) => {
     assert.ok(Math.abs(size[axis] - expected) < 0.006, `cabinet ${axis} follows Edifier's millimetres: ${size[axis]}`);
   }
   const whole = new THREE.Box3().setFromObject(speaker.group).getSize(new THREE.Vector3());
-  assert.ok(whole.z < 2.0 && whole.y < 2.36, 'driver trims stand barely proud of the baffle');
+  assert.ok(whole.z < 2.03 && whole.y < 2.36, 'driver frames stand barely proud of the baffle');
   const sides = cabinet.children.filter(part => part.name === 'wood-side-panel');
   assert.equal(sides.length, 2);
   assert.ok(sides.every(part => part.material === vm.runInContext('speakerWoodMat', ctx)), 'side panels use the furniture wood');
   assert.ok(sides.every(part => Math.abs(Math.abs(part.position.x) - 0.69) < 0.001), 'panels sit on both sides');
   assert.ok(cabinet.getObjectByName('front-baffle'));
-  assert.ok(speaker.tweeter.position.x < 0, 'tweeter sits top left');
+  assert.equal(cabinet.getObjectByName('top-panel').material, cabinet.getObjectByName('front-baffle').material, 'top matches the front baffle');
+  assert.equal(Math.sign(speaker.tweeter.position.x), Math.sign(speaker.group.position.x), 'tweeter sits towards the outer side');
   assert.ok(speaker.tweeter.position.y > speaker.woofer.position.y + 0.8, 'tweeter sits above the woofer');
   const port = speaker.group.getObjectByName('front-bass-port');
-  assert.ok(port.position.x > 0 && Math.abs(port.position.y - speaker.tweeter.position.y) < 1e-6 && port.position.z > 0.9, 'flared port faces front, beside the tweeter');
+  assert.ok(Math.sign(port.position.x) === -Math.sign(speaker.tweeter.position.x) && Math.abs(port.position.y - speaker.tweeter.position.y) < 0.2 && port.position.z > 0.8, 'port faces front, beside the tweeter');
   assert.equal(speaker.woofer.position.x, 0, 'woofer centred in the lower half');
   assert.ok(speaker.group.getObjectByName('driver-surround'));
   assert.ok(!source.slice(start, end).includes('fillText('), 'speaker carries no printed branding');
@@ -51,10 +52,12 @@ speakers.forEach((speaker, index) => {
   const status = speaker.group.getObjectByName('speaker-power-indicator');
   if (index === 1) {
     assert.equal(knobs.length, 3, 'volume, treble and bass on the active speaker');
-    assert.ok(knobs.every(knob => knob.position.x > 0.73), 'knobs stand out of its outer (right) side');
-    assert.ok(status.position.x > 0.73, 'status light on the side panel');
+    assert.ok(speaker.group.getObjectByName('remote-receiver'), 'remote receiver window above the port');
+    assert.ok(knobs.every(knob => knob.position.x > 0.6 && knob.position.x + 0.025 < 0.73), 'knobs stand down in the well in its outer (right) side');
+    assert.ok(status.position.z > 0.98 && status.geometry.parameters.radius >= 0.05, 'status light glows through the front receiver window, large enough to see');
   } else {
     assert.equal(knobs.length, 0);
+    assert.equal(speaker.group.getObjectByName('remote-receiver'), undefined);
     assert.equal(status, undefined, 'the passive speaker has no status light');
   }
   ctx.speaker = speaker;

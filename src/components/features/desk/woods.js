@@ -85,8 +85,8 @@ export const WOOD_PATTERNS = {
 export const SPEAKER_FINISHES = {
   // The Edifier R1280DBs's two models: wood-grain sides on a grey box, or all black (the sides'
   // grain stained dark). `shell` is the top and back, `baffle` the front.
-  wood: { name: "Wood sides", color: null, shell: "#4a4c50", baffle: "#2b2c2f" },
-  black: { name: "Black", color: "#3a3532", shell: "#252527", baffle: "#1c1c1e" },
+  wood: { name: "Wood sides", color: null, shell: "#4a4c50", baffle: "#64676b" },
+  black: { name: "Black", color: "#3a3532", shell: "#252527", baffle: "#3a3b3e" },
 };
 
 export const WOOD_TARGETS = {

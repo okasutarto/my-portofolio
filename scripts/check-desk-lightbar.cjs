@@ -19,12 +19,11 @@ vm.runInContext(source.slice(start, end), context);
 const run = (code) => vm.runInContext(code, context);
 const light = run('lightbarLight');
 const diffuser = run('lightbarDiffuserMat');
-for (const night of [0, 0.5, 1, 0.5, 0]) {
-  roomLight.night = night;
-  run('updateLightbar()');
-  assert.equal(light.intensity, 9 * night, 'output increases by 50 percent over the previous 6');
-  assert.equal(diffuser.emissiveIntensity, 1.4 * night);
-  assert.equal(light.castShadow, night > 0);
+for (const power of [0, 0.5, 1, 0.5, 0]) {
+  run(`lightbarState.power = ${power}; updateLightbar()`);
+  assert.equal(light.intensity, 9 * power, 'output increases by 50 percent over the previous 6');
+  assert.equal(diffuser.emissiveIntensity, 1.4 * power);
+  assert.equal(light.castShadow, power > 0.05);
   assert.ok(light.color.equals(lampLight.color));
 }
 assert.ok(light.target.position.y < light.position.y && light.target.position.z > light.position.z, 'beam aims down and forward onto the desk');
@@ -46,24 +45,23 @@ const bounds = new THREE.Box3().setFromObject(bar);
 assert.ok(bounds.min.y > SCREEN_Y + 1.31 - 0.5, 'clamp fits around top bezel');
 assert.ok(bounds.max.x < 2 && bounds.min.x > -2, 'bar stays inside screen width');
 assert.ok(bounds.max.x - bounds.min.x > 3.9, 'bar spans almost the full 4.22-unit monitor width');
-assert.ok(source.includes('setLamp(isDark);\n    updateLightbar();'), 'initial theme sets lightbar state');
+assert.ok(source.includes('setLightbar(isDark);\n    setLamp(isDark);\n    updateLightbar();'), 'the theme sets the lightbar with the lamp');
 assert.ok(source.includes('updateLampGlow();\n    updateLightbar();'), 'lightbar follows the smooth day/night transition');
 assert.ok(source.includes('register(lightbar,'), 'lightbar is registered as interactive prop');
 
-// Day: toggle attempts do not turn on light
-roomLight.night = 0;
-run('toggleLightbar()');
-assert.equal(light.intensity, 0, 'lightbar stays off when toggled during day');
-
-// Night: toggles on and off
-roomLight.night = 1;
-run('updateLightbar()');
+// The room sets it: off for the day, on for the night
+run('setLightbar(false)');
+assert.equal(light.intensity, 0, 'lightbar is off by day');
+run('setLightbar(true)');
 assert.equal(light.intensity, 9, 'lightbar is on at night');
-run('toggleLightbar()');
-assert.equal(light.intensity, 0, 'clicking at night turns lightbar off');
-assert.equal(light.castShadow, false);
-run('toggleLightbar()');
-assert.equal(light.intensity, 9, 'clicking again at night turns lightbar back on');
+
+// Its button switches it at any hour, by day too
+roomLight.night = 0;
+run('setLightbar(false); toggleLightbar()');
+assert.equal(light.intensity, 9, 'clicking by day turns the lightbar on');
 assert.equal(light.castShadow, true);
+run('toggleLightbar()');
+assert.equal(light.intensity, 0, 'clicking again turns it off');
+assert.equal(light.castShadow, false);
 
 console.log('Lightbar geometry, toon texture, beam direction, night fade and lamp colour/power checks passed.');

@@ -152,8 +152,9 @@ night shift trades the daylight for cyan and pink neon.
   and the light changes with it; the rear desk and monitor LEDs bring colour after dark.
 - **Keep your hours.** By default the room follows your own clock: morning from 05:00, midday
   from 10:00, evening from 16:00 and night from 19:00, each change with a 2-second transition.
-  Pick a part of the day in the settings to hold it, or click the lamp or finish your coffee
-  to switch between day and night yourself.
+  Pick a part of the day in the settings to hold it, or finish your coffee to switch between
+  day and night yourself. The lamp is just a lamp: click it to turn the bulb on or off at any
+  hour.
 
 <details>
 <summary><strong>🔦 How the lighting works</strong></summary>

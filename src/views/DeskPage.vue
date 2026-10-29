@@ -9,7 +9,7 @@
           <h1 class="font-display font-extrabold text-black text-lg md:text-2xl leading-none">THE DESK</h1>
         </div>
         <div class="pointer-events-auto flex gap-2 mt-1">
-          <!-- Sound and night mode live on the desk: the speakers and the lamp -->
+          <!-- Sound lives on the desk, in the speakers; the time of day in the settings -->
           <router-link to="/2d" class="hud-btn bg-white text-black">← 2D site</router-link>
           <button
             v-if="!zoomed"
@@ -358,7 +358,7 @@ function onEvent(name, payload = {}) {
   if (name === "drawn") bootLoaderShowing() ? setBootProgress(0.7) : enterDesk();
   else if (name === "loading") setBootProgress(0.7 + 0.3 * payload.progress);
   else if (name === "ready") showEnterGate(enterDesk) || enterDesk();
-  // An empty coffee cup (or the lamp) flips the desk to the night shift, or back to day
+  // An empty coffee cup flips the desk to the night shift, or back to day
   else if (name === "nightShift" && payload.dark !== isDark.value) toggleTheme();
   else if (name === "toggleSound") toggleMute();
   else if (name === "projectOpen") projectOpen.value = payload.open;

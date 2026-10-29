@@ -116,10 +116,7 @@ export function createTheme(runtime) {
     if (runtime.room.diorama) runtime.room.drawBackdrop();
     runtime.room.windowView.userData.tex.redraw();
     runtime.lamp.familyPhoto.userData.tex.redraw();
-    if (typeof runtime.workstation.lightbarState !== "undefined" && isDark) {
-      runtime.workstation.lightbarOn = true;
-      runtime.workstation.lightbarState.power = 1;
-    }
+    runtime.workstation.setLightbar(isDark);
     runtime.lamp.setLamp(isDark);
     runtime.workstation.updateLightbar();
     const p = isDark ? PALETTES.dark : PALETTES.light;
@@ -288,8 +285,10 @@ export function createTheme(runtime) {
   });
   // The monitor's desktop follows the room
   const setRoomTheme = (isDark) => {
+    // Back from the night shift, the window shows the part of the day it's set to (by the clock
+    // in auto), or the morning when that part is the night itself
     if (isDark) runtime.room.daylightPart = "night";
-    else if (runtime.room.daylightPart === "night") runtime.room.daylightPart = "morning";
+    else if (runtime.room.daylightPart === "night") runtime.room.daylightPart = partFor(timeMode) === "night" ? "morning" : partFor(timeMode);
     // Remove rain attenuation from the captured intensities; updateLighting applies it once.
     const rainScales = [1 - 0.25 * runtime.room.outside.rain, 1 - 0.38 * runtime.room.outside.rain, 1, 1 - 0.6 * runtime.room.outside.rain, 1 - 0.88 * runtime.room.outside.rain];
     const from = captureLighting();
@@ -298,7 +297,11 @@ export function createTheme(runtime) {
     runtime.room.outside.skyFrom = runtime.room.outside.sky;
     const background = runtime.core.scene.background;
     const neonShadows = isDark || runtime.room.shadowedNeons.some((light) => light.castShadow);
+    const lightbarPower = runtime.workstation.lightbarState.power;
     setTheme(isDark);
+    // the monitor's bar fades with the room, from wherever it was
+    runtime.workstation.lightbarState.power = lightbarPower;
+    runtime.workstation.setLightbar(isDark, LIGHTING_TRANSITION / 1000);
     runtime.room.shadowedNeons.forEach((light) => (light.castShadow = neonShadows));
     background.copy(runtime.core.scene.background);
     runtime.core.scene.background = background;

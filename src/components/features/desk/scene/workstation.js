@@ -332,37 +332,34 @@ export function createWorkstation(runtime) {
   lightbar.traverse((part) => (part.raycast = runtime.core.noRaycast));
   lightbarBody.raycast = THREE.Mesh.prototype.raycast;
   lightbarButton.raycast = THREE.Mesh.prototype.raycast;
-  let lightbarOn = true;
-  const lightbarState = { power: 1 };
+  // Like the lamp, the bar comes on for the night and goes off for the day (see setTheme), and
+  // its button switches it at any hour
+  let lightbarOn = false;
+  const lightbarState = { power: 0 };
   function updateLightbar() {
-    const night = runtime.core.roomLight.night;
     const power = lightbarState.power;
     lightbarLight.color.copy(runtime.lamp.lampLight.color);
-    lightbarLight.intensity = 9 * night * power;
-    lightbarLight.castShadow = night > 0 && power > 0.05;
+    lightbarLight.intensity = 9 * power;
+    lightbarLight.castShadow = power > 0.05;
     lightbarDiffuserMat.emissive.copy(runtime.lamp.lampLight.color);
-    lightbarDiffuserMat.emissiveIntensity = 1.4 * night * power;
+    lightbarDiffuserMat.emissiveIntensity = 1.4 * power;
+  }
+  function setLightbar(on, duration = 0) {
+    lightbarOn = on;
+    if (typeof gsap === "undefined" || !duration) {
+      lightbarState.power = on ? 1 : 0;
+      updateLightbar();
+      return;
+    }
+    gsap.killTweensOf(lightbarState);
+    gsap.to(lightbarState, { power: on ? 1 : 0, duration, ease: "power2.out", onUpdate: updateLightbar });
   }
   function toggleLightbar() {
-    const isNight = (typeof runtime.theme.darkNow !== "undefined" && runtime.theme.darkNow) || runtime.core.roomLight.night > 0.2;
     if (typeof gsap !== "undefined") {
       gsap.fromTo(lightbarButton.position, { y: 0.043 }, { y: 0.053, duration: 0.14, ease: "power2.out" });
     }
     if (typeof sfx !== "undefined") sfx.click();
-    if (!isNight) return;
-    lightbarOn = !lightbarOn;
-    if (typeof gsap !== "undefined") {
-      gsap.killTweensOf(lightbarState);
-      gsap.to(lightbarState, {
-        power: lightbarOn ? 1 : 0,
-        duration: 0.25,
-        ease: "power2.out",
-        onUpdate: updateLightbar,
-      });
-    } else {
-      lightbarState.power = lightbarOn ? 1 : 0;
-      updateLightbar();
-    }
+    setLightbar(!lightbarOn, 0.25);
   }
   // The monitor has the same cyan/pink bias strip. Broad rear-facing sources follow its
   // transform and overlap on the wall; they never paint over shadows with a glow plane.
@@ -930,7 +927,7 @@ export function createWorkstation(runtime) {
     monitorGlowMat,
     lightbarState,
     get lightbarOn() { return lightbarOn; },
-    set lightbarOn(value) { lightbarOn = value; },
+    setLightbar,
     updateLightbar,
     screen,
     SCREEN_Y,

@@ -162,11 +162,20 @@ export function createLamp(runtime) {
       lampShown.clear();
     }
   }
+  // The room's time of day lights the lamp for the night (see setTheme); a click only turns the
+  // bulb on or off, at any hour, and leaves the time of day to the clock or the settings
+  let lampOn = false;
   const setLamp = (on) => {
+    lampOn = on;
     lampLight.intensity = on ? 8 : 0;
     lampLight.castShadow = on;
     updateLampGlow();
   };
+  function switchLamp(on) {
+    lampOn = on;
+    gsap.killTweensOf(lampLight);
+    gsap.to(lampLight, { intensity: on ? 8 : 0, duration: on ? 0.25 : 0.35, ease: "power2.out", onUpdate: updateLampGlow });
+  }
   // Like a desk lamp with a mind of its own: on hover the bulb swings on its pole; on a click
   // the lamp crouches, hops, nods its bulb, and only then throws the switch
   const lampHeadRest = lampHead.rotation.clone();
@@ -193,7 +202,7 @@ export function createLamp(runtime) {
         .to(lampHead.rotation, { z: lampHeadRest.z - 0.25, duration: 0.12, yoyo: true, repeat: 3, ease: "sine.inOut" }, "<")
         .call(() => {
           sfx.click();
-          runtime.options.onEvent("nightShift", { dark: !runtime.theme.darkNow });
+          switchLamp(!lampOn);
         });
       sfx.pop({ pitch: 1.2 });
     },

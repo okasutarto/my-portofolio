@@ -334,8 +334,8 @@ const SOUNDS = {
     noise(t, { freq: 800, q: 1.2, attack: 0.002, peak: 0.12 * strength, decay: 0.04 });
   },
   // Air rushing past something thrown
-  whoosh(t, { duration = 0.45, up = true } = {}) {
-    noise(t, { freq: up ? 350 : 2600, to: up ? 2600 : 350, q: 1.4, attack: duration * 0.5, peak: 0.35, decay: duration * 0.5 });
+  whoosh(t, { duration = 0.45, up = true, volume = 1 } = {}) {
+    noise(t, { freq: up ? 350 : 2600, to: up ? 2600 : 350, q: 1.4, attack: duration * 0.5, peak: 0.35 * volume, decay: duration * 0.5 });
   },
   // Rubber stamp: thump plus a sharp click
   stamp(t) {
@@ -440,9 +440,9 @@ const SOUNDS = {
   },
   // Mechanical keyboard key: a sharp click, then the low "thock" of the keycap bottoming out
   key(t) {
-    noise(t, { freq: vary(1800, 0.2), q: 1.2, attack: 0.001, peak: 0.34, decay: 0.012 });
-    noise(t + 0.008, { filter: "lowpass", freq: 600, attack: 0.002, peak: 0.25, decay: 0.03 });
-    tone(t, { freq: vary(140, 0.15), to: 90, peak: 0.11, decay: 0.035 });
+    noise(t, { freq: vary(1800, 0.2), q: 1.2, attack: 0.001, peak: 0.55, decay: 0.012 });
+    noise(t + 0.008, { filter: "lowpass", freq: 600, attack: 0.002, peak: 0.4, decay: 0.03 });
+    tone(t, { freq: vary(140, 0.15), to: 90, peak: 0.18, decay: 0.035 });
   },
   // Cartoon "speech": a short voiced syllable at a random pitch, for talking speech bubbles
   talk(t) {
@@ -697,8 +697,8 @@ const SOUNDS = {
   // separate sounds, so moving from one sword to the next (shut, then open, at once) never
   // drops the open.
   koiguchi(t) {
-    const real = sample(t, "draw", { peak: 0.32, duration: 0.42, steady: true });
-    const layer = real ? 0.35 : 0.8;
+    const real = sample(t, "draw", { peak: 0.26, duration: 0.42, steady: true });
+    const layer = real ? 0.28 : 0.65;
     noise(t, { filter: "bandpass", freq: 900, to: 3800, q: 2.2, attack: 0.05, peak: 0.18 * layer, decay: 0.3 });
     noise(t + 0.02, { filter: "highpass", freq: 2500, to: 5200, q: 0.7, attack: 0.04, peak: 0.06 * layer, decay: 0.28 });
   },

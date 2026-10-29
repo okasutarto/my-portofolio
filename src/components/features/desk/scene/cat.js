@@ -246,7 +246,7 @@ export function createCat(runtime) {
       const yawNow = worldYaw(cat);
       runtime.core.scene.attach(cat);
       cat.rotation.set(0, yawNow, 0);
-      sfx.whoosh({ duration: 0.35 });
+      sfx.whoosh({ duration: 0.35, volume: 0.45 });
     })
       .to(cat.scale, { y: 0.85 * 0.8, duration: 0.15, ease: "power2.in" })
       .to(cat.rotation, { y: yaw, duration: 0.25, ease: "power2.out" }, "<")
@@ -262,7 +262,7 @@ export function createCat(runtime) {
         },
       })
       .to(cat.scale, { y: 0.85 * 0.82, duration: 0.1, ease: "power2.out" })
-      .call(() => sfx.catLand({ strength: 0.35 }))
+      .call(() => sfx.catLand({ strength: 0.2 }))
       .to(cat.scale, { y: 0.85, duration: 0.35, ease: "elastic.out(1.2, 0.4)" });
   }
   // Out from under the desk first, when that's where she is
@@ -769,7 +769,7 @@ export function createCat(runtime) {
         .to(cat.position, { y: floorY + 0.75, duration: 0.22, ease: "power2.out" }, "<")
         .to(paws.children[0].position, { x: 1.35, y: 1.1, z: 0.45, duration: 0.14, yoyo: true, repeat: 1, ease: "power2.out" }, "<")
         .to(cat.position, { y: floorY, duration: 0.2, ease: "power2.in" })
-        .call(() => sfx.catLand({ strength: 0.2 }))
+        .call(() => sfx.catLand({ strength: 0.12 }))
         .to({}, { duration: 0.45 + Math.random() * 0.3 });
     }
     // it's gone: back round and down to sleep

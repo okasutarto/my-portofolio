@@ -41,12 +41,11 @@ export function createCamera(runtime) {
     // cover lies open to the left)
     projects: () => {
       if (!runtime.projectFiles.openFolder) {
-        // Square on the drawer's front, wherever it faces
-        // Square on the drawer's front, wherever it faces. A shallow clip keeps the lamp
-        // head (just over the drawer) out of the shot.
-        runtime.projectFiles.folders.localToWorld(screenPos.set(0, 1.0, 0.2));
+        // Square on the drawer's front, wherever it faces. A shallow clip keeps the lamp head
+        // and the family photo, both just in front of the drawer, out of the shot.
+        runtime.projectFiles.folders.localToWorld(screenPos.set(0, 1.25, 0.2));
         screenNormal.set(0.05, 0.62, 1).applyQuaternion(runtime.projectFiles.folders.quaternion);
-        return { target: screenPos.toArray(), dir: screenNormal.toArray(), fit: [4.6, 3.9], depth: 2.2 };
+        return { target: screenPos.toArray(), dir: screenNormal.toArray(), fit: [4.6, 3.9], depth: 1.4 };
       }
       // Centre on the spine: the open cover lies to its left, the sheets to its right. Laid
       // down, the folder's left is the drawer's -z.
@@ -82,9 +81,11 @@ export function createCamera(runtime) {
     },
     // Close on the gauntlet for the snap, from a little to its right and above
     gauntlet: () => {
-      // Framed for the glove hovering above its plinth
-      runtime.gauntlet.gauntlet.localToWorld(screenPos.set(0, 1.25, 0));
-      return { target: screenPos.toArray(), dir: [0.3, 0.3, 1], fit: [6.2, 7.5], depth: 7.6 };
+      // Framed for the glove at the top of its snap: 1.8 of its own units tall at rest (48 cm),
+      // it rises another 0.88 (about 23 cm), so the frame centres on that whole reach and keeps
+      // the fingers clear of the Back button above and the hint below
+      runtime.gauntlet.gauntlet.localToWorld(screenPos.set(0, 1.34, 0));
+      return { target: screenPos.toArray(), dir: [0.3, 0.3, 1], fit: [7.2, 9.2], depth: 7.6 };
     },
     // Square on the window in the left wall, its weather display on the glass, roller to sill.
     // The clip cuts away the lamp in front, but reaches far enough out that the roller blind and
@@ -97,7 +98,7 @@ export function createCamera(runtime) {
       runtime.workstation.monitor.localToWorld(screenPos.set(0, runtime.workstation.SCREEN_Y - 0.38, 0.09));
       return { target: screenPos.toArray(), dir: [0.1, 0.32, 1], fit: [7.7, 6.8] };
     },
-    keyboard: () => ({ target: [0.2, 0.3 * runtime.keyboard.KEYBOARD_SCALE, 0.75], dir: [0.1, 1, 0.75], fit: [5.4 * runtime.keyboard.KEYBOARD_SCALE, 2.6 * runtime.keyboard.KEYBOARD_SCALE] }),
+    keyboard: () => ({ target: [runtime.keyboard.keyboard.position.x, 0.3 * runtime.keyboard.KEYBOARD_SCALE, runtime.keyboard.keyboard.position.z], dir: [0.1, 1, 0.75], fit: [5.4 * runtime.keyboard.KEYBOARD_SCALE, 2.6 * runtime.keyboard.KEYBOARD_SCALE] }),
     // A higher angle pushes the plant above the frame and leaves room for the sip quote.
     mug: () => ({ target: [runtime.coffee.mug.position.x - 0.3, 0.95 + runtime.coffee.MUG_Y, runtime.coffee.mug.position.z - 0.45], dir: [-0.2, 1, 0.45], fit: [3.1, 4.1] }),
   };

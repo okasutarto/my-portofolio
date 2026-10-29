@@ -6,7 +6,7 @@ export function createMouse(runtime) {
   // ---------- mouse (decor) ----------
   const mouse = new THREE.Group();
   mouse.scale.set(1.27, 1.4, 1.55);
-  mouse.position.set(3.75, runtime.keyboard.MAT_TOP, 0.5);
+  mouse.position.set(2.85, runtime.keyboard.MAT_TOP, 0.5);
   mouse.rotation.y = -0.12;
   runtime.core.scene.add(mouse);
   const mouseBody = runtime.core.mesh(runtime.core.rbox(0.5, 0.26, 0.8, 0.13), runtime.core.toon("#ffffff"), { outline: 0.035 });
@@ -17,8 +17,8 @@ export function createMouse(runtime) {
   wheel.position.set(0, 0.27, -0.2);
   mouse.add(mouseBody, seam, wheel);
   // It follows your real cursor over the desk, and clicks when you click.
-  const MOUSE_ORIGIN = { x: 3.7, z: 0.45 };
-  const mouseAim = { x: 3.75, z: 0.5 };
+  const MOUSE_ORIGIN = { x: 2.8, z: 0.45 };
+  const mouseAim = { x: 2.85, z: 0.5 };
   const pressMouse = () => gsap.fromTo(mouseBody.position, { y: 0.09 }, { y: 0.13, duration: 0.2, ease: "back.out(3)" });
   // Click it and it turns into a real mouse for a moment: ears, eyes and a tail pop out, and it
   // scampers two laps round the clear patch of desk beside the keyboard, then goes back to work
@@ -46,7 +46,7 @@ export function createMouse(runtime) {
   let mouseRunning = false;
   // Two laps of an ellipse in the clear patch between the keyboard (x < 2.5), the coaster
   // (x > 4.76), the phone stand (z < -1.36) and the envelope (z > 2.18), with room for its body
-  const RUN = { x: 3.63, z: 0.4, rx: 0.62, rz: 1.05 };
+  const RUN = { x: 2.73, z: 0.4, rx: 0.62, rz: 1.05 };
   const onLap = (a) => ({ x: RUN.x + Math.cos(a) * RUN.rx, z: RUN.z + Math.sin(a) * RUN.rz });
   const leg = () => ({ u: 0 });
   function scamper() {

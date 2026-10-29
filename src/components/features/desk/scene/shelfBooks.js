@@ -75,31 +75,41 @@ export function createShelfBooks(runtime) {
   runtime.shelf.addItem(runtime.core.at(mushroom, STACK_X, runtime.shelf.standOn(1) + STACK_TOP, 0.15), "figure");
 
   // Level 2: a row of game cases, spines out, one standing face-out beside them, and a little robot.
-  // Each case's plastic is its platform's colour; the spine is printed with the game on it. Most
-  // are PS5 games (blue cases), with a Switch game (red) every few.
+  // Grouped by console, at their real sizes (the shelf's 2× scale makes one unit 20 cm): PS5
+  // cases are Blu-ray boxes, 135 × 170 × 14 mm, in blue; Switch cases are slimmer and shallower,
+  // 105 × 170 × 11 mm, in red. Fronts line up at the shelf's edge whatever their depth.
   const PS5_BLUE = "#1d64d8";
   const SWITCH_RED = "#e11d48";
-  const systemOf = (i) => ([2, 6].includes(i % 7) ? "switch" : "ps5");
-  const GAMES = [
-    ["PIXEL KART", "#ffdd00"], ["SKY QUEST", "#7fdfff"], ["NEON RUN", "#ff90e8"], ["TINY KNIGHT", "#fffdf5"],
-    ["MOON DASH", "#c4b5fd"], ["SLIME LAND", "#8fd694"], ["RACE 99", "#ffb35c"], ["ROBO BRAWL", "#00e0c6"], ["DUNGEON 64", "#ff6b6b"],
-    ["STAR FORGE", "#ffe26b"], ["CAT CAFE", "#ffc8a8"], ["BLOCK CITY", "#a3e635"],
-  ];
-  // and a second run of them on the far side of the face-out case, up to the robot
-  const MORE_GAMES = [
-    ["SPACE BOLT", "#7fb2ff"], ["NINJA DUO", "#ff90e8"], ["TURBO 2", "#ffb35c"], ["FARM DAYS", "#bef264"],
-    ["GHOST INN", "#e9d5ff"], ["ROCKET LIG", "#fde047"], ["HEX RPG", "#5eead4"],
-  ];
-  const gameCase = ([title, art], i, at) => {
-    const system = systemOf(i);
-    const platform = system === "ps5" ? PS5_BLUE : SWITCH_RED;
-    const caseMesh = runtime.core.mesh(runtime.core.rbox(0.07, 0.85, 0.675, 0.02), runtime.core.toon(platform), { outline: 0.022 });
-    const spine = runtime.core.printed(0.065, 0.81, 420, (c, w, h) => drawGameSpine(c, w, h, { platform, art, title, i, system }));
-    spine.position.z = 0.34;
-    runtime.shelf.addItem(runtime.core.at(runtime.shelf.group(caseMesh, spine), at + 0.035, runtime.shelf.standOn(2) + 0.425, 0.2), "case");
+  const CASES = {
+    ps5: { platform: PS5_BLUE, t: 0.07, d: 0.675 },
+    switch: { platform: SWITCH_RED, t: 0.055, d: 0.525 },
   };
-  GAMES.forEach((game, i) => gameCase(game, i, -1.8 + i * 0.09));
-  MORE_GAMES.forEach((game, i) => gameCase(game, GAMES.length + i, 0.06 + i * 0.09));
+  const CASE_H = 0.85;
+  const CASE_FRONT = 0.2 + 0.675 / 2;
+  const PS5_GAMES = [
+    ["PIXEL KART", "#ffdd00"], ["SKY QUEST", "#7fdfff"], ["NEON RUN", "#ff90e8"], ["TINY KNIGHT", "#fffdf5"],
+    ["MOON DASH", "#c4b5fd"], ["SLIME LAND", "#8fd694"], ["RACE 99", "#ffb35c"], ["ROBO BRAWL", "#00e0c6"],
+    ["DUNGEON 64", "#ff6b6b"], ["STAR FORGE", "#ffe26b"], ["CAT CAFE", "#ffc8a8"], ["BLOCK CITY", "#a3e635"],
+    ["SPACE BOLT", "#7fb2ff"], ["TURBO 2", "#ffb35c"], ["GHOST INN", "#e9d5ff"],
+  ];
+  const SWITCH_GAMES = [["NINJA DUO", "#ff90e8"], ["FARM DAYS", "#bef264"], ["ROCKET LIG", "#fde047"], ["HEX RPG", "#5eead4"], ["PUZZLE POP", "#fda4af"]];
+  // (the spines are printed finely enough that the small PS5 mark stays legible)
+  const gameCase = ([title, art], i, system, at) => {
+    const { platform, t, d } = CASES[system];
+    const caseMesh = runtime.core.mesh(runtime.core.rbox(t, CASE_H, d, 0.02), runtime.core.toon(platform), { outline: 0.022 });
+    const spine = runtime.core.printed(t - 0.005, CASE_H - 0.04, 1000, (c, w, h) => drawGameSpine(c, w, h, { platform, art, title, i, system }));
+    spine.position.z = d / 2 + 0.0025;
+    runtime.shelf.addItem(runtime.core.at(runtime.shelf.group(caseMesh, spine), at + t / 2, runtime.shelf.standOn(2) + CASE_H / 2, CASE_FRONT - d / 2), "case");
+    return at + t + 0.02;
+  };
+  // the PS5 run fills the left of the bay; past the face-out case, the last of them, then the
+  // Switch games, up to the robot
+  let at = -1.8;
+  PS5_GAMES.slice(0, 12).forEach((game, i) => (at = gameCase(game, i, "ps5", at)));
+  at = 0.06;
+  PS5_GAMES.slice(12).forEach((game, i) => (at = gameCase(game, 12 + i, "ps5", at)));
+  at += 0.04;
+  SWITCH_GAMES.forEach((game, i) => (at = gameCase(game, i, "switch", at)));
   const cover = runtime.core.printed(0.63, 0.81, 600, (c, w, h) => drawGameCover(c, w, h, { platform: PS5_BLUE }));
   cover.position.z = 0.076;
   // On a little black display stand, so its foot sits well clear of the shelf's front edge

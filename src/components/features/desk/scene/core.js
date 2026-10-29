@@ -71,6 +71,16 @@ export function createCore(runtime) {
     aoPass.renderPass(r, aoPass.blendMaterial, into);
   };
   aoPass.blendIntensity = 0.88;
+  // Sprites (the gauntlet stones' halos, bubbles, cards) face the camera without writing depth;
+  // drawn into the occlusion's normal buffer they disagree with the depth behind them, and the
+  // occlusion speckles round every glow. GTAOPass already leaves points and lines out.
+  const aoHideDefaults = aoPass.overrideVisibility.bind(aoPass);
+  aoPass.overrideVisibility = () => {
+    aoHideDefaults();
+    scene.traverse((object) => {
+      if (object.isSprite) object.visible = false;
+    });
+  };
   const useFrameDepth = () => aoPass.setGBuffer(composer.readBuffer.depthTexture);
   useFrameDepth();
   [aoPass.gtaoMaterial, aoPass.pdMaterial].forEach((m) => (m.needsUpdate = true));

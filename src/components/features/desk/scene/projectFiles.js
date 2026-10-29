@@ -18,13 +18,15 @@ export function createProjectFiles(runtime) {
   const SHEET_D = FOLDER_D - 0.08;
   const folders = new THREE.Group();
   // At the left end of the desk, under the window, its front turned to face the room (+x)
-  folders.position.set(-8.1, 0, 0.2);
+  const FOLDERS_AT = { x: -8.1, z: 0.2 }; // world
+  folders.position.set(FOLDERS_AT.x, 0, FOLDERS_AT.z);
   folders.rotation.y = Math.PI / 2;
   runtime.core.scene.add(folders);
   // The drawer, in the folders group's own space
   const DRAWER_W = FOLDER_W + 0.32;
   const DRAWER_D = runtime.options.projects.length * 0.17 + 0.45;
-  const DRAWER_H = 0.95;
+  // 13 cm high: the 22 cm folders stand well up out of it, their tabs on show, but it holds them
+  const DRAWER_H = 1.3;
   const WALL = 0.08;
   const drawerMat = runtime.core.toon("#2b2b2b");
   const drawerPart = (w, h, d, x, y, z, material = drawerMat) => {
@@ -38,11 +40,13 @@ export function createProjectFiles(runtime) {
   drawerPart(WALL, DRAWER_H, DRAWER_D, -DRAWER_W / 2 + WALL / 2, DRAWER_H / 2, 0);
   drawerPart(WALL, DRAWER_H, DRAWER_D, DRAWER_W / 2 - WALL / 2, DRAWER_H / 2, 0);
   const FRONT_H = DRAWER_H * 0.78;
-  // Pulled out, a folder is turned square to the room and laid on the desk in front of the
-  // drawer, between the keyboard and the speaker, its cover opening back toward the drawer.
-  // (In the drawer's own space: +z is out of its front, -x toward the back of the desk.)
-  // set down a little askew, not squared up to the desk
-  const OUT = { x: 1.4, y: 0.04, z: DRAWER_D / 2 + FOLDER_W * 1.5 + 0.35, r: -Math.PI / 2 + 0.07 };
+  // Pulled out, a folder is turned square to the room and laid open across the clear strip at
+  // the front of the desk, its spine at the desk's centre and in front of the keyboard, the
+  // cover opening back toward the drawer: clear of the riser, the photo, the tickets and the
+  // mail. (In the drawer's own space: +z is out of its front, -x toward the front of the desk.)
+  // Set down a little askew, not squared up to the desk.
+  const OPEN_SPINE = { x: 0, z: 3.0 }; // world
+  const OUT = { x: FOLDERS_AT.z - OPEN_SPINE.z, y: 0.04, z: OPEN_SPINE.x - FOLDERS_AT.x + FOLDER_W / 2, r: -Math.PI / 2 + 0.07 };
   // Opened, the cover's board springs back a touch instead of lying dead flat
   const OPEN_TILT = 0.05;
   drawerPart(DRAWER_W + 0.16, FRONT_H, 0.12, 0, FRONT_H / 2, DRAWER_D / 2 + 0.03, runtime.core.toon("#ffdd00"));
@@ -148,7 +152,9 @@ export function createProjectFiles(runtime) {
       flag.rotation.y = wobble(i, 23 + k) * 0.08;
       body.add(flag);
     });
-    const rest = 0.03 + Math.abs(wobble(i, 1)) * 0.06;
+    // ajar by the same few millimetres whatever the folder's width, so its cover's free edge
+    // stays behind the drawer's front
+    const rest = (0.03 + Math.abs(wobble(i, 1)) * 0.06) * 2.2 / FOLDER_W;
     hinge.rotation.z = rest;
     folders.add(f);
     const lean = { x: wobble(i, 2) * 0.07, y: wobble(i, 3) * 0.05, z: wobble(i, 4) * 0.05, dx: wobble(i, 5) * 0.07 };

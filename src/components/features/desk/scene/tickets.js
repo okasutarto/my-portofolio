@@ -13,6 +13,8 @@ export function createTickets(runtime) {
   runtime.core.scene.add(tickets);
   const TICKET_W = 2.1;
   const TICKET_D = 0.83;
+  // The pass is laid out in pixels on a 1040-wide card, so print it at that width
+  const TICKET_PX = 1040 / TICKET_W;
   const ticketBody = runtime.core.toon("#fffdf5");
   const ticketList = runtime.options.experiences.map((exp, i) => {
     const t = new THREE.Group();
@@ -21,11 +23,11 @@ export function createTickets(runtime) {
     // thin card, like a real pass
     const card = runtime.core.mesh(runtime.core.bendable(TICKET_W, TICKET_D, 0.008), ticketBody, { outline: 0.018 });
     flipper.add(card);
-    const face = runtime.core.printed(TICKET_W, TICKET_D, 400, (c, w, h) => drawTicket(c, w, h, exp));
+    const face = runtime.core.printed(TICKET_W, TICKET_D, TICKET_PX, (c, w, h) => drawTicket(c, w, h, exp));
     face.geometry = runtime.core.track(runtime.core.bendable(TICKET_W, TICKET_D));
     face.rotation.x = -Math.PI / 2;
     face.position.y = 0.0045;
-    const back = runtime.core.printed(TICKET_W, TICKET_D, 400, (c, w, h) => drawTicketBack(c, w, h, exp));
+    const back = runtime.core.printed(TICKET_W, TICKET_D, TICKET_PX, (c, w, h) => drawTicketBack(c, w, h, exp));
     back.rotation.x = Math.PI / 2;
     back.position.y = -0.0045;
     back.geometry = runtime.core.track(runtime.core.bendable(TICKET_W, TICKET_D));

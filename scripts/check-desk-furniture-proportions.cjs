@@ -101,47 +101,44 @@ assert.ok(shelfBox.min.x > deskBox.max.x + 1, 'shelf clears the desk side');
 const workstation = read('workstation');
 const riserHeight = Number(workstation.match(/const RISER_TOP = ([\d.]+)/)[1]);
 vm.runInContext(`const RISER_TOP = ${riserHeight};\n` +
-  workstation.slice(workstation.indexOf('  const monitor ='), workstation.indexOf('  // ---------- Mac Studio:')) +
+  workstation.slice(workstation.indexOf('  const monitor ='), workstation.indexOf('  // ---------- Mac mini:')) +
   '\nruntime.workstation = { monitor, SCREEN_Y };', context);
 const monitor = runtime.workstation.monitor;
 const monitorBox = new THREE.Box3().setFromObject(monitor, true);
 close(monitorBox.max.x - monitorBox.min.x, 6.23, '62.3 cm monitor width');
 assert.ok(monitorBox.min.y >= riserHeight - 0.02, 'monitor foot rests on its riser');
 assert.ok(monitorBox.min.z > WALL_Z + 0.12, 'monitor clears the wall');
-// Check the Mac Studio's complete case plus foot against Apple's 19.7 × 19.7 × 9.5 cm.
+// Check the Mac mini's complete case plus foot against Apple's 12.7 × 12.7 × 5.0 cm (M4).
 const meshSource = fs.readFileSync('src/components/features/desk/sceneMeshes.js', 'utf8');
 vm.runInContext(meshSource.slice(meshSource.indexOf('  const roundedRectShape ='), meshSource.indexOf('  // A thin slab')) + '; runtime.core.roundedRectShape = roundedRectShape;', context);
-const studioSection = workstation.slice(workstation.indexOf('  // ---------- Mac Studio:'), workstation.indexOf('  // Clamped task light:'));
-for (const match of studioSection.matchAll(/\b(draw\w+)\b/g)) context[match[1]] = () => {};
-const studioHandlers = new Map();
-runtime.core.register = (object, handler) => studioHandlers.set(object, handler);
+const miniSection = workstation.slice(workstation.indexOf('  // ---------- Mac mini:'), workstation.indexOf('  // Clamped task light:'));
+for (const match of miniSection.matchAll(/\b(draw\w+)\b/g)) context[match[1]] = () => {};
+const miniHandlers = new Map();
+runtime.core.register = (object, handler) => miniHandlers.set(object, handler);
 context.toggleComputer = () => {};
 context.gsap = {
   fromTo: (target, from, to) => { for (const axis of ['x', 'y', 'z']) if (axis in to) target[axis] = to[axis]; },
 };
-vm.runInContext(studioSection + '\nvar studioModel = { macStudio, studioBody, studioFoot, sdSlot, studioLed };', context);
-const { macStudio, studioBody, studioFoot } = context.studioModel;
-const studioCopy = new THREE.Group();
-for (const part of [studioBody, studioFoot]) studioCopy.add(part.clone());
-studioCopy.scale.copy(macStudio.scale);
-const studioSize = new THREE.Box3().setFromObject(studioCopy, true).getSize(new THREE.Vector3());
-close(studioSize.x, 1.97, '19.7 cm Mac Studio width');
-close(studioSize.z, 1.97, '19.7 cm Mac Studio depth');
-close(studioSize.y, 0.95, '9.5 cm Mac Studio height including the foot');
-const studioRestScale = macStudio.scale.clone();
-studioHandlers.get(macStudio).onClick();
-assert.ok(macStudio.scale.distanceTo(studioRestScale) < 1e-9, 'power animation preserves the calibrated Mac Studio dimensions');
-const frontPorts = macStudio.children.filter(part => part.isGroup && part.position.z > 0);
-assert.equal(frontPorts.length, 2, 'two front USB-C ports');
-for (const port of frontPorts) {
-  const slot = port.children[1].geometry.parameters;
-  assert.ok(slot.height > slot.width * 2, 'front USB-C openings are vertical like the supplied reference');
-  assert.ok(port.position.x < context.studioModel.sdSlot.position.x, 'USB-C ports sit left of the SD slot');
-}
-assert.ok(context.studioModel.studioLed.position.x > 0, 'front status LED is on the right');
-close(context.studioModel.studioLed.position.y, context.studioModel.sdSlot.position.y, 'LED and front ports align horizontally');
-assert.ok(studioFoot.geometry.parameters.radiusTop > studioFoot.geometry.parameters.radiusBottom, 'foot tapers inward toward the tabletop');
-console.log('Mac Studio full case/foot dimensions and power animation scale recovery passed.');
+vm.runInContext(miniSection + '\nvar miniModel = { macMini, miniBody, miniFoot, frontJack, miniLed };', context);
+const { macMini, miniBody, miniFoot } = context.miniModel;
+const miniCopy = new THREE.Group();
+for (const part of [miniBody, miniFoot]) miniCopy.add(part.clone());
+miniCopy.scale.copy(macMini.scale);
+const miniSize = new THREE.Box3().setFromObject(miniCopy, true).getSize(new THREE.Vector3());
+close(miniSize.x, 1.27, '12.7 cm Mac mini width');
+close(miniSize.z, 1.27, '12.7 cm Mac mini depth');
+close(miniSize.y, 0.5, '5.0 cm Mac mini height including the foot');
+assert.ok(Math.abs(macMini.scale.x - macMini.scale.y) < 1e-9 && Math.abs(macMini.scale.x - macMini.scale.z) < 1e-9, 'scaled uniformly, so round ports stay round');
+const miniRestScale = macMini.scale.clone();
+miniHandlers.get(macMini).onClick();
+assert.ok(macMini.scale.distanceTo(miniRestScale) < 1e-9, 'power animation preserves the calibrated Mac mini dimensions');
+const frontPorts = macMini.children.filter(part => part.isGroup && part.position.z > 0);
+assert.equal(frontPorts.length, 2, 'two USB-C ports on the front');
+for (const port of frontPorts) assert.ok(port.position.x < context.miniModel.frontJack.position.x, 'USB-C ports sit left of the headphone jack');
+assert.ok(context.miniModel.miniLed.position.x > 0, 'front status LED is on the right');
+close(context.miniModel.miniLed.position.y, context.miniModel.frontJack.position.y, 'LED and front ports align horizontally');
+assert.ok(miniFoot.geometry.parameters.radiusTop > miniFoot.geometry.parameters.radiusBottom, 'foot tapers inward toward the tabletop');
+console.log('Mac mini full case/foot dimensions and power animation scale recovery passed.');
 const cameraSource = read('camera');
 vm.runInContext(cameraSource.slice(0, cameraSource.indexOf('  const cam =')) +
   '\nreturn { SHOTS }; }\nvar shots = createCamera(runtime).SHOTS;', context);

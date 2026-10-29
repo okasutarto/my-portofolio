@@ -177,22 +177,24 @@ export function createWastebasket(runtime) {
   // How far from the bin's axis a ball's centre must stay at a height (its side tapers out)
   const binReach = (y) => (0.4 + 0.15 * THREE.MathUtils.clamp((y - bin.position.y) / (BIN_H * bin.scale.y), 0, 1)) * bin.scale.x + PAPER_R;
   const insideBin = (x, y, z) => y < binTop() + PAPER_R * 0.5 && Math.hypot(x - bin.position.x, z - bin.position.z) < binReach(y);
-  // Whether a throw's arc, up to its arrival at the hoop, stays out of the bin's body
-  function arcClearsBin(from, vel, at) {
+  // (SHELF_BOX is set further down, before any throw)
+  const insideShelf = (x, y, z) => y < SHELF_BOX.y1 + PAPER_R && x > SHELF_BOX.x0 - PAPER_R && x < SHELF_BOX.x1 + PAPER_R && z > SHELF_BOX.z0 - PAPER_R && z < SHELF_BOX.z1 + PAPER_R;
+  // Whether a throw's arc, up to its arrival at the hoop, stays out of the bin and the shelf
+  function arcClears(from, vel, at) {
     for (let t = 0.02; t <= at; t += 0.02) {
       const x = from.x + vel.x * t;
       const y = from.y + vel.y * t - 0.5 * GRAVITY * t * t;
       const z = from.z + vel.z * t;
-      if (insideBin(x, y, z)) return false;
+      if (insideBin(x, y, z) || insideShelf(x, y, z)) return false;
     }
     return true;
   }
   // Where a throw from the viewer starts: a little below the screen's bottom edge, under the
   // hoop, and a touch nearer the camera so nothing in the room clips it on the way up
-  function throwOrigin(hoopAt) {
+  function throwOrigin(hoopAt, across = -0.25) {
     runtime.core.camera.updateMatrixWorld();
     tmpV.copy(hoopAt).project(runtime.core.camera);
-    const x = THREE.MathUtils.clamp(tmpV.x - 0.25, -0.9, 0.9);
+    const x = THREE.MathUtils.clamp(tmpV.x + across, -0.9, 0.9);
     return new THREE.Vector3(x, -1.15, tmpV.z).unproject(runtime.core.camera)
       .addScaledVector(runtime.core.camera.getWorldDirection(new THREE.Vector3()), -0.6);
   }
@@ -211,7 +213,6 @@ export function createWastebasket(runtime) {
     ball.scale.setScalar(1);
     ball.visible = true;
     ball.children[0].visible = true;
-    if (!from) ball.position.copy(throwOrigin(hoopAt));
     paper.swish = Math.random() < 0.65;
     paper.side = Math.random() < 0.5 ? -1 : 1;
     // Aim through the ring's middle for a swish, or at one side of its rim for a brick, and
@@ -219,11 +220,17 @@ export function createWastebasket(runtime) {
     const aim = paper.swish
       ? hoopAt.clone().add(tmpV.set(0, 0.04, 0))
       : hoopAt.clone().add(tmpV.set(paper.side * 0.24 * bin.scale.x, 0.06, 0).applyQuaternion(bin.quaternion));
-    paper.at = THREE.MathUtils.clamp(0.55 + ball.position.distanceTo(aim) * 0.06, 0.7, 1.05);
-    // A higher, longer arc until its path clears the bin's side: a throw from low down beside
-    // it (the shelf's bottom close-up, or litter at its foot) would otherwise go through the wall
+    // A higher, longer arc until its path clears the bin's side and the shelf beside it: a throw
+    // from low down (the shelf's bottom close-up, or litter at the bin's foot) would otherwise
+    // go through them. A throw from the viewer that still can't clear the shelf starts further
+    // right instead, past the shelf's side.
     const launch = (at) => paper.vel.subVectors(aim, ball.position).divideScalar(at).setY(paper.vel.y + 0.5 * GRAVITY * at);
-    for (launch(paper.at); paper.at < 2.2 && !arcClearsBin(ball.position, paper.vel, paper.at); launch(paper.at)) paper.at += 0.1;
+    for (const across of from ? [null] : [-0.25, 0, 0.25, 0.5, 0.75]) {
+      if (!from) ball.position.copy(throwOrigin(hoopAt, across));
+      paper.at = THREE.MathUtils.clamp(0.55 + ball.position.distanceTo(aim) * 0.06, 0.7, 1.05);
+      for (launch(paper.at); paper.at < 2.2 && !arcClears(ball.position, paper.vel, paper.at); launch(paper.at)) paper.at += 0.1;
+      if (arcClears(ball.position, paper.vel, paper.at)) break;
+    }
     paper.spin.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(8 + Math.random() * 6);
     paper.t = 0;
     paper.state = "flying";

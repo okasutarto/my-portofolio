@@ -29,7 +29,25 @@ for (const power of [0, 0.5, 1, 0.5, 0]) {
 assert.ok(light.target.position.y < light.position.y && light.target.position.z > light.position.z, 'beam aims down and forward onto the desk');
 assert.equal(light.shadow.mapSize.x, 512);
 assert.equal(light.decay, 0, 'task beam retains useful brightness at desktop distance');
-assert.equal(light.angle, Math.PI / 4, 'wider beam extends illumination along the longer lightbar');
+// In the world: the monitor (and the bar on it) is scaled 1.469 and stands on the 8 cm riser
+monitor.scale.setScalar(62.3 / 42.4);
+monitor.position.set(-0.4, 0.8, -2.9);
+monitor.updateMatrixWorld(true);
+const from = light.getWorldPosition(new THREE.Vector3());
+const aim = light.target.getWorldPosition(new THREE.Vector3()).sub(from).normalize();
+const forward = Math.atan2(aim.z, -aim.y) * 180 / Math.PI;
+assert.ok(from.y > 5.5 && from.y < 6.2, 'the emitter hangs about 59 cm over the desk');
+assert.ok(forward > 20 && forward < 32, 'the beam tips forward onto the desk in front of the screen');
+const reach = (deg) => {
+  const tilt = (forward + deg) * Math.PI / 180;
+  return from.z + from.y * Math.tan(tilt);
+};
+assert.ok(reach(-light.angle * 180 / Math.PI) < -2 && reach(-light.angle * 180 / Math.PI) > -3.2, "the cone's back edge reaches the monitor's foot, not the screen behind it");
+assert.ok(reach(light.angle * 180 / Math.PI * (1 - light.penumbra / 2)) > 2.5 && reach(light.angle * 180 / Math.PI) < 6, 'its front reaches toward the desk front edge');
+assert.ok(light.distance > Math.hypot(from.y, 4.2 - from.z, 9 - Math.abs(from.x)), 'the range outreaches the desk front corners');
+monitor.scale.setScalar(1);
+monitor.position.set(0, 0, 0);
+monitor.updateMatrixWorld(true);
 const shell = run('lightbarBody');
 shell.geometry.computeBoundingBox();
 const shellSize = shell.geometry.boundingBox.getSize(new THREE.Vector3());

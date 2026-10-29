@@ -17,8 +17,10 @@ const num = (name) => Number(source.match(new RegExp(`const ${name} = ([\\d.]+)`
 const FOLDER_W = num('FOLDER_W');
 const FOLDER_D = num('FOLDER_D');
 const DRAWER_D = vm.runInNewContext(source.match(/const DRAWER_D = ([^;]+);/)[1], { projects: { length: 5 } });
-const OUT = vm.runInNewContext(`(${source.match(/const OUT = ([^;]+);/)[1]})`, { DRAWER_D, FOLDER_D, FOLDER_W });
+const literal = (name) => vm.runInNewContext(`(${source.match(new RegExp(`const ${name} = ([^;]+);`))[1]})`);
+const OUT = vm.runInNewContext(`(${source.match(/const OUT = ([^;]+);/)[1]})`, { DRAWER_D, FOLDER_D, FOLDER_W, FOLDERS_AT: literal('FOLDERS_AT'), OPEN_SPINE: literal('OPEN_SPINE') });
 const context = { THREE, gymCalendar: { position: new THREE.Vector3(10.5, 5.8, -4.38) }, shelfLook: 1.7, shelf: { position: new THREE.Vector3(14.6, -7.4, -3.25), scale: new THREE.Vector3(2, 2, 2) }, FLOOR_Y: -7.4, WALL_Z: -4.9, screenPos: new THREE.Vector3(), screenNormal: new THREE.Vector3(), heldTicket: null, openFolder: null, selectedNote: null, OUT, FOLDER_W, FOLDER_D, container: { clientWidth: 1200, clientHeight: 800 } };
+context.FOLDERS_AT = literal('FOLDERS_AT');
 for (const name of ['tickets', 'folders', 'aboutBoard']) {
   context[name] = new THREE.Group();
   vm.runInNewContext(source.match(new RegExp(name + '\\.position\\.set\\([^;]+;'))[0], context);
@@ -38,6 +40,9 @@ context.openFolder = {};
 const openTarget = shots.projects().target;
 assert.ok(openTarget[0] > context.folders.position.x + 1.5, 'an open folder lies on the desk in front of the drawer');
 assert.ok(openTarget[0] - FOLDER_W > context.folders.position.x + DRAWER_D / 2 + 0.1, 'its open cover clears the drawer front');
+// Opened, it lies across the clear strip at the desk's front centre: in front of the keyboard
+// mat (to z 2.25), clear of the riser behind it, and within the desk's front edge (z 4.2)
+assert.ok(Math.abs(openTarget[0]) < 0.5 && openTarget[2] - FOLDER_D / 2 > 1.8 && openTarget[2] + FOLDER_D / 2 < 4.2, 'an open folder lies across the front of the desk, clear of the mat and the riser');
 context.openFolder = null;
 assert.ok(context.tickets.position.z > 0 && context.tickets.position.x < -3, 'tickets sit at the front-left of the desk');
 assert.ok(context.folders.position.x < -5.5 && context.folders.position.z > -4.85 && context.folders.position.z < 0.5, 'the drawer stands at the left end of the desk, under the window');

@@ -16,7 +16,7 @@ export function drawGameSpine(c, w, h, { platform, art, title, ink = "#000", i =
     c.fillRect(0, band - 3, w, 6);
     c.textAlign = "center";
     c.textBaseline = "middle";
-    fitFont(c, "PS5", 900, DISPLAY, Math.round(band * 0.42), w * 0.84);
+    fitFont(c, "PS5", 900, DISPLAY, Math.round(band * 0.42), w * 0.8, 6);
     c.fillText("PS5", w / 2, band * 0.5);
   } else {
     c.fillStyle = platform;

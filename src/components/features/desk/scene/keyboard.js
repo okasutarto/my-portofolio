@@ -15,13 +15,14 @@ export function createKeyboard(runtime) {
   drawDeskMat(matPrint.ctx, 1360, 460);
   matMat.map = matPrint.texture;
   const deskMatPad = runtime.core.mesh(runtime.core.rbox(6.8, MAT_TOP, 3.0, 0.014), matMat, { outline: 0.03, cast: false });
-  deskMatPad.position.set(0.9, MAT_TOP / 2, 0.75);
+  // centred on the desk, with the keyboard left of its middle and the mouse to its right
+  deskMatPad.position.set(0, MAT_TOP / 2, 0.75);
   runtime.core.scene.add(deskMatPad);
 
   const KEYBOARD_SCALE = 0.68;
   const keyboard = new THREE.Group();
   keyboard.scale.setScalar(KEYBOARD_SCALE);
-  keyboard.position.set(0.2, MAT_TOP, 0.75);
+  keyboard.position.set(-0.7, MAT_TOP, 0.75);
   runtime.core.scene.add(keyboard);
   // A black aluminium case on a smoky see-through bottom, with the Halo's light bar glowing along
   // its left end

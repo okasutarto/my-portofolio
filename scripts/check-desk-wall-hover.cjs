@@ -17,7 +17,7 @@ let boardContext;
 const board = vm.runInNewContext(
   fs.readFileSync(`${__dirname}/../src/data/about.js`, 'utf8').replace(/export /g, '') +
   section('  const aboutBoard =', '  // ---------- keyboard:') + '; ({ aboutBoard, boardNotes, liftNote, pinNote })', boardContext = {
-    THREE, gsap, focus, badgeClearance: null, scene: new THREE.Group(), renderer: { domElement: { style: {} } },
+    THREE, gsap, focus, WALL_Z: -4.9, badgeClearance: null, scene: new THREE.Group(), renderer: { domElement: { style: {} } },
     track: (value) => value, noRaycast() {}, windowWood: { texture: new THREE.Texture() },
     printed: (w, h) => new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial()),
     mesh: (geometry, material) => new THREE.Mesh(geometry, material), rbox: (w, h, d) => new THREE.BoxGeometry(w, h, d),
@@ -99,8 +99,8 @@ assert.equal(windowGlare.material.opacity, 0.55);
 
 // Clock and painting hover leave their hands/artwork untouched and yield during a click.
 for (const [start, end, name, actor] of [
-  ['  let clockBusy =', '  const rugTex', 'clock', 'clockMount'],
-  ['  let paintingBusy =', '  // Seat height is roughly', 'paintingHang', 'paintingHang'],
+  ['  let clockBusy =', '  // The rug runs', 'clock', 'clockMount'],
+  ['  let paintingBusy =', '  const CHAIR_FLOOR =', 'paintingHang', 'paintingHang'],
 ]) {
   let handler;
   const object = new THREE.Group();

@@ -19,6 +19,15 @@ const THREE = require('three');
     standOn: () => 0,
     addItem: (obj, sound) => { shelf.add(obj); items.push({obj, sound}); return obj; },
   });
+  // Measure intrinsic device dimensions, excluding the stands and display rotations.
+  for (const [object, expected] of [[model.consoleBody, [8.9, 38.8, 21.6]], [model.pad1.children[1], [16, 6, 10.6]], [model.pad2.children[1], [16, 6, 10.6]]]) {
+    const copy = object.clone();
+    copy.position.set(0, 0, 0);
+    copy.rotation.set(0, 0, 0);
+    copy.scale.multiplyScalar(2);
+    const sizeCm = new THREE.Box3().setFromObject(copy, true).getSize(new THREE.Vector3()).multiplyScalar(10).toArray();
+    sizeCm.forEach((value, axis) => assert.ok(Math.abs(value - expected[axis]) < 1e-4, 'device matches real-world size including the shelf scale'));
+  }
   shelf.updateMatrixWorld(true);
   const bounds = (obj) => new THREE.Box3().setFromObject(obj);
   const consoleBox = bounds(model.ps5);
@@ -31,7 +40,7 @@ const THREE = require('three');
   for (const { obj } of items) {
     const box = bounds(obj);
     assert.ok(box.min.x > -1.99 && box.max.x < 1.99, 'props fit between shelf sides');
-    assert.ok(box.min.y >= -0.005 && box.max.y < 1.88, 'props clear the shelf above');
+    assert.ok(box.min.y >= -0.005 && box.max.y < 2.18, 'props clear the shelf above');
     assert.ok(box.min.z > -0.75 && box.max.z < 0.75, 'props remain on the shelf');
   }
   const padBody = model.pad2.children[1].children[0];

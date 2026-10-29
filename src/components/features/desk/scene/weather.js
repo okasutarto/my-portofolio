@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { canvasTexture, drawWeatherCard, weatherKind } from "../textures";
+import { canvasTexture, drawWindowWeather, weatherKind } from "../textures";
 
 export function createWeather(runtime) {
   // ---------- a live forecast beside the window, in its close-up ----------
@@ -34,19 +34,24 @@ export function createWeather(runtime) {
   let weatherNow = null;
   let weatherFetchedAt = 0;
   let weatherLoading = false;
-  const WEATHER_CARD = { w: 2.8, h: 2.8 * (840 / 720) };
-  const weatherTex = canvasTexture(720, 840);
+  // The window's glass doubles as a screen: the forecast lights up the whole top-left pane (as
+  // you face it), frame to glazing bars, in the window's own units, its glare running over it.
+  const PANE = { x0: -2.0, x1: -0.075, y0: 0.075, y1: 2.05 };
+  const PANE_W = PANE.x1 - PANE.x0;
+  const PANE_H = PANE.y1 - PANE.y0;
+  const WEATHER_W = 770;
+  const WEATHER_H = Math.round(WEATHER_W * PANE_H / PANE_W);
+  const weatherTex = canvasTexture(WEATHER_W, WEATHER_H);
   runtime.core.track(weatherTex.texture);
-  const weatherCard = new THREE.Sprite(runtime.core.track(new THREE.SpriteMaterial({ map: weatherTex.texture, depthTest: false, transparent: true })));
-  weatherCard.renderOrder = 12;
+  const weatherMat = runtime.core.track(new THREE.MeshBasicMaterial({ map: weatherTex.texture, transparent: true, opacity: 0, depthWrite: false }));
+  const weatherCard = new THREE.Mesh(runtime.core.track(new THREE.PlaneGeometry(PANE_W, PANE_H)), weatherMat);
   weatherCard.raycast = runtime.core.noRaycast;
-  weatherCard.scale.set(0.001, 0.001, 1);
-  // On the wall to the window's left as you face it, close by it and a little high, clear of
-  // the guitar below
-  weatherCard.position.set(runtime.room.SIDE_X + 0.6, runtime.room.WINDOW_AT.y + 0.4, runtime.room.WINDOW_AT.z + runtime.room.WINDOW_AT.w / 2 + 0.2 + WEATHER_CARD.w / 2);
-  runtime.core.scene.add(weatherCard);
+  weatherCard.visible = false;
+  // Just over the view outside (z 0.105) and under the glare (z 0.115)
+  weatherCard.position.set((PANE.x0 + PANE.x1) / 2, (PANE.y0 + PANE.y1) / 2, 0.11);
+  runtime.room.windowGroup.add(weatherCard);
   const redrawWeather = () => {
-    drawWeatherCard(weatherTex.ctx, 720, 840, { place: place?.name ?? "", weather: weatherNow });
+    drawWindowWeather(weatherTex.ctx, WEATHER_W, WEATHER_H, { place: place?.name ?? "", weather: weatherNow });
     weatherTex.texture.needsUpdate = true;
   };
   async function loadWeather() {
@@ -87,10 +92,12 @@ export function createWeather(runtime) {
   }
   function showWeather() {
     redrawWeather();
-    gsap.fromTo(weatherCard.scale, { x: WEATHER_CARD.w * 0.85, y: WEATHER_CARD.h * 0.85 }, { x: WEATHER_CARD.w, y: WEATHER_CARD.h, duration: 0.35, ease: "back.out(2)", overwrite: true });
+    // the pane switches on like a screen: a quick fade up from clear glass
+    weatherCard.visible = true;
+    gsap.to(weatherMat, { opacity: 1, duration: 0.6, ease: "power2.out", overwrite: true });
     loadWeather();
   }
-  const hideWeather = () => gsap.to(weatherCard.scale, { x: 0.001, y: 0.001, duration: 0.15, ease: "power2.in", overwrite: true });
+  const hideWeather = () => gsap.to(weatherMat, { opacity: 0, duration: 0.25, ease: "power2.in", overwrite: true, onComplete: () => (weatherCard.visible = false) });
   runtime.core.register(runtime.room.windowGroup, {
     focus: "window",
     onHover: (on) => {

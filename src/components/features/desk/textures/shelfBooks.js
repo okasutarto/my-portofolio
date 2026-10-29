@@ -200,6 +200,38 @@ export function drawNarutoCover(c, w, h, { vol = 1, color = "#f68026" } = {}) {
   c.textAlign = "left";
 }
 
+// Other comic series beside it: the series' own paper and colour, a volume badge, the title
+// running down the spine, a simple emblem and the publisher's strip at the foot.
+export function drawComicSpine(c, w, h, { vol, title, color, paper = "#fffdf5", ink = "#182434", mark = "circle", label = "JUMP" }) {
+  c.fillStyle = paper; c.fillRect(0, 0, w, h);
+  const block = w * 1.05;
+  c.fillStyle = color; c.fillRect(0, 0, w, block);
+  c.fillStyle = ink; c.fillRect(0, block, w, Math.max(2, w * 0.045));
+  c.textAlign = "center"; c.textBaseline = "middle";
+  c.fillStyle = paper === ink ? "#fffdf5" : ink;
+  c.font = `900 ${Math.round(w * 0.48)}px 'Lexend Mega', sans-serif`;
+  c.fillText(String(vol).padStart(2, "0"), w / 2, block / 2);
+  c.save(); c.translate(w / 2, h * 0.48); c.rotate(Math.PI / 2);
+  let size = w * 0.56;
+  do { c.font = `italic 900 ${Math.round(size)}px 'Space Grotesk', sans-serif`; size--; } while (c.measureText(title).width > h * 0.5 && size > 8);
+  c.fillStyle = paper === ink ? "#fffdf5" : ink; c.fillText(title, 0, 0); c.restore();
+  // the series' emblem, in its colour
+  const ex = w / 2, ey = h * 0.83, r = w * 0.3;
+  c.fillStyle = color; c.strokeStyle = ink; c.lineWidth = Math.max(2, w * 0.05);
+  c.beginPath();
+  if (mark === "star") {
+    for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + (k * Math.PI) / 5; const rr = k % 2 ? r * 0.45 : r; c.lineTo(ex + Math.cos(a) * rr, ey + Math.sin(a) * rr); }
+    c.closePath();
+  } else if (mark === "diamond") {
+    c.moveTo(ex, ey - r); c.lineTo(ex + r * 0.8, ey); c.lineTo(ex, ey + r); c.lineTo(ex - r * 0.8, ey); c.closePath();
+  } else c.arc(ex, ey, r, 0, Math.PI * 2);
+  c.fill(); c.stroke();
+  c.fillStyle = ink; c.fillRect(0, h * 0.93, w, h * 0.07);
+  c.fillStyle = "#fff4d6"; c.font = `800 ${Math.round(w * 0.17)}px 'Space Grotesk', sans-serif`; c.fillText(label, w / 2, h * 0.965);
+  c.strokeStyle = ink; c.lineWidth = Math.max(2, w * 0.04); c.strokeRect(0, 0, w, h);
+  c.textAlign = "left";
+}
+
 // Consistent cream, orange and navy spines with a volume badge and a headband cameo.
 export function drawMangaSpine(c, w, h, { vol, color, title = "NARUTO" }) {
   const ink = "#182434";

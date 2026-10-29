@@ -6,22 +6,23 @@ import { PALETTES } from "../sceneConfig";
 
 export function createRoom(runtime) {
   // ---------- the desk ----------
-  const FLOOR_Y = -5.2;
-  // The back wall stands right behind the desk, a cable's width from its back edge. What hangs
-  // on it is lifted by as much as the move brings it down on screen, so the overview keeps its
-  // composition.
-  const WALL_Z = -4.58; // the middle of the wall slab; its face is at WALL_Z + 0.12
-  const WALL_LIFT = 1.2;
+  // 1 scene unit = 10 cm: a 180 × 84 cm top, 74 cm above the floor.
+  const FLOOR_Y = -7.4;
+  // The back wall stands flush against the desk: its face meets the monitor riser's back edge
+  // (z -4.3), a centimetre behind the top's. What hangs on it is lifted by as much as the move
+  // brings it down on screen, so the overview keeps its composition.
+  const WALL_Z = -4.43; // the middle of the wall slab; its face is at WALL_Z + 0.12
+  const WALL_LIFT = 2.8;
   // The left wall stands just as close to the desk's left end
-  const SIDE_X = -7.38; // the middle of the side wall slab; its face is at SIDE_X + 0.12
+  const SIDE_X = -9.6; // the middle of the side wall slab; its face is at SIDE_X + 0.12
   // A wood-grain top; the material's colour tints it for the night shift
   const deskMat = runtime.core.toon(PALETTES.light.desk);
-  const deskWood = canvasTexture(1400, 840);
+  const deskWood = canvasTexture(1800, 840);
   runtime.core.track(deskWood.texture);
-  drawWoodTop(deskWood.ctx, 1400, 840, DEFAULT_WOODS.desk);
+  drawWoodTop(deskWood.ctx, 1800, 840, DEFAULT_WOODS.desk);
   deskMat.map = deskWood.texture;
-  const desk = runtime.core.mesh(runtime.core.rbox(14, 0.7, 8.4, 0.14), deskMat, { outline: 0.06 });
-  desk.position.y = -0.35;
+  const desk = runtime.core.mesh(runtime.core.rbox(18, 0.35, 8.4, 0.1), deskMat, { outline: 0.06 });
+  desk.position.y = -0.175;
   runtime.core.scene.add(desk);
   // A sit-stand frame in matte black: two telescoping columns (three stages, widest at the
   // floor) on flat T-feet, a crossbar between them and a rail under the top at each end, with
@@ -33,17 +34,17 @@ export function createRoom(runtime) {
     runtime.core.scene.add(part);
     return part;
   };
-  [-5.5, 5.5].forEach((x) => {
+  [-7.3, 7.3].forEach((x) => {
     frameBar(0.62, 0.22, 7.6, x, FLOOR_Y + 0.13, 0.2, 0.05);
     [-3.35, 3.75].forEach((z) => frameBar(0.4, 0.08, 0.4, x, FLOOR_Y + 0.04, z, 0.03));
-    frameBar(0.78, 2.0, 0.62, x, FLOOR_Y + 1.24, 0.2, 0.05);
-    frameBar(0.7, 1.4, 0.54, x, -2.25, 0.2);
-    frameBar(0.62, 1.0, 0.46, x, -1.15, 0.2);
-    frameBar(0.72, 0.1, 7.2, x, -0.75, 0.2, 0.035);
+    frameBar(0.78, 2.8, 0.62, x, FLOOR_Y + 1.64, 0.2, 0.05);
+    frameBar(0.7, 2.5, 0.54, x, -3.35, 0.2);
+    frameBar(0.62, 2.0, 0.46, x, -1.4, 0.2);
+    frameBar(0.72, 0.1, 7.2, x, -0.4, 0.2, 0.035);
   });
-  frameBar(10.4, 0.32, 0.4, 0, -0.86, 0.2);
+  frameBar(14.0, 0.32, 0.4, 0, -0.61, 0.2);
   const keypad = runtime.core.mesh(runtime.core.rbox(1.25, 0.46, 0.2, 0.06), legMat, { outline: 0.03 });
-  keypad.position.set(4.3, -0.9, 3.98);
+  keypad.position.set(6.3, -0.55, 3.98);
   keypad.rotation.x = -0.35;
   const keypadFace = runtime.core.printed(1.15, 0.4, 300, (c, w, h) => {
     c.fillStyle = "#121212";
@@ -51,7 +52,7 @@ export function createRoom(runtime) {
     c.fillStyle = "#8fd694";
     c.font = "700 30px 'Space Grotesk', sans-serif";
     c.textBaseline = "middle";
-    c.fillText("112", 22, h / 2);
+    c.fillText("74", 22, h / 2);
     ["^", "1", "3", "M", "v", "2", "4", "◐"].forEach((label, i) => {
       const bx = w * 0.33 + (i % 4) * w * 0.165;
       const by = h * (i < 4 ? 0.3 : 0.72);
@@ -112,13 +113,17 @@ export function createRoom(runtime) {
   };
   const fullRoom = [
     roomBox(200, 0.25, 200, floorMat, 0, FLOOR_Y - 0.17, 1.2),
-    roomBox(200, 100, 0.24, backWallMat, 0, FLOOR_Y + 50, WALL_Z),
+    // (no outline: it's only ever seen edge-on, from the window's close-up, as a black line
+    // down the corner)
+    roomBox(200, 100, 0.24, backWallMat, 0, FLOOR_Y + 50, WALL_Z, 0),
   ];
   // The wall materials already receive the real light's shadows. A separate ShadowMaterial
   // mask would darken them even outside the window cookie or an indoor light's actual reach.
   // The side wall, with a real opening cut for the window (see the window below). Built as
   // its outline extruded through the wall's thickness, the opening as a hole in it.
-  const WINDOW_AT = { y: 4.7, z: -1.1, w: 4.4, h: 4.5 };
+  // World dimensions: an 88 × 90 cm window, its apron just clear above the project folders'
+  // tabs on the desk.
+  const WINDOW_AT = { y: 8.35, z: 1.45, w: 8.8, h: 9.0 }; // its back edge 14 cm off the back wall
   const wallShape = new THREE.Shape();
   // Shape x runs along -z once stood up; y is height
   wallShape.moveTo(-101.2, FLOOR_Y);
@@ -150,7 +155,7 @@ export function createRoom(runtime) {
   // On a portrait screen the room is a diorama instead: the same two walls and floor cut off
   // just past the furniture, standing on a thick slab, the whole of it framed on the page's
   // own background (see SHOTS.overview), with a pinch to look closer
-  const DIORAMA = { x0: SIDE_X - 0.12, x1: 15.6, z0: WALL_Z - 0.12, z1: 11, top: FLOOR_Y + 15.5, slab: 0.9 };
+  const DIORAMA = { x0: SIDE_X - 0.12, x1: 24.5, z0: WALL_Z - 0.12, z1: 15.0, top: 23.0, slab: 0.9 };
   const slabMat = runtime.core.toon("#3a332c");
   // A box whose faces tile their texture as the endless room's do (one unit is one unit)
   const dioramaBox = (w, h, d, material, x, y, z, uvScale, outline = 0.055) => {
@@ -325,9 +330,9 @@ export function createRoom(runtime) {
     return light;
   };
   const deskNeons = ["#00e0c6", "#ff90e8"].map((color, i) => {
-    const x = i === 0 ? -3.5 : 3.5;
+    const x = i === 0 ? -4.5 : 4.5;
     const strip = new THREE.Mesh(
-      runtime.core.track(new THREE.BoxGeometry(7, 0.045, 0.06)),
+      runtime.core.track(new THREE.BoxGeometry(9, 0.045, 0.06)),
       runtime.core.track(new THREE.MeshBasicMaterial({ color })),
     );
     // tucked just under the top's back edge, so only its light shows, never the strip itself
@@ -338,7 +343,7 @@ export function createRoom(runtime) {
     // Four broad samples retain the strip coverage and leave texture units for the
     // monitor task light and textured/bump-mapped materials on 16-sampler GPUs.
     const lights = Array.from({ length: 2 }, (_, sample) => {
-      const sx = x - 3.5 + (sample + 0.5) * 3.5;
+      const sx = x - 4.5 + (sample + 0.5) * 4.5;
       return stripLight(color, () => 1.5 * washMat.opacity / DESK_WASH,
         [sx, strip.position.y, strip.position.z], [sx, 2.5, WALL_Z + 0.12]);
     });
@@ -348,11 +353,12 @@ export function createRoom(runtime) {
 
   // A framed illustration on the left wall: four panes, a sun/moon and angular trees.
   const windowGroup = new THREE.Group();
+  windowGroup.scale.setScalar(2);
   // Seated in the wall's opening, the frame's face all but flush with the wall's, so the wall
   // runs straight up to the wood: the group's origin is the frame's plane, WINDOW_DEPTH behind
   // the wall's face
   const WINDOW_DEPTH = 0.1;
-  windowGroup.position.set(SIDE_X + 0.12 - WINDOW_DEPTH, WINDOW_AT.y, WINDOW_AT.z);
+  windowGroup.position.set(SIDE_X + 0.12 - WINDOW_DEPTH * 2, WINDOW_AT.y, WINDOW_AT.z);
   windowGroup.rotation.y = Math.PI / 2;
   room.add(windowGroup);
   // One wooden frame, matching glazing bars and sill, with a brass catch and faint glare.

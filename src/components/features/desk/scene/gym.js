@@ -9,7 +9,8 @@ export function createGym(runtime) {
   // over them. Ten in a row is a new PR, with confetti.
   const gym = new THREE.Group();
   // Between the desk's leg and the shelf, clear of both, resting on top of the rug
-  gym.position.set(7.0, runtime.room.FLOOR_Y + 0.08, -2.55);
+  gym.position.set(9.7, runtime.room.FLOOR_Y + 0.08, -0.2);
+  gym.scale.setScalar(2);
   gym.rotation.y = -0.15;
   runtime.core.scene.add(gym);
   const HEAD_R = 0.27;
@@ -87,7 +88,7 @@ export function createGym(runtime) {
     });
     db.rotation.set(0, turn, Math.PI / 2, "YXZ");
     // Support the outer band, with a little clearance for its screen-space outline.
-    db.position.set(x, HEAD_BAND_R + 0.025, z);
+    db.position.set(x, HEAD_BAND_R + 0.0125, z);
     db.userData.restY = db.position.y;
     gym.add(db);
     return db;
@@ -112,7 +113,7 @@ export function createGym(runtime) {
   });
   function burst(x, y, z, celebration = false) {
     // Trophy confetti falls in front of the shelf, clear of its boards and side panels.
-    const frontZ = celebration ? runtime.shelf.shelf.position.z + runtime.shelf.SHELF_D / 2 + 0.25 : z;
+    const frontZ = celebration ? runtime.shelf.shelf.position.z + runtime.shelf.SHELF_D * runtime.shelf.shelf.scale.z / 2 + 0.25 : z;
     confetti.slice(0, celebration ? 72 : 22).forEach((bit, i) => {
       const delay = celebration ? i * 0.008 : 0;
       const duration = celebration ? 3.2 : 1.3;

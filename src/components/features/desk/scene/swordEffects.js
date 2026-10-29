@@ -704,18 +704,19 @@ export function createSwordEffects(runtime) {
   // the strike sweeps through (high above it for the wind-up, low under it for the finish: so
   // taller than it is wide), drawn after the room but before the cards, plates and the cut's
   // effects, which stay bright.
-  const SPOT_REACH = { x: 3.0, y: 4.0 };
+  // In world units, sized to the full-size swords (about 90 cm, 9 units, across)
+  const SPOT_REACH = { x: 6.0, y: 8.0 };
   // The sword key's own strength at midday, and how much of the room's lost fill (morning,
   // evening, night, rain) it makes up on top
   const SWORD_KEY = 0.3;
   const SWORD_FILL_MAKEUP = 1;
   // A dedicated key keeps the swords lit through every room phase; the overlay only
   // darkens their surroundings. Fade with focus, independently of the room lights.
-  const swordSpotlight = new THREE.SpotLight("#fff4e8", 0, 18, Math.PI / 4, 0.65, 0);
+  const swordSpotlight = new THREE.SpotLight("#fff4e8", 0, 32, Math.PI / 4, 0.65, 0);
   swordSpotlight.castShadow = true;
   swordSpotlight.shadow.mapSize.set(1024, 1024);
   swordSpotlight.shadow.camera.near = 0.5;
-  swordSpotlight.shadow.camera.far = 18;
+  swordSpotlight.shadow.camera.far = 32;
   swordSpotlight.shadow.bias = -0.0002;
   swordSpotlight.shadow.normalBias = 0.015;
   swordSpotlight.shadow.radius = 2;
@@ -799,7 +800,7 @@ export function createSwordEffects(runtime) {
     swordSpotlight.shadow.needsUpdate = true;
     runtime.swordRack.katanaRack.getWorldPosition(spotAt);
     swordSpotlight.target.position.copy(spotAt);
-    swordSpotlight.position.copy(spotAt).add(screenAxis.set(0, 3, 6));
+    swordSpotlight.position.copy(spotAt).add(screenAxis.set(0, 6, 12));
     spotEdge.copy(spotAt).project(runtime.core.camera);
     spotUniforms.center.value.set(spotEdge.x, spotEdge.y);
     const cx = spotEdge.x;

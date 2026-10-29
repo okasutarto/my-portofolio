@@ -1,29 +1,53 @@
 import * as THREE from "three";
 import gsap from "gsap";
 import { sfx } from "@/composables/useSfx";
-import { canvasTexture, drawMangaSpine, drawNarutoCover, drawInvaders, drawBrushedMetal, drawTrophyMetal, drawTrophyStone, drawSatinFinish } from "../textures";
+import { canvasTexture, drawMangaSpine, drawComicSpine, drawNarutoCover, drawInvaders, drawBrushedMetal, drawTrophyMetal, drawTrophyStone, drawSatinFinish } from "../textures";
 
 export function createShelfCollectibles(runtime) {
   // Level 3: a pile of manga volumes lying down, a trophy, and a handheld console. Manga are
   // smaller than the hardbacks, with white covers and the series' colour on each spine, the
   // pile a little untidy.
-  const MANGA = [[1, "#f68026"], [2, "#ffc342"], [3, "#ed6d37"], [4, "#ffb15c"], [5, "#e99a32"]];
+  const MANGA = [[1, "#f68026"], [2, "#ffc342"], [3, "#ed6d37"], [4, "#ffb15c"], [5, "#e99a32"],
+    [6, "#f68026"], [7, "#ffc342"], [8, "#ed6d37"], [9, "#ffb15c"], [10, "#e99a32"]];
+  const PILE_X = -1.03;
   const stackTop = MANGA.reduce((y, [vol, color], i) => {
-    const thick = 0.15;
-    const lying = runtime.shelfBooks.bookMesh(thick, 1.02, "#fffdf5", i, 0.72, (c, cw, ch) => drawMangaSpine(c, cw, ch, { vol, color }));
-    const coverArt = runtime.core.printed(0.7, 1.0, 750, (c, cw, ch) => drawNarutoCover(c, cw, ch, { vol, color }));
+    const thick = 0.08;
+    const lying = runtime.shelfBooks.bookMesh(thick, 0.95, "#fffdf5", i, 0.635, (c, cw, ch) => drawMangaSpine(c, cw, ch, { vol, color }));
+    const coverArt = runtime.core.printed(0.615, 0.93, 750, (c, cw, ch) => drawNarutoCover(c, cw, ch, { vol, color }));
     coverArt.rotation.y = Math.PI / 2;
     coverArt.position.x = thick / 2 + 0.003;
     lying.add(coverArt);
     lying.rotation.z = Math.PI / 2;
-    const item = runtime.shelf.addItem(runtime.core.at(runtime.shelf.group(lying), -1.05 + (i % 2 ? 0.05 : -0.04), y + thick / 2, 0.25), "book");
+    const item = runtime.shelf.addItem(runtime.core.at(runtime.shelf.group(lying), PILE_X + (i % 2 ? 0.03 : -0.025), y + thick / 2, 0.25), "book");
     item.rotation.y = (i % 3 - 1) * 0.07;
     return y + thick;
   }, runtime.shelf.standOn(3));
+  // Other series stand upright either side of the pile, a few volumes each, so the bay reads
+  // full: a short run against the left panel, a longer one between the pile and the trophy.
+  // All on light stock, like the pile, so none reads as a dark gap.
+  const COMICS = [
+    ["DRAGON BALL", "#ff8a1f", "#fffdf5", "star"], ["DRAGON BALL", "#ff8a1f", "#fffdf5", "star"], ["DRAGON BALL", "#ff8a1f", "#fffdf5", "star"],
+    ["HAIKYU!!", "#38bdf8", "#fffdf5", "circle"], ["HAIKYU!!", "#38bdf8", "#fffdf5", "circle"],
+    ["JUJUTSU KAISEN", "#7c3aed", "#f5f3ff", "circle"],
+    ["SPY×FAMILY", "#ff90e8", "#fffdf5", "star"], ["CHAINSAW MAN", "#e11d48", "#fff1a6", "diamond"],
+  ];
+  const COMIC = { thick: 0.08, h: 0.95, depth: 0.635 };
+  const comicAt = (k, x) => {
+    const [title, color, paper, mark] = COMICS[k];
+    const vol = COMICS.slice(0, k).filter(([t]) => t === title).length + 1;
+    const book = runtime.shelfBooks.bookMesh(COMIC.thick, COMIC.h, "#fffdf5", k, COMIC.depth, (c, cw, ch) => drawComicSpine(c, cw, ch, { vol, title, color, paper, mark }));
+    // not quite squared up, as a real shelf is
+    const item = runtime.shelf.addItem(runtime.core.at(book, x, runtime.shelf.standOn(3) + COMIC.h / 2, 0.22, (k % 3 - 1) * 0.012), "book");
+    item.rotation.y = (k % 2 ? 1 : -1) * 0.02;
+  };
+  // (the left panel's inner face is at x -1.88; the pile spans PILE_X ± half its length)
+  [0, 1, 2].forEach((k, i) => comicAt(k, -1.82 + i * (COMIC.thick + 0.01)));
+  [3, 4, 5, 6, 7].forEach((k, i) => comicAt(k, -0.43 + i * (COMIC.thick + 0.01)));
+
   // A 3×3 puzzle cube on top of the pile: 27 little cubies, each with its stickers on the
   // outside faces, so a layer can really turn. It sits a few twists away from solved; click
   // it and it gets played with: a quick run of layer turns as it spins round.
-  const CUBE = 0.36;
+  const CUBE = 0.28;
   const CUBIE = CUBE / 3;
   const stickerMats = { px: "#e5484d", nx: "#ff8a1f", py: "#fffdf5", ny: "#ffd400", pz: "#22a35a", nz: "#2f7cf6" };
   Object.keys(stickerMats).forEach((k) => (stickerMats[k] = runtime.core.toon(stickerMats[k])));
@@ -205,7 +229,7 @@ export function createShelfCollectibles(runtime) {
   trophyStar.material.alphaTest = 0.1;
   trophyStar.position.set(0, 0.9, 0.356);
   trophy.add(trophyStar);
-  runtime.shelf.addItem(runtime.core.at(trophy, 0.45, runtime.shelf.standOn(3), 0.15), "trophy");
+  runtime.shelf.addItem(runtime.core.at(trophy, 0.65, runtime.shelf.standOn(3), 0.15), "trophy");
   const handheld = runtime.shelf.group(
     runtime.core.mesh(runtime.core.rbox(0.62, 0.95, 0.14, 0.08), runtime.core.toon("#8fd694"), { outline: 0.03 }),
     runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.5, 0.42, 0.02, 0.03), runtime.core.toon("#3a4a3a"), { outline: 0 }), 0, 0.2, 0.072),
@@ -221,7 +245,7 @@ export function createShelfCollectibles(runtime) {
   let handheldDrawnAt = 0;
   handheld.add(handheldScreen);
   for (let i = 0; i < 4; i++) handheld.add(runtime.core.at(runtime.core.mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.01, 6), runtime.shelfConsole.black, { outline: 0 }), 0.12 + i * 0.045, -0.36, 0.075, 0.6));
-  const handheldItem = runtime.shelf.addItem(runtime.core.at(handheld, 1.35, runtime.shelf.standOn(3) + 0.47, -0.2), "console");
+  const handheldItem = runtime.shelf.addItem(runtime.core.at(handheld, 1.55, runtime.shelf.standOn(3) + 0.47, -0.2), "console");
   handheldItem.rotation.x = -0.18;
 
   // Public state used by the other scene parts.

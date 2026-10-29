@@ -5,6 +5,7 @@ import { sfx } from "@/composables/useSfx";
 export function createMouse(runtime) {
   // ---------- mouse (decor) ----------
   const mouse = new THREE.Group();
+  mouse.scale.set(1.27, 1.4, 1.55);
   mouse.position.set(3.75, runtime.keyboard.MAT_TOP, 0.5);
   mouse.rotation.y = -0.12;
   runtime.core.scene.add(mouse);

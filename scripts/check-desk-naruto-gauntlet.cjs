@@ -69,9 +69,9 @@ assert.ok(!text.some((value) => value.includes('ONE PIECE')));
 for (const volume of ['01', '02', '03', '04', '05']) assert.ok(text.includes(volume));
 console.log('Gauntlet lift, leave, snap handoff and Naruto spine/cover rendering passed.');
 
-// The collection stays a five-volume stack, with no standing display book.
+// The Naruto run is a ten-volume pile, in order, with no standing display book.
 const mangaCode = source.slice(source.indexOf('  const MANGA ='), source.indexOf('  // A 3×3 puzzle cube'));
 assert.ok(!mangaCode.includes('mangaDisplay'));
 const volumes = vm.runInNewContext(mangaCode.slice(0, mangaCode.indexOf('  const stackTop')) + '; MANGA');
-assert.deepEqual(Array.from(volumes, (entry) => entry[0]), [1, 2, 3, 4, 5]);
-console.log('Five Naruto volumes remain stacked without a standing display.');
+assert.deepEqual(Array.from(volumes, (entry) => entry[0]), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+console.log('Ten Naruto volumes stack in order without a standing display.');

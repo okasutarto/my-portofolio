@@ -10,7 +10,7 @@ export function createWindowLighting(runtime) {
   // glazing bars and the blind's slats shadow it for real, and its map spans only the beam, so
   // slats a few centimetres apart still print as crisp stripes.
   const WINDOW_SUN_FAR = 30;
-  const windowLight = new THREE.SpotLight(0xffe5ad, 2.2, 0, 0.13, 0.12, 0);
+  const windowLight = new THREE.SpotLight(0xffe5ad, 2.2, 0, 0.25, 0.12, 0);
   windowLight.castShadow = true;
   windowLight.shadow.mapSize.setScalar(lowPower ? 1024 : 2048);
   windowLight.shadow.camera.near = WINDOW_SUN_FAR - 6;
@@ -19,7 +19,8 @@ export function createWindowLighting(runtime) {
   windowLight.shadow.normalBias = 0.02;
   windowLight.shadow.radius = 3;
   runtime.core.scene.add(windowLight, windowLight.target);
-  const windowGlass = new THREE.Vector3(runtime.room.SIDE_X + 0.12 - runtime.room.WINDOW_DEPTH + 0.06, runtime.room.WINDOW_AT.y, runtime.room.WINDOW_AT.z);
+  runtime.room.windowGroup.updateWorldMatrix(true, false);
+  const windowGlass = runtime.room.windowGroup.localToWorld(new THREE.Vector3(0, 0, 0.06));
   const windowRay = new THREE.Vector3();
   // The light's cookie: the glass, as the light sees it, white in black (edges a touch soft, as
   // the sun isn't a point), so it shines only through the window. Redrawn whenever it's aimed.

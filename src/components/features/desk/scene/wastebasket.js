@@ -9,9 +9,14 @@ export function createWastebasket(runtime) {
   // at it: a swish drops in (the net stretches, the bin squashes), a brick
   // clangs off the rim and rolls away across the floor. Three in a row and it's ON FIRE (a secret).
   const bin = new THREE.Group();
-  bin.position.set(13.35, runtime.room.FLOOR_Y, -3.6);
   bin.rotation.y = -0.2;
-  bin.scale.setScalar(1.2);
+  bin.scale.setScalar(2);
+  // Snug against the shelf's right side, level with its middle (the rim is 0.54 across)
+  bin.position.set(
+    runtime.shelf.shelf.position.x + runtime.shelf.SHELF_W * runtime.shelf.shelf.scale.x / 2 + 0.54 * bin.scale.x + 0.08,
+    runtime.room.FLOOR_Y,
+    runtime.shelf.shelf.position.z,
+  );
   runtime.core.scene.add(bin);
   const BIN_H = 1.4;
   const binBody = new THREE.Group();
@@ -46,7 +51,7 @@ export function createWastebasket(runtime) {
     const sheet = canvasTexture(512, 256);
     runtime.core.track(sheet.texture);
     drawCrumpledPaper(sheet.ctx, 512, 256, { lined, seed: i + 1 });
-    return runtime.core.track(new THREE.MeshToonMaterial({ map: sheet.texture, gradientMap: runtime.core.gradient, flatShading: true }));
+    return runtime.core.track(new THREE.MeshToonMaterial({ map: sheet.texture, gradientMap: runtime.core.gradient }));
   });
   // Every copy of a corner (the icosahedron's faces don't share vertices) must move the same
   // way or the ball cracks, so the dent comes from a hash of where the corner points
@@ -54,6 +59,8 @@ export function createWastebasket(runtime) {
     const v = Math.sin(Math.round(x * 997) * 12.9898 + Math.round(y * 997) * 78.233 + Math.round(z * 997) * 37.719 + seed) * 43758.5453;
     return v - Math.floor(v);
   };
+  // World-space radius: both the pile and thrown paper are approximately 6 cm across.
+  const PAPER_R = 0.3;
   let crumpled = 0;
   const crumple = (r) => {
     const geo = new THREE.IcosahedronGeometry(r, 2);
@@ -65,13 +72,17 @@ export function createWastebasket(runtime) {
       const k = 0.8 + dent(tmpV.x, tmpV.y, tmpV.z, seed) * 0.3;
       p.setXYZ(i, tmpV.x * r * k * squash.x, tmpV.y * r * k * squash.y, tmpV.z * r * k * squash.z);
     }
+    // Bound every crumpled shape by its collision radius, in any spin orientation.
+    let maxRadius = 0;
+    for (let i = 0; i < p.count; i++) maxRadius = Math.max(maxRadius, tmpV.fromBufferAttribute(p, i).length());
+    geo.scale(r / maxRadius, r / maxRadius, r / maxRadius);
     geo.computeVertexNormals();
     return runtime.core.mesh(geo, paperMats[crumpled++ % paperMats.length], { outline: 0.018 });
   };
   // What's already in it, peeking over the rim; a swish adds to the pile (up to full)
   const tmpV = new THREE.Vector3();
   const binPile = [[-0.15, 0.1], [0.18, -0.05], [0.02, 0.2], [-0.05, -0.2], [0.22, 0.18]].map(([x, z], i) => {
-    const ball = crumple(0.17);
+    const ball = crumple(PAPER_R / bin.scale.x);
     ball.position.set(x, BIN_H - 0.22 + (i % 2) * 0.06, z);
     ball.rotation.set(Math.random() * 3, Math.random() * 3, 0);
     ball.visible = i < 2;
@@ -130,7 +141,7 @@ export function createWastebasket(runtime) {
   binBadge.renderOrder = 10;
   binBadge.raycast = runtime.core.noRaycast;
   binBadge.scale.set(0.001, 0.001, 1);
-  binBadge.position.set(bin.position.x, runtime.room.FLOOR_Y + HOOP_Y * 1.2 + 1.1, bin.position.z);
+  binBadge.position.set(bin.position.x, runtime.room.FLOOR_Y + HOOP_Y * bin.scale.y + 1.1, bin.position.z);
   runtime.core.scene.add(binBadge);
   let binBadgeTimer = null;
   function binSay(text, fill) {
@@ -151,11 +162,10 @@ export function createWastebasket(runtime) {
   // bounces and rolls without a seam. Missed balls stay where they stop, a few of them strewn
   // round the bin; click one to pick it up and shoot it again from there.
   const GRAVITY = 16;
-  const PAPER_R = 0.15;
   const MAX_LITTER = 5;
   const PARKED = new THREE.Vector3(0, -100, 0); // hidden balls are parked out of the pointer's way
   const papers = Array.from({ length: MAX_LITTER + 3 }, () => {
-    const ball = crumple(0.16);
+    const ball = crumple(PAPER_R);
     ball.position.copy(PARKED);
     ball.visible = false;
     runtime.core.scene.add(ball);
@@ -164,6 +174,19 @@ export function createWastebasket(runtime) {
   const litter = () => papers.filter((p) => p.state === "litter");
   const tmpQ = new THREE.Quaternion();
   const binTop = () => bin.position.y + (BIN_H + 0.08) * bin.scale.y;
+  // How far from the bin's axis a ball's centre must stay at a height (its side tapers out)
+  const binReach = (y) => (0.4 + 0.15 * THREE.MathUtils.clamp((y - bin.position.y) / (BIN_H * bin.scale.y), 0, 1)) * bin.scale.x + PAPER_R;
+  const insideBin = (x, y, z) => y < binTop() + PAPER_R * 0.5 && Math.hypot(x - bin.position.x, z - bin.position.z) < binReach(y);
+  // Whether a throw's arc, up to its arrival at the hoop, stays out of the bin's body
+  function arcClearsBin(from, vel, at) {
+    for (let t = 0.02; t <= at; t += 0.02) {
+      const x = from.x + vel.x * t;
+      const y = from.y + vel.y * t - 0.5 * GRAVITY * t * t;
+      const z = from.z + vel.z * t;
+      if (insideBin(x, y, z)) return false;
+    }
+    return true;
+  }
   // Where a throw from the viewer starts: a little below the screen's bottom edge, under the
   // hoop, and a touch nearer the camera so nothing in the room clips it on the way up
   function throwOrigin(hoopAt) {
@@ -195,10 +218,12 @@ export function createWastebasket(runtime) {
     // solve for the launch velocity that gets there in `at` seconds under gravity
     const aim = paper.swish
       ? hoopAt.clone().add(tmpV.set(0, 0.04, 0))
-      : hoopAt.clone().add(tmpV.set(paper.side * 0.24, 0.06, 0).applyQuaternion(bin.quaternion));
+      : hoopAt.clone().add(tmpV.set(paper.side * 0.24 * bin.scale.x, 0.06, 0).applyQuaternion(bin.quaternion));
     paper.at = THREE.MathUtils.clamp(0.55 + ball.position.distanceTo(aim) * 0.06, 0.7, 1.05);
-    paper.vel.subVectors(aim, ball.position).divideScalar(paper.at);
-    paper.vel.y += 0.5 * GRAVITY * paper.at;
+    // A higher, longer arc until its path clears the bin's side: a throw from low down beside
+    // it (the shelf's bottom close-up, or litter at its foot) would otherwise go through the wall
+    const launch = (at) => paper.vel.subVectors(aim, ball.position).divideScalar(at).setY(paper.vel.y + 0.5 * GRAVITY * at);
+    for (launch(paper.at); paper.at < 2.2 && !arcClearsBin(ball.position, paper.vel, paper.at); launch(paper.at)) paper.at += 0.1;
     paper.spin.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(8 + Math.random() * 6);
     paper.t = 0;
     paper.state = "flying";
@@ -254,19 +279,19 @@ export function createWastebasket(runtime) {
   // (and there's no hoop to shoot at while it's gone)
   const binGone = () => bin.userData.rest && bin.scale.x < bin.userData.rest.scale.x * 0.99;
   const SHELF_BOX = {
-    x0: runtime.shelf.shelf.position.x - runtime.shelf.SHELF_W / 2, x1: runtime.shelf.shelf.position.x + runtime.shelf.SHELF_W / 2,
-    z0: runtime.shelf.shelf.position.z - runtime.shelf.SHELF_D / 2, z1: runtime.shelf.shelf.position.z + runtime.shelf.SHELF_D / 2, y1: runtime.shelf.shelf.position.y + runtime.shelf.SHELF_H,
+    x0: runtime.shelf.shelf.position.x - runtime.shelf.SHELF_W * runtime.shelf.shelf.scale.x / 2, x1: runtime.shelf.shelf.position.x + runtime.shelf.SHELF_W * runtime.shelf.shelf.scale.x / 2,
+    z0: runtime.shelf.shelf.position.z - runtime.shelf.SHELF_D * runtime.shelf.shelf.scale.z / 2, z1: runtime.shelf.shelf.position.z + runtime.shelf.SHELF_D * runtime.shelf.shelf.scale.z / 2, y1: runtime.shelf.shelf.position.y + runtime.shelf.SHELF_H * runtime.shelf.shelf.scale.y,
   };
   const BOUNCE = 0.42;
-  // The shelf's close-up (its shot's dir and depth) clips everything more than 1.6 in front of
+  // The shelf's close-up (its shot's dir and depth) clips everything more than 3.2 in front of
   // the shelf, and that cut is angled: it comes nearer the further right you go. A ball across
   // it is sliced open (a black disc, the inside of its outline) or gone, so the litter is
   // fenced in behind it, with a margin, and kept from rolling off the right of the screen.
   const CUT_N = new THREE.Vector3(0.24, 0.1, 1).normalize();
   const CUT_FLAT = new THREE.Vector3(CUT_N.x, 0, CUT_N.z).normalize();
   const CUT_AT = new THREE.Vector3(runtime.shelf.shelf.position.x + 0.35, 0, runtime.shelf.shelf.position.z);
-  const CUT_REACH = (1.6 - PAPER_R - 0.12) / Math.hypot(CUT_N.x, CUT_N.z);
-  const LITTER_RIGHT = bin.position.x + 1.1;
+  const CUT_REACH = (3.2 - PAPER_R - 0.12) / Math.hypot(CUT_N.x, CUT_N.z);
+  const LITTER_RIGHT = Math.min(bin.position.x + 0.55 * bin.scale.x + PAPER_R * 3 + 0.5, runtime.room.DIORAMA.x1 - PAPER_R - 0.2);
   function stepPaper(paper, dt) {
     const { ball, vel, spin } = paper;
     const p = ball.position;
@@ -303,8 +328,7 @@ export function createWastebasket(runtime) {
     }
     // Loose: the bin's side (a tapered cylinder), the shelf, the wall and the floor
     tmpV.set(p.x - bin.position.x, 0, p.z - bin.position.z);
-    const h = THREE.MathUtils.clamp((p.y - bin.position.y) / (BIN_H * bin.scale.y), 0, 1);
-    const binR = (0.4 + 0.15 * h) * bin.scale.x + PAPER_R;
+    const binR = binReach(p.y);
     const d = tmpV.length();
     if (p.y < binTop() + PAPER_R * 0.5 && d < binR && d > 1e-4) {
       tmpV.divideScalar(d);
@@ -318,9 +342,10 @@ export function createWastebasket(runtime) {
     }
     if (p.y < SHELF_BOX.y1 && p.x > SHELF_BOX.x0 - PAPER_R && p.x < SHELF_BOX.x1 + PAPER_R && p.z > SHELF_BOX.z0 - PAPER_R && p.z < SHELF_BOX.z1 + PAPER_R) {
       // Out through whichever face it's nearest
+      // (never into the bin standing against its right side)
       const pushes = [
         [SHELF_BOX.x1 + PAPER_R - p.x, "x", 1], [p.x - (SHELF_BOX.x0 - PAPER_R), "x", -1], [SHELF_BOX.z1 + PAPER_R - p.z, "z", 1],
-      ].sort((a, b) => a[0] - b[0]);
+      ].filter(([depth, axis, dir]) => !(axis === "x" && dir > 0 && insideBin(p.x + depth, p.y, p.z))).sort((a, b) => a[0] - b[0]);
       const [depth, axis, dir] = pushes[0];
       p[axis] += depth * dir;
       if (vel[axis] * dir < 0) vel[axis] *= -BOUNCE;

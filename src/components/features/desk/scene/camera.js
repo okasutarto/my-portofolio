@@ -13,17 +13,17 @@ export function createCamera(runtime) {
   const SHOTS = {
     // The camera sits inside the room, with no cutaway edges or outside backdrop; on a portrait
     // screen it stands back to take in the whole diorama instead.
-    overview: () => (runtime.room.diorama ? dioramaShot() : { target: [1.8, 3.0, 0.7], dir: [0.48, 0.72, 1] }),
+    overview: () => (runtime.room.diorama ? dioramaShot() : { target: [5.65, 7.15, 2.85], dir: [0.48, 0.72, 1], fit: [38.7, 22.7], depth: CAM_DISTANCE - 0.1 }),
     // Browse the tall collection in close-up, starting at the console and GAME ON sign.
     shelf: () => {
-      const fit = [runtime.options.container.clientWidth < 900 ? 5.4 : 6.8, 4.6];
+      const fit = [runtime.options.container.clientWidth < 900 ? 8.8 : 10.5, 7.2];
       const visibleH = Math.max(fit[1], fit[0] * runtime.options.container.clientHeight / runtime.options.container.clientWidth);
       const bottom = visibleH / 2 - (runtime.options.container.clientWidth < 600 ? 1.2 : 0.5);
-      const shelfTop = (runtime.room.FLOOR_Y + runtime.shelf.SHELF_H + runtime.swordRack.SHELF_TOP_EXTRA);
-      const top = Math.max(bottom, runtime.shelf.SHELF_H + 1.25, shelfTop - runtime.room.FLOOR_Y + 1.5 - visibleH / 2);
+      const shelfTop = (runtime.room.FLOOR_Y + (runtime.shelf.SHELF_H + runtime.swordRack.SHELF_TOP_EXTRA) * runtime.shelf.shelf.scale.y);
+      const top = Math.max(bottom, runtime.shelf.SHELF_H * runtime.shelf.shelf.scale.y + 1.25, shelfTop - runtime.room.FLOOR_Y + 1.5 - visibleH / 2);
       const y = bottom + (runtime.shelf.shelfLook - 1.7) / 7.3 * (top - bottom);
-      const xOffset = runtime.room.FLOOR_Y + y >= runtime.shelf.shelf.position.y + runtime.shelf.SHELF_H + 0.4 ? 0.1 : 0.35;
-      return { target: [runtime.shelf.shelf.position.x + xOffset, runtime.room.FLOOR_Y + y, runtime.shelf.shelf.position.z], dir: [0.24, 0.1, 1], fit, depth: 1.6 };
+      const xOffset = runtime.room.FLOOR_Y + y >= runtime.shelf.shelf.position.y + runtime.shelf.SHELF_H * runtime.shelf.shelf.scale.y + 0.4 ? 0.1 : 0.35;
+      return { target: [runtime.shelf.shelf.position.x + xOffset, runtime.room.FLOOR_Y + y, runtime.shelf.shelf.position.z], dir: [0.24, 0.1, 1], fit, depth: 3.2 };
     },
     // Clip only what's well in front of the wall (the monitor), not the board behind the badge
     hero: () => ({ target: [runtime.badge.badgePin.x, runtime.badge.badgePin.y - (runtime.badge.BADGE_PIN.y - runtime.badge.BADGE_CLIP.y) - 0.74, runtime.badge.BADGE_CLIP.z], dir: [0.06, 0.14, 1], fit: [1.5, 2.1], depth: 0.9 }),
@@ -78,25 +78,31 @@ export function createCamera(runtime) {
     // The sword rack, with room on its left for a sword's card and above it for a slash
     swords: () => {
       runtime.swordRack.katanaRack.getWorldPosition(screenPos);
-      return { target: [screenPos.x - 1.85, screenPos.y + 0.95, screenPos.z], dir: [0.12, 0.08, 1], fit: [9.2, 6], depth: 3.5 };
+      return { target: [screenPos.x - 1.85, screenPos.y + 0.95, screenPos.z], dir: [0.12, 0.08, 1], fit: [17, 11], depth: 7 };
     },
     // Close on the gauntlet for the snap, from a little to its right and above
     gauntlet: () => {
       // Framed for the glove hovering above its plinth
       runtime.gauntlet.gauntlet.localToWorld(screenPos.set(0, 1.25, 0));
-      return { target: screenPos.toArray(), dir: [0.3, 0.3, 1], fit: [3.5, 4.3], depth: 3.8 };
+      return { target: screenPos.toArray(), dir: [0.3, 0.3, 1], fit: [6.2, 7.5], depth: 7.6 };
     },
-    // Square on the window in the left wall. A shallow clip: the desk's left end sits close to it.
-    // The window, with its weather card on the wall to its left
-    window: () => ({ target: [runtime.room.windowGroup.position.x + 0.1, runtime.room.windowGroup.position.y + 0.15, runtime.room.windowGroup.position.z + 1.55], dir: [1, 0.08, 0.04], fit: [8.6, 6.2], depth: 1.4 }),
+    // Square on the window in the left wall, its weather display on the glass, roller to sill.
+    // The clip cuts away the lamp in front, but reaches far enough out that the roller blind and
+    // its chain (sliced, they'd show the black inside of their outlines), the wall's tilted face
+    // and the guitar on it all stay whole to the frame's corners.
+    window: () => ({ target: [runtime.room.windowGroup.position.x + 0.1, runtime.room.windowGroup.position.y + 0.2, runtime.room.windowGroup.position.z], dir: [1, 0.08, 0.04], fit: [11.4, 11.6], depth: 2.0 }),
     // Framed a little high, with room under the monitor's chin for the command chips and the
     // hint (they'd sit over the chin otherwise)
-    monitor: () => ({ target: [-0.2, runtime.workstation.SCREEN_Y - 0.38 + runtime.workstation.RISER_TOP, -2.66], dir: [0.1, 0.32, 1], fit: [5.2, 4.6] }),
+    monitor: () => {
+      runtime.workstation.monitor.localToWorld(screenPos.set(0, runtime.workstation.SCREEN_Y - 0.38, 0.09));
+      return { target: screenPos.toArray(), dir: [0.1, 0.32, 1], fit: [7.7, 6.8] };
+    },
     keyboard: () => ({ target: [0.2, 0.3 * runtime.keyboard.KEYBOARD_SCALE, 0.75], dir: [0.1, 1, 0.75], fit: [5.4 * runtime.keyboard.KEYBOARD_SCALE, 2.6 * runtime.keyboard.KEYBOARD_SCALE] }),
     // A higher angle pushes the plant above the frame and leaves room for the sip quote.
     mug: () => ({ target: [runtime.coffee.mug.position.x - 0.3, 0.95 + runtime.coffee.MUG_Y, runtime.coffee.mug.position.z - 0.45], dir: [-0.2, 1, 0.45], fit: [3.1, 4.1] }),
   };
-  const CAM_DISTANCE = 40;
+  // Keep the wider overview's orthographic rays inside the room at desktop widths.
+  const CAM_DISTANCE = 60;
   // The whole diorama, slab to wall tops, fitted between the page's title and its hint
   // Seen from above and to the right; a sideways swipe turns it between nearly face-on to
   // either wall (any further and a wall would stand between the camera and the room)
@@ -172,11 +178,11 @@ export function createCamera(runtime) {
 
   // Where the shelf's close-up looks (its scroll, 1.7–9) to centre a height in the world
   function shelfLookAt(worldY) {
-    const fit = [runtime.options.container.clientWidth < 900 ? 5.4 : 6.8, 4.6];
+    const fit = [runtime.options.container.clientWidth < 900 ? 8.8 : 10.5, 7.2];
     const visibleH = Math.max(fit[1], fit[0] * runtime.options.container.clientHeight / runtime.options.container.clientWidth);
     const bottom = visibleH / 2 - (runtime.options.container.clientWidth < 600 ? 1.2 : 0.5);
-    const shelfTop = (runtime.room.FLOOR_Y + runtime.shelf.SHELF_H + runtime.swordRack.SHELF_TOP_EXTRA);
-    const top = Math.max(bottom, runtime.shelf.SHELF_H + 1.25, shelfTop - runtime.room.FLOOR_Y + 1.5 - visibleH / 2);
+    const shelfTop = (runtime.room.FLOOR_Y + (runtime.shelf.SHELF_H + runtime.swordRack.SHELF_TOP_EXTRA) * runtime.shelf.shelf.scale.y);
+    const top = Math.max(bottom, runtime.shelf.SHELF_H * runtime.shelf.shelf.scale.y + 1.25, shelfTop - runtime.room.FLOOR_Y + 1.5 - visibleH / 2);
     const norm = top > bottom ? (worldY - runtime.room.FLOOR_Y - bottom) / (top - bottom) : 0;
     return THREE.MathUtils.clamp(1.7 + norm * 7.3, 1.7, 9);
   }
@@ -184,6 +190,9 @@ export function createCamera(runtime) {
   let arriveTimer = null;
   function setFocus(name, hit = null) {
     if (focus.name === name) return;
+    // Keys 1 and 2, and the desktop's About app, have nothing to fly to while the badge or
+    // the board is hidden
+    if ((name === "hero" && !runtime.badge.shown) || (name === "about" && !runtime.aboutBoard.shown)) return;
     runtime.pointer.setHover(null);
     runtime.textInput.stopTyping();
     runtime.core.byFocus.get(focus.name)?.onLeave?.();
@@ -196,7 +205,7 @@ export function createCamera(runtime) {
     if (name === "shelf") {
       if (hit?.point) {
         // A click on the top board frames its two display props, rather than the board edge.
-        const topBoardY = runtime.shelf.shelf.position.y + runtime.shelf.SHELF_H;
+        const topBoardY = runtime.shelf.shelf.position.y + runtime.shelf.SHELF_H * runtime.shelf.shelf.scale.y;
         const lookY = hit.point.y >= topBoardY - 0.2 ? topBoardY + 1.25 : hit.point.y;
         runtime.shelf.shelfLook = shelfLookAt(lookY);
       } else {

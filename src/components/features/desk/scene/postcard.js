@@ -15,9 +15,9 @@ export function createPostcard(runtime) {
   mail.position.set(MAIL_POS.x, MAIL_POS.y, MAIL_POS.z);
   mail.rotation.y = 0.18;
   runtime.core.scene.add(mail);
-  const ENV_W = 1.75;
-  const ENV_D = 1.15;
-  const CARD_W = 1.65;
+  const ENV_W = 1.62;
+  const ENV_D = 1.14;
+  const CARD_W = 1.48;
   const CARD_D = 1.05;
   const envelope = new THREE.Group();
   envelope.position.y = 0.04;

@@ -11,7 +11,9 @@ export function createShelf(runtime) {
   // on it for a little hop.
   const shelf = new THREE.Group();
   // Clear of the About board on the wall (it spans x 1.2–8.0)
-  shelf.position.set(10.5, runtime.room.FLOOR_Y, runtime.room.WALL_Z + 0.83);
+  // Full-size 84 × 30 × 168 cm shelving; its contents share the same scale.
+  shelf.scale.setScalar(2);
+  shelf.position.set(14.6, runtime.room.FLOOR_Y, runtime.room.WALL_Z + 1.65);
   runtime.core.scene.add(shelf);
   const SHELF_W = 4.2;
   const SHELF_D = 1.5;
@@ -35,7 +37,7 @@ export function createShelf(runtime) {
   const shelfBack = runtime.core.mesh(runtime.core.rbox(SHELF_W, SHELF_H, 0.12, 0.03), shelfBackMat, { outline: 0.04 });
   shelfBack.position.set(0, SHELF_H / 2, -SHELF_D / 2 + 0.06);
   shelf.add(shelfBack);
-  const LEVELS = [0.15, 2.25, 4.35, 6.4, SHELF_H - BOARD / 2];
+  const LEVELS = [0.15, 2.55, 4.55, 6.55, SHELF_H - BOARD / 2];
   const lipMat = runtime.core.toon("#e2b384");
   lipMat.map = shelfWood.texture;
   // Recessed diffusers sit flush under the rear of each shelf; all bays share one colour.

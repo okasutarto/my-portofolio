@@ -39,7 +39,7 @@ const trophyHalo = new THREE.Sprite();
 const trophyGold = new THREE.MeshToonMaterial();
 const celebration = vm.createContext({
   SECRETS: Array.from({ length: 20 }), trophyCelebrating: false, trophyCelebration: null, trophy, trophyHalo, trophyGold, shelfBubble,
-  camera, shelf: { position: { z: -3.75 } }, SHELF_D: 1.5,
+  camera, shelf: { position: { z: -3.25 }, scale: { z: 2 } }, SHELF_D: 1.5,
   shelfBubbleAt: new THREE.Vector3(), ledPartyUntil: 0, performance: { now: () => 0 }, THREE,
   burst: (x, y, z, festive) => { assert.equal(festive, true); burstOrigins.push(new THREE.Vector3(x, y, z)); bursts++; },
   shelfSay: (_, text) => { assert.ok(text.includes('20/20')); bubbles++; }, sfx: { sparkle() {}, cheer() {}, applause() {} },
@@ -61,7 +61,7 @@ const intendedOrigin = new THREE.Vector3(trophy.position.x, trophy.userData.rest
 const emitterOffset = burstOrigins[0].clone().sub(intendedOrigin);
 assert.ok(Math.abs(emitterOffset.dot(new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion))) < 1e-6, 'emitter stays over trophy centre in screen space');
 assert.ok(Math.abs(emitterOffset.dot(new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion))) < 1e-6, 'emitter keeps a 0.26-unit visual gap above the bowl');
-assert.ok(burstOrigins[0].z >= -3.75 + 1.5 / 2 + 0.25, 'centred emitter stays in front of shelf');
+assert.ok(burstOrigins[0].z >= -3.25 + 1.5 * 2 / 2 + 0.25, 'centred emitter stays in front of the full-size shelf');
 assert.equal(bubbles, 1);
 assert.equal(trophy.position.y, trophy.userData.restY);
 assert.equal(trophy.rotation.y, 0);
@@ -113,9 +113,11 @@ console.log('Cheer voice routing and bounded applause scheduling passed.');
 // Trophy confetti must never cross the shelf's front plane, including at emission.
 const confettiBits = Array.from({ length: 72 }, () => new THREE.Sprite());
 const shelf = new THREE.Group();
-shelf.position.z = -3.75;
+// The shelf stands at its full-size 2x scale, so its front plane is SHELF_D deep in world units.
+shelf.position.z = -3.25;
+shelf.scale.setScalar(2);
 const SHELF_D = 1.5;
-const safeZ = shelf.position.z + SHELF_D / 2 + 0.25;
+const safeZ = shelf.position.z + SHELF_D * shelf.scale.z / 2 + 0.25;
 const depthMoves = [];
 const burst = vm.runInNewContext(section('  function burst(', '  let reps =') + '; burst', {
   confetti: confettiBits, shelf, SHELF_D,

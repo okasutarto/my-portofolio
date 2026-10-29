@@ -1,7 +1,6 @@
-import { brutalBox } from "./base";
 import { mixHex } from "./windowView";
 
-// ---------- weather card (beside the window) ----------
+// ---------- weather shown on the window's glass ----------
 // WMO weather codes, as Open-Meteo reports them, to a label and an icon kind
 export function weatherKind(code) {
   if (code === 0) return ["Clear", "clear"];
@@ -180,225 +179,88 @@ function weatherIcon(c, x, y, s, kind, night = false) {
 // The card: where and when, the weather right now (icon, temperature, what it's doing,
 // humidity and wind), then the next few days. `weather` is null while it loads, or has
 // `error` when it couldn't be fetched. Card stock with a fine grain, taped to the wall.
-export function drawWeatherCard(c, w, h, { place, weather }) {
+// The forecast shown on the window's glass, as if the pane were a screen: the whole pane tints
+// dark like a switched-on display, the sky outside only just showing through, with light type
+// and icons on it. The canvas is the top-left pane's shape, edge to edge.
+export function drawWindowWeather(c, w, h, { place, weather }) {
   c.clearRect(0, 0, w, h);
-  const pad = w * 0.06;
-  const ink = "#1a1714";
-  const cardW = w - 30;
-  const cardH = h - 30;
-  brutalBox(c, 6, 6, cardW, cardH, "#fffdf5", { shadow: 16, line: 7 });
+  const pad = w * 0.07;
+  const glow = "#ffffff";
+  const dim = "rgba(225,235,255,.85)";
+  // the display's tint: deep blue glass, a touch lighter at the top, darker at the corners
+  const tint = c.createLinearGradient(0, 0, 0, h);
+  tint.addColorStop(0, "rgba(22,34,64,.86)");
+  tint.addColorStop(1, "rgba(8,14,30,.9)");
+  c.fillStyle = tint;
+  c.fillRect(0, 0, w, h);
+  const edge = c.createRadialGradient(w / 2, h / 2, w * 0.35, w / 2, h / 2, w * 0.8);
+  edge.addColorStop(0, "rgba(0,0,0,0)");
+  edge.addColorStop(1, "rgba(0,0,0,.35)");
+  c.fillStyle = edge;
+  c.fillRect(0, 0, w, h);
   c.save();
-  c.beginPath();
-  c.rect(10, 10, cardW - 8, cardH - 8);
-  c.clip();
-  // the stock: a faint grid and a scatter of fibres and flecks
-  c.fillStyle = "rgba(47,124,246,.06)";
-  for (let gx = 10; gx < cardW; gx += 36) c.fillRect(gx, 10, 2, cardH);
-  for (let gy = 10; gy < cardH; gy += 36) c.fillRect(10, gy, cardW, 2);
-  for (let i = 0; i < 700; i++) {
-    const fx = 10 + ((i * 0.6180339) % 1) * cardW;
-    const fy = 10 + ((i * 0.7548776 + 0.3) % 1) * cardH;
-    c.fillStyle = i % 3 ? "rgba(26,23,20,.07)" : "rgba(160,120,60,.09)";
-    c.fillRect(fx, fy, i % 5 ? 2 : 5, 2);
-  }
-  // header band: sky blue, a shaded lower edge, light diagonal stripes
-  const bandH = h * 0.11;
-  c.fillStyle = "#7fdfff";
-  c.fillRect(9, 9, cardW - 6, bandH);
-  c.fillStyle = "rgba(255,255,255,.28)";
-  for (let sx = -bandH; sx < cardW; sx += 34) {
-    c.beginPath();
-    c.moveTo(sx, 9 + bandH);
-    c.lineTo(sx + 12, 9 + bandH);
-    c.lineTo(sx + 12 + bandH, 9);
-    c.lineTo(sx + bandH, 9);
-    c.closePath();
-    c.fill();
-  }
-  c.fillStyle = "#4fc3ea";
-  c.fillRect(9, 9 + bandH - 9, cardW - 6, 9);
-  c.restore();
-  c.fillStyle = ink;
-  c.fillRect(9, 9 + bandH, cardW - 6, 6);
-  // a map pin, then the place
-  const pinX = pad + h * 0.018;
-  const pinY = 9 + bandH / 2;
-  const pr = h * 0.02;
-  c.beginPath();
-  c.arc(pinX, pinY - pr * 0.4, pr, Math.PI * 0.85, Math.PI * 0.15);
-  c.lineTo(pinX, pinY + pr * 1.5);
-  c.closePath();
-  c.fillStyle = "#ff6b6b";
-  c.fill();
-  c.lineWidth = 4;
-  c.strokeStyle = ink;
-  c.lineJoin = "round";
-  c.stroke();
-  c.beginPath();
-  c.arc(pinX, pinY - pr * 0.4, pr * 0.38, 0, Math.PI * 2);
-  c.fillStyle = "#fffdf5";
-  c.fill();
-  c.stroke();
+  c.shadowColor = "rgba(5,10,25,.55)";
+  c.shadowBlur = w * 0.012;
+  c.shadowOffsetY = w * 0.004;
   c.textBaseline = "middle";
-  c.fillStyle = ink;
-  const title = `WEATHER · ${place.toUpperCase()}`;
-  const titleX = pinX + pr * 1.8;
-  let size = Math.round(h * 0.045);
-  c.font = `900 ${size}px 'Lexend Mega', sans-serif`;
-  while (c.measureText(title).width > cardW - titleX - pad * 0.4 && size > 12) c.font = `900 ${--size}px 'Lexend Mega', sans-serif`;
-  c.fillText(title, titleX, pinY + 2);
-  const right = cardW - pad;
+  c.textAlign = "left";
+  const text = (str, x, y, size, weight = 700, color = glow, font = "'Space Grotesk', sans-serif") => {
+    c.font = `${weight} ${Math.round(size)}px ${font}`;
+    c.fillStyle = color;
+    c.fillText(str, x, y);
+  };
+  // the place, small and spaced, with a dot for the pin
+  c.beginPath();
+  c.arc(pad + h * 0.012, pad + h * 0.01, h * 0.012, 0, Math.PI * 2);
+  c.fillStyle = "#ff90e8";
+  c.fill();
+  let size = h * 0.04;
+  const title = place.toUpperCase();
+  c.font = `800 ${Math.round(size)}px 'Space Grotesk', sans-serif`;
+  while (c.measureText(title).width > w - pad * 3 && size > 12) c.font = `800 ${Math.round(--size)}px 'Space Grotesk', sans-serif`;
+  text(title, pad + h * 0.04, pad + h * 0.012, size, 800, dim);
   if (!weather || weather.error) {
-    c.font = `600 ${Math.round(h * 0.04)}px 'Space Grotesk', sans-serif`;
-    c.textAlign = "center";
-    c.fillText(weather?.error ? "Couldn't reach the forecast right now." : "Checking the sky…", cardW / 2, h * 0.45);
-    c.textAlign = "left";
-    tape(c, w);
+    text(weather?.error ? "Forecast unavailable" : "Checking the sky…", pad, h * 0.22, h * 0.05, 600);
+    c.restore();
     return;
   }
   const { current, days, updated } = weather;
   const [label, kind] = weatherKind(current.code);
-  const top = 9 + bandH + 6;
-  // now: the icon on a round badge tinted by the sky it shows
-  const badgeX = pad + w * 0.16;
-  const badgeY = top + h * 0.17;
-  const badgeR = w * 0.14;
-  const tint = !current.isDay ? "#c9c5ff" : kind === "clear" || kind === "partly" ? "#fff1b8" : kind === "storm" ? "#d9dcef" : "#d6ecff";
-  c.beginPath();
-  c.arc(badgeX + 7, badgeY + 7, badgeR, 0, Math.PI * 2);
-  c.fillStyle = ink;
-  c.fill();
-  c.beginPath();
-  c.arc(badgeX, badgeY, badgeR, 0, Math.PI * 2);
-  c.fillStyle = tint;
-  c.fill();
-  c.lineWidth = 5;
-  c.stroke();
-  weatherIcon(c, badgeX, badgeY, w * 0.3, kind, !current.isDay);
-  // the temperature in big type with a hard pink shadow
-  const temp = `${Math.round(current.temp)}°`;
-  c.font = `900 ${Math.round(h * 0.13)}px 'Lexend Mega', sans-serif`;
-  c.fillStyle = "#ff90e8";
-  c.fillText(temp, pad + w * 0.38 + 7, top + h * 0.13 + 7);
-  c.fillStyle = ink;
-  c.fillText(temp, pad + w * 0.38, top + h * 0.13);
-  c.font = `700 ${Math.round(h * 0.042)}px 'Space Grotesk', sans-serif`;
-  c.fillText(label, pad + w * 0.39, top + h * 0.235);
-  c.font = `500 ${Math.round(h * 0.032)}px 'Space Grotesk', sans-serif`;
-  c.fillStyle = "#4b4f57";
-  c.fillText(`Now · updated ${updated}`, pad + w * 0.39, top + h * 0.285);
-  // humidity and wind chips, each with a drawn icon
-  const chipY = top + h * 0.34;
-  const chipH = h * 0.06;
-  [["humidity", `${current.humidity}%`, "#c4e6ff"], ["wind", `${Math.round(current.wind)} km/h`, "#d9f7d6"]].forEach(([icon, text, fill], i) => {
-    c.font = `700 ${Math.round(h * 0.034)}px 'Space Grotesk', sans-serif`;
-    const iconW = chipH * 0.7;
-    const cw = c.measureText(text).width + iconW + pad * 1.2;
-    const cx = pad + i * (w * 0.4);
-    c.fillStyle = ink;
-    c.fillRect(cx + 5, chipY + 5, cw, chipH);
-    c.fillStyle = fill;
-    c.fillRect(cx, chipY, cw, chipH);
-    c.lineWidth = 4;
-    c.strokeStyle = ink;
-    c.strokeRect(cx, chipY, cw, chipH);
-    const ix = cx + pad * 0.45 + iconW / 2;
-    const iy = chipY + chipH / 2;
-    c.lineWidth = 3.5;
-    c.lineCap = "round";
-    if (icon === "humidity") {
-      const k = chipH * 0.22;
-      c.beginPath();
-      c.moveTo(ix, iy - k * 1.4);
-      c.quadraticCurveTo(ix + k * 1.1, iy + k * 0.2, ix, iy + k);
-      c.quadraticCurveTo(ix - k * 1.1, iy + k * 0.2, ix, iy - k * 1.4);
-      c.fillStyle = "#2f7cf6";
-      c.fill();
-      c.stroke();
-    } else {
-      const k = chipH * 0.24;
-      c.beginPath();
-      c.moveTo(ix - k * 1.3, iy - k * 0.6);
-      c.lineTo(ix + k * 0.6, iy - k * 0.6);
-      c.arc(ix + k * 0.6, iy - k * 1.05, k * 0.45, Math.PI / 2, -Math.PI * 0.9, true);
-      c.moveTo(ix - k * 1.3, iy + k * 0.35);
-      c.lineTo(ix + k * 1, iy + k * 0.35);
-      c.arc(ix + k * 1, iy + k * 0.85, k * 0.5, -Math.PI / 2, Math.PI * 0.9);
-      c.stroke();
-    }
-    c.fillStyle = ink;
-    c.fillText(text, cx + pad * 0.75 + iconW, chipY + h * 0.032);
-  });
-  // the next days, each on its own little card; today's picked out in yellow
-  const rowY = top + h * 0.45;
-  c.fillStyle = ink;
-  c.fillRect(pad, rowY, right - pad, 4);
-  const colW = (right - pad) / days.length;
-  const dayTop = rowY + h * 0.022;
-  const dayH = h * 0.29;
+  // now: the temperature large, its icon beside it
+  text(`${Math.round(current.temp)}°`, pad - w * 0.01, h * 0.25, h * 0.2, 900, glow, "'Lexend Mega', sans-serif");
+  c.restore();
+  weatherIcon(c, w * 0.78, h * 0.24, w * 0.3, kind, !current.isDay);
+  c.save();
+  c.shadowColor = "rgba(5,10,25,.55)";
+  c.shadowBlur = w * 0.012;
+  c.shadowOffsetY = w * 0.004;
+  c.textBaseline = "middle";
+  text(label, pad, h * 0.41, h * 0.055, 700);
+  text(`${current.humidity}% humidity · ${Math.round(current.wind)} km/h wind`, pad, h * 0.475, h * 0.036, 600, dim);
+  // a hairline, then the next days in columns
+  c.fillStyle = "rgba(255,255,255,.4)";
+  c.fillRect(pad, h * 0.54, w - pad * 2, Math.max(2, h * 0.003));
+  const colW = (w - pad * 2) / days.length;
   days.forEach((d, i) => {
-    const bx = pad + colW * i + 5;
-    const bw = colW - 16;
-    const cx = bx + bw / 2;
-    brutalBox(c, bx, dayTop, bw, dayH, i === 0 ? "#fff1a6" : "#eef8ff", { shadow: 6, line: 4 });
+    const cx = pad + colW * (i + 0.5);
     c.textAlign = "center";
-    c.fillStyle = ink;
-    c.font = `800 ${Math.round(h * 0.032)}px 'Space Grotesk', sans-serif`;
-    c.fillText(d.label, cx, dayTop + h * 0.03);
-    weatherIcon(c, cx, dayTop + h * 0.1, bw * 0.62, weatherKind(d.code)[1]);
-    c.fillStyle = ink;
-    c.font = `800 ${Math.round(h * 0.036)}px 'Space Grotesk', sans-serif`;
-    c.fillText(`${Math.round(d.max)}°`, cx - bw * 0.16, dayTop + h * 0.18);
-    c.fillStyle = "#6b7280";
-    c.font = `600 ${Math.round(h * 0.028)}px 'Space Grotesk', sans-serif`;
-    c.fillText(`${Math.round(d.min)}°`, cx + bw * 0.2, dayTop + h * 0.182);
-    // chance of rain as a little gauge
-    const rain = d.rain ?? 0;
-    const gx = bx + bw * 0.14;
-    const gw = bw * 0.72;
-    const gy = dayTop + h * 0.212;
-    const gh = h * 0.016;
-    c.fillStyle = "#fffdf5";
-    c.fillRect(gx, gy, gw, gh);
-    c.fillStyle = "#5fb3ff";
-    c.fillRect(gx, gy, (gw * rain) / 100, gh);
-    c.lineWidth = 3;
-    c.strokeStyle = ink;
-    c.strokeRect(gx, gy, gw, gh);
-    c.fillStyle = "#2f7cf6";
-    c.font = `700 ${Math.round(h * 0.026)}px 'Space Grotesk', sans-serif`;
-    c.fillText(`${rain}% rain`, cx, dayTop + h * 0.258);
-  });
-  c.textAlign = "left";
-  // attribution, as the forecast's licence asks
-  c.fillStyle = "#6b7280";
-  c.font = `500 ${Math.round(h * 0.024)}px 'Space Grotesk', sans-serif`;
-  c.textAlign = "right";
-  c.fillText("Weather data by Open-Meteo.com", right, h - 30 - pad * 0.6);
-  c.textAlign = "left";
-  tape(c, w);
-}
-// Two strips of yellow tape holding the card's top corners to the wall
-function tape(c, w) {
-  [[w * 0.1, 16, -0.45], [w * 0.86, 16, 0.4]].forEach(([x, y, a]) => {
-    c.save();
-    c.translate(x, y);
-    c.rotate(a);
-    const tw = 120;
-    const th = 34;
-    c.beginPath();
-    c.moveTo(-tw / 2, -th / 2);
-    for (let k = 0; k <= 4; k++) c.lineTo(-tw / 2 + (k % 2 ? 5 : 0), -th / 2 + (k * th) / 4);
-    for (let k = 0; k <= 4; k++) c.lineTo(tw / 2 - (k % 2 ? 5 : 0), th / 2 - (k * th) / 4);
-    c.closePath();
-    c.fillStyle = "rgba(255,221,0,.78)";
-    c.fill();
-    c.fillStyle = "rgba(255,255,255,.35)";
-    c.fillRect(-tw / 2 + 8, -th / 2 + 5, tw - 16, 5);
-    c.lineWidth = 2;
-    c.strokeStyle = "rgba(26,23,20,.35)";
-    c.stroke();
+    text(i === 0 ? "TODAY" : d.label.toUpperCase(), cx, h * 0.6, h * 0.032, 800, i === 0 ? "#ffe26b" : dim);
     c.restore();
+    weatherIcon(c, cx, h * 0.7, colW * 0.62, weatherKind(d.code)[1]);
+    c.save();
+    c.shadowColor = "rgba(5,10,25,.55)";
+    c.shadowBlur = w * 0.012;
+    c.shadowOffsetY = w * 0.004;
+    c.textBaseline = "middle";
+    c.textAlign = "center";
+    text(`${Math.round(d.max)}° ${Math.round(d.min)}°`, cx, h * 0.81, h * 0.036, 700);
+    text(`${d.rain ?? 0}% rain`, cx, h * 0.86, h * 0.028, 600, "#9fd3ff");
   });
+  // updated time and the attribution the forecast's licence asks for
+  c.textAlign = "left";
+  text(`Updated ${updated}`, pad, h - pad * 0.7, h * 0.024, 500, dim);
+  c.textAlign = "right";
+  text("Weather data by Open-Meteo.com", w - pad, h - pad * 0.7, h * 0.024, 500, dim);
+  c.restore();
 }
 

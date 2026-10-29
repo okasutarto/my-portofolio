@@ -9,8 +9,8 @@ export function createShelfConsole(runtime) {
   // between two white side panels, each a tall sweep that flares out at its top front and is
   // cut across the middle by three black fins; a blue light runs up the front edges of the
   // core, and the whole thing stands on a round silver foot.
-  const PS_H = 1.62;
-  const PS_D = 0.86;
+  const PS_H = 1.94;
+  const PS_D = 1.08;
   const CORE_T = 0.26;
   const PANEL_T = 0.055;
   const psWhite = runtime.core.toon("#ffffff");
@@ -88,6 +88,10 @@ export function createShelfConsole(runtime) {
   psLogo.rotation.y = -Math.PI / 2;
   psLogo.position.set(-(CORE_T / 2 + PANEL_T + 0.022), PS_H * 0.86, PS_D * 0.3);
   consoleBody.add(psLogo);
+  // Calibrate the finished shell (including bevels/fins) to 89 × 388 × 216 mm.
+  // The shelf's 2× scale makes one local unit 20 cm.
+  const consoleSize = new THREE.Box3().setFromObject(consoleBody, true).getSize(new THREE.Vector3());
+  consoleBody.scale.set(0.445 / consoleSize.x, 1.94 / consoleSize.y, 1.08 / consoleSize.z);
   consoleBody.position.y = 0.067;
   // Its round foot: a brushed silver disc with a dark rim
   const psFoot = runtime.shelf.group(
@@ -95,7 +99,7 @@ export function createShelfConsole(runtime) {
     runtime.core.at(runtime.core.mesh(new THREE.CylinderGeometry(0.235, 0.235, 0.02, 36), runtime.core.toon("#c9ced6"), { outline: 0 }), 0, 0.045, 0),
   );
   psFoot.scale.z = 1.6;
-  const ps5 = runtime.shelf.addItem(runtime.core.at(runtime.shelf.group(psFoot, consoleBody), -1.5, runtime.shelf.standOn(0), 0.05), "console");
+  const ps5 = runtime.shelf.addItem(runtime.core.at(runtime.shelf.group(psFoot, consoleBody), -1.2, runtime.shelf.standOn(0), 0.05), "console");
   // Turned three-quarters on to the room, so its white side shows as well as its front
   ps5.rotation.y = -0.5;
   const padFinish = canvasTexture(128, 128);
@@ -223,9 +227,11 @@ export function createShelfConsole(runtime) {
   };
   const padOnStand = (color, x, turn) => {
     const pad = controller(color);
+    // Size the complete controller before tilting it onto its display stand.
+    const padSize = new THREE.Box3().setFromObject(pad, true).getSize(new THREE.Vector3());
+    pad.scale.set(0.8 / padSize.x, 0.3 / padSize.y, 0.53 / padSize.z);
     pad.rotation.x = PAD_TILT;
     pad.position.set(0, 0.37, 0.04);
-    pad.scale.setScalar(0.9);
     const item = runtime.shelf.addItem(runtime.core.at(runtime.shelf.group(padStand(), pad), x, runtime.shelf.standOn(0), 0.12), "controller");
     item.rotation.y = turn;
     // Clicks move the pad on its stand; the stand stays put
@@ -233,8 +239,8 @@ export function createShelfConsole(runtime) {
     item.userData.moves = pad;
     return item;
   };
-  const pad1 = padOnStand("#1a1714", -0.35, 0.1);
-  const pad2 = padOnStand("#fffdf5", 0.9, -0.1);
+  const pad1 = padOnStand("#1a1714", -0.12, 0.1);
+  const pad2 = padOnStand("#fffdf5", 1.13, -0.1);
 
   // Public state used by the other scene parts.
   return {

@@ -8,12 +8,17 @@ export function createWallDecor(runtime) {
   const clock = new THREE.Group();
   // Lined up over the monitor as seen from the desk view
   // Low enough that its top stays in frame on wide, short screens
-  clock.position.set(-0.9, 4.95 + runtime.room.WALL_LIFT + 0.4, runtime.room.WALL_Z + 0.25); // midway between the painting and the board
+  clock.position.set(-0.9, 10.6, runtime.room.WALL_Z + 0.25); // midway between the painting and the board
   const clockMount = new THREE.Group();
   clockMount.position.copy(clock.position).add(new THREE.Vector3(0, 0.78, 0));
   clock.position.set(0, -0.78, 0);
   clockMount.add(clock);
-  runtime.room.room.add(clockMount);
+  // Hidden for now: the sword rack hangs in its place over the monitor. Kept out of the
+  // scene, not just invisible, so it can't be hovered or clicked.
+  const SHOW_CLOCK = false;
+  if (SHOW_CLOCK) runtime.room.room.add(clockMount);
+  const CLOCK_SCALE = 30 / 18;
+  clock.scale.setScalar(CLOCK_SCALE); // 30 cm diameter; centre 180 cm above the floor.
   const clockRim = runtime.core.mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.15, 48), runtime.core.toon("#7fb2ff"), { outline: 0.06 });
   clockRim.rotation.x = Math.PI / 2;
   // a rolled bezel round the glass
@@ -76,7 +81,7 @@ export function createWallDecor(runtime) {
         onComplete: () => {
           updateRoomClock();
           gsap.fromTo(clockMount.rotation, { z: 0.14 }, { z: 0, duration: 1.4, ease: "elastic.out(1, 0.2)", overwrite: true, onComplete: () => (clockBusy = false) });
-          gsap.fromTo(clock.scale, { x: 1.1, y: 1.1 }, { x: 1, y: 1, duration: 0.5, ease: "back.out(3)" });
+          gsap.fromTo(clock.scale, { x: CLOCK_SCALE * 1.1, y: CLOCK_SCALE * 1.1 }, { x: CLOCK_SCALE, y: CLOCK_SCALE, duration: 0.5, ease: "back.out(3)" });
           // It strikes the hour, as a wall clock does (a few strokes at most)
           sfx.clockStrike({ count: Math.min(3, new Date().getHours() % 12 || 12) });
         },
@@ -85,17 +90,22 @@ export function createWallDecor(runtime) {
       for (let i = 0; i < 12; i++) sfx.tick({ pitch: 1.1 + (i % 2) * 0.25, delay: i * 0.11 });
     },
   });
-  const rugTex = canvasTexture(1600, 1150);
+  // The rug runs from just in front of the back wall's skirting (its face is 0.31 out from the
+  // wall slab's middle) to well past the chair, its border whole on every side
+  const RUG = { x: 1.0, w: 20, back: runtime.room.WALL_Z + 0.33, front: 13 };
+  const rugD = RUG.front - RUG.back;
+  const rugZ = (RUG.front + RUG.back) / 2;
+  const rugTex = canvasTexture(2000, Math.round(2000 * rugD / RUG.w));
   runtime.core.track(rugTex.texture);
-  drawRug(rugTex.ctx, 1600, 1150);
-  const rugTop = new THREE.Mesh(runtime.core.track(new THREE.PlaneGeometry(16, 11.5)), runtime.core.toon("#ffffff"));
+  drawRug(rugTex.ctx, 2000, Math.round(2000 * rugD / RUG.w));
+  const rugTop = new THREE.Mesh(runtime.core.track(new THREE.PlaneGeometry(RUG.w, rugD)), runtime.core.toon("#ffffff"));
   rugTop.material.map = rugTex.texture;
   rugTop.rotation.x = -Math.PI / 2;
-  rugTop.position.set(0.9, runtime.room.FLOOR_Y + 0.07, 2.4);
+  rugTop.position.set(RUG.x, runtime.room.FLOOR_Y + 0.07, rugZ);
   rugTop.receiveShadow = true;
   rugTop.raycast = runtime.core.noRaycast;
-  const rugBase = runtime.core.mesh(runtime.core.rbox(16, 0.08, 11.5, 0.03), runtime.core.toon("#1a1714"), { outline: 0.03, cast: false });
-  rugBase.position.set(0.9, runtime.room.FLOOR_Y + 0.025, 2.4);
+  const rugBase = runtime.core.mesh(runtime.core.rbox(RUG.w, 0.08, rugD, 0.03), runtime.core.toon("#1a1714"), { outline: 0.03, cast: false });
+  rugBase.position.set(RUG.x, runtime.room.FLOOR_Y + 0.025, rugZ);
   rugBase.raycast = runtime.core.noRaycast;
   runtime.room.room.add(rugBase, rugTop);
 
@@ -106,7 +116,9 @@ export function createWallDecor(runtime) {
   // Hung clear of the lamp, but low enough that the frame and its nail stay in frame on wide,
   // short screens
   paintingHang.position.set(-4.9, 3.4 + runtime.room.WALL_LIFT + 0.9 + PAINTING_DROP, runtime.room.WALL_Z + 0.24);
-  runtime.room.room.add(paintingHang);
+  // Hidden for now, like the clock and the About board: the sword rack hangs over the monitor
+  const SHOW_PAINTING = false;
+  if (SHOW_PAINTING) runtime.room.room.add(paintingHang);
   const paintingTurn = new THREE.Group();
   paintingTurn.position.y = -PAINTING_DROP;
   paintingHang.add(paintingTurn);

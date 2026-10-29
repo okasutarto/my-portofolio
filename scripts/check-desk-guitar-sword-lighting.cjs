@@ -42,7 +42,10 @@ assert.equal(light.shadow.autoUpdate, false, 'inactive focus does not render a s
 assert.equal(light.shadow.needsUpdate, true, 'active focus refreshes shadows for sword animation');
 assert.equal(light.decay, 0, 'focus light has stable output over the sword sweep');
 assert.ok(light.target.position.equals(katanaRack.position));
-assert.ok(light.position.equals(katanaRack.position.clone().add(new THREE.Vector3(0, 3, 6))));
+assert.ok(light.position.equals(katanaRack.position.clone().add(new THREE.Vector3(0, 6, 12))));
+assert.ok(light.distance > light.position.distanceTo(katanaRack.position) + 9 / 2, 'the key reaches past both ends of the 90 cm swords');
+const reach = run('SPOT_REACH');
+assert.ok(reach.x >= 9 * 0.6 && reach.y > reach.x, 'the spotlight oval clears the full-size swords and the strike above and below them');
 const themeStart = source.indexOf('  // ---------- theme ----------');
 const themeEnd = source.indexOf('  // ---------- pointer', themeStart);
 assert.ok(!source.slice(themeStart, themeEnd).includes('swordSpotlight'), 'the room phase code leaves the dedicated key alone');

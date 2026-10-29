@@ -6,7 +6,7 @@ import { canvasTexture, drawPlantLeaf, drawTerracotta } from "../textures";
 export function createPlant(runtime) {
   // ---------- potted plant (back-right, decor) ----------
   const plant = new THREE.Group();
-  plant.position.set(5.45, 0, -3.2);
+  plant.position.set(7.65, 0, -2.6);
   runtime.core.scene.add(plant);
   const potProfile = [
     [0, 0],

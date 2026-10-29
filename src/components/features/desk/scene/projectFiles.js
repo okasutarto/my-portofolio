@@ -12,13 +12,13 @@ export function createProjectFiles(runtime) {
   // a tab (or ← →) flips through, and a folder flipped past is refiled at the back. Click the
   // front one to pull it out onto the desk and open it; its sheets then turn like pages (right
   // side forward, left side back, or ← →). The last sheet carries the links as stamps.
-  const FOLDER_W = 2.2;
-  const FOLDER_D = 1.65;
+  const FOLDER_W = 3.1;
+  const FOLDER_D = 2.2;
   const SHEET_W = FOLDER_W - 0.08;
   const SHEET_D = FOLDER_D - 0.08;
   const folders = new THREE.Group();
   // At the left end of the desk, under the window, its front turned to face the room (+x)
-  folders.position.set(-6.3, 0, -0.5);
+  folders.position.set(-8.1, 0, 0.2);
   folders.rotation.y = Math.PI / 2;
   runtime.core.scene.add(folders);
   // The drawer, in the folders group's own space
@@ -42,7 +42,7 @@ export function createProjectFiles(runtime) {
   // drawer, between the keyboard and the speaker, its cover opening back toward the drawer.
   // (In the drawer's own space: +z is out of its front, -x toward the back of the desk.)
   // set down a little askew, not squared up to the desk
-  const OUT = { x: 0.65, y: 0.04, z: DRAWER_D / 2 + 3.55, r: -Math.PI / 2 + 0.07 };
+  const OUT = { x: 1.4, y: 0.04, z: DRAWER_D / 2 + FOLDER_W * 1.5 + 0.35, r: -Math.PI / 2 + 0.07 };
   // Opened, the cover's board springs back a touch instead of lying dead flat
   const OPEN_TILT = 0.05;
   drawerPart(DRAWER_W + 0.16, FRONT_H, 0.12, 0, FRONT_H / 2, DRAWER_D / 2 + 0.03, runtime.core.toon("#ffdd00"));

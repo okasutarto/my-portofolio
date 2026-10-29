@@ -17,8 +17,8 @@ const num = (name) => Number(source.match(new RegExp(`const ${name} = ([\\d.]+)`
 const FOLDER_W = num('FOLDER_W');
 const FOLDER_D = num('FOLDER_D');
 const DRAWER_D = vm.runInNewContext(source.match(/const DRAWER_D = ([^;]+);/)[1], { projects: { length: 5 } });
-const OUT = vm.runInNewContext(`(${source.match(/const OUT = ([^;]+);/)[1]})`, { DRAWER_D, FOLDER_D });
-const context = { THREE, gymCalendar: { position: new THREE.Vector3(10.5, 5.8, -4.38) }, shelfLook: 1.7, shelf: { position: new THREE.Vector3(10.5, -5.2, -3.75) }, FLOOR_Y: -5.2, screenPos: new THREE.Vector3(), screenNormal: new THREE.Vector3(), heldTicket: null, openFolder: null, selectedNote: null, OUT, FOLDER_W, FOLDER_D, container: { clientWidth: 1200, clientHeight: 800 } };
+const OUT = vm.runInNewContext(`(${source.match(/const OUT = ([^;]+);/)[1]})`, { DRAWER_D, FOLDER_D, FOLDER_W });
+const context = { THREE, gymCalendar: { position: new THREE.Vector3(10.5, 5.8, -4.38) }, shelfLook: 1.7, shelf: { position: new THREE.Vector3(14.6, -7.4, -3.25), scale: new THREE.Vector3(2, 2, 2) }, FLOOR_Y: -7.4, WALL_Z: -4.9, screenPos: new THREE.Vector3(), screenNormal: new THREE.Vector3(), heldTicket: null, openFolder: null, selectedNote: null, OUT, FOLDER_W, FOLDER_D, container: { clientWidth: 1200, clientHeight: 800 } };
 for (const name of ['tickets', 'folders', 'aboutBoard']) {
   context[name] = new THREE.Group();
   vm.runInNewContext(source.match(new RegExp(name + '\\.position\\.set\\([^;]+;'))[0], context);
@@ -40,7 +40,7 @@ assert.ok(openTarget[0] > context.folders.position.x + 1.5, 'an open folder lies
 assert.ok(openTarget[0] - FOLDER_W > context.folders.position.x + DRAWER_D / 2 + 0.1, 'its open cover clears the drawer front');
 context.openFolder = null;
 assert.ok(context.tickets.position.z > 0 && context.tickets.position.x < -3, 'tickets sit at the front-left of the desk');
-assert.ok(context.folders.position.x < -5.5 && context.folders.position.z > -4.85 && context.folders.position.z < -0.3, 'the drawer stands at the left end of the desk, under the window');
+assert.ok(context.folders.position.x < -5.5 && context.folders.position.z > -4.85 && context.folders.position.z < 0.5, 'the drawer stands at the left end of the desk, under the window');
 assert.ok(new THREE.Vector3(...shots.about().target).distanceTo(context.aboutBoard.position) < 0.01);
 
 // Portrait framing fits the shelf width without exposing a large empty floor area.
@@ -69,9 +69,9 @@ for (const [w, h] of [[1360, 960], [1440, 700], [390, 844]]) {
   context.container.clientWidth = w;
   context.container.clientHeight = h;
   context.focus.name = 'overview';
-  setFocus('shelf', { point: new THREE.Vector3(10.5, context.shelf.position.y + context.SHELF_H, -3.75) });
+  setFocus('shelf', { point: new THREE.Vector3(10.5, context.shelf.position.y + context.SHELF_H * context.shelf.scale.y, -3.75) });
   const target = shots.shelf().target;
-  assert.ok(Math.abs(target[1] - (context.shelf.position.y + context.SHELF_H + 1.25)) < 1e-8,
+  assert.ok(Math.abs(target[1] - (context.shelf.position.y + context.SHELF_H * context.shelf.scale.y + 1.25)) < 1e-8,
     'top-board click frames the display centre rather than the shelf below');
   assert.ok(Math.abs(target[0] - (context.shelf.position.x + 0.1)) < 1e-8);
 }

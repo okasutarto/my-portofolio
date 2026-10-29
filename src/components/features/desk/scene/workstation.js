@@ -11,7 +11,7 @@ export function createWorkstation(runtime) {
   // ---------- monitor riser: a wooden shelf the monitor and speakers stand on ----------
   // One board of the desk's own grain on two slab legs, the same wood as the top so it reads as
   // part of the desk, deep enough for the speakers and the monitor's foot
-  const RISER_TOP = 0.5;
+  const RISER_TOP = 0.8;
   const RISER_BOARD = 0.14;
   const RISER_LEG_SHADE = 0.62;
   // Its own print of the grain (not a clone of the desk's), so it can take a different wood
@@ -20,7 +20,7 @@ export function createWorkstation(runtime) {
   const riserWood = riserGrain.texture;
   riserWood.wrapS = riserWood.wrapT = THREE.RepeatWrapping;
   // the grain at the desk's scale: its share of the desk's length, and one of its five boards
-  riserWood.repeat.set(7.6 / 14, 0.2);
+  riserWood.repeat.set(11.8 / 18, 0.2);
   riserWood.offset.set(0.2, 0.4);
   riserWood.needsUpdate = true;
   runtime.core.track(riserWood);
@@ -29,7 +29,7 @@ export function createWorkstation(runtime) {
   const riser = new THREE.Group();
   riser.position.set(-0.25, 0, -3.1);
   runtime.core.scene.add(riser);
-  const riserTop = runtime.core.mesh(runtime.core.rbox(7.6, RISER_BOARD, 2.0, 0.05), riserMat, { outline: 0.045 });
+  const riserTop = runtime.core.mesh(runtime.core.rbox(11.8, RISER_BOARD, 2.4, 0.05), riserMat, { outline: 0.045 });
   riserTop.position.y = RISER_TOP - RISER_BOARD / 2;
   riser.add(riserTop);
   // The legs in a deeper shade of the same grain, set in from the ends under an overhang, so
@@ -37,16 +37,18 @@ export function createWorkstation(runtime) {
   const riserLegMat = runtime.core.toon(PALETTES.light.desk);
   riserLegMat.color.multiplyScalar(RISER_LEG_SHADE);
   riserLegMat.map = riserWood;
-  [-3.25, 3.25].forEach((x) => {
+  [-5.2, 5.2].forEach((x) => {
     // A thinner outline keeps the short wooden legs readable at their original height.
-    const leg = runtime.core.mesh(runtime.core.rbox(0.36, RISER_TOP - RISER_BOARD, 1.7, 0.04), riserLegMat, { outline: 0.018 });
+    const leg = runtime.core.mesh(runtime.core.rbox(0.36, RISER_TOP - RISER_BOARD, 2.1, 0.04), riserLegMat, { outline: 0.018 });
     leg.position.set(x, (RISER_TOP - RISER_BOARD) / 2, 0);
     riser.add(leg);
   });
 
   // ---------- monitor + terminal ----------
   const monitor = new THREE.Group();
-  monitor.position.set(-0.2, RISER_TOP, -2.75);
+  const MONITOR_SCALE = 62.3 / 42.4;
+  monitor.scale.setScalar(MONITOR_SCALE);
+  monitor.position.set(-0.4, RISER_TOP, -2.9);
   runtime.core.scene.add(monitor);
   // Studio Display XDR: a thin silver aluminium slab with an even black glass border all round
   // (no chin), on a stand folded from one aluminium sheet, the foot running forward under it
@@ -63,15 +65,14 @@ export function createWorkstation(runtime) {
   const SILVER = "#dcdee0";
   const aluminium = runtime.core.toon("#c8cbce");
   aluminium.map = brushed.texture;
-  // Sized from the real one (62.3 wide, 47.8 tall on its stand, a 36.2 tall and 3.1 deep panel,
-  // a 16.8 deep stand, all cm), at the body's 4.24 width, so 1 unit is about 14.7 cm: the panel
-  // floats about 0.8 over the riser and is about 0.2 deep. The screen itself keeps the desktop's
+  // Modelled at 4.24 units wide, then uniformly scaled to a real 62.3 cm display.
+  // All scene dimensions use 10 cm/unit. The screen itself keeps the desktop's
   // 5:3, so the body stands a little taller than the real 16:9 one.
   const SCREEN_Y = 2.13;
   // The stand's side profile (z forward, y up) as a centre line: the foot plate back from its
   // front lip, a rounded fold at its rear, and the arm rising forward to the hinge behind the
   // panel. The sheet is that line thickened, extruded across the stand's width.
-  // Sized from the real one (62.3 cm wide, a 16.8 cm deep stand, so 1 unit is about 14.7 cm):
+  // Stand proportions are modelled locally, then scaled together with the 62.3 cm panel:
   // a foot about 1.1 deep and under a third of the panel's width
   const STAND_W = 1.2;
   const STAND_T = 0.045;
@@ -148,18 +149,21 @@ export function createWorkstation(runtime) {
   // ---------- Mac Studio: on the riser, right of the display's foot ----------
   // The same brushed silver as the display: a tall square block with tight rounded corners and
   // softly eased top edges, a dark whole-apple badge on its top, on a dark round foot with vents
-  // round it. Two USB-C ports and an SD slot low on its front, the status light at its lower left;
+  // round it. Two USB-C ports and an SD slot low on its front, the status light at its lower right;
   // a perforated grille across the back's lower half, with the ports in a row above it.
   const STUDIO_W = 1.2;
   const STUDIO_H = 0.58;
-  const STUDIO_LIFT = 0.025;
+  const STUDIO_LIFT = 0.055;
   const macStudio = new THREE.Group();
-  macStudio.position.set(1.38, RISER_TOP, -2.8);
+  const STUDIO_SCALE = 19.7 / 12;
+  const STUDIO_SCALE_Y = 0.95 / (STUDIO_H + STUDIO_LIFT); // 9.5 cm including the foot
+  macStudio.scale.set(STUDIO_SCALE, STUDIO_SCALE_Y, STUDIO_SCALE);
+  macStudio.position.set(2.25, RISER_TOP, -3.1);
   macStudio.rotation.y = -0.1;
   runtime.core.scene.add(macStudio);
   const studioBevel = 0.035;
   const STUDIO_LID = STUDIO_W - 2 * studioBevel;
-  const studioGeo = new THREE.ExtrudeGeometry(runtime.core.roundedRectShape(STUDIO_LID, STUDIO_LID, 0.16 - studioBevel), {
+  const studioGeo = new THREE.ExtrudeGeometry(runtime.core.roundedRectShape(STUDIO_LID, STUDIO_LID, 0.18 - studioBevel), {
     depth: STUDIO_H - 2 * studioBevel, bevelEnabled: true, bevelThickness: studioBevel, bevelSize: studioBevel, bevelSegments: 4, curveSegments: 12,
   });
   // stood up: its extrusion runs up y, from the foot's top (the shape's +y to the back)
@@ -187,14 +191,14 @@ export function createWorkstation(runtime) {
   const ventMat = runtime.core.toon("#ffffff");
   ventMat.map = vents.texture;
   const footMatDark = runtime.core.toon("#1e2024");
-  const studioFoot = runtime.core.mesh(new THREE.CylinderGeometry(0.46, 0.46, STUDIO_LIFT, 40, 1, true), ventMat, { outline: 0.005 });
+  const studioFoot = runtime.core.mesh(new THREE.CylinderGeometry(0.52, 0.46, STUDIO_LIFT, 40, 1, true), ventMat, { outline: 0.005 });
   studioFoot.position.y = STUDIO_LIFT / 2;
   const studioFootPad = runtime.core.mesh(new THREE.CircleGeometry(0.46, 40).rotateX(-Math.PI / 2), footMatDark, { outline: 0, cast: false });
   studioFootPad.position.y = 0.001;
   macStudio.add(studioBody, studioFoot, studioFootPad);
-  // the front face is at z STUDIO_W / 2; the ports sit low, two USB-C left of centre, the SD slot right
+  // the front face is at z STUDIO_W / 2; the ports sit low, two USB-C left of centre, the SD slot beside them
   const STUDIO_FRONT = STUDIO_W / 2 + 0.002;
-  const PORT_Y = STUDIO_LIFT + 0.14;
+  const PORT_Y = STUDIO_LIFT + 0.105;
   const portMat = runtime.core.toon("#121316");
   const portTongue = runtime.core.toon("#3b3f46");
   const portChamfer = runtime.core.toon("#a7abb1");
@@ -203,30 +207,30 @@ export function createWorkstation(runtime) {
     const port = new THREE.Group();
     port.position.set(x, y, z);
     port.rotation.y = facing;
-    const rim = runtime.core.mesh(runtime.core.rbox(0.036, 0.082, 0.006, 0.017), portChamfer, { outline: 0, cast: false });
-    const slot = runtime.core.mesh(runtime.core.rbox(0.024, 0.068, 0.01, 0.011), portMat, { outline: 0, cast: false });
+    const rim = runtime.core.mesh(runtime.core.rbox(0.024, 0.06, 0.006, 0.01), portChamfer, { outline: 0, cast: false });
+    const slot = runtime.core.mesh(runtime.core.rbox(0.016, 0.052, 0.01, 0.006), portMat, { outline: 0, cast: false });
     slot.position.z = 0.001;
-    const tongue = runtime.core.mesh(new THREE.BoxGeometry(0.007, 0.042, 0.004), portTongue, { outline: 0, cast: false });
+    const tongue = runtime.core.mesh(new THREE.BoxGeometry(0.006, 0.04, 0.004), portTongue, { outline: 0, cast: false });
     tongue.position.z = 0.005;
     port.add(rim, slot, tongue);
     port.traverse((o) => (o.raycast = runtime.core.noRaycast));
     macStudio.add(port);
   };
-  [-0.2, -0.08].forEach((x) => usbC(x, PORT_Y, STUDIO_FRONT, 0));
-  const sdRim = runtime.core.mesh(runtime.core.rbox(0.2, 0.034, 0.006, 0.012), portChamfer, { outline: 0, cast: false });
-  sdRim.position.set(0.24, PORT_Y, STUDIO_FRONT);
-  const sdSlot = runtime.core.mesh(runtime.core.rbox(0.186, 0.018, 0.01, 0.006), portMat, { outline: 0, cast: false });
-  sdSlot.position.set(0.24, PORT_Y, STUDIO_FRONT + 0.001);
-  // the status light, a small dot near the front's lower left corner
-  const LED_X = -0.46;
-  const LED_Y = STUDIO_LIFT + 0.07;
+  [-0.4, -0.31].forEach((x) => usbC(x, PORT_Y, STUDIO_FRONT, 0));
+  const sdRim = runtime.core.mesh(runtime.core.rbox(0.17, 0.024, 0.006, 0.008), portChamfer, { outline: 0, cast: false });
+  sdRim.position.set(-0.14, PORT_Y, STUDIO_FRONT);
+  const sdSlot = runtime.core.mesh(runtime.core.rbox(0.155, 0.015, 0.01, 0.006), portMat, { outline: 0, cast: false });
+  sdSlot.position.set(-0.14, PORT_Y, STUDIO_FRONT + 0.001);
+  // the status light, a small dot near the front's lower right corner
+  const LED_X = 0.4;
+  const LED_Y = PORT_Y;
   const studioLedMat = runtime.core.track(new THREE.MeshBasicMaterial({ color: "#22c55e" }));
-  const studioLed = new THREE.Mesh(runtime.core.track(new THREE.CircleGeometry(0.012, 16)), studioLedMat);
+  const studioLed = new THREE.Mesh(runtime.core.track(new THREE.CircleGeometry(0.006, 16)), studioLedMat);
   studioLed.position.set(LED_X, LED_Y, STUDIO_FRONT + 0.002);
-  const studioLedRim = new THREE.Mesh(runtime.core.track(new THREE.RingGeometry(0.012, 0.018, 20)), portChamfer);
+  const studioLedRim = new THREE.Mesh(runtime.core.track(new THREE.RingGeometry(0.006, 0.008, 20)), portChamfer);
   studioLedRim.position.set(LED_X, LED_Y, STUDIO_FRONT + 0.001);
   const studioLedHaloMat = runtime.core.track(new THREE.MeshBasicMaterial({ color: "#22c55e", transparent: true, opacity: 0.65, depthWrite: false }));
-  const studioLedHalo = new THREE.Mesh(runtime.core.track(new THREE.CircleGeometry(0.038, 16)), studioLedHaloMat);
+  const studioLedHalo = new THREE.Mesh(runtime.core.track(new THREE.CircleGeometry(0.02, 16)), studioLedHaloMat);
   studioLedHalo.position.set(LED_X, LED_Y, STUDIO_FRONT + 0.0015);
   [sdRim, sdSlot, studioLed, studioLedRim, studioLedHalo].forEach((part) => (part.raycast = runtime.core.noRaycast));
   macStudio.add(sdRim, sdSlot, studioLed, studioLedRim, studioLedHalo);
@@ -267,7 +271,7 @@ export function createWorkstation(runtime) {
       gsap.to(studioLedHalo.scale, { x: on ? 1.4 : 1, y: on ? 1.4 : 1, duration: 0.25, overwrite: true });
     },
     onClick: () => {
-      gsap.fromTo(macStudio.scale, { x: 1.04, y: 0.94, z: 1.04 }, { x: 1, y: 1, z: 1, duration: 0.4, ease: "elastic.out(1.2, 0.4)" });
+      gsap.fromTo(macStudio.scale, { x: STUDIO_SCALE * 1.04, y: STUDIO_SCALE_Y * 0.94, z: STUDIO_SCALE * 1.04 }, { x: STUDIO_SCALE, y: STUDIO_SCALE_Y, z: STUDIO_SCALE, duration: 0.4, ease: "elastic.out(1.2, 0.4)" });
       toggleComputer();
     },
   });
@@ -460,7 +464,7 @@ export function createWorkstation(runtime) {
   drawConeRibs(ribs.ctx, 256, 64);
   const coneMat = runtime.core.toon("#88a8e2");
   coneMat.map = ribs.texture;
-  [-3.35, 2.85].forEach((x) => {
+  [-5.1, 4.6].forEach((x) => {
     const speaker = new THREE.Group();
     // on a foam isolation pad
     speaker.position.set(x, RISER_TOP + 0.1, -3.55);

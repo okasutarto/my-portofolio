@@ -7,7 +7,9 @@ export function createGuitar(runtime) {
   // A guitar hanging on the left wall from a hook under its headstock. Click it for a strum;
   // it swings on the hook. Built standing up in its own plane, then turned to face the room.
   const guitar = new THREE.Group();
-  guitar.position.set(runtime.room.SIDE_X + 0.38, 2.9, 5.3);
+  guitar.position.set(runtime.room.SIDE_X + 0.38, 4.95, 8.6); // raised and moved along with the window
+  // Approximately 100 cm from body to headstock.
+  guitar.scale.setScalar(1.65);
   guitar.rotation.y = Math.PI / 2;
   runtime.room.room.add(guitar);
   const HOOK_Y = 3.98;
@@ -39,8 +41,9 @@ export function createGuitar(runtime) {
   const guitarTopMat = runtime.core.toon("#ffffff");
   guitarTopMat.map = guitarTop.texture;
   const guitarBody = runtime.core.mesh(bodyGeo, [guitarTopMat, runtime.core.toon("#1a1714")], { outline: 0.04 });
+  // Lit like the rest of the guitar, so the frets and inlays dim with the room at dusk and night
   const flat = (geo, color, x, y, z) => {
-    const m = new THREE.Mesh(runtime.core.track(geo), runtime.core.track(new THREE.MeshBasicMaterial({ color })));
+    const m = new THREE.Mesh(runtime.core.track(geo), runtime.core.toon(color));
     m.position.set(x, y, z);
     return m;
   };
@@ -152,28 +155,7 @@ export function createGuitar(runtime) {
   const guitarPick = runtime.core.mesh(new THREE.ShapeGeometry(pickShape, 8), runtime.core.toon("#ffdd00"), { outline: 0.01, cast: false });
   guitarPick.position.set(0.03, 3.62, 0.215);
   guitarPick.rotation.z = -0.35;
-  // A woven strap, tied on behind the nut and run down to the strap button, hanging slack in a
-  // loop beside the body: red with yellow and teal bands woven down its length
-  const guitarStrapTex = canvasTexture(64, 16);
-  runtime.core.track(guitarStrapTex.texture);
-  [["#d62828", 0, 64], ["#ffdd00", 6, 4], ["#00a99d", 14, 6], ["#ffdd00", 24, 4], ["#fffdf5", 40, 3], ["#00a99d", 50, 6]].forEach(([color, x, w]) => {
-    guitarStrapTex.ctx.fillStyle = color;
-    guitarStrapTex.ctx.fillRect(x, 0, w, 16);
-  });
-  guitarStrapTex.ctx.fillStyle = "rgba(0,0,0,.18)";
-  for (let y = 0; y < 16; y += 4) guitarStrapTex.ctx.fillRect(0, y, 64, 1);
-  guitarStrapTex.texture.wrapS = THREE.RepeatWrapping;
-  const guitarStrapPath = new THREE.CatmullRomCurve3([
-    [-0.1, 3.94, -0.06], [-0.32, 3.4, -0.1], [-0.62, 2.4, -0.12], [-1.05, 1.0, -0.12],
-    [-1.12, -0.2, -0.12], [-0.85, -0.95, -0.1], [-0.35, -1.12, -0.06], [0, -1.02, 0],
-  ].map(([x, y, z]) => new THREE.Vector3(x, y, z)));
-  guitarStrapTex.texture.repeat.set(Math.round(guitarStrapPath.getLength() / 0.9), 1);
-  const guitarStrapMat = runtime.core.toon("#ffffff");
-  guitarStrapMat.map = guitarStrapTex.texture;
-  const guitarStrap = runtime.core.mesh(new THREE.TubeGeometry(guitarStrapPath, 80, 0.06, 6), guitarStrapMat, { outline: 0.015, cast: false });
-  // flattened into a band lying against the wall
-  guitarStrap.scale.z = 0.35;
-  guitarParts.add(guitarBody, soundHole, bridge, saddle, guitarStrap, ...bridgePins, strapButton, guitarNeck, fretboard, ...frets, ...inlays, headstock, nut, trussCover, headStar, ...pegs, ...posts, ...strings, guitarPick);
+  guitarParts.add(guitarBody, soundHole, bridge, saddle, ...bridgePins, strapButton, guitarNeck, fretboard, ...frets, ...inlays, headstock, nut, trussCover, headStar, ...pegs, ...posts, ...strings, guitarPick);
   // The hook: a plate on the wall and two arms the headstock rests on
   const hookMat = runtime.core.toon("#1a1714");
   const hookPlate = runtime.core.mesh(runtime.core.rbox(0.34, 0.5, 0.06, 0.02), hookMat, { outline: 0.02 });

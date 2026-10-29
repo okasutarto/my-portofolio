@@ -200,6 +200,7 @@ import { sfx } from "../../composables/useSfx";
 import { useRouter } from "vue-router";
 import { getStreamingResponse, toHistory } from "../../services/chatApi";
 import { usePostHog } from "@/composables/usePostHog";
+import { formatMessageWithLinks } from "@/utils/formatChatMessage";
 
 export default {
   name: "ChatBot",
@@ -387,31 +388,6 @@ export default {
           text: "Oops, my wires got tangled for a sec 😅 Mind trying that again?",
         });
       }
-    };
-
-    const formatMessageWithLinks = (text) => {
-      if (!text) return "";
-      let formattedText = text;
-
-      // Bold markdown
-      formattedText = formattedText.replace(
-        /\*\*([^*]+)\*\*/g,
-        '<strong class="font-bold">$1</strong>',
-      );
-      // Markdown links
-      formattedText = formattedText.replace(
-        /\[([^\]]+)\]\(([^)]+)\)/g,
-        '<a href="$2" target="_blank" rel="noopener noreferrer" class="font-bold underline decoration-[3px] decoration-primary underline-offset-2">$1</a>',
-      );
-      // Line breaks
-      formattedText = formattedText.replace(/\n/g, "<br>");
-      // Bullet points
-      formattedText = formattedText.replace(
-        /^[-•]\s+(.+?)(?=<br>|$)/gm,
-        '<div class="flex gap-2 my-1"><span class="font-bold">•</span><span>$1</span></div>',
-      );
-
-      return formattedText;
     };
 
     // Show the tooltip once, then get out of the way so it doesn't cover content

@@ -18,11 +18,20 @@ export function useTheme() {
   }
 
   function saveThemePreference() {
-    localStorage.setItem("theme", isDark.value ? "dark" : "light");
+    try {
+      localStorage.setItem("theme", isDark.value ? "dark" : "light");
+    } catch {
+      // Blocked or full storage: the theme still lasts for this visit.
+    }
   }
 
   function initTheme() {
-    const savedTheme = localStorage.getItem("theme");
+    let savedTheme;
+    try {
+      savedTheme = localStorage.getItem("theme");
+    } catch {
+      // Blocked storage uses the default theme.
+    }
     if (savedTheme) {
       isDark.value = savedTheme === "dark";
     } else {

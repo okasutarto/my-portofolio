@@ -73,7 +73,8 @@ export function createWindowLighting(runtime) {
   // dozen motes cost two draws, against a raymarched one's full-screen pass. It takes the
   // window light's colour and strength, keeps to the part of the glass the blind leaves open,
   // and thins out in the rain.
-  const SHAFT_LEN = 9;
+  // Long enough to reach the desk or the floor from the top of the full-size window
+  const SHAFT_LEN = 20;
   const shaftGeo = runtime.core.track(new THREE.BufferGeometry());
   const shaftPos = new THREE.BufferAttribute(new Float32Array(16 * 3), 3);
   const shaftUv = new Float32Array(16 * 2);
@@ -140,6 +141,8 @@ export function createWindowLighting(runtime) {
   const shaftPoint = new THREE.Vector3();
   const shaftReach = [SHAFT_LEN, SHAFT_LEN, SHAFT_LEN, SHAFT_LEN];
   const BACK_WALL = runtime.room.WALL_Z + 0.12;
+  // The desktop: 180 × 84 cm, centred on the origin
+  const DESK_HALF = { x: 9, z: 4.2 };
   // How far a ray from `from` along the beam (shaftInto) goes before it meets the back wall, the
   // desk's top (within its edges) or else the floor; never further than SHAFT_LEN
   function beamReach(from) {
@@ -149,7 +152,7 @@ export function createWindowLighting(runtime) {
       const toDesk = -from.y / shaftInto.y;
       const x = from.x + shaftInto.x * toDesk;
       const z = from.z + shaftInto.z * toDesk;
-      const onDesk = Math.abs(x) < 7 && Math.abs(z) < 4.2;
+      const onDesk = Math.abs(x) < DESK_HALF.x && Math.abs(z) < DESK_HALF.z;
       reach = Math.min(reach, onDesk ? toDesk : (runtime.room.FLOOR_Y - from.y) / shaftInto.y);
     }
     return Math.max(0, reach);

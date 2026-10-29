@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { canvasTexture, drawWindowView, windowSky, drawWallPaint, drawWoodTop, drawWoodFloor } from "../textures";
 import { DEFAULT_WOODS } from "../woods";
 import { partFor } from "../daylight";
@@ -124,9 +125,23 @@ export function createRoom(runtime) {
   // mask would darken them even outside the window cookie or an indoor light's actual reach.
   // The side wall, with a real opening cut for the window (see the window below). Built as
   // its outline extruded through the wall's thickness, the opening as a hole in it.
-  // World dimensions: an 88 × 90 cm window, its apron just clear above the project folders'
-  // tabs on the desk.
-  const WINDOW_AT = { y: 8.35, z: 1.45, w: 8.8, h: 9.0 }; // its back edge 14 cm off the back wall
+  // World dimensions: a 120 × 105 cm two-leaf European casement, its apron just clear above
+  // the project folders' tabs on the desk.
+  const WINDOW_AT = { y: 9.8, z: 3.05, w: 12.0, h: 10.5 }; // its back edge 14 cm off the back wall
+  // Half the glass, in the window group's own units (it's built at half size and scaled ×2),
+  // inside the frame's 4 cm border: the frame, bars, view, blind and the light through it
+  // all follow from this
+  const GLASS = { x: WINDOW_AT.w / 4 - 0.2, y: WINDOW_AT.h / 4 - 0.2 };
+  // The two leaves meet on a 6 cm pair of stiles down the middle; each leaf is split into four
+  // panes by a 3 cm cross of glazing bars. `PANES` lists them as [x0, x1, y0, y1].
+  const MULLION = 0.15; // half the meeting stiles
+  const BAR = 0.075; // half a glazing bar
+  const LEAF_MID = (GLASS.x + MULLION) / 2;
+  const PANES = [-1, 1].flatMap((side) => {
+    const [x0, x1] = side < 0 ? [-GLASS.x, -MULLION] : [MULLION, GLASS.x];
+    const mid = side * LEAF_MID;
+    return [[x0, mid - BAR], [mid + BAR, x1]].flatMap(([a, b]) => [[a, b, -GLASS.y, -BAR], [a, b, BAR, GLASS.y]]);
+  });
   const wallShape = new THREE.Shape();
   // Shape x runs along -z once stood up; y is height
   wallShape.moveTo(-101.2, FLOOR_Y);
@@ -375,7 +390,7 @@ export function createRoom(runtime) {
   drawWoodTop(frameGrainTex.ctx, 512, 512, DEFAULT_WOODS.window);
   const frameWood = runtime.core.toon("#f0c7a0");
   frameWood.map = frameGrainTex.texture;
-  const windowFrame = runtime.core.mesh(new THREE.BoxGeometry(4.4, 4.5, 0.18), frameWood, { cast: false, outline: 0.03 });
+  const windowFrame = runtime.core.mesh(new THREE.BoxGeometry(GLASS.x * 2 + 0.4, GLASS.y * 2 + 0.4, 0.18), frameWood, { cast: false, outline: 0.03 });
   // Keep the animated view at the same cadence in overview and close-up.
   // The room opens on the part of the day the visitor's clock (or their pick) says; night
   // switches on the room's lamps. The page already opened in the dark theme for a night.
@@ -386,44 +401,46 @@ export function createRoom(runtime) {
   let daylightPart = daylightParts.includes(runtime.core.previewTime) ? runtime.core.previewTime : runtime.options.dark ? "night" : startPart === "night" ? "morning" : startPart;
   const dayPart = () => (outside.night ? "night" : daylightPart);
   outside.sky = windowSky(dayPart());
-  const windowView = runtime.core.printed(4.0, 4.1, 220, (c, w, h) => drawWindowView(c, w, h, { ...outside, time: dayPart() }), { unlit: true });
+  const windowView = runtime.core.printed(GLASS.x * 2, GLASS.y * 2, 220, (c, w, h) => drawWindowView(c, w, h, { ...outside, time: dayPart() }), { unlit: true });
   windowView.position.z = 0.105;
   windowGroup.add(windowFrame, windowView);
   // The sill runs out from the frame past the wall's face, with an apron board under it. Its
   // top sits clearly above the opening's floor and the frame's foot (both end inside it), so
   // no two faces share a plane and flicker as the camera moves.
-  const sill = runtime.core.mesh(new THREE.BoxGeometry(4.4 + 0.5, 0.2, WINDOW_DEPTH + 0.45), frameWood, { cast: false, outline: 0.03 });
-  sill.position.set(0, -2.25 - 0.03, (WINDOW_DEPTH + 0.45) / 2);
-  const apron = runtime.core.mesh(runtime.core.rbox(4.1, 0.26, 0.08, 0.03), frameWood, { cast: false, outline: 0.02 });
-  apron.position.set(0, -2.25 - 0.29, WINDOW_DEPTH + 0.04);
+  const sill = runtime.core.mesh(new THREE.BoxGeometry(GLASS.x * 2 + 0.4 + 0.5, 0.2, WINDOW_DEPTH + 0.45), frameWood, { cast: false, outline: 0.03 });
+  sill.position.set(0, -(GLASS.y + 0.2) - 0.03, (WINDOW_DEPTH + 0.45) / 2);
+  const apron = runtime.core.mesh(runtime.core.rbox(GLASS.x * 2 + 0.1, 0.26, 0.08, 0.03), frameWood, { cast: false, outline: 0.02 });
+  apron.position.set(0, -(GLASS.y + 0.2) - 0.29, WINDOW_DEPTH + 0.04);
   windowGroup.add(sill, apron);
-  // A single cross avoids overlapping faces and outline seams at the centre joint.
-  const windowBars = 0.15;
-  const halfBar = windowBars / 2;
-  const crossShape = new THREE.Shape();
-  [[-halfBar, 2.05], [halfBar, 2.05], [halfBar, halfBar], [2, halfBar],
-    [2, -halfBar], [halfBar, -halfBar], [halfBar, -2.05], [-halfBar, -2.05],
-    [-halfBar, -halfBar], [-2, -halfBar], [-2, halfBar], [-halfBar, halfBar]]
-    .forEach(([x, y], i) => i ? crossShape.lineTo(x, y) : crossShape.moveTo(x, y));
-  crossShape.closePath();
-  const glazingBars = runtime.core.mesh(new THREE.ExtrudeGeometry(crossShape, { depth: 0.08, bevelEnabled: false }), frameWood, { cast: false, outline: 0.015 });
+  // The stiles and bars as one piece, the glass with a hole cut for each pane, which avoids
+  // overlapping faces and outline seams where they cross.
+  const gridShape = new THREE.Shape();
+  [[-GLASS.x, -GLASS.y], [GLASS.x, -GLASS.y], [GLASS.x, GLASS.y], [-GLASS.x, GLASS.y]]
+    .forEach(([x, y], i) => i ? gridShape.lineTo(x, y) : gridShape.moveTo(x, y));
+  PANES.forEach(([x0, x1, y0, y1]) => {
+    const pane = new THREE.Path();
+    pane.moveTo(x0, y0);
+    [[x0, y1], [x1, y1], [x1, y0]].forEach(([x, y]) => pane.lineTo(x, y));
+    gridShape.holes.push(pane);
+  });
+  const glazingBars = runtime.core.mesh(new THREE.ExtrudeGeometry(gridShape, { depth: 0.08, bevelEnabled: false }), frameWood, { cast: false, outline: 0.015 });
   const crossPositions = glazingBars.geometry.attributes.position;
   const crossUV = glazingBars.geometry.attributes.uv;
   for (let i = 0; i < crossUV.count; i++) {
-    crossUV.setXY(i, crossPositions.getX(i) / 4.4 + 0.5, crossPositions.getY(i) / 4.5 + 0.5);
+    crossUV.setXY(i, crossPositions.getX(i) / (GLASS.x * 2 + 0.4) + 0.5, crossPositions.getY(i) / (GLASS.y * 2 + 0.4) + 0.5);
   }
   glazingBars.position.z = 0.09;
   windowGroup.add(glazingBars);
   const brass = runtime.core.toon("#d4a72c");
-  const catchPlate = runtime.core.mesh(runtime.core.rbox(0.18, 0.12, 0.04, 0.02), brass, { cast: false, outline: 0.01 });
-  catchPlate.position.set(0, 0, 0.20);
-  const catchLever = runtime.core.mesh(runtime.core.rbox(0.05, 0.22, 0.04, 0.02), brass, { cast: false, outline: 0.01 });
-  catchLever.position.set(0.06, -0.08, 0.23);
-  catchLever.rotation.z = 0.5;
-  // The catch turns around the spindle in the fixed plate.
+  // The handle on the left leaf's meeting stile, at mid-height: a tall backplate and a lever
+  // hanging down from its spindle, closed.
+  const catchPlate = runtime.core.mesh(runtime.core.rbox(0.1, 0.34, 0.04, 0.02), brass, { cast: false, outline: 0.01 });
+  catchPlate.position.set(-MULLION / 2, 0, 0.20);
+  const catchLever = runtime.core.mesh(runtime.core.rbox(0.06, 0.3, 0.04, 0.02), brass, { cast: false, outline: 0.01 });
+  catchLever.position.set(0, -0.13, 0);
+  // The lever turns around the spindle in the fixed plate.
   const windowCatch = new THREE.Group();
-  windowCatch.position.z = 0.23;
-  catchLever.position.z = 0;
+  windowCatch.position.set(-MULLION / 2, 0.08, 0.23);
   windowCatch.add(catchLever);
   windowGroup.add(catchPlate, windowCatch);
   const glareTex = canvasTexture(256, 256);
@@ -438,8 +455,13 @@ export function createRoom(runtime) {
     glareTex.ctx.closePath();
     glareTex.ctx.fill();
   });
-  const windowGlare = new THREE.Mesh(runtime.core.track(new THREE.PlaneGeometry(4.0, 4.1)), runtime.core.track(new THREE.MeshBasicMaterial({ map: glareTex.texture, transparent: true, opacity: 0.55, depthWrite: false })));
+  // Each of the eight panes catches its own pair of streaks, so the glass reads as panes, not
+  // one sheet behind the bars
+  const glareGeo = mergeGeometries(PANES.map(([x0, x1, y0, y1]) =>
+    new THREE.PlaneGeometry(x1 - x0, y1 - y0).translate((x0 + x1) / 2, (y0 + y1) / 2, 0)));
+  const windowGlare = new THREE.Mesh(runtime.core.track(glareGeo), runtime.core.track(new THREE.MeshBasicMaterial({ map: glareTex.texture, transparent: true, opacity: 0.55, depthWrite: false })));
   glareTex.texture.wrapS = THREE.RepeatWrapping;
+  // On the glass, behind the stiles and bars
   windowGlare.position.z = 0.115;
   windowGlare.raycast = runtime.core.noRaycast;
   windowGroup.add(windowGlare);
@@ -462,10 +484,7 @@ export function createRoom(runtime) {
     m.onAfterRender = restoreDraw;
     return m;
   };
-  [
-    runtime.core.track(new THREE.BoxGeometry(windowBars, 4.1, 0.04)),
-    runtime.core.track(new THREE.BoxGeometry(4.0, windowBars, 0.04)),
-  ].forEach((geo) => windowGroup.add(runtime.core.at(windowShadow(geo), 0, 0, 0.06)));
+  windowGroup.add(runtime.core.at(windowShadow(runtime.core.track(new THREE.ShapeGeometry(gridShape))), 0, 0, 0.06));
 
   // Public state used by the other scene parts.
   return {
@@ -478,6 +497,8 @@ export function createRoom(runtime) {
     dayPart,
     SIDE_X,
     WINDOW_AT,
+    GLASS,
+    PANES,
     windowCatch,
     windowGlare,
     glareTex,

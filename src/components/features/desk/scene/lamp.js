@@ -11,9 +11,10 @@ export function createLamp(runtime) {
   const lamp = new THREE.Group();
   runtime.core.scene.add(lamp);
   const jointMat = runtime.core.toon("#1a1714");
-  const LAMP_BASE = new THREE.Vector3(-7.2, 0, -2.9);
+  // Over by the window wall, its pole just clear of the sill (which reaches out to x −8.38)
+  const LAMP_BASE = new THREE.Vector3(-7.7, 0, -2.9);
   // Where the socket hangs, over the right of the base
-  const SOCKET = new THREE.Vector3(-6.65, 3.35, -2.8);
+  const SOCKET = new THREE.Vector3(-7.15, 3.35, -2.8);
   const lampBrass = runtime.core.toon("#c9a24a");
   const lampWood = runtime.core.toon("#8b5a34");
   lampWood.map = runtime.room.windowWood.texture;

@@ -12,8 +12,10 @@ export function createWindowLighting(runtime) {
   // Far enough out that its rays through the full-size glass stay all but parallel, as the sun's
   // do: from nearer they fan out, and at noon the edge of the beam strays onto the back wall
   const WINDOW_SUN_FAR = 150;
-  // the cone just takes in the glass (5.7 units from its centre to a corner), at any slant
-  const windowLight = new THREE.SpotLight(0xffe5ad, 2.2, 0, 0.07, 0.12, 0);
+  // the cone just takes in the glass (from its centre to a corner, in world units), at any slant
+  const { GLASS } = runtime.room;
+  const glassReach = Math.hypot(GLASS.x, GLASS.y) * runtime.room.windowGroup.scale.x;
+  const windowLight = new THREE.SpotLight(0xffe5ad, 2.2, 0, Math.atan(glassReach * 1.84 / WINDOW_SUN_FAR), 0.12, 0);
   windowLight.castShadow = true;
   windowLight.shadow.mapSize.setScalar(lowPower ? 1024 : 2048);
   windowLight.shadow.camera.near = WINDOW_SUN_FAR - 8;
@@ -41,7 +43,7 @@ export function createWindowLighting(runtime) {
     c.fillRect(0, 0, 512, 512);
     c.filter = `blur(${2 + runtime.room.outside.rain * 6}px)`;
     c.beginPath();
-    [[-2, -2.05], [-2, 2.05], [2, 2.05], [2, -2.05]].forEach(([x, y], k) => {
+    [[-GLASS.x, -GLASS.y], [-GLASS.x, GLASS.y], [GLASS.x, GLASS.y], [GLASS.x, -GLASS.y]].forEach(([x, y], k) => {
       // the shadow matrix takes a world point to the light map's 0–1 square
       runtime.room.windowGroup.localToWorld(glassCorner.set(x, y, 0.06)).applyMatrix4(windowLight.shadow.matrix);
       const px = glassCorner.x * 512;
@@ -171,12 +173,12 @@ export function createWindowLighting(runtime) {
   }
   function updateShaft(now) {
     // the open part of the glass, below the blind's bottom bar
-    const top = Math.min(2.05, runtime.windowBlind.bottomBar.position.y - runtime.windowBlind.BAR_H / 2);
+    const top = Math.min(GLASS.y, runtime.windowBlind.bottomBar.position.y - runtime.windowBlind.BAR_H / 2);
     const strength = windowLight.intensity * 0.028 * (1 - 0.7 * runtime.room.outside.rain) * (1 - 0.75 * runtime.core.roomLight.night);
-    shaft.visible = motes.visible = top > -1.95 && strength > 0.002;
+    shaft.visible = motes.visible = top > -GLASS.y + 0.1 && strength > 0.002;
     if (!shaft.visible) return;
     // glass corners, clockwise from the bottom left as seen from the room, then the beam's way in
-    [[-2, -2.05], [-2, top], [2, top], [2, -2.05]].forEach(([x, y], k) => runtime.room.windowGroup.localToWorld(shaftCorner[k].set(x, y, 0.12)));
+    [[-GLASS.x, -GLASS.y], [-GLASS.x, top], [GLASS.x, top], [GLASS.x, -GLASS.y]].forEach(([x, y], k) => runtime.room.windowGroup.localToWorld(shaftCorner[k].set(x, y, 0.12)));
     shaftInto.copy(windowRay).negate();
     // Each edge of the beam stops where it meets the room: the back wall, the desk's top or the
     // floor, whichever comes first, its glow already faded to nothing there. Run on through them,
@@ -201,7 +203,7 @@ export function createWindowLighting(runtime) {
       const s = (along + t * 0.012) % 1;
       const bob = Math.sin(t * 0.6 + phase) * 0.06;
       shaftPoint.copy(shaftCorner[0]).lerp(shaftCorner[3], u);
-      shaftPoint.y += (top + 2.05) * w + bob;
+      shaftPoint.y += (top + GLASS.y) * w + bob;
       // as far in as the beam reaches at that height, short of where it lands
       const reach = THREE.MathUtils.lerp((shaftReach[0] + shaftReach[3]) / 2, (shaftReach[1] + shaftReach[2]) / 2, w);
       shaftPoint.addScaledVector(shaftInto, s * reach * 0.85);

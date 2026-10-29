@@ -34,9 +34,11 @@ export function createWeather(runtime) {
   let weatherNow = null;
   let weatherFetchedAt = 0;
   let weatherLoading = false;
-  // The window's glass doubles as a screen: the forecast lights up the whole top-left pane (as
-  // you face it), frame to glazing bars, in the window's own units, its glare running over it.
-  const PANE = { x0: -2.0, x1: -0.075, y0: 0.075, y1: 2.05 };
+  // The window's glass doubles as a screen: the forecast lights up the upper half of the left
+  // leaf (as you face it), both its panes, frame to glazing bars, in the window's own units,
+  // its glare running over it. One pane alone is too narrow for the four-day row.
+  const [outer, inner] = [runtime.room.PANES[1], runtime.room.PANES[3]]; // the left leaf's upper panes
+  const PANE = { x0: outer[0], x1: inner[1], y0: outer[2], y1: outer[3] };
   const PANE_W = PANE.x1 - PANE.x0;
   const PANE_H = PANE.y1 - PANE.y0;
   const WEATHER_W = 770;
@@ -47,8 +49,8 @@ export function createWeather(runtime) {
   const weatherCard = new THREE.Mesh(runtime.core.track(new THREE.PlaneGeometry(PANE_W, PANE_H)), weatherMat);
   weatherCard.raycast = runtime.core.noRaycast;
   weatherCard.visible = false;
-  // Just over the view outside (z 0.105) and under the glare (z 0.115)
-  weatherCard.position.set((PANE.x0 + PANE.x1) / 2, (PANE.y0 + PANE.y1) / 2, 0.11);
+  // Just over the glazing bar it spans (its face at z 0.17), so the bar doesn't cut through it
+  weatherCard.position.set((PANE.x0 + PANE.x1) / 2, (PANE.y0 + PANE.y1) / 2, 0.175);
   runtime.room.windowGroup.add(weatherCard);
   const redrawWeather = () => {
     drawWindowWeather(weatherTex.ctx, WEATHER_W, WEATHER_H, { place: place?.name ?? "", weather: weatherNow });
@@ -97,6 +99,8 @@ export function createWeather(runtime) {
     gsap.to(weatherMat, { opacity: 1, duration: 0.6, ease: "power2.out", overwrite: true });
     loadWeather();
   }
+  // The forecast on the glass is switched off for now; the real weather still drives the rain
+  const SHOW_FORECAST = false;
   const hideWeather = () => gsap.to(weatherMat, { opacity: 0, duration: 0.25, ease: "power2.in", overwrite: true, onComplete: () => (weatherCard.visible = false) });
   runtime.core.register(runtime.room.windowGroup, {
     focus: "window",
@@ -106,7 +110,7 @@ export function createWeather(runtime) {
       gsap.to(runtime.room.glareTex.texture.offset, { x: on ? -0.45 : 0, duration: on ? 0.65 : 0.4, ease: "power2.out", overwrite: true });
     },
     onArrive: () => {
-      showWeather();
+      if (SHOW_FORECAST) showWeather();
       runtime.windowBlind.lookOut();
     },
     onLeave: hideWeather,

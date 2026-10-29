@@ -94,7 +94,7 @@ export function createCamera(runtime) {
     // The clip cuts away the lamp in front, but reaches far enough out that the roller blind and
     // its chain (sliced, they'd show the black inside of their outlines), the wall's tilted face
     // and the guitar on it all stay whole to the frame's corners.
-    window: () => ({ target: [runtime.room.windowGroup.position.x + 0.1, runtime.room.windowGroup.position.y + 0.2, runtime.room.windowGroup.position.z], dir: [1, 0.08, 0.04], fit: [11.4, 11.6], depth: 2.0 }),
+    window: () => ({ target: [runtime.room.windowGroup.position.x + 0.1, runtime.room.windowGroup.position.y + 0.2, runtime.room.windowGroup.position.z], dir: [1, 0.08, 0.04], fit: [14.6, 13.1], depth: 2.0 }),
     // Framed a little high, with room under the monitor's chin for the command chips and the
     // hint (they'd sit over the chin otherwise)
     monitor: () => {

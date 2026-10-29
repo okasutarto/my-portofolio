@@ -12,7 +12,8 @@ const apply = (target, values) => {
   for (const axis of ['x', 'y', 'z']) if (axis in values) target[axis] = values[axis];
   values.onComplete?.();
 };
-const context = vm.createContext({ THREE, room, scene, FLOOR_Y: -7.4, SIDE_X: -9.6, WALL_Z: -4.9,
+const { mergeGeometries } = require('three/examples/jsm/utils/BufferGeometryUtils.js');
+const context = vm.createContext({ THREE, mergeGeometries, room, scene, FLOOR_Y: -7.4, SIDE_X: -9.6, WALL_Z: -4.9,
   WINDOW_AT: vm.runInNewContext('(' + source.match(/const WINDOW_AT = ([^;]+);/)[1] + ')'),
   DEFAULT_WOODS: {}, dark: false, time: 'day', previewRain: 0, previewTime: null,
   partFor: () => 'day', windowSky: () => ({}),
@@ -29,6 +30,7 @@ const context = vm.createContext({ THREE, room, scene, FLOOR_Y: -7.4, SIDE_X: -9
   gsap: { to: apply, fromTo: (target, from, to) => apply(target, to) },
   sfx: { tick() {}, clockStrike() {} }, discover() {},
 });
+vm.runInContext(source.slice(source.indexOf('  const GLASS ='), source.indexOf('  const wallShape')).replace(/const /g, 'var '), context);
 vm.runInContext(source.slice(source.indexOf('  const windowGroup ='), source.indexOf('  // ---------- a roller blind')) +
   '\nvar windowModel = { windowGroup, windowFrame, sill };', context);
 const { windowGroup, windowFrame, sill } = context.windowModel;
@@ -36,8 +38,8 @@ scene.updateMatrixWorld(true);
 const bounds = obj => new THREE.Box3().setFromObject(obj, true);
 const near = (a, b, label) => assert.ok(Math.abs(a - b) < 1e-5, label);
 const frameBox = bounds(windowFrame);
-near(frameBox.max.z - frameBox.min.z, 8.8, '88 cm window width');
-near(frameBox.max.y - frameBox.min.y, 9, '90 cm window height');
+near(frameBox.max.z - frameBox.min.z, 12, '120 cm window width');
+near(frameBox.max.y - frameBox.min.y, 10.5, '105 cm window height');
 near(context.WINDOW_AT.w, frameBox.max.z - frameBox.min.z, 'wall opening matches enlarged frame width');
 near(context.WINDOW_AT.h, frameBox.max.y - frameBox.min.y, 'wall opening matches enlarged frame height');
 assert.ok(frameBox.min.z > context.WALL_Z + 0.12, 'window clears the back-wall corner');
@@ -55,15 +57,15 @@ handlers.get(clock).onClick();
 clockMount.updateMatrixWorld(true);
 near(bounds(clockRim).max.x - bounds(clockRim).min.x, 3, 'click animation restores the full-size clock');
 const lightSource = fs.readFileSync('src/components/features/desk/scene/windowLighting.js', 'utf8').replace(/^import .*;\n/gm, '').replace('export function', 'function');
-const lightContext = vm.createContext({ THREE, lowPower: false, runtime: { core: { scene }, room: { windowGroup } } });
+const lightContext = vm.createContext({ THREE, lowPower: false, runtime: { core: { scene }, room: { windowGroup, GLASS: context.GLASS } } });
 vm.runInContext(lightSource.slice(0, lightSource.indexOf('  const windowRay =')) + '\nreturn { windowGlass, windowLight }; }\nvar result = createWindowLighting(runtime);', lightContext);
 const glass = windowGroup.localToWorld(new THREE.Vector3(0, 0, 0.06));
 assert.ok(lightContext.result.windowGlass.distanceTo(glass) < 1e-8, 'window light follows the scaled glass position');
-// The glass is 8 × 8.2 units: 5.73 from its centre to a corner
+// The glass is 11.2 × 9.7 units: 7.4 from its centre to a corner
 const sun = lightContext.result.windowLight;
 const sunFar = Number(lightSource.match(/const WINDOW_SUN_FAR = ([\d.]+)/)[1]);
-const halfGlass = Math.atan(Math.hypot(4, 4.1) / sunFar);
-assert.ok(sun.angle * (1 - sun.penumbra) > halfGlass, 'the full-strength cone covers the enlarged glass');
+const halfGlass = Math.atan(Math.hypot(context.GLASS.x, context.GLASS.y) * windowGroup.scale.x / sunFar);
+assert.ok(sun.angle * (1 - sun.penumbra) > halfGlass, 'the full-strength cone covers the whole glass');
 assert.ok(halfGlass < 0.05, 'rays through the glass stay all but parallel, so the noon beam keeps off the back wall');
 assert.ok(sun.shadow.camera.near < sunFar - 4 && sun.shadow.camera.far > sunFar + 30, 'the shadow range spans the glass and the room behind it');
 console.log('Window dimensions/opening, sill, light origin/cone and clock diameter/mount/click recovery passed.');

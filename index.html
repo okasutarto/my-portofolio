@@ -45,36 +45,82 @@
       <strong>We're sorry but this app doesn't work properly without JavaScript enabled. Please enable it to continue.</strong>
     </noscript>
     <!-- Loader for the desk (front page): painted with the HTML, before any JS, and kept outside
-         #app so Vue's mount doesn't replace it. The desk fades it out once its room is drawn. -->
+         #app so Vue's mount doesn't replace it. Once the room is drawn it asks the visitor in. -->
     <div id="boot-loader" role="status" aria-label="Loading the desk" hidden>
       <style>
-        #boot-loader { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: radial-gradient(circle, #ffffff1f 1.4px, transparent 1.6px) 0 0 / 22px 22px #1a1714; transition: opacity .5s ease-out, visibility .5s; }
+        #boot-loader { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: radial-gradient(circle, #ffffff1f 1.4px, transparent 1.6px) 0 0 / 22px 22px #1a1714; font-family: "Space Grotesk", system-ui, sans-serif; color: #000; transition: opacity .5s ease-out, visibility .5s; }
         #boot-loader[hidden] { display: none; }
         #boot-loader.is-done { opacity: 0; visibility: hidden; }
-        #boot-loader .bl-card { width: min(300px, calc(100vw - 48px)); padding: 26px 24px 22px; background: #fffdf5; border: 4px solid #000; box-shadow: 9px 9px 0 #ff90e8; font-family: "Space Grotesk", system-ui, sans-serif; color: #000; animation: bl-in .5s cubic-bezier(.34,1.56,.64,1) both; }
-        #boot-loader .bl-title { display: inline-block; padding: 6px 12px; background: #ffdd00; border: 4px solid #000; box-shadow: 5px 5px 0 #000; transform: rotate(-2deg); font: 800 22px/1 "Lexend Mega", "Montserrat", system-ui, sans-serif; letter-spacing: -1px; }
-        #boot-loader .bl-props { display: flex; align-items: flex-end; gap: 10px; height: 64px; margin: 22px 0 16px; }
-        #boot-loader .bl-props i { display: block; width: 30px; border: 3px solid #000; box-shadow: 3px 3px 0 #000; animation: bl-hop 1.2s cubic-bezier(.34,1.56,.64,1) infinite; }
-        #boot-loader .bl-props i:nth-child(1) { height: 26px; background: #00e0c6; }
-        #boot-loader .bl-props i:nth-child(2) { height: 40px; background: #ff6b6b; animation-delay: .12s; }
-        #boot-loader .bl-props i:nth-child(3) { height: 30px; background: #7fb2ff; animation-delay: .24s; border-radius: 50% 50% 0 0; }
-        #boot-loader .bl-props i:nth-child(4) { height: 46px; background: #ffdd00; animation-delay: .36s; }
-        #boot-loader .bl-props i:nth-child(5) { height: 22px; background: #ff90e8; animation-delay: .48s; }
-        #boot-loader .bl-bar { height: 16px; border: 3px solid #000; background: #fff; overflow: hidden; }
-        #boot-loader .bl-bar span { display: block; height: 100%; width: 45%; background: repeating-linear-gradient(-45deg, #000 0 6px, #ffdd00 6px 12px); border-right: 3px solid #000; animation: bl-slide 1.1s ease-in-out infinite alternate; }
-        #boot-loader .bl-text { margin: 12px 0 0; font: 700 12px/1.4 "JetBrains Mono", ui-monospace, monospace; letter-spacing: .5px; text-transform: uppercase; }
-        #boot-loader .bl-text b { display: inline-block; animation: bl-blink 1s steps(1) infinite; }
-        @keyframes bl-in { from { opacity: 0; transform: translateY(16px) scale(.92); } }
-        @keyframes bl-hop { 0%, 55%, 100% { transform: translateY(0); } 25% { transform: translateY(-16px) rotate(-6deg); } }
-        @keyframes bl-slide { from { transform: translateX(-10%); } to { transform: translateX(132%); } }
+        #boot-loader.is-ready { cursor: pointer; }
+        #boot-loader .bl-stage { display: flex; flex-direction: column; align-items: center; animation: bl-in .6s cubic-bezier(.34,1.56,.64,1) both; }
+        /* A cartoon monitor: chunky bezel, dark screen, a neck and a foot */
+        #boot-loader .bl-monitor { position: relative; width: min(300px, calc(100vw - 56px)); padding: 12px 12px 22px; background: #fffdf5; border: 5px solid #000; border-radius: 24px; box-shadow: 8px 8px 0 #ff90e8; }
+        #boot-loader .bl-monitor::after { content: ""; position: absolute; right: 18px; bottom: 6px; width: 9px; height: 9px; border: 2px solid #000; border-radius: 50%; background: #ffdd00; animation: bl-blink .8s steps(1) infinite; }
+        #boot-loader.is-ready .bl-monitor::after { background: #22c55e; animation: none; }
+        #boot-loader .bl-screen { position: relative; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 18px 14px 16px; min-height: 168px; justify-content: center; overflow: hidden; background: repeating-linear-gradient(0deg, #0000000a 0 2px, transparent 2px 4px), #bfe3ff; border: 4px solid #000; border-radius: 14px; }
+        #boot-loader .bl-screen::before { content: ""; position: absolute; top: 8px; left: 10px; width: 34%; height: 16px; border-radius: 10px; background: #ffffff8c; transform: rotate(-8deg); }
+        #boot-loader .bl-title { position: relative; padding: 7px 12px; background: #ffdd00; border: 4px solid #000; border-radius: 10px; box-shadow: 4px 4px 0 #ff90e8; transform: rotate(-3deg); font: 800 21px/1 "Lexend Mega", "Montserrat", system-ui, sans-serif; letter-spacing: -1px; }
+        #boot-loader .bl-props { display: flex; align-items: flex-end; gap: 9px; height: 52px; }
+        #boot-loader .bl-props i { display: block; width: 26px; border: 3px solid #000; border-radius: 5px; box-shadow: 3px 3px 0 #000; animation: bl-hop 1.2s cubic-bezier(.34,1.56,.64,1) infinite; }
+        #boot-loader .bl-props i:nth-child(1) { height: 22px; background: #00e0c6; }
+        #boot-loader .bl-props i:nth-child(2) { height: 34px; background: #ff6b6b; animation-delay: .12s; }
+        #boot-loader .bl-props i:nth-child(3) { height: 26px; background: #7fb2ff; animation-delay: .24s; border-radius: 50% 50% 5px 5px; }
+        #boot-loader .bl-props i:nth-child(4) { height: 40px; background: #ffdd00; animation-delay: .36s; }
+        #boot-loader .bl-props i:nth-child(5) { height: 18px; background: #ff90e8; animation-delay: .48s; }
+        /* Real progress (see bootLoader.js): striped fill under a white cover that slides off it.
+           Moving the cover is a transform, so it glides even while the room is being built. */
+        #boot-loader { --bl-progress: .06; }
+        #boot-loader .bl-bar { position: relative; width: 86%; height: 16px; border: 3px solid #000; border-radius: 10px; background: #fff; overflow: hidden; }
+        #boot-loader .bl-bar span { display: block; height: 100%; background: repeating-linear-gradient(-45deg, #000 0 6px, #ffdd00 6px 12px) 0 0 / 16.97px 16.97px; animation: bl-crawl .8s linear infinite; }
+        #boot-loader .bl-bar::after { content: ""; position: absolute; inset: 0; background: #fff; border-left: 3px solid #000; transform: translateX(calc(var(--bl-progress) * 100%)); transition: transform .45s cubic-bezier(.22,1,.36,1); }
+        #boot-loader .bl-pct { margin: -4px 0 0; color: #000; font: 800 12px/1 "JetBrains Mono", ui-monospace, monospace; letter-spacing: 2px; }
+        #boot-loader .bl-ready { display: none; margin: 0; color: #22c55e; font: 800 22px/1 "JetBrains Mono", ui-monospace, monospace; letter-spacing: 2px; text-shadow: 3px 3px 0 #000; animation: bl-pop .45s cubic-bezier(.34,1.56,.64,1) both; }
+        #boot-loader .bl-ready b { animation: bl-blink 1s steps(1) infinite; }
+        #boot-loader .bl-neck { width: 40px; height: 22px; background: #fffdf5; border: 5px solid #000; border-top: 0; border-bottom: 0; }
+        #boot-loader .bl-foot { width: 132px; height: 18px; background: #fffdf5; border: 5px solid #000; border-radius: 12px 12px 6px 6px; box-shadow: 6px 6px 0 #ff90e8; }
+        /* The way in: a big toon ENTER keycap, top face over a darker side */
+        #boot-loader .bl-key { position: relative; display: none; margin-top: 28px; animation: bl-pop .55s cubic-bezier(.34,1.56,.64,1) both, bl-bob 1.6s ease-in-out .6s infinite; }
+        #boot-loader .bl-key::before, #boot-loader .bl-key::after { content: ""; position: absolute; top: 6px; width: 14px; height: 5px; border-radius: 3px; background: #ffdd00; animation: bl-flick 1.6s ease-in-out .6s infinite; }
+        #boot-loader .bl-key::before { left: -26px; transform: rotate(-25deg); box-shadow: 2px 16px 0 #ffdd00; }
+        #boot-loader .bl-key::after { right: -26px; transform: rotate(25deg); box-shadow: -2px 16px 0 #ffdd00; }
+        #boot-loader .bl-enter { display: block; min-width: 190px; padding: 16px 36px 22px; background: #ffdd00; border: 5px solid #000; border-radius: 18px; box-shadow: inset 0 -10px 0 #f2a900, inset 0 5px 0 #fff7a8, 0 8px 0 #000, 6px 14px 0 #ff90e8; color: #000; font: 800 28px/1 "Lexend Mega", "Montserrat", system-ui, sans-serif; letter-spacing: 1px; cursor: pointer; transition: transform .08s, box-shadow .08s; }
+        #boot-loader .bl-enter:hover { transform: translateY(-2px) rotate(-2deg); }
+        #boot-loader .bl-enter:active, #boot-loader.is-pressed .bl-enter { transform: translateY(7px); box-shadow: inset 0 -5px 0 #f2a900, inset 0 4px 0 #fff7a8, 0 1px 0 #000, 2px 7px 0 #ff90e8; }
+        #boot-loader .bl-enter:focus-visible { outline: 4px solid #ff90e8; outline-offset: 5px; }
+        /* In: a squash, then the view dives into the screen as it flares up, and the room is there */
+        #boot-loader.is-entering .bl-stage { transform-origin: var(--bl-dive, 50% 30%); animation: bl-dive .7s cubic-bezier(.6,0,.8,.3) forwards; }
+        #boot-loader.is-entering .bl-key, #boot-loader.is-entering .bl-neck, #boot-loader.is-entering .bl-foot { animation: bl-drop .25s ease-in forwards; }
+        #boot-loader.is-entering .bl-title, #boot-loader.is-entering .bl-ready { animation: bl-fade .18s ease-in forwards; }
+        #boot-loader .bl-screen::after { content: ""; position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+        #boot-loader.is-entering .bl-screen::after { animation: bl-flare .7s ease-in forwards; }
+        @keyframes bl-dive { 0% { transform: none; } 20% { transform: scale(.93, .9); } 100% { transform: scale(12); } }
+        @keyframes bl-drop { to { opacity: 0; transform: translateY(24px) scale(.85); } }
+        @keyframes bl-flare { 12% { opacity: 0; } 55%, 100% { opacity: 1; } }
+        @keyframes bl-fade { to { opacity: 0; } }
+        #boot-loader.is-ready .bl-props, #boot-loader.is-ready .bl-bar, #boot-loader.is-ready .bl-pct { display: none; }
+        #boot-loader.is-ready .bl-ready, #boot-loader.is-ready .bl-key { display: block; }
+        @keyframes bl-in { from { opacity: 0; transform: translateY(18px) scale(.9); } }
+        @keyframes bl-pop { from { opacity: 0; transform: scale(.4); } }
+        @keyframes bl-bob { 50% { transform: translateY(-6px) rotate(1.5deg); } }
+        @keyframes bl-flick { 50% { opacity: .2; } }
+        @keyframes bl-hop { 0%, 55%, 100% { transform: translateY(0); } 25% { transform: translateY(-14px) rotate(-6deg); } }
+        @keyframes bl-crawl { to { background-position: 16.97px 0; } }
         @keyframes bl-blink { 50% { opacity: 0; } }
-        @media (prefers-reduced-motion: reduce) { #boot-loader *, #boot-loader .bl-card { animation: none !important; } }
+        @media (prefers-reduced-motion: reduce) { #boot-loader *, #boot-loader *::before, #boot-loader *::after { animation: none !important; } }
       </style>
-      <div class="bl-card">
-        <div class="bl-title">THE DESK</div>
-        <div class="bl-props" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-        <div class="bl-bar" aria-hidden="true"><span></span></div>
-        <p class="bl-text">Setting up the desk<b>_</b></p>
+      <div class="bl-stage">
+        <div class="bl-monitor">
+          <div class="bl-screen">
+            <div class="bl-title">THE DESK</div>
+            <div class="bl-props" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="bl-bar" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="6"><span></span></div>
+            <p class="bl-pct" aria-hidden="true">LOADING <span>6</span>%</p>
+            <p class="bl-ready" aria-hidden="true">READY<b>_</b></p>
+          </div>
+        </div>
+        <div class="bl-neck" aria-hidden="true"></div>
+        <div class="bl-foot" aria-hidden="true"></div>
+        <div class="bl-key"><button type="button" class="bl-enter">ENTER</button></div>
       </div>
     </div>
     <script>

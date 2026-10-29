@@ -9,7 +9,8 @@ const monitor = new THREE.Group();
 const lampLight = new THREE.PointLight(0xffd394, 5);
 const roomLight = { night: 0 };
 const SCREEN_Y = Number(source.match(/const SCREEN_Y = ([\d.]+)/)[1]);
-const context = vm.createContext({ THREE, monitor, lampLight, roomLight, SCREEN_Y,
+const MONITOR_SCALE = 62.3 / 42.4;
+const context = vm.createContext({ THREE, monitor, lampLight, roomLight, SCREEN_Y, MONITOR_SCALE,
   brushed: { texture: new THREE.Texture() }, noRaycast() {},
   toon: (color) => new THREE.MeshToonMaterial({ color }),
   rbox: (w, h, d) => new THREE.BoxGeometry(w, h, d),
@@ -18,10 +19,14 @@ const context = vm.createContext({ THREE, monitor, lampLight, roomLight, SCREEN_
 vm.runInContext(source.slice(start, end), context);
 const run = (code) => vm.runInContext(code, context);
 const light = run('lightbarLight');
+const lights = run('lightbarLights');
+const total = () => lights.reduce((sum, l) => sum + l.intensity, 0);
 const diffuser = run('lightbarDiffuserMat');
 for (const power of [0, 0.5, 1, 0.5, 0]) {
   run(`lightbarState.power = ${power}; updateLightbar()`);
-  assert.equal(light.intensity, 9 * power, 'output increases by 50 percent over the previous 6');
+  assert.ok(Math.abs(total() - 9 * power) < 1e-9, 'three emitters share the bar\'s total output of 9');
+  lights.forEach((l) => assert.equal(l.intensity, 3 * power));
+  assert.ok(lights.every((l) => l === light || !l.castShadow), 'only the centre emitter casts shadows');
   assert.equal(diffuser.emissiveIntensity, 1.4 * power);
   assert.equal(light.castShadow, power > 0.05);
   assert.ok(light.color.equals(lampLight.color));
@@ -29,6 +34,13 @@ for (const power of [0, 0.5, 1, 0.5, 0]) {
 assert.ok(light.target.position.y < light.position.y && light.target.position.z > light.position.z, 'beam aims down and forward onto the desk');
 assert.equal(light.shadow.mapSize.x, 512);
 assert.equal(light.decay, 0, 'task beam retains useful brightness at desktop distance');
+assert.equal(lights.length, 3);
+assert.equal(light.position.x, 0, 'the shadow-casting emitter is the centre one');
+assert.ok(lights[0].position.x < -0.8 && lights[2].position.x > 0.8 && lights[2].position.x < 1.47, 'the outer emitters sit along the diffuser, inside its ends');
+lights.forEach((l) => {
+  assert.equal(l.angle, light.angle);
+  assert.equal(l.target.position.x, l.position.x, 'every emitter aims straight forward, the beams parallel');
+});
 // In the world: the monitor (and the bar on it) is scaled 1.469 and stands on the 8 cm riser
 monitor.scale.setScalar(62.3 / 42.4);
 monitor.position.set(-0.4, 0.8, -2.9);
@@ -62,24 +74,24 @@ const bounds = new THREE.Box3().setFromObject(bar);
 // the body's top edge is 1.31 over the screen's centre
 assert.ok(bounds.min.y > SCREEN_Y + 1.31 - 0.5, 'clamp fits around top bezel');
 assert.ok(bounds.max.x < 2 && bounds.min.x > -2, 'bar stays inside screen width');
-assert.ok(bounds.max.x - bounds.min.x > 3.9, 'bar spans almost the full 4.22-unit monitor width');
+assert.ok(Math.abs((bounds.max.x - bounds.min.x) * MONITOR_SCALE * 10 - 50) < 0.1, 'bar is 50 cm end cap to end cap');
 assert.ok(source.includes('setLightbar(isDark);\n    setLamp(isDark);\n    updateLightbar();'), 'the theme sets the lightbar with the lamp');
 assert.ok(source.includes('updateLampGlow();\n    updateLightbar();'), 'lightbar follows the smooth day/night transition');
 assert.ok(source.includes('register(lightbar,'), 'lightbar is registered as interactive prop');
 
 // The room sets it: off for the day, on for the night
 run('setLightbar(false)');
-assert.equal(light.intensity, 0, 'lightbar is off by day');
+assert.equal(total(), 0, 'lightbar is off by day');
 run('setLightbar(true)');
-assert.equal(light.intensity, 9, 'lightbar is on at night');
+assert.equal(total(), 9, 'lightbar is on at night');
 
 // Its button switches it at any hour, by day too
 roomLight.night = 0;
 run('setLightbar(false); toggleLightbar()');
-assert.equal(light.intensity, 9, 'clicking by day turns the lightbar on');
+assert.equal(total(), 9, 'clicking by day turns the lightbar on');
 assert.equal(light.castShadow, true);
 run('toggleLightbar()');
-assert.equal(light.intensity, 0, 'clicking again turns it off');
+assert.equal(total(), 0, 'clicking again turns it off');
 assert.equal(light.castShadow, false);
 
 console.log('Lightbar geometry, toon texture, beam direction, night fade and lamp colour/power checks passed.');

@@ -269,17 +269,20 @@ export function createWorkstation(runtime) {
   lightbar.name = "monitor-lightbar";
   lightbar.position.set(0, SCREEN_Y + 1.41, 0.2);
   monitor.add(lightbar);
+  // 50 cm end cap to end cap, like a real screen bar, in the monitor's local units (it rides
+  // the scaled monitor)
+  const LIGHTBAR_W = 5.0 / MONITOR_SCALE;
   const lightbarMetal = runtime.core.toon("#454b55");
   lightbarMetal.map = brushed.texture;
   const lightbarRubber = runtime.core.toon("#20232a");
   const lightbarTrim = runtime.core.toon("#88919b");
-  const lightbarBody = runtime.core.mesh(runtime.core.rbox(3.9, 0.105, 0.22, 0.014), lightbarMetal, { outline: 0.012 });
+  const lightbarBody = runtime.core.mesh(runtime.core.rbox(LIGHTBAR_W - 0.095, 0.105, 0.22, 0.014), lightbarMetal, { outline: 0.012 });
   lightbar.add(lightbarBody);
   [-1, 1].forEach((side) => {
     const cap = runtime.core.mesh(runtime.core.rbox(0.055, 0.108, 0.224, 0.012), lightbarRubber, { outline: 0.008 });
-    cap.position.x = side * 1.97;
+    cap.position.x = side * (LIGHTBAR_W / 2 - 0.0275);
     const collar = runtime.core.mesh(runtime.core.rbox(0.018, 0.106, 0.222, 0.008), lightbarTrim, { outline: 0 });
-    collar.position.x = side * 1.915;
+    collar.position.x = side * (LIGHTBAR_W / 2 - 0.0825);
     lightbar.add(cap, collar);
   });
   const lightbarClamp = runtime.core.mesh(runtime.core.rbox(0.34, 0.11, 0.4, 0.025), lightbarRubber, { outline: 0.015 });
@@ -289,21 +292,21 @@ export function createWorkstation(runtime) {
   const lightbarPad = runtime.core.mesh(runtime.core.rbox(0.28, 0.045, 0.16, 0.01), lightbarRubber, { outline: 0 });
   lightbarPad.position.set(0, -0.13, -0.185);
   const lightbarButton = runtime.core.mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.02, 16), lightbarRubber, { outline: 0.006 });
-  lightbarButton.position.set(1.64, 0.053, 0);
+  lightbarButton.position.set(LIGHTBAR_W / 2 - 0.3575, 0.053, 0);
   const lightbarPowerMark = runtime.core.mesh(runtime.core.rbox(0.012, 0.003, 0.035, 0.002), lightbarTrim, { outline: 0, cast: false });
-  lightbarPowerMark.position.set(1.64, 0.065, 0);
+  lightbarPowerMark.position.set(LIGHTBAR_W / 2 - 0.3575, 0.065, 0);
   lightbar.add(lightbarClamp, lightbarCounterweight, lightbarPad, lightbarButton, lightbarPowerMark);
   // The lens sits inside a dark lip and throws light forward, away from the screen.
-  const lightbarLip = runtime.core.mesh(runtime.core.rbox(3.67, 0.025, 0.13, 0.008), lightbarRubber, { outline: 0.005 });
+  const lightbarLip = runtime.core.mesh(runtime.core.rbox(LIGHTBAR_W - 0.325, 0.025, 0.13, 0.008), lightbarRubber, { outline: 0.005 });
   lightbarLip.position.set(0, -0.045, 0.055);
   lightbarLip.rotation.x = -0.35;
   const lightbarDiffuserMat = runtime.core.toon("#e4dac5");
   lightbarDiffuserMat.emissive.copy(runtime.lamp.lampLight.color);
-  const lightbarDiffuser = runtime.core.mesh(runtime.core.rbox(3.53, 0.015, 0.095, 0.005), lightbarDiffuserMat, { outline: 0, cast: false });
+  const lightbarDiffuser = runtime.core.mesh(runtime.core.rbox(LIGHTBAR_W - 0.465, 0.015, 0.095, 0.005), lightbarDiffuserMat, { outline: 0, cast: false });
   lightbarDiffuser.position.set(0, -0.062, 0.065);
   lightbarDiffuser.rotation.x = -0.35;
   lightbar.add(lightbarLip, lightbarDiffuser);
-  for (let i = -7; i <= 7; i++) {
+  for (let i = -6; i <= 6; i++) {
     const seam = runtime.core.mesh(runtime.core.rbox(0.012, 0.006, 0.087, 0.002), lightbarTrim, { outline: 0, cast: false });
     seam.position.set(i * 0.215, -0.071, 0.07);
     seam.rotation.x = -0.35;
@@ -315,16 +318,24 @@ export function createWorkstation(runtime) {
   // 24° forward with a 28° half-cone, some 75 cm wide on the desk: the back of the cone just
   // reaches the foot, the front the desk's front edge. No decay, so it holds its strength down the
   // whole drop; the range (world units, 1.4 m) only has to outreach the desk's front corners.
+  // three.js has no line light, so the diffuser's length is sampled at its centre and the middle
+  // of either outer third; the wide cones overlap into one band. Only the centre one casts
+  // shadows, so each prop keeps a single shadow and no shadow map is added.
   const LIGHTBAR_TILT = THREE.MathUtils.degToRad(24);
-  const lightbarLight = new THREE.SpotLight(runtime.lamp.lampLight.color, 0, 14, THREE.MathUtils.degToRad(28), 0.5, 0);
-  lightbarLight.position.set(0, -0.09, 0.14);
-  lightbarLight.target.position.set(0, -0.09 - 4 * Math.cos(LIGHTBAR_TILT), 0.14 + 4 * Math.sin(LIGHTBAR_TILT));
+  const LIGHTBAR_SPREAD = (LIGHTBAR_W - 0.465) / 3;
+  const lightbarLights = [-1, 0, 1].map((side) => {
+    const light = new THREE.SpotLight(runtime.lamp.lampLight.color, 0, 14, THREE.MathUtils.degToRad(28), 0.5, 0);
+    light.position.set(side * LIGHTBAR_SPREAD, -0.09, 0.14);
+    light.target.position.set(side * LIGHTBAR_SPREAD, -0.09 - 4 * Math.cos(LIGHTBAR_TILT), 0.14 + 4 * Math.sin(LIGHTBAR_TILT));
+    lightbar.add(light, light.target);
+    return light;
+  });
+  const lightbarLight = lightbarLights[1];
   lightbarLight.shadow.mapSize.set(512, 512);
   lightbarLight.shadow.camera.near = 0.1;
   lightbarLight.shadow.bias = -0.0002;
   lightbarLight.shadow.normalBias = 0.02;
   lightbarLight.shadow.radius = 4;
-  lightbar.add(lightbarLight, lightbarLight.target);
   lightbar.traverse((part) => (part.raycast = runtime.core.noRaycast));
   lightbarBody.raycast = THREE.Mesh.prototype.raycast;
   lightbarButton.raycast = THREE.Mesh.prototype.raycast;
@@ -334,8 +345,10 @@ export function createWorkstation(runtime) {
   const lightbarState = { power: 0 };
   function updateLightbar() {
     const power = lightbarState.power;
-    lightbarLight.color.copy(runtime.lamp.lampLight.color);
-    lightbarLight.intensity = 9 * power;
+    lightbarLights.forEach((light) => {
+      light.color.copy(runtime.lamp.lampLight.color);
+      light.intensity = 3 * power;
+    });
     lightbarLight.castShadow = power > 0.05;
     lightbarDiffuserMat.emissive.copy(runtime.lamp.lampLight.color);
     lightbarDiffuserMat.emissiveIntensity = 1.4 * power;

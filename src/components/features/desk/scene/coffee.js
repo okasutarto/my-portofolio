@@ -230,8 +230,8 @@ export function createCoffee(runtime) {
   contactShadow(runtime.plant.plant, 1.9, 1.9);
   contactShadow(runtime.mouse.mouse, 0.85, 1.2, runtime.keyboard.MAT_TOP);
   contactShadow(runtime.workstation.monitor, 2.2, 1.5, runtime.workstation.RISER_TOP);
-  contactShadow(runtime.workstation.macMini, 1.25, 1.25, runtime.workstation.RISER_TOP, 0.8);
-  contactShadow(runtime.workstation.riser, 7.4, 2.4, 0, 0.7);
+  contactShadow(runtime.workstation.macStudio, 1.45, 1.45, runtime.workstation.RISER_TOP, 0.8);
+  contactShadow(runtime.workstation.riser, 8.0, 2.4, 0, 0.7);
   contactShadow(runtime.keyboard.keyboard, 5.8 * runtime.keyboard.KEYBOARD_SCALE, 2.5 * runtime.keyboard.KEYBOARD_SCALE, runtime.keyboard.MAT_TOP, 0.8);
   contactShadow(runtime.chat.phoneStand, 1.7, 1.5);
   contactShadow(runtime.tickets.tickets, 3.4, 1.8, 0, 0.6);

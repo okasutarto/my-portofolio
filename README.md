@@ -48,7 +48,7 @@ Prefer a classic page? The same content lives at [`/2d`](https://okasp.dev/2d).
 | 📌 **About board** | Notes about me, pinned up. Drag them around and they pin back in place. |
 | 🖥️ **Monitor** | A tiny desktop with a draggable dock: a working terminal (`help`, `whoami`, `projects`, `sudo hire oka`), the Spotifree lo-fi player, VS Kode, Snake, a picker of six cut-paper wallpapers and more. |
 | ⌨️ **Keyboard** | A Halo75 V2-inspired board with sculpted keycaps, a ribbed lower shell and a tilted chassis. Physical keys animate their matching modeled keys; `1`–`5` jump between sections. |
-| 🖥️ **Mac mini** | Powers the monitor desktop off or starts its boot sequence, with a green power LED and startup chime. |
+| 🖥️ **Mac Studio** | Powers the monitor desktop off or starts its boot sequence, with a green power LED and startup chime. |
 | 🗂️ **Drawer** | Project files: flip through the tabs, pull one out and turn its pages. |
 | 🎫 **Boarding passes** | My experience, one pass per job. Hold one up, flip it for the itinerary. |
 | 📱 **Phone** | Chat with my AI twin (answers come from my CV, streamed, and it remembers the last few turns). |

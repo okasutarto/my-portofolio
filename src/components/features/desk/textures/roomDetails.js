@@ -279,7 +279,7 @@ export function drawBrushedMetal(c, w, h) {
 // A small computer's square top, its brushed silver softened like the display's, a soft sheen
 // across it and a dark whole-apple badge in the middle: a round fruit with two lobes either
 // side of its dimple, a short stem and a leaf. The badge spans `logo` of the tile's width.
-export function drawMiniTop(c, w, h, { logo = 0.3 } = {}) {
+export function drawStudioTop(c, w, h, { logo = 0.3 } = {}) {
   drawBrushedMetal(c, w, h);
   c.fillStyle = "rgba(255,255,255,0.78)";
   c.fillRect(0, 0, w, h);
@@ -364,6 +364,25 @@ export function drawVentSlots(c, w, h) {
     c.fillRect(x, h * 0.22, 4, h * 0.56);
     c.fillStyle = "rgba(255,255,255,.12)";
     c.fillRect(x, h * 0.78, 4, 1);
+  }
+}
+
+// A desktop computer's back grille: a dense grid of small round holes on a clear tile, each a
+// dark well with a faint highlight under it, the rows offset like a honeycomb
+export function drawPerforatedGrille(c, w, h, { pitch = 10 } = {}) {
+  c.clearRect(0, 0, w, h);
+  const r = pitch * 0.3;
+  for (let row = 0, y = pitch / 2; y < h - r; row++, y += pitch * 0.87) {
+    for (let x = pitch / 2 + (row % 2) * (pitch / 2); x < w - r; x += pitch) {
+      c.fillStyle = "rgba(255,255,255,.35)";
+      c.beginPath();
+      c.arc(x, y + 1, r, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = "#16171a";
+      c.beginPath();
+      c.arc(x, y, r, 0, Math.PI * 2);
+      c.fill();
+    }
   }
 }
 

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import gsap from "gsap";
 import { sfx, GROOVE_BEAT, setRainLevel, initializeAudio } from "@/composables/useSfx";
-import { canvasTexture, drawTerminal, drawStickyNote, drawWoodTop, drawBrushedMetal, drawMiniTop, drawVentSlots, drawPowerScreen, drawSatinFinish, drawConeRibs } from "../textures";
+import { canvasTexture, drawTerminal, drawStickyNote, drawWoodTop, drawBrushedMetal, drawStudioTop, drawVentSlots, drawPerforatedGrille, drawPowerScreen, drawSatinFinish, drawConeRibs } from "../textures";
 import { createDesktop, SCREEN_W, SCREEN_H } from "../desktop";
 import { createLofi, TRACKS } from "../lofi";
 import { PALETTES } from "../sceneConfig";
@@ -19,8 +19,8 @@ export function createWorkstation(runtime) {
   drawWoodTop(riserGrain.ctx, 1400, 840, DEFAULT_WOODS.riser);
   const riserWood = riserGrain.texture;
   riserWood.wrapS = riserWood.wrapT = THREE.RepeatWrapping;
-  // the grain at the desk's scale: half its length, and one of its five boards
-  riserWood.repeat.set(0.5, 0.2);
+  // the grain at the desk's scale: its share of the desk's length, and one of its five boards
+  riserWood.repeat.set(7.6 / 14, 0.2);
   riserWood.offset.set(0.2, 0.4);
   riserWood.needsUpdate = true;
   runtime.core.track(riserWood);
@@ -29,7 +29,7 @@ export function createWorkstation(runtime) {
   const riser = new THREE.Group();
   riser.position.set(-0.25, 0, -3.1);
   runtime.core.scene.add(riser);
-  const riserTop = runtime.core.mesh(runtime.core.rbox(7.0, RISER_BOARD, 2.0, 0.05), riserMat, { outline: 0.045 });
+  const riserTop = runtime.core.mesh(runtime.core.rbox(7.6, RISER_BOARD, 2.0, 0.05), riserMat, { outline: 0.045 });
   riserTop.position.y = RISER_TOP - RISER_BOARD / 2;
   riser.add(riserTop);
   // The legs in a deeper shade of the same grain, set in from the ends under an overhang, so
@@ -37,7 +37,7 @@ export function createWorkstation(runtime) {
   const riserLegMat = runtime.core.toon(PALETTES.light.desk);
   riserLegMat.color.multiplyScalar(RISER_LEG_SHADE);
   riserLegMat.map = riserWood;
-  [-3.0, 3.0].forEach((x) => {
+  [-3.25, 3.25].forEach((x) => {
     // A thinner outline keeps the short wooden legs readable at their original height.
     const leg = runtime.core.mesh(runtime.core.rbox(0.36, RISER_TOP - RISER_BOARD, 1.7, 0.04), riserLegMat, { outline: 0.018 });
     leg.position.set(x, (RISER_TOP - RISER_BOARD) / 2, 0);
@@ -131,54 +131,56 @@ export function createWorkstation(runtime) {
   [panelEdge, webcam, webcamLens].forEach((part) => (part.raycast = runtime.core.noRaycast));
   monitor.add(panelEdge, webcam, webcamLens);
 
-  // ---------- Mac mini: on the riser, right of the display's foot ----------
-  // The same brushed silver as the display: a squat square block with big rounded corners and
-  // softly eased top edges, a dark whole-apple badge on its top, on a dark inset base ring with vents
-  // round it. Two USB-C ports, a headphone jack and a status light along its front; power,
-  // ethernet, HDMI and three more USB-C across the back.
-  const MINI_W = 0.95;
-  const MINI_H = 0.36;
-  const MINI_LIFT = 0.03;
-  const macMini = new THREE.Group();
-  macMini.position.set(1.3, RISER_TOP, -2.62);
-  macMini.rotation.y = -0.1;
-  runtime.core.scene.add(macMini);
-  const miniBevel = 0.03;
-  const MINI_LID = MINI_W - 2 * miniBevel;
-  const miniGeo = new THREE.ExtrudeGeometry(runtime.core.roundedRectShape(MINI_LID, MINI_LID, 0.2 - miniBevel), {
-    depth: MINI_H - 2 * miniBevel, bevelEnabled: true, bevelThickness: miniBevel, bevelSize: miniBevel, bevelSegments: 4, curveSegments: 12,
+  // ---------- Mac Studio: on the riser, right of the display's foot ----------
+  // The same brushed silver as the display: a tall square block with tight rounded corners and
+  // softly eased top edges, a dark whole-apple badge on its top, on a dark round foot with vents
+  // round it. Two USB-C ports and an SD slot low on its front, the status light at its lower left;
+  // a perforated grille across the back's lower half, with the ports in a row above it.
+  const STUDIO_W = 1.2;
+  const STUDIO_H = 0.58;
+  const STUDIO_LIFT = 0.025;
+  const macStudio = new THREE.Group();
+  macStudio.position.set(1.38, RISER_TOP, -2.8);
+  macStudio.rotation.y = -0.1;
+  runtime.core.scene.add(macStudio);
+  const studioBevel = 0.035;
+  const STUDIO_LID = STUDIO_W - 2 * studioBevel;
+  const studioGeo = new THREE.ExtrudeGeometry(runtime.core.roundedRectShape(STUDIO_LID, STUDIO_LID, 0.16 - studioBevel), {
+    depth: STUDIO_H - 2 * studioBevel, bevelEnabled: true, bevelThickness: studioBevel, bevelSize: studioBevel, bevelSegments: 4, curveSegments: 12,
   });
-  // stood up: its extrusion runs up y, from the base ring's top (the shape's +y to the back)
-  miniGeo.rotateX(-Math.PI / 2);
-  miniGeo.translate(0, MINI_LIFT + miniBevel, 0);
-  const miniMat = runtime.core.toon("#dcdee0");
-  miniMat.map = brushed.texture;
+  // stood up: its extrusion runs up y, from the foot's top (the shape's +y to the back)
+  studioGeo.rotateX(-Math.PI / 2);
+  studioGeo.translate(0, STUDIO_LIFT + studioBevel, 0);
+  const studioMat = runtime.core.toon("#dcdee0");
+  studioMat.map = brushed.texture;
   // the lids take the shape's own coordinates as uv, so the top print is stretched over the lid
-  const miniTop = canvasTexture(512, 512);
-  runtime.core.track(miniTop.texture);
-  drawMiniTop(miniTop.ctx, 512, 512, { logo: 0.3 });
-  miniTop.texture.repeat.set(1 / MINI_LID, 1 / MINI_LID);
-  miniTop.texture.offset.set(0.5, 0.5);
-  miniTop.texture.needsUpdate = true;
-  const miniTopMat = runtime.core.toon("#ffffff");
-  miniTopMat.map = miniTop.texture;
-  const miniBody = runtime.core.mesh(miniGeo, [miniTopMat, miniMat], { outline: 0.015 });
-  // the base ring's walls take their x (or z) along u and the height up v: one slot row round it
+  const studioTop = canvasTexture(512, 512);
+  runtime.core.track(studioTop.texture);
+  drawStudioTop(studioTop.ctx, 512, 512, { logo: 0.24 });
+  studioTop.texture.repeat.set(1 / STUDIO_LID, 1 / STUDIO_LID);
+  studioTop.texture.offset.set(0.5, 0.5);
+  studioTop.texture.needsUpdate = true;
+  const studioTopMat = runtime.core.toon("#ffffff");
+  studioTopMat.map = studioTop.texture;
+  const studioBody = runtime.core.mesh(studioGeo, [studioTopMat, studioMat], { outline: 0.018 });
+  // the round foot's wall takes its way round along u and the height up v: one slot row round it
   const vents = canvasTexture(64, 16);
   runtime.core.track(vents.texture);
   drawVentSlots(vents.ctx, 64, 16);
   vents.texture.wrapS = vents.texture.wrapT = THREE.RepeatWrapping;
-  vents.texture.repeat.set(10, 1 / MINI_LIFT);
+  vents.texture.repeat.set(24, 1);
   vents.texture.needsUpdate = true;
   const ventMat = runtime.core.toon("#ffffff");
   ventMat.map = vents.texture;
-  const miniFoot = runtime.core.mesh(new THREE.ExtrudeGeometry(runtime.core.roundedRectShape(MINI_W - 0.1, MINI_W - 0.1, 0.16), {
-    depth: MINI_LIFT, bevelEnabled: false, curveSegments: 12,
-  }).rotateX(-Math.PI / 2), [runtime.core.toon("#1e2024"), ventMat], { outline: 0.005 });
-  macMini.add(miniBody, miniFoot);
-  // the front face is at z MINI_W / 2; the ports sit low, two to the left, the jack and light right
-  const MINI_FRONT = MINI_W / 2 + 0.002;
-  const PORT_Y = MINI_LIFT + 0.13;
+  const footMatDark = runtime.core.toon("#1e2024");
+  const studioFoot = runtime.core.mesh(new THREE.CylinderGeometry(0.46, 0.46, STUDIO_LIFT, 40, 1, true), ventMat, { outline: 0.005 });
+  studioFoot.position.y = STUDIO_LIFT / 2;
+  const studioFootPad = runtime.core.mesh(new THREE.CircleGeometry(0.46, 40).rotateX(-Math.PI / 2), footMatDark, { outline: 0, cast: false });
+  studioFootPad.position.y = 0.001;
+  macStudio.add(studioBody, studioFoot, studioFootPad);
+  // the front face is at z STUDIO_W / 2; the ports sit low, two USB-C left of centre, the SD slot right
+  const STUDIO_FRONT = STUDIO_W / 2 + 0.002;
+  const PORT_Y = STUDIO_LIFT + 0.14;
   const portMat = runtime.core.toon("#121316");
   const portTongue = runtime.core.toon("#3b3f46");
   const portChamfer = runtime.core.toon("#a7abb1");
@@ -194,43 +196,64 @@ export function createWorkstation(runtime) {
     tongue.position.z = 0.005;
     port.add(rim, slot, tongue);
     port.traverse((o) => (o.raycast = runtime.core.noRaycast));
-    macMini.add(port);
+    macStudio.add(port);
   };
-  [-0.3, -0.19].forEach((x) => usbC(x, PORT_Y, MINI_FRONT, 0));
-  const jack = new THREE.Mesh(runtime.core.track(new THREE.CircleGeometry(0.018, 20)), portMat);
-  jack.position.set(0.3, PORT_Y, MINI_FRONT + 0.001);
-  const jackRim = new THREE.Mesh(runtime.core.track(new THREE.RingGeometry(0.018, 0.025, 20)), portChamfer);
-  jackRim.position.set(0.3, PORT_Y, MINI_FRONT + 0.001);
-  const miniLedMat = runtime.core.track(new THREE.MeshBasicMaterial({ color: "#22c55e" }));
-  const miniLed = new THREE.Mesh(runtime.core.track(new THREE.CircleGeometry(0.012, 16)), miniLedMat);
-  miniLed.position.set(0.17, PORT_Y, MINI_FRONT + 0.002);
-  const miniLedRim = new THREE.Mesh(runtime.core.track(new THREE.RingGeometry(0.012, 0.018, 20)), portChamfer);
-  miniLedRim.position.set(0.17, PORT_Y, MINI_FRONT + 0.001);
-  const miniLedHaloMat = runtime.core.track(new THREE.MeshBasicMaterial({ color: "#22c55e", transparent: true, opacity: 0.65, depthWrite: false }));
-  const miniLedHalo = new THREE.Mesh(runtime.core.track(new THREE.CircleGeometry(0.038, 16)), miniLedHaloMat);
-  miniLedHalo.position.set(0.17, PORT_Y, MINI_FRONT + 0.0015);
-  [jack, jackRim, miniLed, miniLedRim, miniLedHalo].forEach((part) => (part.raycast = runtime.core.noRaycast));
-  macMini.add(jack, jackRim, miniLed, miniLedRim, miniLedHalo);
-  // the back, seen from behind (so its x runs the other way): power, ethernet, HDMI, USB-C
-  const MINI_BACK = -MINI_W / 2 - 0.002;
+  [-0.2, -0.08].forEach((x) => usbC(x, PORT_Y, STUDIO_FRONT, 0));
+  const sdRim = runtime.core.mesh(runtime.core.rbox(0.2, 0.034, 0.006, 0.012), portChamfer, { outline: 0, cast: false });
+  sdRim.position.set(0.24, PORT_Y, STUDIO_FRONT);
+  const sdSlot = runtime.core.mesh(runtime.core.rbox(0.186, 0.018, 0.01, 0.006), portMat, { outline: 0, cast: false });
+  sdSlot.position.set(0.24, PORT_Y, STUDIO_FRONT + 0.001);
+  // the status light, a small dot near the front's lower left corner
+  const LED_X = -0.46;
+  const LED_Y = STUDIO_LIFT + 0.07;
+  const studioLedMat = runtime.core.track(new THREE.MeshBasicMaterial({ color: "#22c55e" }));
+  const studioLed = new THREE.Mesh(runtime.core.track(new THREE.CircleGeometry(0.012, 16)), studioLedMat);
+  studioLed.position.set(LED_X, LED_Y, STUDIO_FRONT + 0.002);
+  const studioLedRim = new THREE.Mesh(runtime.core.track(new THREE.RingGeometry(0.012, 0.018, 20)), portChamfer);
+  studioLedRim.position.set(LED_X, LED_Y, STUDIO_FRONT + 0.001);
+  const studioLedHaloMat = runtime.core.track(new THREE.MeshBasicMaterial({ color: "#22c55e", transparent: true, opacity: 0.65, depthWrite: false }));
+  const studioLedHalo = new THREE.Mesh(runtime.core.track(new THREE.CircleGeometry(0.038, 16)), studioLedHaloMat);
+  studioLedHalo.position.set(LED_X, LED_Y, STUDIO_FRONT + 0.0015);
+  [sdRim, sdSlot, studioLed, studioLedRim, studioLedHalo].forEach((part) => (part.raycast = runtime.core.noRaycast));
+  macStudio.add(sdRim, sdSlot, studioLed, studioLedRim, studioLedHalo);
+  // the back, seen from behind (so its x runs the other way): the perforated grille low across
+  // it, and above it power, ethernet, HDMI, two USB-A, four USB-C and the headphone jack
+  const STUDIO_BACK = -STUDIO_W / 2 - 0.002;
+  const grille = canvasTexture(512, 128);
+  runtime.core.track(grille.texture);
+  drawPerforatedGrille(grille.ctx, 512, 128);
+  grille.texture.needsUpdate = true;
+  const grilleMat = runtime.core.track(new THREE.MeshBasicMaterial({ map: grille.texture, transparent: true }));
+  const grillePanel = new THREE.Mesh(runtime.core.track(new THREE.PlaneGeometry(STUDIO_W - 0.24, 0.2)), grilleMat);
+  grillePanel.rotation.y = Math.PI;
+  grillePanel.position.set(0, STUDIO_LIFT + 0.14, STUDIO_BACK);
+  const BACK_Y = STUDIO_LIFT + 0.34;
   const power = runtime.core.mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.008, 28), portMat, { outline: 0, cast: false });
   power.rotation.x = Math.PI / 2;
-  power.position.set(0.3, PORT_Y, MINI_BACK);
+  power.position.set(0.42, BACK_Y, STUDIO_BACK);
   const ethernet = runtime.core.mesh(runtime.core.rbox(0.11, 0.08, 0.008, 0.008), portMat, { outline: 0, cast: false });
-  ethernet.position.set(0.15, PORT_Y, MINI_BACK);
+  ethernet.position.set(0.28, BACK_Y, STUDIO_BACK);
   const hdmi = runtime.core.mesh(runtime.core.rbox(0.1, 0.035, 0.008, 0.006), portMat, { outline: 0, cast: false });
-  hdmi.position.set(0.02, PORT_Y, MINI_BACK);
-  [power, ethernet, hdmi].forEach((part) => (part.raycast = runtime.core.noRaycast));
-  macMini.add(power, ethernet, hdmi);
-  [-0.1, -0.2, -0.3].forEach((x) => usbC(x, PORT_Y, MINI_BACK, Math.PI));
-  runtime.core.register(macMini, {
+  hdmi.position.set(0.15, BACK_Y, STUDIO_BACK);
+  const usbA = [0.03, -0.07].map((x) => {
+    const port = runtime.core.mesh(runtime.core.rbox(0.07, 0.03, 0.008, 0.004), portMat, { outline: 0, cast: false });
+    port.position.set(x, BACK_Y, STUDIO_BACK);
+    return port;
+  });
+  const backJack = new THREE.Mesh(runtime.core.track(new THREE.CircleGeometry(0.018, 20)), portMat);
+  backJack.rotation.y = Math.PI;
+  backJack.position.set(-0.46, BACK_Y, STUDIO_BACK - 0.001);
+  [grillePanel, power, ethernet, hdmi, backJack, ...usbA].forEach((part) => (part.raycast = runtime.core.noRaycast));
+  macStudio.add(grillePanel, power, ethernet, hdmi, backJack, ...usbA);
+  [-0.16, -0.23, -0.3, -0.37].forEach((x) => usbC(x, BACK_Y, STUDIO_BACK, Math.PI));
+  runtime.core.register(macStudio, {
     onHover: (on) => {
-      gsap.to(macMini.position, { y: RISER_TOP + (on ? 0.06 : 0), duration: 0.25, ease: "power2.out", overwrite: true });
-      gsap.to(miniLed.scale, { x: on ? 1.4 : 1, y: on ? 1.4 : 1, duration: 0.25, overwrite: true });
-      gsap.to(miniLedHalo.scale, { x: on ? 1.4 : 1, y: on ? 1.4 : 1, duration: 0.25, overwrite: true });
+      gsap.to(macStudio.position, { y: RISER_TOP + (on ? 0.06 : 0), duration: 0.25, ease: "power2.out", overwrite: true });
+      gsap.to(studioLed.scale, { x: on ? 1.4 : 1, y: on ? 1.4 : 1, duration: 0.25, overwrite: true });
+      gsap.to(studioLedHalo.scale, { x: on ? 1.4 : 1, y: on ? 1.4 : 1, duration: 0.25, overwrite: true });
     },
     onClick: () => {
-      gsap.fromTo(macMini.scale, { x: 1.04, y: 0.94, z: 1.04 }, { x: 1, y: 1, z: 1, duration: 0.4, ease: "elastic.out(1.2, 0.4)" });
+      gsap.fromTo(macStudio.scale, { x: 1.04, y: 0.94, z: 1.04 }, { x: 1, y: 1, z: 1, duration: 0.4, ease: "elastic.out(1.2, 0.4)" });
       toggleComputer();
     },
   });
@@ -426,7 +449,7 @@ export function createWorkstation(runtime) {
   drawConeRibs(ribs.ctx, 256, 64);
   const coneMat = runtime.core.toon("#88a8e2");
   coneMat.map = ribs.texture;
-  [-3.05, 2.55].forEach((x) => {
+  [-3.35, 2.85].forEach((x) => {
     const speaker = new THREE.Group();
     // on a foam isolation pad
     speaker.position.set(x, RISER_TOP + 0.1, -3.55);
@@ -520,7 +543,7 @@ export function createWorkstation(runtime) {
       redrawScreen();
     },
   });
-  // The Mac mini's power: off, the screen goes black and its light out; on, it boots first.
+  // The Mac Studio's power: off, the screen goes black and its light out; on, it boots first.
   // `level` fades the screen's spill.
   const computer = { on: false, booting: true, bar: 0 };
   const screenPower = { level: 0.35 };
@@ -615,10 +638,10 @@ export function createWorkstation(runtime) {
     if ((desktop.active() === "console") !== consoleOn) {
       consoleOn = !consoleOn;
       runtime.options.onEvent("console", { on: consoleOn });
-      // the console is the display's own input, so it lights the screen with the Mac mini off
+      // the console is the display's own input, so it lights the screen with the Mac Studio off
       if (!computer.on && !computer.booting) gsap.to(screenPower, { level: consoleOn ? 1 : 0, duration: 0.35, overwrite: true });
     }
-    // Off or still starting, the Mac mini shows black or its boot screen and nothing is clickable
+    // Off or still starting, the Mac Studio shows black or its boot screen and nothing is clickable
     if (!computer.on && !consoleOn) {
       screenTex.ctx.save();
       screenTex.ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -745,7 +768,7 @@ export function createWorkstation(runtime) {
     desktop.launch("terminal");
     redrawScreen();
   };
-  // Clicking the Mac mini shuts the computer down (the music and any game stop, the screen
+  // Clicking the Mac Studio shuts the computer down (the music and any game stop, the screen
   // goes black and its light fades) or starts it: the boot screen fills its bar, then the
   // desktop comes back as it was. Clicks while it boots are ignored.
   function bootComputer({ playSound = true, delay = 0.5 } = {}) {
@@ -772,9 +795,9 @@ export function createWorkstation(runtime) {
       });
       ["pointerdown", "keydown"].forEach((evt) => window.addEventListener(evt, onFirstGesture, { capture: true, once: true }));
     }
-    miniLedMat.color.set("#22c55e");
-    miniLedHalo.visible = true;
-    gsap.to(miniLedHaloMat, { opacity: 0.65, duration: 0.3, overwrite: true });
+    studioLedMat.color.set("#22c55e");
+    studioLedHalo.visible = true;
+    gsap.to(studioLedHaloMat, { opacity: 0.65, duration: 0.3, overwrite: true });
     redrawScreen();
     gsap.to(screenPower, { level: 0.35, duration: 0.4, overwrite: true });
     gsap.to(computer, {
@@ -803,8 +826,8 @@ export function createWorkstation(runtime) {
       if (desktop.exitConsole()) redrawScreen();
       computer.on = false;
       sfx.powerDown();
-      miniLedMat.color.set("#1f2125");
-      gsap.to(miniLedHaloMat, { opacity: 0, duration: 0.25, overwrite: true, onComplete: () => { miniLedHalo.visible = false; } });
+      studioLedMat.color.set("#1f2125");
+      gsap.to(studioLedHaloMat, { opacity: 0, duration: 0.25, overwrite: true, onComplete: () => { studioLedHalo.visible = false; } });
       gsap.to(screenPower, { level: 0, duration: 0.35, ease: "power2.in", overwrite: true });
       redrawScreen();
       return;
@@ -883,7 +906,7 @@ export function createWorkstation(runtime) {
     get termBusy() { return termBusy; },
     showTerminal,
     RISER_TOP,
-    macMini,
+    macStudio,
     riser,
     redrawTerminal,
     riserGrain,

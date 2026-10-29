@@ -125,11 +125,12 @@ export function createLamp(runtime) {
   halo.position.y = BULB_Y;
   halo.raycast = runtime.core.noRaycast;
   function updateLampGlow() {
-    const k = Math.min(1, lampLight.intensity / 55);
+    // 0 off to 1 at the strength setLamp gives the light when it is on
+    const k = Math.min(1, lampLight.intensity / 8);
     // Kept soft, so the bulb reads as a lamp rather than a white blowout
     halo.material.opacity = 0.55 * k;
     bulbMat.color.setRGB(0.93 + 0.07 * k, 0.83 + 0.06 * k, 0.64 - 0.06 * k);
-    filamentMat.color.setRGB(0.66 + 0.34 * k, 0.45 + 0.5 * k, 0.17 + 0.55 * k);
+    filamentMat.color.setRGB(0.66 + 0.34 * k, 0.45 + 0.27 * k, 0.17 + 0.13 * k);
   }
   // An exposed bulb emits in every direction from the filament, including toward the wall.
   const lampLight = new THREE.PointLight(0xffd394, 0, 16, 2);
@@ -162,7 +163,7 @@ export function createLamp(runtime) {
     }
   }
   const setLamp = (on) => {
-    lampLight.intensity = on ? 5 : 0;
+    lampLight.intensity = on ? 8 : 0;
     lampLight.castShadow = on;
     updateLampGlow();
   };
@@ -203,7 +204,7 @@ export function createLamp(runtime) {
   // on the bottom rail, on a black easel leg.
   const familyFrame = new THREE.Group();
   // The tilted easel's rear edge extends below its local origin.
-  familyFrame.position.set(-4.55, 0.034, -3.05);
+  familyFrame.position.set(-4.75, 0.034, -2.7);
   familyFrame.scale.setScalar(0.8);
   familyFrame.rotation.set(-0.08, 0.08, 0);
   const FY = 1.08;

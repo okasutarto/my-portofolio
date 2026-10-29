@@ -203,9 +203,11 @@ assert.equal(run('dayPart()'), 'evening', 'a picked part of the day ignores the 
     assert.equal(sun.castShadow, true, 'retain the room-wide shadow before redundant strip samples');
   };
   checkBudget();
-  assert.equal(swordSpotlight.castShadow, false, 'inactive spotlight must not consume a sampler');
+  const shadowed = () => vm.runInContext('shadowLights.map((light) => light.castShadow).join()', ctx);
+  const dark = shadowed();
   swordSpotlight.intensity = 1.25;
   checkBudget();
+  assert.equal(shadowed(), dark, 'a light coming on keeps the shadowed set, so no lit shader recompiles');
   assert.equal(swordSpotlight.castShadow, true, 'focused swords retain priority without dropping printed detail');
   assert.ok(detailed.map && detailed.emissiveMap && detailed.gradientMap && detailed.bumpMap, 'keep material detail intact');
   ctx.darkNow = false;

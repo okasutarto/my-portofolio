@@ -31,8 +31,10 @@ export function createKeyboard(runtime) {
   const KEYS_W = 16 * KEY_UNIT;
   const KEYS_D = 6 * KEY_UNIT;
   const CASE_W = KEYS_W + 0.22;
-  const CASE_D = KEYS_D + 0.38;
-  const KEYBOARD_TILT = THREE.MathUtils.degToRad(6);
+  // 320 × 135 mm at KEYBOARD_SCALE, the Halo75 V2's real footprint
+  const CASE_D = KEYS_D + 0.305;
+  // Just enough tilt that the back row's caps stand 39.2 mm off the mat, its real height
+  const KEYBOARD_TILT = THREE.MathUtils.degToRad(4.27);
   keyboard.rotation.x = KEYBOARD_TILT;
   const keyboardLift = CASE_D / 2 * Math.sin(KEYBOARD_TILT) + 0.012;
   keyboard.position.y = MAT_TOP + keyboardLift * KEYBOARD_SCALE;

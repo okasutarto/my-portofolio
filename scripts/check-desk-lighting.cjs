@@ -221,11 +221,12 @@ assert.equal(run('dayPart()'), 'evening', 'a picked part of the day ignores the 
 {
   const windowGroup = new THREE.Group();
   windowGroup.rotation.y = Math.PI / 2;
-  const windowGlass = new THREE.Vector3(-7.3, 4.7, -1.1);
+  // The full-size window's glass: in the left wall, 8.35 up and 1.45 along from the back
+  const windowGlass = new THREE.Vector3(-9.56, 8.35, 1.45);
   const windowRay = new THREE.Vector3();
   const light = new THREE.SpotLight();
-  const aimContext = vm.createContext({ windowGroup, windowGlass, windowRay, windowLight: light,
-    sun: new THREE.DirectionalLight(), WINDOW_SUN_FAR: 30, drawGlassCookie() {} });
+  const aimContext = vm.createContext({ THREE, windowGroup, windowGlass, windowRay, windowLight: light,
+    sun: new THREE.DirectionalLight(), WINDOW_SUN_FAR: 150, drawGlassCookie() {} });
   const start = source.indexOf('  function aimWindowLight(');
   vm.runInContext(source.slice(start, source.indexOf('  // The beam through the window:', start)), aimContext);
   const direction = (time) => {
@@ -238,17 +239,18 @@ assert.equal(run('dayPart()'), 'evening', 'a picked part of the day ignores the 
   const midday = direction('day');
   const evening = direction('evening');
   const night = direction('night');
-  // The monitor face is at Z=-2.66, centred at X=-0.2, Y=3.13.
-  const hitMonitor = new THREE.Ray(windowGlass, morning).intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 2.66), new THREE.Vector3());
-  assert.ok(hitMonitor && Math.abs(hitMonitor.x + 0.2) < 1 && hitMonitor.y > 1.8 && hitMonitor.y < 4.4,
-    'morning central ray must hit the monitor face, not the chair');
+  // Real elevations: a low, slanting sunrise, a high noon, the lowest sun at sunset
+  const elevation = (ray) => Math.atan2(-ray.y, Math.hypot(ray.x, ray.z)) * 180 / Math.PI;
+  assert.ok(elevation(morning) > 22 && elevation(morning) < 30, 'morning sun is low, as a sunrise is, yet high enough for tabletop shadows');
+  assert.ok(elevation(midday) > 55 && elevation(midday) < 65, 'noon sun stands high');
+  assert.ok(elevation(evening) > 10 && elevation(evening) < 20, 'evening sun is the lowest of the day');
+  // The 180 × 84 cm desktop is centred on the origin; the high noon patch falls by the window
   const hitDesk = new THREE.Ray(windowGlass, midday).intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
-  assert.ok(hitDesk && Math.abs(hitDesk.x) < 7 && Math.abs(hitDesk.z) < 4.2, 'noon central ray lands on the desktop');
-  const morningElevation = Math.atan2(-morning.y, Math.hypot(morning.x, morning.z)) * 180 / Math.PI;
-  assert.ok(morningElevation > 22 && morningElevation < 30, 'morning sun must rise enough to cast useful tabletop shadows');
-  const lowerMonitor = new THREE.Vector3(-0.2, 1.9, -2.66);
+  assert.ok(hitDesk && hitDesk.x > -9 && hitDesk.x < 0 && Math.abs(hitDesk.z) < 4.2, 'noon central ray lands on the window half of the desktop');
+  // The full-size monitor's lower edge: centred at X=-0.4, 19 cm above the desk, its face at Z≈-2.75
+  const lowerMonitor = new THREE.Vector3(-0.4, 1.9, -2.75);
   const monitorShadow = new THREE.Ray(lowerMonitor, morning).intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
-  assert.ok(monitorShadow && Math.abs(monitorShadow.x) < 7 && Math.abs(monitorShadow.z) < 4.2,
+  assert.ok(monitorShadow && Math.abs(monitorShadow.x) < 9 && Math.abs(monitorShadow.z) < 4.2,
     'morning shadow of the lower monitor reaches the desk instead of passing beyond its edge');
   assert.ok(morning.z < 0 && evening.z > 0, 'sunrise faces the monitor, sunset reaches toward the front');
   assert.ok(Math.abs(midday.y) > Math.abs(morning.y) && Math.abs(midday.y) > Math.abs(evening.y), 'noon gives shorter shadows');

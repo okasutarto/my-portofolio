@@ -59,5 +59,11 @@ const lightContext = vm.createContext({ THREE, lowPower: false, runtime: { core:
 vm.runInContext(lightSource.slice(0, lightSource.indexOf('  const windowRay =')) + '\nreturn { windowGlass, windowLight }; }\nvar result = createWindowLighting(runtime);', lightContext);
 const glass = windowGroup.localToWorld(new THREE.Vector3(0, 0, 0.06));
 assert.ok(lightContext.result.windowGlass.distanceTo(glass) < 1e-8, 'window light follows the scaled glass position');
-assert.ok(lightContext.result.windowLight.angle > Math.atan(Math.hypot(4, 4.1) / 30), 'light cone covers enlarged glass');
+// The glass is 8 × 8.2 units: 5.73 from its centre to a corner
+const sun = lightContext.result.windowLight;
+const sunFar = Number(lightSource.match(/const WINDOW_SUN_FAR = ([\d.]+)/)[1]);
+const halfGlass = Math.atan(Math.hypot(4, 4.1) / sunFar);
+assert.ok(sun.angle * (1 - sun.penumbra) > halfGlass, 'the full-strength cone covers the enlarged glass');
+assert.ok(halfGlass < 0.05, 'rays through the glass stay all but parallel, so the noon beam keeps off the back wall');
+assert.ok(sun.shadow.camera.near < sunFar - 4 && sun.shadow.camera.far > sunFar + 30, 'the shadow range spans the glass and the room behind it');
 console.log('Window dimensions/opening, sill, light origin/cone and clock diameter/mount/click recovery passed.');

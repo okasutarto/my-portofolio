@@ -9,12 +9,15 @@ export function createWindowLighting(runtime) {
   // aimed through the glass from wherever the sky's light stands. The wall round the glass, the
   // glazing bars and the blind's slats shadow it for real, and its map spans only the beam, so
   // slats a few centimetres apart still print as crisp stripes.
-  const WINDOW_SUN_FAR = 30;
-  const windowLight = new THREE.SpotLight(0xffe5ad, 2.2, 0, 0.25, 0.12, 0);
+  // Far enough out that its rays through the full-size glass stay all but parallel, as the sun's
+  // do: from nearer they fan out, and at noon the edge of the beam strays onto the back wall
+  const WINDOW_SUN_FAR = 150;
+  // the cone just takes in the glass (5.7 units from its centre to a corner), at any slant
+  const windowLight = new THREE.SpotLight(0xffe5ad, 2.2, 0, 0.07, 0.12, 0);
   windowLight.castShadow = true;
   windowLight.shadow.mapSize.setScalar(lowPower ? 1024 : 2048);
-  windowLight.shadow.camera.near = WINDOW_SUN_FAR - 6;
-  windowLight.shadow.camera.far = WINDOW_SUN_FAR + 30;
+  windowLight.shadow.camera.near = WINDOW_SUN_FAR - 8;
+  windowLight.shadow.camera.far = WINDOW_SUN_FAR + 40;
   windowLight.shadow.bias = -0.0002;
   windowLight.shadow.normalBias = 0.02;
   windowLight.shadow.radius = 3;
@@ -55,10 +58,19 @@ export function createWindowLighting(runtime) {
   }
   // `from`: normalized coordinates of the sun or moon in the painted window view.
   function aimWindowLight(from) {
-    // The view's horizontal axis is window-local X (world -Z). Calibrate elevation to this
-    // room: sunrise crosses the monitor face; the overhead noon sun reaches the desktop.
+    // The view's horizontal axis is window-local X (world -Z): the sun's place across the sky
+    // turns the beam toward the back of the room in the morning and the front in the evening.
+    // Its height in the painted sky sets a real elevation: low and slanting at sunrise (25°),
+    // high at noon (60°, so the patch falls by the window with short shadows), lowest at
+    // sunset (15°); the moon (30°) sits between. Heights in between blend.
+    const SUN_ELEVATION = [[0.10, 60], [0.19, 30], [0.30, 25], [0.44, 15]];
+    const v = THREE.MathUtils.clamp(from[1], SUN_ELEVATION[0][0], SUN_ELEVATION[SUN_ELEVATION.length - 1][0]);
+    const k = SUN_ELEVATION.findIndex((_, i) => i === SUN_ELEVATION.length - 2 || v <= SUN_ELEVATION[i + 1][0]);
+    const [[v0, e0], [v1, e1]] = [SUN_ELEVATION[k], SUN_ELEVATION[k + 1]];
+    const elevation = THREE.MathUtils.degToRad(e0 + (e1 - e0) * (v - v0) / (v1 - v0));
+    const across = (from[0] - 0.5) * 1.4;
     runtime.room.windowGroup.updateWorldMatrix(true, false);
-    windowRay.set((from[0] - 0.5) * 1.4, (0.65 - from[1]) * 1.3, -1)
+    windowRay.set(across, Math.tan(elevation) * Math.hypot(1, across), -1)
       .transformDirection(runtime.room.windowGroup.matrixWorld);
     windowLight.position.copy(windowGlass).addScaledVector(windowRay, WINDOW_SUN_FAR);
     windowLight.target.position.copy(windowGlass).addScaledVector(windowRay, -1);

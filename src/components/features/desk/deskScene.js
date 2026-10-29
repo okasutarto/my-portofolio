@@ -10,7 +10,7 @@
 // - flat toon shading with three hard bands
 // - window light and shadows on the actual toon-shaded surfaces
 import { installSceneShaders } from "./sceneShaders";
-import { benchmark } from "./sceneConfig";
+import { benchmark, lowPower } from "./sceneConfig";
 import { createCore } from "./scene/core";
 import { createTextInput } from "./scene/textInput";
 import { createRoom } from "./scene/room";
@@ -56,7 +56,7 @@ import { createLifecycle } from "./scene/lifecycle";
 
 export { SECTIONS } from "./sceneConfig";
 
-installSceneShaders(benchmark);
+installSceneShaders(benchmark, lowPower);
 
 export function createDeskScene({ container, projects, experiences, dark = false, muted = false, wallColor = "#3a3a3a", woods = {}, time = "auto", rain = "auto", onEvent = () => {} }) {
   // Each scene owns its state. Factories run in construction order; callbacks can access

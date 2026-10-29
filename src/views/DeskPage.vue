@@ -233,7 +233,7 @@ import { projects } from "@/data/projects";
 import { experiences } from "@/data/experience";
 import { useTheme } from "@/composables/useTheme";
 import { useSfx, initializeAudio, sfx } from "@/composables/useSfx";
-import { hideBootLoader } from "@/utils/bootLoader";
+import { hideBootLoader, showEnterGate, setBootProgress, bootLoaderShowing } from "@/utils/bootLoader";
 import { WOODS, WOOD_PATTERNS, WOOD_TARGETS, DEFAULT_WOODS } from "@/components/features/desk/woods";
 import { DAY_PARTS, TIME_MODES, RAIN_MODES, DEFAULT_TIME, DEFAULT_RAIN, partOfDay, partFor } from "@/components/features/desk/daylight";
 
@@ -341,10 +341,24 @@ const hint = computed(() => {
   return isDesktop.value ? "" : "Tap anything to take a closer look · Swipe to turn the room, pinch to zoom";
 });
 
+// Coming in is a gesture, so audio is unlocked in time for the computer's boot sound
+let entered = false;
+function enterDesk() {
+  if (entered) return;
+  entered = true;
+  void initializeAudio();
+  scene.value?.enter();
+  setTimeout(() => (introPlaying.value = false), 1600);
+}
+
 function onEvent(name, payload = {}) {
+  // The room's first frame is drawn, then timed behind the loader (the last stretch of its bar;
+  // see the scene's probe). Once ready the loader asks the visitor in, and the intro waits.
+  // Without a loader (the desk was reached from another page) there's nothing to wait for.
+  if (name === "drawn") bootLoaderShowing() ? setBootProgress(0.7) : enterDesk();
+  else if (name === "loading") setBootProgress(0.7 + 0.3 * payload.progress);
+  else if (name === "ready") showEnterGate(enterDesk) || enterDesk();
   // An empty coffee cup (or the lamp) flips the desk to the night shift, or back to day
-  // The room's first frame is drawn: the boot loader fades out over it
-  if (name === "ready") hideBootLoader();
   else if (name === "nightShift" && payload.dark !== isDark.value) toggleTheme();
   else if (name === "toggleSound") toggleMute();
   else if (name === "projectOpen") projectOpen.value = payload.open;
@@ -424,9 +438,13 @@ onMounted(async () => {
   // The room opens on the visitor's part of the day (or their pick), so the page takes the night
   // theme for a night and the day theme otherwise before the scene is built
   if ((partFor(settings.time) === "night") !== isDark.value) toggleTheme();
+  setBootProgress(0.12);
   try {
     const { createDeskScene } = await import("@/components/features/desk/deskScene");
+    setBootProgress(0.35);
     await nextTick();
+    // let the bar's move start before building the room holds up the page
+    await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve)));
     if (!stageRef.value) return;
     scene.value = createDeskScene({
       container: stageRef.value,
@@ -440,7 +458,7 @@ onMounted(async () => {
       rain: settings.rain,
       onEvent,
     });
-    setTimeout(() => (introPlaying.value = false), 1600);
+    setBootProgress(0.6);
     if (process.env.NODE_ENV === "development" && new URLSearchParams(window.location.search).get("preview") === "secret") {
       secretTimer = setTimeout(async () => {
         await initializeAudio();

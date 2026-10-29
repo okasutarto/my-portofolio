@@ -50,7 +50,7 @@ for (const hz of [60, 90, 120, 144, 165]) {
       lightingBlending: active === "lighting", responsiveUntil: active === "interaction" ? Infinity : 0, gsap: { isTweening: () => false }, cam: {}, blind: {}, screenPower: {}, catIdleTl: null, catBusy: false, THREE: require('three'), updateShaft() {},
       benchmark: null, createToonBatch: () => () => {}, scene: {}, renderer: {}, track: (x) => x,
       mouseRunning: false, lampHopping: false, trophyCelebrating: false, lanyardDrag: null, hatDrag: null, noteDrag: null, shelfDrag: null, stickyDrag: null, chairDrag: null,
-      perfReadout: null, requestAnimationFrame() {}, frame: null, accepted: [] });
+      perfReadout: null, requestAnimationFrame() {}, frame: null, accepted: [], idleMs: 1000 / 60 * 0.7, lowPower: false, probe: null });
     vm.runInContext(source.slice(start, end) + 'accepted.push(now); lastTick = now; }', scheduler);
     const tick = vm.runInContext('tick', scheduler);
     for (let i = 0; i < hz * 10; i++) tick(1 + i * 1000 / hz + Math.sin(i * 1.7) * 1.5);

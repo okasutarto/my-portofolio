@@ -204,7 +204,8 @@ export function createTheme(runtime) {
     runtime.core.skyFill.intensity *= 1 - 0.38 * runtime.room.outside.rain;
     runtime.core.ambient.intensity *= 1 - 0.25 * runtime.room.outside.rain;
     // Overcast light loses its sharp window outline; indoor lamp/neon shadows stay intact.
-    runtime.windowLighting.windowLight.shadow.radius = THREE.MathUtils.lerp(3, 5, runtime.core.roomLight.night) + runtime.room.outside.rain * 9;
+    // (in texels of a 2048 map; a smaller map scales it down to the same blur)
+    runtime.windowLighting.windowLight.shadow.radius = (THREE.MathUtils.lerp(3, 5, runtime.core.roomLight.night) + runtime.room.outside.rain * 9) * runtime.windowLighting.windowLight.shadow.mapSize.x / 2048;
     if (Math.abs(runtime.windowLighting.cookieRain - runtime.room.outside.rain) > 0.02) runtime.windowLighting.drawGlassCookie();
     dryWindowColor.copy(runtime.windowLighting.windowLight.color);
     runtime.windowLighting.windowLight.color.lerp(rainLightColor, runtime.room.outside.rain * 0.65);

@@ -9,6 +9,7 @@ export function createLifecycle(runtime) {
     setTime: runtime.theme.setTime,
     setRain: runtime.weather.setRain,
     setMuted: runtime.workstation.setMuted,
+    enter: runtime.animation.enter,
     back: runtime.camera.back,
     focusOn: (name) => runtime.camera.SHOTS[name] && runtime.camera.setFocus(name),
     runCommand: (cmd) => {
@@ -33,7 +34,7 @@ export function createLifecycle(runtime) {
       clearInterval(runtime.chat.buzzTimer);
       clearTimeout(runtime.gym.repTimer);
       clearTimeout(runtime.swordEffects.shoutTimer);
-      runtime.animation.intro.kill();
+      runtime.animation.intro?.kill();
       runtime.postcard.mailIntro?.kill();
       runtime.shelfCollectibles.trophyCelebration?.kill();
       gsap.killTweensOf(runtime.shelfCollectibles.trophyHalo.material);

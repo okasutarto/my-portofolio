@@ -2,6 +2,7 @@ import * as THREE from "three";
 import gsap from "gsap";
 import { sfx } from "@/composables/useSfx";
 import { canvasTexture } from "../textures";
+import { lowPower } from "../sceneConfig";
 
 export function createWindowLighting(runtime) {
   // Sun (or moon) through the window: a narrow spot far outside it, its rays all but parallel,
@@ -11,7 +12,7 @@ export function createWindowLighting(runtime) {
   const WINDOW_SUN_FAR = 30;
   const windowLight = new THREE.SpotLight(0xffe5ad, 2.2, 0, 0.13, 0.12, 0);
   windowLight.castShadow = true;
-  windowLight.shadow.mapSize.set(2048, 2048);
+  windowLight.shadow.mapSize.setScalar(lowPower ? 1024 : 2048);
   windowLight.shadow.camera.near = WINDOW_SUN_FAR - 6;
   windowLight.shadow.camera.far = WINDOW_SUN_FAR + 30;
   windowLight.shadow.bias = -0.0002;

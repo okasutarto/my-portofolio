@@ -443,8 +443,12 @@ onMounted(async () => {
     const { createDeskScene } = await import("@/components/features/desk/deskScene");
     setBootProgress(0.35);
     await nextTick();
-    // let the bar's move start before building the room holds up the page
-    await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve)));
+    // let the bar's move start before building the room holds up the page (a background tab
+    // gets no frames, so it doesn't wait for one)
+    await new Promise((resolve) => {
+      requestAnimationFrame(() => setTimeout(resolve));
+      setTimeout(resolve, 100);
+    });
     if (!stageRef.value) return;
     scene.value = createDeskScene({
       container: stageRef.value,

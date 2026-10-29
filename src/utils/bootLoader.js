@@ -49,7 +49,10 @@ export function showEnterGate(onEnter) {
     loader.classList.add("is-pressed");
     const stage = loader.querySelector(".bl-stage").getBoundingClientRect();
     const screen = loader.querySelector(".bl-screen").getBoundingClientRect();
-    loader.style.setProperty("--bl-dive", `${screen.left + screen.width / 2 - stage.left}px ${screen.top + screen.height / 2 - stage.top}px`);
+    // in percent of the stage, as its measured size includes the scale it is drawn at
+    const x = ((screen.left + screen.width / 2 - stage.left) / stage.width) * 100;
+    const y = ((screen.top + screen.height / 2 - stage.top) / stage.height) * 100;
+    loader.style.setProperty("--bl-dive", `${x}% ${y}%`);
     setTimeout(() => loader.classList.add("is-entering"), 120);
     setTimeout(() => {
       onEnter();

@@ -52,6 +52,11 @@
         #boot-loader[hidden] { display: none; }
         #boot-loader.is-done { opacity: 0; visibility: hidden; }
         #boot-loader.is-ready { cursor: pointer; }
+        /* The whole monitor grows with the screen, so a big screen isn't mostly empty background */
+        #boot-loader .bl-scale { scale: var(--bl-scale, 1); }
+        @media (min-width: 700px) and (min-height: 640px) { #boot-loader { --bl-scale: 1.25; } }
+        @media (min-width: 900px) and (min-height: 760px) { #boot-loader { --bl-scale: 1.5; } }
+        @media (min-width: 1200px) and (min-height: 900px) { #boot-loader { --bl-scale: 1.75; } }
         #boot-loader .bl-stage { display: flex; flex-direction: column; align-items: center; animation: bl-in .6s cubic-bezier(.34,1.56,.64,1) both; }
         /* A cartoon monitor: chunky bezel, dark screen, a neck and a foot */
         #boot-loader .bl-monitor { position: relative; width: min(300px, calc(100vw - 56px)); padding: 12px 12px 22px; background: #fffdf5; border: 5px solid #000; border-radius: 24px; box-shadow: 8px 8px 0 #ff90e8; }
@@ -109,7 +114,7 @@
         @keyframes bl-blink { 50% { opacity: 0; } }
         @media (prefers-reduced-motion: reduce) { #boot-loader *, #boot-loader *::before, #boot-loader *::after { animation: none !important; } }
       </style>
-      <div class="bl-stage">
+      <div class="bl-scale"><div class="bl-stage">
         <div class="bl-monitor">
           <div class="bl-screen">
             <div class="bl-title">THE DESK</div>
@@ -122,7 +127,7 @@
         <div class="bl-neck" aria-hidden="true"></div>
         <div class="bl-foot" aria-hidden="true"></div>
         <div class="bl-key"><button type="button" class="bl-enter">ENTER</button></div>
-      </div>
+      </div></div>
     </div>
     <script>
       (function () {

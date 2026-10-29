@@ -20,9 +20,9 @@ export function createWorkstation(runtime) {
   const riserWood = riserGrain.texture;
   riserWood.wrapS = riserWood.wrapT = THREE.RepeatWrapping;
   // the grain at the desk's scale: its share of the desk's length, and one of its five boards
-  // Just long enough for the monitor and the speakers either side of it, with a little to spare
-  const RISER_W = 10.4;
-  riserWood.repeat.set(RISER_W / 18, 0.2);
+  // Just long enough for the monitor and the speakers either side of it, ending a centimetre past them
+  const RISER_W = 9.9;
+  riserWood.repeat.set(RISER_W / 16, 0.2);
   riserWood.offset.set(0.2, 0.4);
   riserWood.needsUpdate = true;
   runtime.core.track(riserWood);

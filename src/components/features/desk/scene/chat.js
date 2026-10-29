@@ -10,7 +10,7 @@ export function createChat(runtime) {
   // question), the reply streams in, the wheel scrolls back through it.
   const phoneStand = new THREE.Group();
   phoneStand.scale.setScalar(0.84);
-  phoneStand.position.set(5.2, 0, -0.6);
+  phoneStand.position.set(4.75, 0, -0.6);
   phoneStand.rotation.y = -0.3;
   runtime.core.scene.add(phoneStand);
   const standMat = runtime.core.toon("#222222");

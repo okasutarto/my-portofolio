@@ -138,7 +138,7 @@ assert.deepEqual(events, [['nightShift', true]]);
 // The desk light spans the entire rear edge, with overlapping samples and no monitor hotspots.
 {
   const scene = new THREE.Scene();
-  const ctx = vm.createContext({ THREE, scene, WALL_Z: -4.58, track: (value) => value, noRaycast() {}, DESK_WASH: 0.45 });
+  const ctx = vm.createContext({ THREE, scene, WALL_Z: -4.58, track: (value) => value, noRaycast() {}, DESK_WASH: 0.45, DESK_W: 16, DESK_X: -1 });
   const start = source.indexOf('  const neonLights =');
   const end = source.indexOf('  // A framed illustration on the left wall:', start);
   vm.runInContext(source.slice(start, end), ctx);
@@ -146,8 +146,8 @@ assert.deepEqual(events, [['nightShift', true]]);
   assert.equal(lights.length, 4);
   assert.ok(lights.every((light) => light.isSpotLight && light.castShadow && light.penumbra > 0 && light.penumbra < 0.2), 'strip samples are feathered and shadowed');
   assert.ok(lights.every((light) => light.decay === 0 && light.angle > 1.3), 'line samples must overlap without near-wall inverse-square hotspots');
-  assert.ok(lights[0].position.x < -5 && lights.at(-1).position.x > 5, 'illumination spans the full eighteen-unit desk');
-  for (let i = 1; i < lights.length; i++) assert.ok(Math.abs(lights[i].position.x - lights[i - 1].position.x - 4.5) < 1e-10, 'uniform spacing avoids concentrated light centres');
+  assert.ok(lights[0].position.x < -6 && lights.at(-1).position.x > 4, 'illumination spans the full sixteen-unit desk');
+  for (let i = 1; i < lights.length; i++) assert.ok(Math.abs(lights[i].position.x - lights[i - 1].position.x - 4) < 1e-10, 'uniform spacing avoids concentrated light centres');
   assert.ok(lights.every((light) => light.position.z === -4.23 && light.position.y === -0.3), 'every source belongs to the actual rear LED strip');
   vm.runInContext('updateNeonLights(0)', ctx);
   assert.ok(lights.every((light) => light.intensity === 0), 'strip is off in daylight');

@@ -21,8 +21,11 @@ export function createRoom(runtime) {
   runtime.core.track(deskWood.texture);
   drawWoodTop(deskWood.ctx, 1800, 840, DEFAULT_WOODS.desk);
   deskMat.map = deskWood.texture;
-  const desk = runtime.core.mesh(runtime.core.rbox(18, 0.35, 8.4, 0.1), deskMat, { outline: 0.06 });
-  desk.position.y = -0.175;
+  // A 160 cm top, its left end against the side wall and its right trimmed back to the props
+  const DESK_W = 16;
+  const DESK_X = -1;
+  const desk = runtime.core.mesh(runtime.core.rbox(DESK_W, 0.35, 8.4, 0.1), deskMat, { outline: 0.06 });
+  desk.position.set(DESK_X, -0.175, 0);
   runtime.core.scene.add(desk);
   // A sit-stand frame in matte black: two telescoping columns (three stages, widest at the
   // floor) on flat T-feet, a crossbar between them and a rail under the top at each end, with
@@ -34,7 +37,7 @@ export function createRoom(runtime) {
     runtime.core.scene.add(part);
     return part;
   };
-  [-7.3, 7.3].forEach((x) => {
+  [DESK_X - 6.3, DESK_X + 6.3].forEach((x) => {
     frameBar(0.62, 0.22, 7.6, x, FLOOR_Y + 0.13, 0.2, 0.05);
     [-3.35, 3.75].forEach((z) => frameBar(0.4, 0.08, 0.4, x, FLOOR_Y + 0.04, z, 0.03));
     frameBar(0.78, 2.8, 0.62, x, FLOOR_Y + 1.64, 0.2, 0.05);
@@ -42,9 +45,9 @@ export function createRoom(runtime) {
     frameBar(0.62, 2.0, 0.46, x, -1.4, 0.2);
     frameBar(0.72, 0.1, 7.2, x, -0.4, 0.2, 0.035);
   });
-  frameBar(14.0, 0.32, 0.4, 0, -0.61, 0.2);
+  frameBar(12.6, 0.32, 0.4, DESK_X, -0.61, 0.2);
   const keypad = runtime.core.mesh(runtime.core.rbox(1.25, 0.46, 0.2, 0.06), legMat, { outline: 0.03 });
-  keypad.position.set(6.3, -0.55, 3.98);
+  keypad.position.set(DESK_X + 5.3, -0.55, 3.98);
   keypad.rotation.x = -0.35;
   const keypadFace = runtime.core.printed(1.15, 0.4, 300, (c, w, h) => {
     c.fillStyle = "#121212";
@@ -330,9 +333,9 @@ export function createRoom(runtime) {
     return light;
   };
   const deskNeons = ["#00e0c6", "#ff90e8"].map((color, i) => {
-    const x = i === 0 ? -4.5 : 4.5;
+    const x = DESK_X + (i === 0 ? -DESK_W / 4 : DESK_W / 4);
     const strip = new THREE.Mesh(
-      runtime.core.track(new THREE.BoxGeometry(9, 0.045, 0.06)),
+      runtime.core.track(new THREE.BoxGeometry(DESK_W / 2, 0.045, 0.06)),
       runtime.core.track(new THREE.MeshBasicMaterial({ color })),
     );
     // tucked just under the top's back edge, so only its light shows, never the strip itself
@@ -343,7 +346,7 @@ export function createRoom(runtime) {
     // Four broad samples retain the strip coverage and leave texture units for the
     // monitor task light and textured/bump-mapped materials on 16-sampler GPUs.
     const lights = Array.from({ length: 2 }, (_, sample) => {
-      const sx = x - 4.5 + (sample + 0.5) * 4.5;
+      const sx = x - DESK_W / 4 + (sample + 0.5) * DESK_W / 4;
       return stripLight(color, () => 1.5 * washMat.opacity / DESK_WASH,
         [sx, strip.position.y, strip.position.z], [sx, 2.5, WALL_Z + 0.12]);
     });

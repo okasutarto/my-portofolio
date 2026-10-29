@@ -37,7 +37,7 @@ scene.updateMatrixWorld(true);
 const deskBox = new THREE.Box3().setFromObject(desk);
 const close = (a, b, label) => assert.ok(Math.abs(a - b) < 1e-5, `${label}: ${a} vs ${b}`);
 close(deskBox.max.y - FLOOR_Y, 7.4, '74 cm desk height');
-close(deskBox.max.x - deskBox.min.x, 18, '180 cm desk width');
+close(deskBox.max.x - deskBox.min.x, 16, '160 cm desk width');
 close(deskBox.max.y - deskBox.min.y, 0.35, '3.5 cm top thickness');
 close(SEAT_TOP - FLOOR_Y, 5.2, '52 cm seat height shared with cat perch');
 close(deskBox.max.y - SEAT_TOP, 2.2, '22 cm desk-to-seat clearance');

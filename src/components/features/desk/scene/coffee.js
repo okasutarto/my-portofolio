@@ -8,7 +8,7 @@ export function createCoffee(runtime) {
   const mug = new THREE.Group();
   // On a cork coaster, a little closer to the envelope
   const MUG_Y = 0.06;
-  mug.position.set(6.9, MUG_Y, 1.6);
+  mug.position.set(5.75, MUG_Y, 1.6);
   const corkTex = canvasTexture(256, 256);
   runtime.core.track(corkTex.texture);
   drawCork(corkTex.ctx, 256, 256);

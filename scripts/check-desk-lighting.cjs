@@ -249,8 +249,8 @@ assert.equal(run('dayPart()'), 'evening', 'a picked part of the day ignores the 
   // The 180 × 84 cm desktop is centred on the origin; the high noon patch falls by the window
   const hitDesk = new THREE.Ray(windowGlass, midday).intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
   assert.ok(hitDesk && hitDesk.x > -9 && hitDesk.x < 0 && Math.abs(hitDesk.z) < 4.2, 'noon central ray lands on the window half of the desktop');
-  // The full-size monitor's lower edge: centred at X=-0.4, 19 cm above the desk, its face at Z≈-2.75
-  const lowerMonitor = new THREE.Vector3(-0.4, 1.9, -2.75);
+  // The full-size monitor's lower edge: centred at X=-1, 19 cm above the desk, its face at Z≈-2.75
+  const lowerMonitor = new THREE.Vector3(-1, 1.9, -2.75);
   const monitorShadow = new THREE.Ray(lowerMonitor, morning).intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
   assert.ok(monitorShadow && Math.abs(monitorShadow.x) < 9 && Math.abs(monitorShadow.z) < 4.2,
     'morning shadow of the lower monitor reaches the desk instead of passing beyond its edge');

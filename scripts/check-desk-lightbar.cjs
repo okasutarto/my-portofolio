@@ -43,7 +43,7 @@ lights.forEach((l) => {
 });
 // In the world: the monitor (and the bar on it) is scaled 1.469 and stands on the 8 cm riser
 monitor.scale.setScalar(62.3 / 42.4);
-monitor.position.set(-0.4, 0.8, -2.9);
+monitor.position.set(-1, 0.8, -2.9);
 monitor.updateMatrixWorld(true);
 const from = light.getWorldPosition(new THREE.Vector3());
 const aim = light.target.getWorldPosition(new THREE.Vector3()).sub(from).normalize();

@@ -8,8 +8,8 @@ export function createGym(runtime) {
   // Click for a rep: one dumbbell is lifted and set down with a clank, and a counter pops up
   // over them. Ten in a row is a new PR, with confetti.
   const gym = new THREE.Group();
-  // Between the desk's leg and the shelf, clear of both, resting on top of the rug
-  gym.position.set(9.7, runtime.room.FLOOR_Y + 0.08, -0.2);
+  // On the bare floor in front of the shelf, towards its bin side
+  gym.position.set(runtime.shelf.shelf.position.x + 1.2, runtime.room.FLOOR_Y + 0.01, 1.0);
   gym.scale.setScalar(2);
   gym.rotation.y = -0.15;
   runtime.core.scene.add(gym);

@@ -91,8 +91,9 @@ export function createWallDecor(runtime) {
     },
   });
   // The rug runs from just in front of the back wall's skirting (its face is 0.31 out from the
-  // wall slab's middle) to well past the chair, its border whole on every side
-  const RUG = { x: 1.0, w: 20, back: runtime.room.WALL_Z + 0.33, front: 13 };
+  // wall slab's middle) to well past the chair, its border whole on every side: 160 cm across,
+  // the desk's own width, so the shelf beside it stands on the bare floor
+  const RUG = { x: -1, w: 16, back: runtime.room.WALL_Z + 0.33, front: 13 };
   const rugD = RUG.front - RUG.back;
   const rugZ = (RUG.front + RUG.back) / 2;
   const rugTex = canvasTexture(2000, Math.round(2000 * rugD / RUG.w));

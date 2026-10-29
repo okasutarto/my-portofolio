@@ -29,7 +29,8 @@ export function createWorkstation(runtime) {
   const riserMat = runtime.core.toon(PALETTES.light.desk);
   riserMat.map = riserWood;
   const riser = new THREE.Group();
-  riser.position.set(-0.4, 0, -3.1);
+  // Centred on the 160 cm desk (x −9 to 7), with everything on it
+  riser.position.set(-1, 0, -3.1);
   runtime.core.scene.add(riser);
   const riserTop = runtime.core.mesh(runtime.core.rbox(RISER_W, RISER_BOARD, 2.4, 0.05), riserMat, { outline: 0.045 });
   riserTop.position.y = RISER_TOP - RISER_BOARD / 2;
@@ -50,7 +51,7 @@ export function createWorkstation(runtime) {
   const monitor = new THREE.Group();
   const MONITOR_SCALE = 62.3 / 42.4;
   monitor.scale.setScalar(MONITOR_SCALE);
-  monitor.position.set(-0.4, RISER_TOP, -2.9);
+  monitor.position.set(-1, RISER_TOP, -2.9);
   runtime.core.scene.add(monitor);
   // Studio Display XDR: a thin silver aluminium slab with an even black glass border all round
   // (no chin), on a stand folded from one aluminium sheet, the foot running forward under it
@@ -161,7 +162,7 @@ export function createWorkstation(runtime) {
   const macMini = new THREE.Group();
   macMini.scale.setScalar(MINI_SCALE);
   // under the screen's right half, midway between the stand's foot and the right speaker
-  macMini.position.set(1.75, RISER_TOP, -3.1);
+  macMini.position.set(1.15, RISER_TOP, -3.1);
   macMini.rotation.y = -0.1;
   runtime.core.scene.add(macMini);
   const miniBevel = 0.03;
@@ -517,7 +518,7 @@ export function createWorkstation(runtime) {
   const BAFFLE_Z = R1280.d / 2;
   const WOOFER_AT = 0.74;
   // Close in either side of the monitor, a hand's width from its edges
-  [-4.5, 3.7].forEach((x, index) => {
+  [-5.1, 3.1].forEach((x, index) => {
     const active = index === 1;
     // Mirrored pair: the tweeter towards the outer side, the port towards the middle; the
     // active one's port sits a little lower, under its remote's round receiver window

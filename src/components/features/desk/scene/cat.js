@@ -216,7 +216,7 @@ export function createCat(runtime) {
   // jumping, so she never passes through the top.
   const CAT_BEDS = {
     floor: { parent: runtime.core.scene, position: new THREE.Vector3(1.4, runtime.room.FLOOR_Y + 0.08, 0.3), yaw: 0.25, via: new THREE.Vector3(1.8, runtime.room.FLOOR_Y + 0.08, 5.4) },
-    desk: { parent: runtime.core.scene, position: new THREE.Vector3(-4.8, 0, 1.0), yaw: 0.45 }, // left of the centred keyboard
+    desk: { parent: runtime.core.scene, position: new THREE.Vector3(-5.8, 0, 1.0), yaw: 0.45 }, // left of the centred keyboard
     // curled on the gaming chair's seat, on the side that shows past its back (she turns with
     // the chair when it spins)
     chair: { parent: runtime.chair.chairTop, position: new THREE.Vector3(0.95, runtime.chair.SEAT_TOP, -0.55), yaw: -1.25 },

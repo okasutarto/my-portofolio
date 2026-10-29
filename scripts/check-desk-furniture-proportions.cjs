@@ -97,7 +97,7 @@ const shelfBox = new THREE.Box3().setFromObject(runtime.shelf.shelf, true);
 close(shelfBox.max.x - shelfBox.min.x, 6.1, '61 cm shelf width');
 close(runtime.shelf.SHELF_H * runtime.shelf.shelf.scale.y, 13.2, '132 cm shelf carcass height');
 assert.ok(shelfBox.max.y - FLOOR_Y < 13.3, 'shelf lips stay within one cm of the top');
-assert.ok(shelfBox.min.x > deskBox.max.x + 1, 'shelf clears the desk side');
+assert.ok(shelfBox.min.x > deskBox.max.x + 1.5, 'shelf stands clear of the desk, leaving the plant in its back corner in view');
 const workstation = read('workstation');
 const riserHeight = Number(workstation.match(/const RISER_TOP = ([\d.]+)/)[1]);
 vm.runInContext(`const RISER_TOP = ${riserHeight};\n` +

@@ -697,10 +697,10 @@ const SOUNDS = {
   // separate sounds, so moving from one sword to the next (shut, then open, at once) never
   // drops the open.
   koiguchi(t) {
-    const real = sample(t, "draw", { peak: 0.26, duration: 0.42, steady: true });
+    const real = sample(t, "draw", { peak: 0.17, duration: 0.42, steady: true });
     const layer = real ? 0.28 : 0.65;
-    noise(t, { filter: "bandpass", freq: 900, to: 3800, q: 2.2, attack: 0.05, peak: 0.18 * layer, decay: 0.3 });
-    noise(t + 0.02, { filter: "highpass", freq: 2500, to: 5200, q: 0.7, attack: 0.04, peak: 0.06 * layer, decay: 0.28 });
+    noise(t, { filter: "bandpass", freq: 900, to: 3800, q: 2.2, attack: 0.05, peak: 0.12 * layer, decay: 0.3 });
+    noise(t + 0.02, { filter: "highpass", freq: 2500, to: 5200, q: 0.7, attack: 0.04, peak: 0.04 * layer, decay: 0.28 });
   },
   // Shut again: the hush shorter and falling, ending on the guard's soft "tak" against the mouth
   koiguchiShut(t) {

@@ -353,9 +353,11 @@ export function createGauntlet(runtime) {
     stone("#22c55e", thumb, 0, 0.09, 0.07, 0.036),
   ];
   // One glow on the glove for all six: the colour of whichever stone burns brightest, faint at
-  // rest (the mind stone) and flaring with it
+  // rest (the mind stone) and flaring with it. Dark while the swords' close-up puts the glove
+  // away (the light itself stays, see hideRackProps)
   const stoneTint = { color: new THREE.Color() };
   const stoneLight = runtime.room.neonLight("#ffdd00", 0.9, () => {
+    if (runtime.swordEffects.rackPropsHidden) return 0;
     let brightest = stones[4];
     stones.forEach((gem) => {
       if (gem.userData.halo.material.opacity > brightest.userData.halo.material.opacity) brightest = gem;

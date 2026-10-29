@@ -9,7 +9,7 @@ export function createChat(runtime) {
   // The chat with the AI assistant runs on the phone's screen: type (or tap a suggested
   // question), the reply streams in, the wheel scrolls back through it.
   const phoneStand = new THREE.Group();
-  phoneStand.position.set(3.85, 0, -1.95);
+  phoneStand.position.set(4.05, 0, -1.95);
   phoneStand.rotation.y = -0.3;
   runtime.core.scene.add(phoneStand);
   const standMat = runtime.core.toon("#222222");

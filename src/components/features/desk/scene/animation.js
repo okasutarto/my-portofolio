@@ -101,13 +101,18 @@ export function createAnimation(runtime) {
   // Phones go without the neon and strip shadows from the start; others may shed them later
   // (see judgeQuality)
   let decorShed = lowPower;
-  function updateShadowBudget() {
+  // Every lit shader is built for the number of shadowed lights, so a light gaining or losing
+  // its shadow recompiles them all: a freeze of seconds where ANGLE translates them to HLSL
+  // (Chrome on Windows). So the set follows only the night's decorative shadows, never a light's
+  // own brightness: a dark lamp or sword key keeps its map and sampler, and the shader skips it
+  // (its colour is black), drawing its map again only once it's lit (see tick).
+  const decorWanted = () => !decorShed && (runtime.theme.darkNow || runtime.theme.lightingBlending);
+  function updateShadowBudget(decor = decorWanted()) {
     let available = shadowTextureLimit;
     shadowLights.forEach((light) => {
-      const active = light.intensity > 0.001 && (!decorativeShadows.has(light) || (!decorShed && (runtime.theme.darkNow || runtime.theme.lightingBlending)));
-      const enabled = active && available > 0;
+      const enabled = (!decorativeShadows.has(light) || decor) && available > 0;
       if (enabled) available--;
-      if (enabled && !light.castShadow) light.shadow.needsUpdate = true;
+      if (enabled && !light.castShadow && light.intensity > 0) light.shadow.needsUpdate = true;
       light.castShadow = enabled;
     });
   }
@@ -362,7 +367,9 @@ export function createAnimation(runtime) {
     runtime.strawHat.constrainHat();
     updateToonBatch();
     judgeQuality(now, interval, moving);
-    updateShadowBudget();
+    // the first frame casts the night's shadows too, so their own depth passes are built
+    // before anyone switches the lamp on (see warmShaders)
+    updateShadowBudget(firstFrame ? !decorShed : decorWanted());
     const drawStarted = probe ? performance.now() : 0;
     runtime.core.renderFrame();
     if (firstFrame) {
@@ -392,6 +399,39 @@ export function createAnimation(runtime) {
   let firstFrame = true;
   // (with nothing left to shed, or under ?perf&bench, the room is ready on its first frame)
   let readied = false;
+  // Every program the room can ask for is compiled before its first frame: by day and by night
+  // (see updateShadowBudget), and for what only shows later (the close-ups' cards, the swords'
+  // spotlight). Where the driver compiles in parallel, it does so off the page's and the
+  // compositor's thread, so the loader keeps moving and nothing compiles mid-visit. (Not
+  // compileAsync: it waits on each material's latest program, and never settles if a material
+  // is disposed meanwhile; the programs themselves are watched here, for a few seconds at most.)
+  function warmShaders() {
+    const { renderer, scene, camera, composer } = runtime.core;
+    const programs = new Set();
+    const compile = (root) => renderer.compile(root, camera, scene).forEach((material) => {
+      const program = renderer.properties.get(material).currentProgram;
+      if (program) programs.add(program);
+    });
+    // the room lands in the composer's buffer (linear, untoned), the overlays on the canvas
+    // (see renderFrame), and each gets its own program
+    renderer.setRenderTarget(composer.readBuffer);
+    (decorShed ? [false] : [!decorWanted(), decorWanted()]).forEach((decor) => {
+      updateShadowBudget(decor);
+      compile(scene);
+    });
+    renderer.setRenderTarget(null);
+    scene.traverse((o) => o.material?.depthTest === false && compile(o));
+    // (without parallel compiling a program reports ready at once, and the first frame waits)
+    const giveUpAt = performance.now() + 8000;
+    return new Promise((resolve) => {
+      const check = () => {
+        programs.forEach((program) => (!program.program || program.isReady()) && programs.delete(program));
+        if (!programs.size || runtime.core.destroyed || performance.now() > giveUpAt) resolve();
+        else setTimeout(check, 16);
+      };
+      check();
+    });
+  }
   function start() {
     if (probe && !canShed()) probe = null;
     ro.observe(runtime.options.container);
@@ -399,9 +439,15 @@ export function createAnimation(runtime) {
     window.visualViewport?.addEventListener("resize", resize);
     watchDensity();
     resize();
-    frame = requestAnimationFrame(tick);
-    // (the first textures' upload would read as a slow device)
-    judgeAfter = performance.now() + 4000;
+    Promise.resolve()
+      .then(warmShaders)
+      .catch((err) => console.warn(err))
+      .then(() => {
+        if (runtime.core.destroyed) return;
+        frame = requestAnimationFrame(tick);
+        // (the first textures' upload would read as a slow device)
+        judgeAfter = performance.now() + 4000;
+      });
   }
 
   // The room renders behind the loader from the start; the intro (the settle, the badge's swing

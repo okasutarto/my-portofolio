@@ -78,7 +78,7 @@ export function createCamera(runtime) {
     // The sword rack, with room on its left for a sword's card and above it for a slash
     swords: () => {
       runtime.swordRack.katanaRack.getWorldPosition(screenPos);
-      return { target: [screenPos.x - 1.6, screenPos.y + 1.1, screenPos.z], dir: [0.12, 0.08, 1], fit: [10.4, 6.8], depth: 3.5 };
+      return { target: [screenPos.x - 1.85, screenPos.y + 0.95, screenPos.z], dir: [0.12, 0.08, 1], fit: [9.2, 6], depth: 3.5 };
     },
     // Close on the gauntlet for the snap, from a little to its right and above
     gauntlet: () => {

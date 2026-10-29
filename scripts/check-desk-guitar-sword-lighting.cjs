@@ -23,7 +23,7 @@ const ambient = { intensity: daylight.day.ambient };
 const skyFill = { intensity: daylight.day.skyPower };
 const context = vm.createContext({
   THREE, scene, katanaRack, track: value => value, noRaycast() {},
-  aoPass: { overrideVisibility() {} }, gauntlet: {}, focus: { name: 'swords' },
+  aoPass: { overrideVisibility() {} }, gauntlet: new THREE.Group(), nintendoSwitch: new THREE.Group(), focus: { name: 'swords' },
   camera: new THREE.PerspectiveCamera(), screenAxis: new THREE.Vector3(),
   DAYLIGHT: daylight, ambient, skyFill,
 });

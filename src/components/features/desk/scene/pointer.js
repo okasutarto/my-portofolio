@@ -30,7 +30,7 @@ export function createPointer(runtime) {
   };
   const visibleHits = () => raycaster.intersectObjects(runtime.core.pickables, true)
     .filter((h) => -viewPoint.copy(h.point).applyMatrix4(runtime.core.camera.matrixWorldInverse).z >= runtime.core.camera.near)
-    .filter((h) => (runtime.gauntlet.gauntlet.visible || !inside(h.object, runtime.gauntlet.gauntlet)) && (runtime.chair.chair.visible || !inside(h.object, runtime.chair.chair)) && (!runtime.lamp.lampHidden || !inside(h.object, runtime.lamp.lamp)));
+    .filter((h) => (!runtime.swordEffects.rackPropsHidden || (!inside(h.object, runtime.gauntlet.gauntlet) && !inside(h.object, runtime.handheld.nintendoSwitch))) && (runtime.chair.chair.visible || !inside(h.object, runtime.chair.chair)) && (!runtime.lamp.lampHidden || !inside(h.object, runtime.lamp.lamp)));
   const pick = (e) => {
     rayFromPointer(e);
     const hit = visibleHits()[0];

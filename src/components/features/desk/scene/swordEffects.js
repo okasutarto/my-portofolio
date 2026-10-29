@@ -762,10 +762,30 @@ export function createSwordEffects(runtime) {
   };
   const spotAt = new THREE.Vector3();
   const spotEdge = new THREE.Vector3();
+  // The gauntlet and the handheld under the rack are put away for the close-up. Only what they
+  // draw, like the lamp (see hideLamp): the stones' glow is a light, and a light leaving the
+  // scene recompiles every lit shader
+  let rackPropsHidden = false;
+  const rackPropsShown = new Map();
+  function hideRackProps(hidden) {
+    if (hidden === rackPropsHidden) return;
+    rackPropsHidden = hidden;
+    if (hidden) {
+      [runtime.gauntlet.gauntlet, runtime.handheld.nintendoSwitch].forEach((prop) => prop.traverse((o) => {
+        // (the stones' halos are sprites)
+        if (!o.isMesh && !o.isSprite) return;
+        rackPropsShown.set(o, o.visible);
+        o.visible = false;
+      }));
+    } else {
+      rackPropsShown.forEach((visible, o) => (o.visible = visible));
+      rackPropsShown.clear();
+    }
+  }
   // Each frame: easing in or out with the close-up, and kept centred on the rack wherever the
-  // camera is. The gauntlet below the rack is put away for the close-up altogether.
+  // camera is
   function updateSpotlight(dt) {
-    runtime.gauntlet.gauntlet.visible = runtime.camera.focus.name !== "swords";
+    hideRackProps(runtime.camera.focus.name === "swords");
     const strength = spotUniforms.strength;
     strength.value += ((runtime.camera.focus.name === "swords" ? 1 : 0) - strength.value) * (1 - Math.pow(0.02, dt));
     // The room's own fill (ambient and sky) falls from ~2.6 at midday to ~0.3 at night; a light
@@ -807,6 +827,7 @@ export function createSwordEffects(runtime) {
     updateFx,
     updateTrail,
     updateSpotlight,
+    get rackPropsHidden() { return rackPropsHidden; },
     get shoutTimer() { return shoutTimer; },
     impactFlash,
   };

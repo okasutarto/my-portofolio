@@ -59,6 +59,8 @@ export function createWorkstation(runtime) {
   brushed.texture.wrapS = brushed.texture.wrapT = THREE.RepeatWrapping;
   brushed.texture.repeat.set(2, 3);
   brushed.texture.needsUpdate = true;
+  // One silver for the display, its stand and the Mac Studio, so the three read as one set
+  const SILVER = "#dcdee0";
   const aluminium = runtime.core.toon("#c8cbce");
   aluminium.map = brushed.texture;
   // Sized from the real one (62.3 wide, 47.8 tall on its stand, a 36.2 tall and 3.1 deep panel,
@@ -100,8 +102,16 @@ export function createWorkstation(runtime) {
   // shape x runs along z, its extrusion across x
   standGeo.rotateY(-Math.PI / 2);
   standGeo.translate((STAND_W - 0.02) / 2, 0, 0);
-  const footMat = runtime.core.toon("#d2d5d8");
-  footMat.map = brushed.texture;
+  // The stand sits in the panel's shadow and its sheet is a few units long, where the shared
+  // grain would read as broad stripes: a finer grain and a little glow of its own keep it the
+  // same silver as the display and the Mac Studio
+  const footMat = runtime.core.toon(SILVER);
+  const standGrain = runtime.core.track(brushed.texture.clone());
+  standGrain.repeat.set(8, 12);
+  standGrain.needsUpdate = true;
+  footMat.map = standGrain;
+  footMat.emissive.set(SILVER);
+  footMat.emissiveIntensity = 0.12;
   const stand = runtime.core.mesh(standGeo, footMat, { outline: 0.015 });
   // A thin dark rubber pad under the foot, and the hinge block the arm meets on the back
   const hingeMat = runtime.core.toon("#1c1d21");
@@ -111,13 +121,17 @@ export function createWorkstation(runtime) {
   mount.position.set(0, armTop.y + 0.08, -0.2);
   monitor.add(stand, footPad, mount);
   // The screen runs from x -2.0 to 2.0 and 1.2 either side of SCREEN_Y; the black glass border
-  // is an even 0.09 all round and the aluminium shows only as a hairline rim round it
-  const silverMat = runtime.core.toon("#d9dbdd");
+  // is 0.08 round it and the aluminium shows only as a hairline rim. Seen from above, the
+  // body's top face thickens the top edge and its bottom rim hides, so the bottom border is a
+  // little deeper and the aluminium below it deeper still
+  const CHIN = 0.035;
+  const RIM = 0.03;
+  const silverMat = runtime.core.toon(SILVER);
   silverMat.map = brushed.texture;
-  const body = runtime.core.mesh(runtime.core.rbox(4.24, 2.62, 0.2, 0.06), silverMat, { outline: 0.03 });
-  body.position.set(0, SCREEN_Y, -0.03);
-  const bezel = runtime.core.mesh(runtime.core.rbox(4.18, 2.56, 0.02, 0.045), runtime.core.toon("#0d0e10"), { outline: 0, cast: false });
-  bezel.position.set(0, SCREEN_Y, 0.075);
+  const body = runtime.core.mesh(runtime.core.rbox(4.24, 2.62 + CHIN + RIM, 0.2, 0.06), silverMat, { outline: 0.03 });
+  body.position.set(0, SCREEN_Y - (CHIN + RIM) / 2, -0.03);
+  const bezel = runtime.core.mesh(runtime.core.rbox(4.18, 2.56 + CHIN, 0.02, 0.045), runtime.core.toon("#0d0e10"), { outline: 0, cast: false });
+  bezel.position.set(0, SCREEN_Y - CHIN / 2, 0.075);
   monitor.add(body, bezel);
   // The details: a thin black border round the panel and the camera in the top border
   // between the bezel's face (z 0.085) and the screen (z 0.09)
@@ -151,7 +165,7 @@ export function createWorkstation(runtime) {
   // stood up: its extrusion runs up y, from the foot's top (the shape's +y to the back)
   studioGeo.rotateX(-Math.PI / 2);
   studioGeo.translate(0, STUDIO_LIFT + studioBevel, 0);
-  const studioMat = runtime.core.toon("#dcdee0");
+  const studioMat = runtime.core.toon(SILVER);
   studioMat.map = brushed.texture;
   // the lids take the shape's own coordinates as uv, so the top print is stretched over the lid
   const studioTop = canvasTexture(512, 512);

@@ -31,7 +31,9 @@ export function createSceneMeshes(scene) {
               resolution: outlineResolution,
               color: { value: new THREE.Color(0x000000) },
             },
+            // (batched hulls take their placement from the batch; see toonBatch)
             vertexShader: `
+              #include <batching_pars_vertex>
               uniform float thickness;
               uniform vec2 resolution;
               void main() {
@@ -40,6 +42,11 @@ export function createSceneMeshes(scene) {
                 #ifdef USE_INSTANCING
                   p = instanceMatrix * p;
                   n = mat3(instanceMatrix) * n;
+                #endif
+                #ifdef USE_BATCHING
+                  #include <batching_vertex>
+                  p = batchingMatrix * p;
+                  n = mat3(batchingMatrix) * n;
                 #endif
                 vec4 clip = projectionMatrix * modelViewMatrix * p;
                 vec2 dir = (mat3(modelViewMatrix) * n).xy;

@@ -6,18 +6,17 @@ import { DEFAULT_WOODS } from "../woods";
 
 export function createShelf(runtime) {
   // ---------- shelf (right of the desk): books and a little game collection ----------
-  // Bottom to top: a console with its controllers, a row of books, game cases and a robot,
-  // a book stack with a trophy and a handheld, and a mushroom figure on top. Click anything
-  // on it for a little hop.
+  // Bottom to top: game cases and a robot, then manga and a trophy, then a console with
+  // stacked controllers under its neon sign. Click anything on it for a little hop.
   const shelf = new THREE.Group();
   // Clear of the About board on the wall (it spans x 1.2–8.0)
-  // Full-size 84 × 30 × 168 cm shelving; its contents share the same scale.
+  // Full-size 61 × 30 × 132 cm shelving; its contents share the same scale.
   shelf.scale.setScalar(2);
   shelf.position.set(14.6, runtime.room.FLOOR_Y, runtime.room.WALL_Z + 1.65);
   runtime.core.scene.add(shelf);
-  const SHELF_W = 4.2;
+  const SHELF_W = 3.05;
   const SHELF_D = 1.5;
-  const SHELF_H = 8.4;
+  const SHELF_H = 6.6;
   let shelfLook = 1.7;
   const BOARD = 0.22;
   // Oak with a visible grain (the desk's wood print, toned warmer and deeper)
@@ -37,7 +36,9 @@ export function createShelf(runtime) {
   const shelfBack = runtime.core.mesh(runtime.core.rbox(SHELF_W, SHELF_H, 0.12, 0.03), shelfBackMat, { outline: 0.04 });
   shelfBack.position.set(0, SHELF_H / 2, -SHELF_D / 2 + 0.06);
   shelf.add(shelfBack);
-  const LEVELS = [0.15, 2.55, 4.55, 6.55, SHELF_H - BOARD / 2];
+  // Bay heights follow their contents: 1.78 for the cases, 1.72 for the manga and trophy, and
+  // the tall 2.18 at the top for the standing console
+  const LEVELS = [0.15, 2.15, 4.09, SHELF_H - BOARD / 2];
   const lipMat = runtime.core.toon("#e2b384");
   lipMat.map = shelfWood.texture;
   // Recessed diffusers sit flush under the rear of each shelf; all bays share one colour.
@@ -65,15 +66,15 @@ export function createShelf(runtime) {
     lip.position.set(0, y, SHELF_D / 2 - 0.02);
     shelf.add(board, lip);
     if (i === 0) return;
-    const channel = runtime.core.mesh(runtime.core.rbox(3.7, 0.055, 0.12, 0.015), runtime.core.toon("#454b50"), { outline: 0.008, cast: false });
+    const channel = runtime.core.mesh(runtime.core.rbox(SHELF_W - 0.5, 0.055, 0.12, 0.015), runtime.core.toon("#454b50"), { outline: 0.008, cast: false });
     channel.position.set(0, y - BOARD / 2 - 0.0275, -0.48);
     channel.raycast = runtime.core.noRaycast;
     const ledMat = runtime.core.track(new THREE.MeshBasicMaterial({ color: "#c4cece" }));
-    const strip = new THREE.Mesh(runtime.core.track(new THREE.BoxGeometry(3.6, 0.018, 0.045)), ledMat);
+    const strip = new THREE.Mesh(runtime.core.track(new THREE.BoxGeometry(SHELF_W - 0.6, 0.018, 0.045)), ledMat);
     strip.position.set(0, y - BOARD / 2 - 0.055, -0.435);
     strip.raycast = runtime.core.noRaycast;
     const glowMat = runtime.core.track(new THREE.MeshBasicMaterial({ map: glowTex.texture, color: "#70e5e0", transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
-    const glow = new THREE.Mesh(runtime.core.track(new THREE.PlaneGeometry(3.7, 1.6)), glowMat);
+    const glow = new THREE.Mesh(runtime.core.track(new THREE.PlaneGeometry(SHELF_W - 0.5, 1.6)), glowMat);
     glow.position.set(0, y - BOARD / 2 - 0.8, -0.619);
     glow.raycast = runtime.core.noRaycast;
     shelf.add(channel, strip, glow);
@@ -102,9 +103,9 @@ export function createShelf(runtime) {
       glowMat.opacity = party ? 0.7 : runtime.core.roomLight.night * 0.5;
     });
   }
-  // A neon sign on the back panel above the console: "GAME ON" with a little controller. By
+  // A neon sign on the back panel above the console, in the top bay: "GAME ON" with a little controller. By
   // day its glass tubes sit unlit; at night it flickers on and glows
-  const NEON = { w: 1.9, h: 0.655 };
+  const NEON = { w: 1.3, h: 0.448 };
   const neonSign = (lit) => {
     const t = canvasTexture(1160, 400);
     runtime.core.track(t.texture);
@@ -155,14 +156,14 @@ export function createShelf(runtime) {
   const neonOn = new THREE.Mesh(runtime.core.track(new THREE.PlaneGeometry(NEON.w, NEON.h)), runtime.core.track(new THREE.MeshBasicMaterial({ map: neonSign(true), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 })));
   [neonOff, neonOn].forEach((plane, i) => {
     // low enough that the shelf above doesn't hide its top from the room
-    plane.position.set(0.1, (LEVELS[0] + LEVELS[1]) / 2 + 0.22, -SHELF_D / 2 + 0.14 + i * 0.01);
+    plane.position.set(0.55, LEVELS[2] + 1.95, -SHELF_D / 2 + 0.14 + i * 0.01);
     plane.raycast = runtime.core.noRaycast;
     shelf.add(plane);
   });
   // The sign's magenta-violet spill: on the console and the shelf, with the shelf's things
   // casting back onto the panel
   const signLight = runtime.room.neonLight("#d86bff", 3.5, () => neonOn.material.opacity, { distance: 4, shadow: true });
-  signLight.position.set(0.1, neonOn.position.y, neonOn.position.z + 0.45);
+  signLight.position.set(0.55, neonOn.position.y, neonOn.position.z + 0.45);
   shelf.add(signLight);
   // Night: a couple of stuttering flickers, then on. Day: off.
   function setNeon(on, instant = false) {
@@ -197,6 +198,7 @@ export function createShelf(runtime) {
     set ledPartyUntil(value) { ledPartyUntil = value; },
     shelf,
     SHELF_D,
+    LEVELS,
     group,
     addItem,
     standOn,

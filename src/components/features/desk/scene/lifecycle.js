@@ -38,6 +38,8 @@ export function createLifecycle(runtime) {
       runtime.postcard.mailIntro?.kill();
       runtime.shelfCollectibles.trophyCelebration?.kill();
       gsap.killTweensOf(runtime.shelfCollectibles.trophyHalo.material);
+      gsap.killTweensOf([runtime.shelfConsole.ledSweep, runtime.shelfConsole.ledGlowMat,
+        runtime.shelfConsole.ledMat.color, runtime.shelfConsole.ledGlowMat.color]);
       runtime.gym.confetti.forEach((bit) => gsap.killTweensOf(bit.material));
       runtime.wastebasket.papers.forEach(({ ball }) => gsap.killTweensOf(ball.scale));
       clearTimeout(runtime.wastebasket.binBadgeTimer);

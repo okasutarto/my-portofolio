@@ -306,10 +306,6 @@ export function createAnimation(runtime) {
       runtime.handheld.switchGame.live = now / 1000 - runtime.handheld.switchGame.start <= runtime.handheld.SWITCH_GAME;
       runtime.handheld.switchScreen.userData.tex.redraw(runtime.handheld.switchGame.live ? now / 1000 : undefined);
     }
-    if (now - runtime.shelfCollectibles.handheldDrawnAt > 90) {
-      runtime.shelfCollectibles.handheldDrawnAt = now;
-      runtime.shelfCollectibles.handheldScreen.userData.tex.redraw(now / 1000);
-    }
     runtime.plant.updateButterfly(dt, now);
     runtime.wastebasket.updatePapers(dt);
     if (!runtime.mouse.mouseRunning) {

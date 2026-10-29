@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import gsap from "gsap";
 import { loadPortrait, windowSky, drawWoodTop } from "../textures";
-import { WOODS, WOOD_PATTERNS, DEFAULT_WOODS } from "../woods";
+import { WOODS, WOOD_PATTERNS, DEFAULT_WOODS, SPEAKER_FINISHES } from "../woods";
 import { TIME_MODES, partFor } from "../daylight";
 import { PALETTES } from "../sceneConfig";
 
@@ -61,6 +61,7 @@ export function createTheme(runtime) {
       mats: [woodMat(runtime.workstation.riserMat, PALETTES.light.desk), woodMat(runtime.workstation.riserLegMat, PALETTES.light.desk, runtime.workstation.RISER_LEG_SHADE)],
       nightly: true,
     },
+    speakers: { grain: runtime.workstation.speakerGrain, mats: [woodMat(runtime.workstation.speakerWoodMat, "#f3d3b0")] },
     window: { grain: runtime.room.frameGrainTex, mats: [woodMat(runtime.room.frameWood, "#f0c7a0")] },
     shelf: {
       grain: runtime.shelf.shelfWood,
@@ -70,6 +71,7 @@ export function createTheme(runtime) {
   const pickWood = (part, choice = {}) => ({
     wood: WOODS[choice.wood] ? choice.wood : DEFAULT_WOODS[part].wood,
     pattern: WOOD_PATTERNS[choice.pattern] ? choice.pattern : DEFAULT_WOODS[part].pattern,
+    ...(part === "speakers" ? { finish: SPEAKER_FINISHES[choice.finish] ? choice.finish : "wood" } : {}),
   });
   const woodChoice = Object.fromEntries(Object.keys(woodParts).map((part) => [part, pickWood(part, runtime.options.woods[part])]));
   function toneWood(part, isDark) {
@@ -262,6 +264,7 @@ export function createTheme(runtime) {
   function setWood(part, choice) {
     if (!woodParts[part]) return;
     woodChoice[part] = pickWood(part, { ...woodChoice[part], ...choice });
+    if (part === "speakers" && !choice.finish && (choice.wood || choice.pattern)) woodChoice[part].finish = "wood";
     paintWood(part, true);
   }
   function paintWood(part, redraw) {
@@ -271,8 +274,18 @@ export function createTheme(runtime) {
       drawWoodTop(ctx, canvas.width, canvas.height, woodChoice[part]);
       target.grain.texture.needsUpdate = true;
     }
-    toneWood(part, darkNow);
-    target.mats.forEach(({ mat }) => {
+    const mats = target.mats.map(({ mat }) => mat);
+    if (part === "speakers") {
+      // The side panels keep their grain either way: toned to the wood, or stained for the
+      // black model, whose grey shell and baffle darken with it
+      const finish = SPEAKER_FINISHES[woodChoice.speakers.finish];
+      if (finish.color) runtime.workstation.speakerWoodMat.color.set(finish.color);
+      else toneWood(part, darkNow);
+      runtime.workstation.speakerShellMat.color.set(finish.shell);
+      runtime.workstation.speakerBaffleMat.color.set(finish.baffle);
+      mats.push(runtime.workstation.speakerShellMat, runtime.workstation.speakerBaffleMat);
+    } else toneWood(part, darkNow);
+    mats.forEach((mat) => {
       const at = lightingColors.indexOf(mat.color);
       if (at >= 0) [lightingFrom, lightingTarget].forEach((state) => state.colors[at].copy(mat.color));
     });

@@ -34,10 +34,12 @@ const ambient = new THREE.AmbientLight();
 const readabilityFill = new THREE.DirectionalLight();
 const skyFill = new THREE.HemisphereLight();
 const events = [];
+const speakerWoodPaints = [];
 const context = vm.createContext({
-  ...vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/components/features/desk/woods.js'), 'utf8').replace(/export /g, '') + '; ({ WOODS, WOOD_PATTERNS, DEFAULT_WOODS })'),
+  ...vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/components/features/desk/woods.js'), 'utf8').replace(/export /g, '') + '; ({ WOODS, WOOD_PATTERNS, DEFAULT_WOODS, SPEAKER_FINISHES })'),
   wallColor: '#3a3a3a', woods: {}, diorama: false, roomBackground: isDark => isDark ? '#d6d3e6' : '#ffffff',
-  deskWood: {}, riserGrain: {}, frameGrainTex: {}, shelfWood: {},
+  deskWood: {}, speakerGrain: { canvas: { width: 768, height: 512 }, ctx: {}, texture: new THREE.Texture() },
+  speakerWoodMat: material(), speakerShellMat: material(), speakerBaffleMat: material(), drawWoodTop: (ctx, w, h, choice) => speakerWoodPaints.push({ ...choice }), riserGrain: {}, frameGrainTex: {}, shelfWood: {},
   frameWood: material(), shelfMat: material(), shelfBackMat: material(), lipMat: material(),
   familyPhoto: { userData: { tex: { redraw() {} } } },
   THREE, windowSky, previewTime: null, roomLight: { night: 0 }, dark: false, outside: { night: false, rain: 0 },
@@ -313,4 +315,23 @@ console.log('Day/night light-source and shadow switching checks passed.');
   const hue = shelfLeds[0].ledMat.color.getHex();
   vm.runInContext('updateShelfLeds(50000)', shelfContext);
   assert.ok(shelfLeds.every(({ ledMat, glowMat }) => ledMat.color.getHex() === hue && glowMat.opacity === 0.5), 'all shelf bays keep a stable colour at night');
+}
+
+// Speakers use the existing furniture choices, including every wood/pattern combination.
+for (const wood of Object.keys(context.WOODS)) {
+  for (const pattern of Object.keys(context.WOOD_PATTERNS)) {
+    run(`setWood("speakers", { wood: "${wood}", pattern: "${pattern}" })`);
+    assert.equal(speakerWoodPaints.at(-1).wood, wood);
+    assert.equal(speakerWoodPaints.at(-1).pattern, pattern);
+    assert.ok(context.speakerWoodMat.color.equals(new THREE.Color(context.WOODS[wood].tint)), 'speaker tint follows the selected wood');
+  }
+}
+console.log('All speaker wood colours and grain patterns update through furniture settings.');
+
+for (const finish of ['black', 'wood']) {
+  run(`setWood("speakers", { finish: "${finish}" })`);
+  const { color, shell, baffle } = context.SPEAKER_FINISHES[finish];
+  if (color) assert.ok(context.speakerWoodMat.color.equals(new THREE.Color(color)), 'black model stains its side panels');
+  assert.ok(context.speakerShellMat.color.equals(new THREE.Color(shell)), 'top and back follow the model');
+  assert.ok(context.speakerBaffleMat.color.equals(new THREE.Color(baffle)), 'baffle follows the model');
 }

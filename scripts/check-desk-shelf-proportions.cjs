@@ -47,7 +47,12 @@ scene.updateMatrixWorld(true);
 const shelf = runtime.shelf.shelf;
 const all = runtime.shelf.shelfItems.map(({ obj, sound }, i) => ({ obj, label: `${sound} ${i + 1}` }));
 all.push({ obj: runtime.gauntlet.gauntlet, label: 'gauntlet' });
-const levels = [0.15, 2.55, 4.55, 6.55, 8.29];
+all.push({ obj: runtime.shelfConsole.holder, label: 'controller holder' });
+assert.equal(runtime.shelf.LEVELS.length, 4, 'three bays without a dedicated hardback section');
+assert.equal(runtime.shelf.shelfItems.filter(item => item.sound === 'book').length, 9, 'five Maruto and four Dragon Bell volumes');
+assert.equal(runtime.shelf.shelfItems.filter(item => item.sound === 'case').length, 10, 'nine spines and one display case');
+assert.equal(runtime.shelf.shelfItems.filter(item => item.sound === 'console').length, 1, 'green gamebot is removed; PS5 remains');
+const levels = runtime.shelf.LEVELS;
 const localBounds = obj => {
   const box = new THREE.Box3();
   const point = new THREE.Vector3();
@@ -63,16 +68,19 @@ const measured = all.map(({ obj, label }) => {
   const box = localBounds(obj);
   const size = box.getSize(new THREE.Vector3()).multiplyScalar(20);
   const level = levels.findLastIndex(y => box.min.y >= y + 0.11 - 0.035);
-  const ceiling = level < 4 ? levels[level + 1] - 0.11 : Infinity;
+  const ceiling = level < levels.length - 1 ? levels[level + 1] - 0.11 : Infinity;
   console.log(`${label}: ${size.toArray().map(n => n.toFixed(1)).join(' × ')} cm`);
-  // the side panels' inner faces: half the 4.2 width less one 0.22 board
-  assert.ok(box.min.x >= -1.88 && box.max.x <= 1.88, `${label} clears shelf side panels`);
+  // The side panels' inner faces leave a 0.22 board on each side.
+  assert.ok(box.min.x >= -1.305 && box.max.x <= 1.305, `${label} clears shelf side panels`);
   assert.ok(box.min.z >= -0.69 && box.max.z <= 0.75, `${label} rests within shelf depth`);
   assert.ok(level >= 0 && box.max.y < ceiling, `${label} clears the shelf above`);
-  return { label, box };
+  return { obj, label, box };
 });
 for (let i = 0; i < measured.length; i++) for (let j = i + 1; j < measured.length; j++) {
   const a = measured[i], b = measured[j];
+  // The tower's aggregate bounds enclose both cradles and their supported controllers.
+  if ((a.label === 'controller holder' && b.obj.userData.moves) ||
+      (b.label === 'controller holder' && a.obj.userData.moves)) continue;
   const intersection = a.box.clone().intersect(b.box);
   if (intersection.isEmpty()) continue;
   const overlap = intersection.getSize(new THREE.Vector3());

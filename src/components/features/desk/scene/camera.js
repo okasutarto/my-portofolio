@@ -10,6 +10,9 @@ export function createCamera(runtime) {
   const focus = { name: "overview" };
   const screenNormal = new THREE.Vector3();
   const screenPos = new THREE.Vector3();
+  // How far above the shelf's top board its close-up can look: the middle of the gauntlet and
+  // the Switch standing on it
+  const SHELF_TOP_LOOK = 2.4;
   const SHOTS = {
     // The camera sits inside the room, with no cutaway edges or outside backdrop; on a portrait
     // screen it stands back to take in the whole diorama instead.
@@ -20,7 +23,7 @@ export function createCamera(runtime) {
       const visibleH = Math.max(fit[1], fit[0] * runtime.options.container.clientHeight / runtime.options.container.clientWidth);
       const bottom = visibleH / 2 - (runtime.options.container.clientWidth < 600 ? 1.2 : 0.5);
       const shelfTop = (runtime.room.FLOOR_Y + (runtime.shelf.SHELF_H + runtime.swordRack.SHELF_TOP_EXTRA) * runtime.shelf.shelf.scale.y);
-      const top = Math.max(bottom, runtime.shelf.SHELF_H * runtime.shelf.shelf.scale.y + 1.25, shelfTop - runtime.room.FLOOR_Y + 1.5 - visibleH / 2);
+      const top = Math.max(bottom, runtime.shelf.SHELF_H * runtime.shelf.shelf.scale.y + SHELF_TOP_LOOK, shelfTop - runtime.room.FLOOR_Y + 1.5 - visibleH / 2);
       const y = bottom + (runtime.shelf.shelfLook - 1.7) / 7.3 * (top - bottom);
       const xOffset = runtime.room.FLOOR_Y + y >= runtime.shelf.shelf.position.y + runtime.shelf.SHELF_H * runtime.shelf.shelf.scale.y + 0.4 ? 0.1 : 0.35;
       return { target: [runtime.shelf.shelf.position.x + xOffset, runtime.room.FLOOR_Y + y, runtime.shelf.shelf.position.z], dir: [0.24, 0.1, 1], fit, depth: 3.2 };
@@ -183,7 +186,7 @@ export function createCamera(runtime) {
     const visibleH = Math.max(fit[1], fit[0] * runtime.options.container.clientHeight / runtime.options.container.clientWidth);
     const bottom = visibleH / 2 - (runtime.options.container.clientWidth < 600 ? 1.2 : 0.5);
     const shelfTop = (runtime.room.FLOOR_Y + (runtime.shelf.SHELF_H + runtime.swordRack.SHELF_TOP_EXTRA) * runtime.shelf.shelf.scale.y);
-    const top = Math.max(bottom, runtime.shelf.SHELF_H * runtime.shelf.shelf.scale.y + 1.25, shelfTop - runtime.room.FLOOR_Y + 1.5 - visibleH / 2);
+    const top = Math.max(bottom, runtime.shelf.SHELF_H * runtime.shelf.shelf.scale.y + SHELF_TOP_LOOK, shelfTop - runtime.room.FLOOR_Y + 1.5 - visibleH / 2);
     const norm = top > bottom ? (worldY - runtime.room.FLOOR_Y - bottom) / (top - bottom) : 0;
     return THREE.MathUtils.clamp(1.7 + norm * 7.3, 1.7, 9);
   }
@@ -204,14 +207,14 @@ export function createCamera(runtime) {
     runtime.lamp.hideLamp(false);
     if (name === "window") runtime.core.timers.push(setTimeout(() => focus.name === "window" && runtime.lamp.hideLamp(true), 450));
     if (name === "shelf") {
-      if (hit?.point) {
-        // A click on the top board frames its two display props, rather than the board edge.
-        const topBoardY = runtime.shelf.shelf.position.y + runtime.shelf.SHELF_H * runtime.shelf.shelf.scale.y;
-        const lookY = hit.point.y >= topBoardY - 0.2 ? topBoardY + 1.25 : hit.point.y;
-        runtime.shelf.shelfLook = shelfLookAt(lookY);
-      } else {
-        runtime.shelf.shelfLook = 1.7;
-      }
+      // Frame the whole bay that was clicked (whatever part of it was hit), or on the top board
+      // its two display props; with no click, the console's bay at the top
+      const boards = runtime.shelf.LEVELS.map((y) => runtime.shelf.shelf.position.y + y * runtime.shelf.shelf.scale.y);
+      const topBoardY = runtime.shelf.shelf.position.y + runtime.shelf.SHELF_H * runtime.shelf.shelf.scale.y;
+      const y = hit?.point ? hit.point.y : (boards[2] + boards[3]) / 2;
+      const bay = Math.max(0, boards.findLastIndex((board) => board <= y));
+      const lookY = y >= topBoardY - 0.2 || bay >= boards.length - 1 ? topBoardY + SHELF_TOP_LOOK : (boards[bay] + boards[bay + 1]) / 2;
+      runtime.shelf.shelfLook = shelfLookAt(lookY);
     }
     runtime.cat.catSettle();
     resetUserView();

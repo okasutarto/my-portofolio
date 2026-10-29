@@ -1,7 +1,7 @@
 // ---------- book spines on the shelf ----------
 const BOOK_TITLES = [
   ["CLEAN CODE", "R. MARTIN"], ["FLUTTER", "IN ACTION"], ["ALGORITHMS", "4TH ED."], ["VUE.JS", "UP & RUNNING"],
-  ["NODE.JS", "DESIGN"], ["UX BASICS", "A PRIMER"], ["TYPESCRIPT", "DEEP DIVE"], ["NARUTO", "VOL. 01"],
+  ["NODE.JS", "DESIGN"], ["UX BASICS", "A PRIMER"], ["TYPESCRIPT", "DEEP DIVE"], ["MARUTO", "VOL. 01"],
   ["SKETCHBOOK", "2026"], ["COFFEE", "BREWING"], ["GIT POCKET", "GUIDE"], ["PIXEL ART", "STUDIO"],
 ];
 // A hardback's spine (drawn upright, long side vertical), neo-brutalist: one flat colour, black
@@ -110,7 +110,7 @@ export function drawPageEdges(c, w, h) {
   }
 }
 
-// ---------- Naruto manga collection ----------
+// ---------- Maruto manga collection ----------
 function drawLeafMark(c, x, y, size) {
   c.save();
   c.translate(x, y);
@@ -135,7 +135,7 @@ function drawLeafMark(c, x, y, size) {
 }
 
 // Original flat-colour fan illustration, drawn with the same ink as the room's other props.
-function drawNarutoPortrait(c, x, y, size) {
+function drawMarutoPortrait(c, x, y, size) {
   c.save();
   c.translate(x, y);
   c.scale(size, size);
@@ -175,7 +175,7 @@ function drawNarutoPortrait(c, x, y, size) {
   c.restore();
 }
 
-export function drawNarutoCover(c, w, h, { vol = 1, color = "#f68026" } = {}) {
+export function drawMangaCover(c, w, h, { vol = 1, color = "#f68026", title = "MARUTO" } = {}) {
   const ink = "#182434";
   c.fillStyle = "#fff4d6"; c.fillRect(0, 0, w, h);
   c.fillStyle = color; c.fillRect(w * 0.04, h * 0.18, w * 0.92, h * 0.69);
@@ -185,15 +185,26 @@ export function drawNarutoCover(c, w, h, { vol = 1, color = "#f68026" } = {}) {
   c.beginPath(); c.arc(w * 0.52, h * 0.48, w * 0.46, 0, Math.PI * 2); c.fill();
   c.strokeStyle = "rgba(255,244,214,.6)"; c.lineWidth = w * 0.016;
   for (let i = 0; i < 18; i++) { const angle = i * Math.PI * 2 / 18; c.beginPath(); c.moveTo(w * 0.5 + Math.cos(angle) * w * 0.3, h * 0.5 + Math.sin(angle) * w * 0.3); c.lineTo(w * 0.5 + Math.cos(angle) * w, h * 0.5 + Math.sin(angle) * w); c.stroke(); }
-  drawNarutoPortrait(c, w * 0.5, h * 0.53, w * 0.77);
+  if (title === "DRAGON BELL") {
+    // An original bell emblem on the fictional series' covers.
+    c.fillStyle = "#ffe5a1"; c.strokeStyle = ink; c.lineWidth = w * 0.018;
+    c.beginPath();
+    c.moveTo(w * 0.22, h * 0.68);
+    c.quadraticCurveTo(w * 0.32, h * 0.6, w * 0.32, h * 0.44);
+    c.bezierCurveTo(w * 0.32, h * 0.27, w * 0.68, h * 0.27, w * 0.68, h * 0.44);
+    c.quadraticCurveTo(w * 0.68, h * 0.6, w * 0.78, h * 0.68);
+    c.closePath(); c.fill(); c.stroke();
+    c.beginPath(); c.arc(w * 0.5, h * 0.72, w * 0.065, 0, Math.PI * 2); c.fill(); c.stroke();
+    c.beginPath(); c.arc(w * 0.5, h * 0.3, w * 0.04, Math.PI, Math.PI * 2); c.stroke();
+  } else drawMarutoPortrait(c, w * 0.5, h * 0.53, w * 0.77);
   c.restore();
   c.textAlign = "center"; c.textBaseline = "middle";
   c.font = `italic 900 ${Math.round(w * 0.18)}px 'Space Grotesk', sans-serif`;
-  c.strokeStyle = ink; c.lineWidth = w * 0.013; c.strokeText("NARUTO", w / 2, h * 0.09, w * 0.88);
-  c.fillStyle = "#ff8c2b"; c.fillText("NARUTO", w / 2, h * 0.09, w * 0.88);
+  c.strokeStyle = ink; c.lineWidth = w * 0.013; c.strokeText(title, w / 2, h * 0.09, w * 0.88);
+  c.fillStyle = "#ff8c2b"; c.fillText(title, w / 2, h * 0.09, w * 0.88);
   c.fillStyle = ink; c.fillRect(w * 0.04, h * 0.87, w * 0.92, h * 0.09);
   c.fillStyle = "#fff4d6"; c.font = `800 ${Math.round(w * 0.045)}px 'Space Grotesk', sans-serif`;
-  c.fillText("MASASHI KISHIMOTO", w * 0.5, h * 0.915, w * 0.7);
+  c.fillText("DESK COMICS", w * 0.5, h * 0.915, w * 0.7);
   c.fillStyle = ink; c.fillRect(w * 0.74, h * 0.19, w * 0.2, w * 0.2);
   c.fillStyle = "#fff4d6"; c.font = `900 ${Math.round(w * 0.11)}px 'Lexend Mega', sans-serif`; c.fillText(String(vol).padStart(2, "0"), w * 0.84, h * 0.19 + w * 0.1);
   c.strokeStyle = ink; c.lineWidth = w * 0.012; c.strokeRect(w * 0.02, h * 0.015, w * 0.96, h * 0.97);
@@ -202,7 +213,7 @@ export function drawNarutoCover(c, w, h, { vol = 1, color = "#f68026" } = {}) {
 
 // Other comic series beside it: the series' own paper and colour, a volume badge, the title
 // running down the spine, a simple emblem and the publisher's strip at the foot.
-export function drawComicSpine(c, w, h, { vol, title, color, paper = "#fffdf5", ink = "#182434", mark = "circle", label = "JUMP" }) {
+export function drawComicSpine(c, w, h, { vol, title, color, paper = "#fffdf5", ink = "#182434", mark = "circle", label = "DESK" }) {
   c.fillStyle = paper; c.fillRect(0, 0, w, h);
   const block = w * 1.05;
   c.fillStyle = color; c.fillRect(0, 0, w, block);
@@ -233,7 +244,8 @@ export function drawComicSpine(c, w, h, { vol, title, color, paper = "#fffdf5", 
 }
 
 // Consistent cream, orange and navy spines with a volume badge and a headband cameo.
-export function drawMangaSpine(c, w, h, { vol, color, title = "NARUTO" }) {
+export function drawMangaSpine(c, w, h, { vol, color, title = "MARUTO" }) {
+  if (title === "DRAGON BELL") return drawComicSpine(c, w, h, { vol, color, title, paper: "#fff4d6", mark: "diamond", label: "DESK" });
   const ink = "#182434";
   c.fillStyle = "#fff4d6"; c.fillRect(0, 0, w, h);
   const block = w * 1.05;
@@ -246,9 +258,9 @@ export function drawMangaSpine(c, w, h, { vol, color, title = "NARUTO" }) {
   let size = w * 0.58;
   do { c.font = `italic 900 ${Math.round(size)}px 'Space Grotesk', sans-serif`; size--; } while (c.measureText(title).width > h * 0.43 && size > 8);
   c.fillStyle = ink; c.fillText(title, 0, 0); c.restore();
-  drawNarutoPortrait(c, w / 2, h * 0.8, w * 0.77);
+  drawMarutoPortrait(c, w / 2, h * 0.8, w * 0.77);
   c.fillStyle = ink; c.fillRect(0, h * 0.93, w, h * 0.07);
-  c.fillStyle = "#fff4d6"; c.font = `800 ${Math.round(w * 0.17)}px 'Space Grotesk', sans-serif`; c.fillText("JUMP", w / 2, h * 0.965);
+  c.fillStyle = "#fff4d6"; c.font = `800 ${Math.round(w * 0.17)}px 'Space Grotesk', sans-serif`; c.fillText("DESK", w / 2, h * 0.965);
   c.strokeStyle = ink; c.lineWidth = Math.max(2, w * 0.04); c.strokeRect(0, 0, w, h);
   c.textAlign = "left";
 }

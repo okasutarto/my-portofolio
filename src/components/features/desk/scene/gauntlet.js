@@ -6,9 +6,9 @@ import { canvasTexture, BUBBLE_TAILS, drawBrushedMetal, drawSatinFinish } from "
 export function createGauntlet(runtime) {
   // ---------- the Infinity Gauntlet, on the left of the shelf's top ----------
   // Enlarged by 35%, under the sword rack, with the Switch on its stand to its right.
-  const GAUNTLET_X = -0.95;
+  const GAUNTLET_X = -0.65;
   const gauntlet = new THREE.Group();
-  gauntlet.position.set(GAUNTLET_X, runtime.shelf.standOn(4), 0.05);
+  gauntlet.position.set(GAUNTLET_X, runtime.shelf.standOn(3), 0.05);
   gauntlet.scale.setScalar(1.35);
   gauntlet.rotation.y = 0.15;
   runtime.shelf.shelf.add(gauntlet);
@@ -561,10 +561,7 @@ export function createGauntlet(runtime) {
   });
 
   const SHELF_SOUNDS = {
-    console: () => {
-      sfx.blip();
-      gsap.fromTo(runtime.shelfConsole.led.scale, { x: 1, y: 2.2, z: 2.2 }, { x: 1, y: 1, z: 1, duration: 0.5 });
-    },
+    console: () => sfx.blip(),
     controller: () => {
       sfx.click();
       runtime.core.timers.push(setTimeout(() => sfx.click(), 90));
@@ -644,9 +641,8 @@ export function createGauntlet(runtime) {
   function powerConsole() {
     runtime.secrets.discover("console");
     sfx.power({ duration: 0.8 });
-    runtime.shelfConsole.ledMat.color.set("#8fdcff");
-    // Lights up along its length, never past the console's ends: it only thickens and glows
-    runtime.shelfConsole.led.children.forEach((strip) => gsap.fromTo(strip.scale, { x: 3, y: 1, z: 3 }, { x: 1.5, y: 1, z: 1.5, duration: 0.6, ease: "back.out(3)" }));
+    // Light runs up the seams and settles in its working colour, all within the console's ends
+    runtime.shelfConsole.bootLed();
     [runtime.shelfConsole.pad1, runtime.shelfConsole.pad2].forEach((pad, i) => gsap.fromTo(pad.userData.moves.rotation, { z: 0.08 }, { z: 0, duration: 0.5, delay: i * 0.08, ease: "elastic.out(1.5, 0.15)" }));
     runtime.shelf.setNeon(true);
     shelfBubble.hide();
@@ -693,6 +689,14 @@ export function createGauntlet(runtime) {
         const text = left.length ? `${runtime.secrets.secretsFound.size}/${runtime.secrets.SECRETS.length} found. Hint: ${runtime.secrets.SECRET_HINTS[left[Math.floor(Math.random() * left.length)]]}` : "ALL SECRETS FOUND! 🏆";
         shelfSay(runtime.shelfCollectibles.trophy, text, "the trophy", 4500, 0.5, 0.55);
       }
+      // A volume lying in the manga pile slides out and back instead of hopping
+      if (item.sound === "book" && runtime.shelfCollectibles.nudgeManga(item.obj)) return;
+      // The console is too big to hop: pressed on, it gives a little squash on its foot and
+      // springs back, as its light runs up the seams
+      if (item.obj === runtime.shelfConsole.ps5) {
+        gsap.fromTo(item.obj.scale, { x: 1.035, y: 0.965, z: 1.035 }, { x: 1, y: 1, z: 1, duration: 0.7, ease: "elastic.out(1.2, 0.35)", overwrite: true });
+        return SHELF_SOUNDS.console();
+      }
       // Always from where it rests: a click mid-hop must not start the next hop higher up
       // (an item on a stand hops off its stand, not with it)
       const hopper = item.obj.userData.moves || item.obj;
@@ -721,6 +725,7 @@ export function createGauntlet(runtime) {
         const busy = (item.obj === runtime.shelfCollectibles.trophy && runtime.shelfCollectibles.trophyCelebrating) || (item.obj === runtime.robot.robot && runtime.robot.botBusy)
           || (item.obj === runtime.shelfCollectibles.rubikItem && runtime.shelfCollectibles.rubikBusy) || (item.obj === runtime.handheld.nintendoSwitch && runtime.handheld.switchBusy);
         if (on && busy) return;
+        if (on && item.obj === runtime.shelfConsole.ps5) runtime.shelfConsole.blinkLed();
         gsap.to(carrier.position, { y: on ? lift : 0, z: on ? forward : 0, duration: on ? 0.25 : 0.35, ease: "power2.out", overwrite: true });
       },
       onClick: (hit) => runtime.core.interactive.get(runtime.shelf.shelf).onClick(hit),

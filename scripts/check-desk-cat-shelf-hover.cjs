@@ -27,7 +27,7 @@ let clickHit;
 const interactive = new Map([[shelf, { onClick: (hit) => { clickHit = hit; } }]]);
 const context = vm.createContext({
   THREE, shelfItems, ...objects, switchConsole, shelf, interactive,
-  trophyCelebrating: false, botBusy: false, rubikBusy: false, switchBusy: false,
+  trophyCelebrating: false, botBusy: false, rubikBusy: false, switchBusy: false, blinkLed() {},
   gsap: { to: (target, values) => { for (const axis of ['x', 'y', 'z']) if (axis in values) target[axis] = values[axis]; } },
   register: (object, handler) => handlers.set(object, handler),
 });

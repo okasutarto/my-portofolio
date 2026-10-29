@@ -91,7 +91,7 @@ export function createRobot(runtime) {
     bot.add(shoulder);
     return shoulder;
   });
-  runtime.shelf.addItem(runtime.core.at(robot, 1.15, runtime.shelf.standOn(2), 0.1), "robot");
+  runtime.shelf.addItem(runtime.core.at(robot, 0.85, runtime.shelf.standOn(0), 0.1), "robot");
 
   // Blinks every few seconds
   const botBlink = () => gsap.fromTo(botEyes.map((eye) => eye.scale), { y: 1 }, { y: 0.1, duration: 0.07, yoyo: true, repeat: 1, ease: "power1.in" });

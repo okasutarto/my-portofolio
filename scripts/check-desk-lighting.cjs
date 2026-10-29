@@ -46,7 +46,7 @@ const context = vm.createContext({
   performance: { now: () => now }, Math: Object.assign(Object.create(Math), { random: () => 0.5 }),
   deskNeons: [{ strip: {}, washMat: {} }, { strip: {}, washMat: {} }], fitSunShadow() {},
   aimWindowLight: (at) => { windowLight.userData.sky = [...at]; }, blindFabric: {}, shadowedNeons: [{}, {}, {}],
-  cookieRain: 0, drawGlassCookie() {}, DESK_WASH: 0.45, monitorGlowMat: {}, updateLampGlow() {}, updateLightbar() {},
+  cookieRain: 0, drawGlassCookie() {}, DESK_WASH: 0.45, monitorGlowMat: {}, updateLampGlow() {}, updateLightbar() {}, setLightbar() {}, lightbarState: { power: 0 },
   riserMat: material(), riserLegMat: material(), RISER_LEG_SHADE: 0.8,
   hoopBoardFace: { material: { emissiveIntensity: 0 } }, net: { material: material() },
   sun, windowLight, lampLight, ambient, readabilityFill, skyFill,

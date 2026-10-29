@@ -8,6 +8,10 @@ export const PALETTES = {
 export const SECTIONS = ["hero", "about", "experience", "projects", "contact"];
 export const perfParams = new URLSearchParams(window.location.search);
 export const benchmark = perfParams.has("perf") ? perfParams.get("bench") : null;
+// Phones and tablets get a lighter room: fewer pixels, no ambient occlusion, no decorative
+// shadows, fewer soft-shadow samples and a slower idle refresh. `?quality=low|high` forces either.
+const quality = perfParams.get("quality");
+export const lowPower = quality === "low" || (quality !== "high" && window.matchMedia("(pointer: coarse)").matches);
 
 // Smallest area of the scene that always stays in view (world units)
 export const VIEW_W = 21.5;

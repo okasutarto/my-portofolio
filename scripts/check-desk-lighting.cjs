@@ -193,7 +193,7 @@ assert.equal(run('dayPart()'), 'evening', 'a picked part of the day ignores the 
   const shadowedNeons = [signLight, screenLight, ...Array.from({ length: 6 }, light)];
   const ctx = vm.createContext({ scene, renderer: { capabilities: { maxTextures: 16 } }, swordSpotlight,
     windowLight, sun, lampLight, lightbarLight, signLight, screenLight, shadowedNeons,
-    darkNow: true, lightingBlending: false });
+    darkNow: true, lightingBlending: false, lowPower: false });
   const start = source.indexOf('  const materialMapKeys =');
   vm.runInContext(source.slice(start, source.indexOf('  let frame = null;', start)), ctx);
   const checkBudget = () => {

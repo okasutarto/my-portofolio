@@ -2,15 +2,16 @@ import * as THREE from "three";
 import gsap from "gsap";
 import { setRainLevel } from "@/composables/useSfx";
 import { createToonBatch } from "../toonBatch";
-import { benchmark, VIEW_W, VIEW_H } from "../sceneConfig";
+import { benchmark, lowPower, VIEW_W, VIEW_H } from "../sceneConfig";
 
 export function createAnimation(runtime) {
   // ---------- sizing & loop ----------
   let viewH = VIEW_H;
   // Render at the screen's real pixel density, including browser zoom (which changes
   // devicePixelRatio) and pinch zoom (visualViewport.scale), so edges stay sharp when zoomed in.
-  // Capped, so a deep pinch doesn't ask for an enormous canvas.
-  const pixelRatio = () => Math.min(window.devicePixelRatio * (window.visualViewport?.scale || 1), 3);
+  // Capped, so a deep pinch doesn't ask for an enormous canvas. Phones stop at 1.5×: their 3×
+  // screens would otherwise shade four times the pixels for a difference the small screen hides.
+  const pixelRatio = () => Math.min(window.devicePixelRatio * (window.visualViewport?.scale || 1), lowPower ? 1.5 : 3);
   function resize() {
     const w = runtime.options.container.clientWidth || 1;
     const h = runtime.options.container.clientHeight || 1;
@@ -29,7 +30,11 @@ export function createAnimation(runtime) {
     runtime.core.camera.updateProjectionMatrix();
     runtime.core.renderer.setSize(w, h, false);
     sizeComposer();
-    runtime.core.outlineResolution.value.set(w, h);
+    // Outlines keep a steady width in CSS pixels (see outlineMat), but a phone shows the whole
+    // room in a fraction of a desktop's pixels: thinned there, the lines keep the same weight
+    // against the props instead of swallowing them
+    const outlineScale = THREE.MathUtils.clamp(Math.min(w, h) / 600, 0.55, 1);
+    runtime.core.outlineResolution.value.set(w / outlineScale, h / outlineScale);
     if (!intro?.isActive()) runtime.camera.applyShot(true);
     runtime.camera.clampUserView();
   }
@@ -59,7 +64,7 @@ export function createAnimation(runtime) {
       const neonShadows = runtime.room.shadowedNeons.some((light) => light.castShadow);
       const intervals = [...frameIntervals].sort((a, b) => a - b);
       const p95 = intervals[Math.min(intervals.length - 1, Math.floor(intervals.length * 0.95))] || 0;
-      perfReadout.textContent = `${(1000 / frameMs).toFixed(0)} fps (budget ${(1000 / refreshMs).toFixed(0)}) · resolution locked\npost ${postDensity().toFixed(2)}× · GTAO ${runtime.core.aoPass.enabled ? "on" : "off"} · neon shadows ${neonShadows ? "on" : "off"}\n${runtime.core.drawCalls.toFixed(0)} draws · ${(runtime.core.triangles / 1000).toFixed(0)}k triangles\nCPU submit ${runtime.core.renderMs.toFixed(1)}ms · GPU ${runtime.core.gpuMs === null ? "n/a" : runtime.core.gpuMs.toFixed(1) + "ms"} · frame p95 ${p95.toFixed(1)}ms${benchmark ? " · " + benchmark : ""}`;
+      perfReadout.textContent = `${(1000 / frameMs).toFixed(0)} fps (budget ${(1000 / refreshMs).toFixed(0)}) · resolution locked\npost ${postDensity().toFixed(2)}× · GTAO ${runtime.core.aoPass.enabled ? "on" : "off"} · neon shadows ${neonShadows ? "on" : "off"}${lowPower ? " · low power" : ""}\n${runtime.core.drawCalls.toFixed(0)} draws · ${(runtime.core.triangles / 1000).toFixed(0)}k triangles\nCPU submit ${runtime.core.renderMs.toFixed(1)}ms · GPU ${runtime.core.gpuMs === null ? "n/a" : runtime.core.gpuMs.toFixed(1) + "ms"} · frame p95 ${p95.toFixed(1)}ms${benchmark ? " · " + benchmark : ""}`;
     }, 500));
   }
 
@@ -93,15 +98,39 @@ export function createAnimation(runtime) {
   const lightTextureSlots = shadowLights.filter((light) => light.map).length;
   const shadowTextureLimit = Math.max(0, runtime.core.renderer.capabilities.maxTextures - materialTextureSlots - lightTextureSlots);
   const decorativeShadows = new Set(runtime.room.shadowedNeons);
+  // Phones go without the neon and strip shadows from the start; others may shed them later
+  // (see judgeQuality)
+  let decorShed = lowPower;
   function updateShadowBudget() {
     let available = shadowTextureLimit;
     shadowLights.forEach((light) => {
-      const active = light.intensity > 0.001 && (!decorativeShadows.has(light) || runtime.theme.darkNow || runtime.theme.lightingBlending);
+      const active = light.intensity > 0.001 && (!decorativeShadows.has(light) || (!decorShed && (runtime.theme.darkNow || runtime.theme.lightingBlending)));
       const enabled = active && available > 0;
       if (enabled) available--;
       if (enabled && !light.castShadow) light.shadow.needsUpdate = true;
       light.castShadow = enabled;
     });
+  }
+
+  // When the room can't keep up while it moves (when smoothness shows), the costliest optional
+  // work goes, one step at a time and never back: first the ambient occlusion, then the
+  // decorative shadows. Sharpness is never part of it (see resize).
+  let judgeAfter = Infinity;
+  let judged = 0;
+  let slowFrames = 0;
+  function judgeQuality(now, interval, moving) {
+    if (benchmark || !moving || !interval || now < judgeAfter || decorShed) return;
+    judged++;
+    // under 30 fps
+    if (interval > 34) slowFrames++;
+    if (judged < 90) return;
+    const slow = slowFrames > judged / 4;
+    judged = slowFrames = 0;
+    if (!slow) return;
+    if (runtime.core.aoPass.enabled) runtime.core.aoPass.enabled = false;
+    else decorShed = true;
+    // give the lighter frame a moment to settle before judging it
+    judgeAfter = now + 2000;
   }
 
   let frame = null;
@@ -111,6 +140,8 @@ export function createAnimation(runtime) {
   const target = new THREE.Vector3();
   const viewRight = new THREE.Vector3();
   const viewUp = new THREE.Vector3();
+  // A still room redraws at the display's pace, or about 30 fps on phones
+  const idleMs = refreshMs * (lowPower ? 1.7 : 0.7);
   let lastTick = 0;
   let mainShadowAt = 0;
   let aoFreshAt = 0;
@@ -130,16 +161,21 @@ export function createAnimation(runtime) {
       frameIntervals.length = 0;
       return;
     }
-    const moving = runtime.theme.lightingBlending || now < runtime.core.responsiveUntil || gsap.isTweening(runtime.camera.cam) || runtime.cat.catIdleTl?.isActive() || runtime.cat.catBusy || gsap.isTweening(runtime.windowBlind.blind) || runtime.mouse.mouseRunning || runtime.lamp.lampHopping || runtime.shelfCollectibles.trophyCelebrating || runtime.pointer.lanyardDrag || runtime.pointer.hatDrag || runtime.aboutBoard.noteDrag || runtime.pointer.shelfDrag || runtime.pointer.stickyDrag || runtime.pointer.chairDrag || gsap.isTweening(runtime.workstation.screenPower);
+    const fidgeting = runtime.cat.catIdleTl?.isActive();
+    const acting = runtime.theme.lightingBlending || now < runtime.core.responsiveUntil || gsap.isTweening(runtime.camera.cam) || runtime.cat.catBusy || gsap.isTweening(runtime.windowBlind.blind) || runtime.mouse.mouseRunning || runtime.lamp.lampHopping || runtime.shelfCollectibles.trophyCelebrating || runtime.pointer.lanyardDrag || runtime.pointer.hatDrag || runtime.aboutBoard.noteDrag || runtime.pointer.shelfDrag || runtime.pointer.stickyDrag || runtime.pointer.chairDrag || gsap.isTweening(runtime.workstation.screenPower);
+    const moving = acting || fidgeting;
     // Do not skip presentation frames during interaction. Idle uses a tolerant interval rather
     // than an accumulated deadline, which otherwise creates short/long frame pairs under jitter.
-    if (!moving && lastTick && now - lastTick < refreshMs * 0.7) return;
+    // Phones stop at about 60 fps on 120 Hz screens, and the cat's idle fidgets go at the idle pace.
+    const paceMs = lowPower ? (acting ? refreshMs * 0.7 : idleMs) : moving ? 0 : idleMs;
+    if (lastTick && now - lastTick < paceMs) return;
     if (lastTick && perfReadout) {
       frameIntervals.push(now - lastTick);
       if (frameIntervals.length > 180) frameIntervals.shift();
     }
     // Step size for the springs, capped so a background tab doesn't fling them on return
     const dt = Math.min(0.05, lastTick ? (now - lastTick) / 1000 : 0.016);
+    const interval = lastTick ? now - lastTick : 0;
     if (lastTick) frameMs += (now - lastTick - frameMs) * 0.05;
     lastTick = now;
     runtime.tickets.updateTicketHover(dt);
@@ -292,6 +328,7 @@ export function createAnimation(runtime) {
     runtime.core.updatePaperFlex();
     runtime.strawHat.constrainHat();
     updateToonBatch();
+    judgeQuality(now, interval, moving);
     updateShadowBudget();
     runtime.core.renderFrame();
     if (firstFrame) {
@@ -329,6 +366,8 @@ export function createAnimation(runtime) {
     runtime.badge.swing(0.3);
     intro = gsap.to(runtime.camera.cam, { zoom: settledZoom, duration: 1.4, ease: "power2.out", delay: 0.15 });
     frame = requestAnimationFrame(tick);
+    // (the intro and the first textures' upload would read as a slow device)
+    judgeAfter = performance.now() + 4000;
     if (runtime.secrets.previewTrophy) runtime.core.timers.push(setTimeout(runtime.secrets.celebrateSecrets, 2000));
   }
 

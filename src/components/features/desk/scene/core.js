@@ -5,7 +5,7 @@ import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { createSceneMeshes } from "../sceneMeshes";
 import { createPaperFlex } from "../paperFlex";
-import { PALETTES, perfParams, benchmark } from "../sceneConfig";
+import { PALETTES, perfParams, benchmark, lowPower } from "../sceneConfig";
 
 export function createCore(runtime) {
   // Local preview links hold a part of the day, or a level of rain, whatever the visitor's clock
@@ -76,7 +76,7 @@ export function createCore(runtime) {
   [aoPass.gtaoMaterial, aoPass.pdMaterial].forEach((m) => (m.needsUpdate = true));
   composer.addPass(aoPass);
   composer.addPass(new OutputPass());
-  if (benchmark === "no-ao") aoPass.enabled = false;
+  if (benchmark === "no-ao" || lowPower) aoPass.enabled = false;
   // Count the complete frame, including shadow, postprocessing and overlay draws.
   if (perfParams.has("perf")) renderer.info.autoReset = false;
   let renderMs = 0;
@@ -154,11 +154,13 @@ export function createCore(runtime) {
   sun.position.set(-7, 12, 8);
   sun.target.position.set(1, -0.5, -2.5);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  const SUN_MAP = lowPower ? 1024 : 2048;
+  sun.shadow.mapSize.set(SUN_MAP, SUN_MAP);
   Object.assign(sun.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20, near: 1, far: 60 });
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.02;
-  sun.shadow.radius = 14;
+  // (in texels, so a smaller map keeps the same penumbra with a smaller radius)
+  sun.shadow.radius = 14 * SUN_MAP / 2048;
   scene.add(sun, sun.target);
   // Square, so texels stay square and the blur round; see fitSunShadow
   const SUN_SPAN = 40;

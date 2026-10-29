@@ -25,6 +25,7 @@ function shadowGeometry(source, simplify) {
 // draw. A texture worn by only a few parts isn't worth a batch of its own. Colours travel as
 // vertex colours over the same texture, so every part looks exactly as it does on its own.
 // Original meshes remain in the hierarchy for animation, outlines and ray picking (layer 2).
+// Outlines are batched the same way, one draw per line weight (see createOutlineBatch).
 const MIN_SHARED = 4;
 
 // Parts with a face lying on another part's face, facing the same way (a plank flush with the
@@ -89,6 +90,16 @@ export function createToonBatch(scene, renderer, track) {
   const updates = [...kinds.values()]
     .filter((kind) => !kind.map || kind.objects.length >= MIN_SHARED)
     .map((kind) => createBatch(scene, track, kind));
+  const inks = new Map();
+  scene.traverse((object) => {
+    const m = object.material;
+    if (!object.isMesh || object.isInstancedMesh || object.renderOrder !== 0 || !m?.isShaderMaterial || !m.uniforms?.thickness || !m.uniforms?.resolution || !object.geometry.attributes.normal) return;
+    // (cards and bubbles drawn over everything take their outlines along; see renderFrame)
+    for (let parent = object.parent; parent; parent = parent.parent) if (parent.material?.depthTest === false) return;
+    if (!inks.has(m)) inks.set(m, []);
+    inks.get(m).push(object);
+  });
+  inks.forEach((hulls, ink) => updates.push(createOutlineBatch(scene, track, ink, hulls)));
   return () => {
     if (!updates.length) return;
     scene.updateMatrixWorld();
@@ -197,6 +208,54 @@ function createBatch(scene, track, { map, gradient, receive, objects }) {
           entry.shadow.dispose();
           entry.shadow = next;
         }
+        entry.positionVersion = source.position.version;
+        entry.normalVersion = source.normal.version;
+      }
+    });
+  };
+}
+
+// Every prop's ink hull of one line weight in one draw. The batch shares the weight's uniforms
+// (its width, the screen size, its colour), so it draws exactly what each hull would. Hulls are
+// all the same black, so the order they're drawn in can't change a pixel.
+function createOutlineBatch(scene, track, ink, hulls) {
+  const entries = hulls.map((hull) => {
+    const source = hull.geometry;
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", source.attributes.position);
+    geometry.setAttribute("normal", source.attributes.normal);
+    if (source.index) geometry.setIndex(source.index);
+    else geometry.setIndex(Array.from({ length: source.attributes.position.count }, (_, i) => i));
+    return { hull, source, geometry, positionVersion: source.attributes.position.version, normalVersion: source.attributes.normal.version, matrix: new THREE.Matrix4(), visible: null };
+  });
+  const material = track(new THREE.ShaderMaterial({ uniforms: ink.uniforms, vertexShader: ink.vertexShader, fragmentShader: ink.fragmentShader, side: ink.side }));
+  const vertices = entries.reduce((n, entry) => n + entry.geometry.attributes.position.count, 0);
+  const indices = entries.reduce((n, entry) => n + entry.geometry.index.count, 0);
+  const batch = track(new THREE.BatchedMesh(entries.length, vertices, indices, material));
+  batch.frustumCulled = batch.perObjectFrustumCulled = batch.sortObjects = false;
+  batch.raycast = () => {};
+  entries.forEach((entry) => (entry.id = batch.addGeometry(entry.geometry)));
+  scene.add(batch);
+  return () => {
+    entries.forEach((entry) => {
+      const { hull, id } = entry;
+      const supported = hull.material === ink && hull.geometry === entry.source;
+      if (supported) hull.layers.disable(0);
+      else hull.layers.enable(0);
+      let visible = supported;
+      for (let parent = hull; parent && visible; parent = parent.parent) visible = parent.visible;
+      if (visible !== entry.visible) {
+        batch.setVisibleAt(id, visible);
+        entry.visible = visible;
+      }
+      if (!visible) return;
+      if (!entry.matrix.equals(hull.matrixWorld)) {
+        entry.matrix.copy(hull.matrixWorld);
+        batch.setMatrixAt(id, entry.matrix);
+      }
+      const source = hull.geometry.attributes;
+      if (source.position.version !== entry.positionVersion || source.normal.version !== entry.normalVersion) {
+        batch.setGeometryAt(id, entry.geometry);
         entry.positionVersion = source.position.version;
         entry.normalVersion = source.normal.version;
       }

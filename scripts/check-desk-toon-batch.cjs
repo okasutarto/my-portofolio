@@ -14,6 +14,13 @@ const part = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshToonMaterial(
 part.castShadow = true;
 part.receiveShadow = true;
 parent.add(part);
+// Its ink hull, as sceneMeshes draws them: one shader per line weight
+const ink = new THREE.ShaderMaterial({
+  uniforms: { thickness: { value: 3 }, resolution: { value: new THREE.Vector2(800, 600) }, color: { value: new THREE.Color() } },
+  side: THREE.BackSide,
+});
+const hull = new THREE.Mesh(new THREE.BoxGeometry(), ink);
+part.add(hull);
 scene.add(parent);
 const printed = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshToonMaterial({ map: new THREE.Texture() }));
 printed.castShadow = true;
@@ -60,6 +67,10 @@ assert.equal(keycap.layers.isEnabled(0), false, 'parts that cast no shadow are b
 assert.equal(shadows.maxGeometryCount, 2, 'and leave the shadow pass to the casters');
 assert.equal(scene.children.filter((item) => item.isBatchedMesh && item.castShadow).length, 2, 'one shadow batch per kind');
 assert.ok(panel.layers.isEnabled(0) && board.layers.isEnabled(0), 'flush printed parts keep their own draw');
+const outlines = scene.children.find((item) => item.isBatchedMesh && item.material.isShaderMaterial);
+assert.ok(outlines, 'outlines of one weight share a draw');
+assert.equal(hull.layers.isEnabled(0), false);
+assert.equal(outlines.material.uniforms, ink.uniforms, 'and its width, screen size and colour');
 assert.equal(part.castShadow, true);
 assert.equal(batch.castShadow, false);
 assert.equal(shadows.castShadow, true);
@@ -71,6 +82,8 @@ update();
 const matrix = new THREE.Matrix4();
 batch.getMatrixAt(0, matrix);
 assert.ok(matrix.equals(part.matrixWorld), 'follow animated parents exactly');
+outlines.getMatrixAt(0, matrix);
+assert.ok(matrix.equals(hull.matrixWorld), 'outlines follow their props');
 const ray = new THREE.Raycaster(new THREE.Vector3(3, 4, 10), new THREE.Vector3(0, 0, -1));
 ray.layers.enable(2);
 assert.ok(ray.intersectObject(part).length > 0, 'batched props remain pickable');
@@ -78,6 +91,7 @@ parent.visible = false;
 update();
 assert.equal(batch.getVisibleAt(0), false);
 assert.equal(shadows.getVisibleAt(0), false);
+assert.equal(outlines.getVisibleAt(0), false, 'a hidden prop hides its outline');
 parent.visible = true;
 part.material.color.set(0x00ff00);
 update();

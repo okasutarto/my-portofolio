@@ -85,16 +85,16 @@ assert.deepEqual(stringGeo.attributes.position.array, original, 'strings settle 
 
 // Window hover must not call forecast loading or change weather state.
 let windowHandler;
-const windowCatch = new THREE.Group();
+const windowCatches = [new THREE.Group(), new THREE.Group()];
 const windowGlare = { material: { opacity: 0.55 } };
 vm.runInNewContext(section('  register(windowGroup, {', '  // The rain outside the window'), {
-  gsap, windowCatch, windowGlare, glareTex: { texture: new THREE.Texture() }, windowGroup: {}, register: (_, handler) => { windowHandler = handler; },
+  gsap, windowCatches, windowGlare, glareTex: { texture: new THREE.Texture() }, windowGroup: {}, register: (_, handler) => { windowHandler = handler; },
   hideWeather() {}, lookOut() { throw new Error('hover triggered lookOut'); },
 });
 windowHandler.onHover(true);
-assert.notEqual(windowCatch.rotation.z, 0);
+for (const handle of windowCatches) assert.equal(handle.rotation.z, 0, 'the handles turn only when hovered themselves');
 windowHandler.onHover(false);
-assert.equal(windowCatch.rotation.z, 0);
+for (const handle of windowCatches) assert.equal(handle.rotation.z, 0);
 assert.equal(windowGlare.material.opacity, 0.55);
 
 // Clock and painting hover leave their hands/artwork untouched and yield during a click.

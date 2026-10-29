@@ -49,9 +49,12 @@ export function createWeather(runtime) {
   const weatherCard = new THREE.Mesh(runtime.core.track(new THREE.PlaneGeometry(PANE_W, PANE_H)), weatherMat);
   weatherCard.raycast = runtime.core.noRaycast;
   weatherCard.visible = false;
-  // Just over the glazing bar it spans (its face at z 0.17), so the bar doesn't cut through it
-  weatherCard.position.set((PANE.x0 + PANE.x1) / 2, (PANE.y0 + PANE.y1) / 2, 0.175);
-  runtime.room.windowGroup.add(weatherCard);
+  // Just over the glazing bar it spans (its face at z -0.04), so the bar doesn't cut through
+  // it, and inside the sash (its face at z -0.02)
+  weatherCard.position.set((PANE.x0 + PANE.x1) / 2, (PANE.y0 + PANE.y1) / 2, -0.03);
+  // It's on the left leaf's glass, so it swings with the leaf
+  weatherCard.position.sub(runtime.room.leaves[0].position);
+  runtime.room.leaves[0].add(weatherCard);
   const redrawWeather = () => {
     drawWindowWeather(weatherTex.ctx, WEATHER_W, WEATHER_H, { place: place?.name ?? "", weather: weatherNow });
     weatherTex.texture.needsUpdate = true;
@@ -105,7 +108,6 @@ export function createWeather(runtime) {
   runtime.core.register(runtime.room.windowGroup, {
     focus: "window",
     onHover: (on) => {
-      gsap.to(runtime.room.windowCatch.rotation, { z: on ? -0.55 : 0, duration: on ? 0.25 : 0.4, ease: "power2.out", overwrite: true });
       gsap.to(runtime.room.windowGlare.material, { opacity: on ? 1 : 0.55, duration: 0.35, overwrite: true });
       gsap.to(runtime.room.glareTex.texture.offset, { x: on ? -0.45 : 0, duration: on ? 0.65 : 0.4, ease: "power2.out", overwrite: true });
     },
@@ -113,7 +115,11 @@ export function createWeather(runtime) {
       if (SHOW_FORECAST) showWeather();
       runtime.windowBlind.lookOut();
     },
-    onLeave: hideWeather,
+    // Leaving the close-up shuts the window behind you
+    onLeave: () => {
+      hideWeather();
+      if (runtime.windowLighting.isWindowOpen()) runtime.windowLighting.toggleWindow();
+    },
     onClick: runtime.windowBlind.lookOut,
   });
 

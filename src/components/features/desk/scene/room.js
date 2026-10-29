@@ -115,11 +115,14 @@ export function createRoom(runtime) {
     room.add(part);
     return part;
   };
+  // The floor, back wall and skirting stop at the side wall's outside face: nothing of the room
+  // runs on outside it, where the window looks out (the view out there is a painted backdrop)
+  const OUT_X = SIDE_X - 0.12 + 100;
   const fullRoom = [
-    roomBox(200, 0.25, 200, floorMat, 0, FLOOR_Y - 0.17, 1.2),
+    roomBox(200, 0.25, 200, floorMat, OUT_X, FLOOR_Y - 0.17, 1.2),
     // (no outline: it's only ever seen edge-on, from the window's close-up, as a black line
     // down the corner)
-    roomBox(200, 100, 0.24, backWallMat, 0, FLOOR_Y + 50, WALL_Z, 0),
+    roomBox(200, 100, 0.24, backWallMat, OUT_X, FLOOR_Y + 50, WALL_Z, 0),
   ];
   // The wall materials already receive the real light's shadows. A separate ShadowMaterial
   // mask would darken them even outside the window cookie or an indoor light's actual reach.
@@ -132,15 +135,21 @@ export function createRoom(runtime) {
   // inside the frame's 4 cm border: the frame, bars, view, blind and the light through it
   // all follow from this
   const GLASS = { x: WINDOW_AT.w / 4 - 0.2, y: WINDOW_AT.h / 4 - 0.2 };
-  // The two leaves meet on a 6 cm pair of stiles down the middle; each leaf is split into four
-  // panes by a 3 cm cross of glazing bars. `PANES` lists them as [x0, x1, y0, y1].
-  const MULLION = 0.15; // half the meeting stiles
-  const BAR = 0.075; // half a glazing bar
-  const LEAF_MID = (GLASS.x + MULLION) / 2;
-  const PANES = [-1, 1].flatMap((side) => {
-    const [x0, x1] = side < 0 ? [-GLASS.x, -MULLION] : [MULLION, GLASS.x];
-    const mid = side * LEAF_MID;
-    return [[x0, mid - BAR], [mid + BAR, x1]].flatMap(([a, b]) => [[a, b, -GLASS.y, -BAR], [a, b, BAR, GLASS.y]]);
+  // A 6 cm post of the main frame splits the opening in two; a leaf fills each side, in its
+  // own 6 cm sash frame (a little deeper at the foot), split into four panes by a slimmer 2 cm
+  // cross of glazing bars. `LEAVES` holds each sash's outline and the glass inside it, `PANES` the eight panes,
+  // all as [x0, x1, y0, y1], left leaf first, each column bottom pane then top.
+  const MULLION = 0.15; // half the frame's middle post
+  const SASH = 0.3;
+  const SASH_FOOT = 0.36;
+  const BAR = 0.05; // half a glazing bar
+  const LEAVES = [[-GLASS.x, -MULLION], [MULLION, GLASS.x]].map(([x0, x1]) => ({
+    outer: [x0, x1, -GLASS.y, GLASS.y],
+    inner: [x0 + SASH, x1 - SASH, -GLASS.y + SASH_FOOT, GLASS.y - SASH],
+  }));
+  const PANES = LEAVES.flatMap(({ inner: [x0, x1, y0, y1] }) => {
+    const [mx, my] = [(x0 + x1) / 2, (y0 + y1) / 2];
+    return [[x0, mx - BAR], [mx + BAR, x1]].flatMap(([a, b]) => [[a, b, y0, my - BAR], [a, b, my + BAR, y1]]);
   });
   const wallShape = new THREE.Shape();
   // Shape x runs along -z once stood up; y is height
@@ -166,7 +175,7 @@ export function createRoom(runtime) {
   room.add(sideWall);
   fullRoom.push(
     sideWall,
-    roomBox(200, 0.22, 0.16, trimMat, 0, FLOOR_Y + 0.17, WALL_Z + 0.23, 0.025),
+    roomBox(200, 0.22, 0.16, trimMat, OUT_X, FLOOR_Y + 0.17, WALL_Z + 0.23, 0.025),
     roomBox(0.16, 0.22, 200, trimMat, SIDE_X + 0.23, FLOOR_Y + 0.17, 1.2, 0.025),
   );
 
@@ -390,7 +399,32 @@ export function createRoom(runtime) {
   drawWoodTop(frameGrainTex.ctx, 512, 512, DEFAULT_WOODS.window);
   const frameWood = runtime.core.toon("#f0c7a0");
   frameWood.map = frameGrainTex.texture;
-  const windowFrame = runtime.core.mesh(new THREE.BoxGeometry(GLASS.x * 2 + 0.4, GLASS.y * 2 + 0.4, 0.18), frameWood, { cast: false, outline: 0.03 });
+  // Each piece is a rectangle with rectangular holes cut in it (no overlapping faces or outline
+  // seams where parts cross), its wood grain mapped across the whole frame.
+  const rect = (path, [x0, x1, y0, y1]) => {
+    path.moveTo(x0, y0);
+    [[x1, y0], [x1, y1], [x0, y1]].forEach(([x, y]) => path.lineTo(x, y));
+    return path;
+  };
+  const cutOut = (outline, holes) => {
+    const shape = rect(new THREE.Shape(), outline);
+    holes.forEach((hole) => shape.holes.push(rect(new THREE.Path(), hole)));
+    return shape;
+  };
+  const woodPiece = (shapes, depth, z, outline = 0.015) => {
+    const geo = mergeGeometries(shapes.map((shape) => new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false })));
+    const position = geo.attributes.position;
+    for (let i = 0; i < position.count; i++) {
+      geo.attributes.uv.setXY(i, position.getX(i) / (GLASS.x * 2 + 0.4) + 0.5, position.getY(i) / (GLASS.y * 2 + 0.4) + 0.5);
+    }
+    const piece = runtime.core.mesh(geo, frameWood, { cast: false, outline });
+    piece.position.z = z;
+    windowGroup.add(piece);
+    return piece;
+  };
+  // The main frame and its middle post in one piece, all but flush with the wall's face, the
+  // opening open behind it on either side of the post
+  const windowFrame = woodPiece([cutOut([-GLASS.x - 0.2, GLASS.x + 0.2, -GLASS.y - 0.2, GLASS.y + 0.2], LEAVES.map(({ outer }) => outer))], 0.18, -0.09, 0.03);
   // Keep the animated view at the same cadence in overview and close-up.
   // The room opens on the part of the day the visitor's clock (or their pick) says; night
   // switches on the room's lamps. The page already opened in the dark theme for a night.
@@ -402,7 +436,11 @@ export function createRoom(runtime) {
   const dayPart = () => (outside.night ? "night" : daylightPart);
   outside.sky = windowSky(dayPart());
   const windowView = runtime.core.printed(GLASS.x * 2, GLASS.y * 2, 220, (c, w, h) => drawWindowView(c, w, h, { ...outside, time: dayPart() }), { unlit: true });
-  windowView.position.z = 0.105;
+  windowView.position.z = -0.14; // behind the leaves' glazing bars
+  // The view is the far distance: drawn first and writing no depth, so leaves swung out past
+  // it still show in front of it through the opening (the wall round it hides the rest)
+  windowView.renderOrder = -1;
+  windowView.material.depthWrite = false;
   windowGroup.add(windowFrame, windowView);
   // The sill runs out from the frame past the wall's face, with an apron board under it. Its
   // top sits clearly above the opening's floor and the frame's foot (both end inside it), so
@@ -412,37 +450,50 @@ export function createRoom(runtime) {
   const apron = runtime.core.mesh(runtime.core.rbox(GLASS.x * 2 + 0.1, 0.26, 0.08, 0.03), frameWood, { cast: false, outline: 0.02 });
   apron.position.set(0, -(GLASS.y + 0.2) - 0.29, WINDOW_DEPTH + 0.04);
   windowGroup.add(sill, apron);
-  // The stiles and bars as one piece, the glass with a hole cut for each pane, which avoids
-  // overlapping faces and outline seams where they cross.
-  const gridShape = new THREE.Shape();
-  [[-GLASS.x, -GLASS.y], [GLASS.x, -GLASS.y], [GLASS.x, GLASS.y], [-GLASS.x, GLASS.y]]
-    .forEach(([x, y], i) => i ? gridShape.lineTo(x, y) : gridShape.moveTo(x, y));
-  PANES.forEach(([x0, x1, y0, y1]) => {
-    const pane = new THREE.Path();
-    pane.moveTo(x0, y0);
-    [[x0, y1], [x1, y1], [x1, y0]].forEach(([x, y]) => pane.lineTo(x, y));
-    gridShape.holes.push(pane);
+  // Each leaf hangs on hinges along its outer edge, at its outside face, and swings out when
+  // its handle is turned (see windowLighting); everything on a leaf moves with it
+  const leaves = LEAVES.map(({ outer: [x0, x1] }, leaf) => {
+    const hinge = new THREE.Group();
+    hinge.position.set(leaf ? x1 : x0, 0, -0.16);
+    windowGroup.add(hinge);
+    return hinge;
   });
-  const glazingBars = runtime.core.mesh(new THREE.ExtrudeGeometry(gridShape, { depth: 0.08, bevelEnabled: false }), frameWood, { cast: false, outline: 0.015 });
-  const crossPositions = glazingBars.geometry.attributes.position;
-  const crossUV = glazingBars.geometry.attributes.uv;
-  for (let i = 0; i < crossUV.count; i++) {
-    crossUV.setXY(i, crossPositions.getX(i) / (GLASS.x * 2 + 0.4) + 0.5, crossPositions.getY(i) / (GLASS.y * 2 + 0.4) + 0.5);
-  }
-  glazingBars.position.z = 0.09;
-  windowGroup.add(glazingBars);
+  const onLeaf = (leaf, obj) => {
+    obj.position.sub(leaves[leaf].position);
+    leaves[leaf].add(obj);
+    return obj;
+  };
+  const leafPanes = (leaf) => PANES.slice(leaf * 4, leaf * 4 + 4);
+  // The leaves sit back 2.2 cm inside the main frame, their glazing bars a further 4 mm
+  LEAVES.forEach(({ outer, inner }, leaf) => {
+    onLeaf(leaf, woodPiece([cutOut(outer, [inner])], 0.14, -0.16));
+    onLeaf(leaf, woodPiece([cutOut(inner, leafPanes(leaf))], 0.08, -0.12));
+  });
   const brass = runtime.core.toon("#d4a72c");
-  // The handle on the left leaf's meeting stile, at mid-height: a tall backplate and a lever
-  // hanging down from its spindle, closed.
-  const catchPlate = runtime.core.mesh(runtime.core.rbox(0.1, 0.34, 0.04, 0.02), brass, { cast: false, outline: 0.01 });
-  catchPlate.position.set(-MULLION / 2, 0, 0.20);
-  const catchLever = runtime.core.mesh(runtime.core.rbox(0.06, 0.3, 0.04, 0.02), brass, { cast: false, outline: 0.01 });
-  catchLever.position.set(0, -0.13, 0);
-  // The lever turns around the spindle in the fixed plate.
-  const windowCatch = new THREE.Group();
-  windowCatch.position.set(-MULLION / 2, 0.08, 0.23);
-  windowCatch.add(catchLever);
-  windowGroup.add(catchPlate, windowCatch);
+  // A handle low on each leaf's stile by the middle post, mirrored (the left leaf's on its
+  // right, the right leaf's on its left): a tall silver backplate and a lever hanging down from its
+  // spindle, closed. Each lever turns around its spindle. A hand-sized box round each, unseen,
+  // is what a click on the handle meets, easier to hit than the slim lever.
+  const handleMetal = runtime.core.toon("#c4c8ce");
+  const handleHitMat = runtime.core.track(new THREE.MeshBasicMaterial({ visible: false }));
+  const HANDLE_Y = -GLASS.y * 0.35;
+  const windowHandles = [];
+  const windowCatches = [-1, 1].map((side, leaf) => {
+    const x = side * (MULLION + SASH / 2);
+    const plate = runtime.core.mesh(runtime.core.rbox(0.1, 0.34, 0.04, 0.02), handleMetal, { cast: false, outline: 0.01 });
+    plate.position.set(x, HANDLE_Y, 0);
+    const lever = runtime.core.mesh(runtime.core.rbox(0.06, 0.3, 0.04, 0.02), handleMetal, { cast: false, outline: 0.01 });
+    lever.position.set(0, -0.13, 0);
+    const handle = new THREE.Group();
+    handle.position.set(x, HANDLE_Y + 0.08, 0.03);
+    handle.add(lever);
+    const hit = new THREE.Mesh(runtime.core.track(new THREE.BoxGeometry(0.4, 0.7, 0.3)), handleHitMat);
+    hit.position.set(x, HANDLE_Y - 0.05, 0.1);
+    const grip = new THREE.Group();
+    grip.add(plate, handle, hit);
+    windowHandles.push(onLeaf(leaf, grip));
+    return handle;
+  });
   const glareTex = canvasTexture(256, 256);
   runtime.core.track(glareTex.texture);
   glareTex.ctx.fillStyle = "rgba(255,255,255,.32)";
@@ -456,15 +507,18 @@ export function createRoom(runtime) {
     glareTex.ctx.fill();
   });
   // Each of the eight panes catches its own pair of streaks, so the glass reads as panes, not
-  // one sheet behind the bars
-  const glareGeo = mergeGeometries(PANES.map(([x0, x1, y0, y1]) =>
-    new THREE.PlaneGeometry(x1 - x0, y1 - y0).translate((x0 + x1) / 2, (y0 + y1) / 2, 0)));
-  const windowGlare = new THREE.Mesh(runtime.core.track(glareGeo), runtime.core.track(new THREE.MeshBasicMaterial({ map: glareTex.texture, transparent: true, opacity: 0.55, depthWrite: false })));
+  // one sheet behind the bars. On the glass, behind the stiles and bars, one sheet per leaf
+  // (both sharing the material, so the hover's sheen lights both).
+  const glareMat = runtime.core.track(new THREE.MeshBasicMaterial({ map: glareTex.texture, transparent: true, opacity: 0.55, depthWrite: false }));
   glareTex.texture.wrapS = THREE.RepeatWrapping;
-  // On the glass, behind the stiles and bars
-  windowGlare.position.z = 0.115;
-  windowGlare.raycast = runtime.core.noRaycast;
-  windowGroup.add(windowGlare);
+  const [windowGlare] = LEAVES.map((_, leaf) => {
+    const glareGeo = mergeGeometries(leafPanes(leaf).map(([x0, x1, y0, y1]) =>
+      new THREE.PlaneGeometry(x1 - x0, y1 - y0).translate((x0 + x1) / 2, (y0 + y1) / 2, 0)));
+    const glare = new THREE.Mesh(runtime.core.track(glareGeo), glareMat);
+    glare.position.z = -0.13;
+    glare.raycast = runtime.core.noRaycast;
+    return onLeaf(leaf, glare);
+  });
   // Dedicated shadows for the glazing bars and blind, drawn only into the window light's
   // shadow map (skipped in every other
   // pass), so the sun doesn't see them and nothing of them shows. The light's cookie keeps
@@ -484,7 +538,10 @@ export function createRoom(runtime) {
     m.onAfterRender = restoreDraw;
     return m;
   };
-  windowGroup.add(runtime.core.at(windowShadow(runtime.core.track(new THREE.ShapeGeometry(gridShape))), 0, 0, 0.06));
+  // Each leaf's wood shadows the beam from the leaf, swinging with it; the middle post stays
+  const shadowFrom = (shape) => runtime.core.at(windowShadow(runtime.core.track(new THREE.ShapeGeometry(shape))), 0, 0, -0.13);
+  LEAVES.forEach(({ outer }, leaf) => onLeaf(leaf, shadowFrom(cutOut(outer, leafPanes(leaf)))));
+  windowGroup.add(shadowFrom(rect(new THREE.Shape(), [-MULLION, MULLION, -GLASS.y, GLASS.y])));
 
   // Public state used by the other scene parts.
   return {
@@ -499,7 +556,9 @@ export function createRoom(runtime) {
     WINDOW_AT,
     GLASS,
     PANES,
-    windowCatch,
+    windowCatches,
+    windowHandles,
+    leaves,
     windowGlare,
     glareTex,
     room,

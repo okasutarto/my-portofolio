@@ -231,6 +231,44 @@ export function createWindowLighting(runtime) {
       .to(runtime.windowBlind.blind, { sway: swing, duration: 0.18, ease: "power1.out" }, ">-0.1")
       .to(runtime.windowBlind.blind, { sway: 0, duration: 1.3, ease: "elastic.out(1, 0.3)" });
   };
+
+  // The window opens by its handles: click one and both turn up level, then the two leaves
+  // swing right out on their hinges together, all but flat to the wall outside, clear of the
+  // view; click again and they swing shut and the handles drop.
+  // Leaving the window's close-up shuts it. The leaves' shadows swing with them, so the sunlit
+  // patch on the desk opens up as they go.
+  const LEAF_SWING = 3.05; // about 175°, back against the outside wall
+  const HANDLE_OPEN = Math.PI / 2;
+  const sash = { open: 0 };
+  let windowOpen = false;
+  const swingLeaves = () => {
+    runtime.room.leaves.forEach((leaf, i) => (leaf.rotation.y = (i ? -1 : 1) * LEAF_SWING * sash.open));
+    windowLight.shadow.needsUpdate = true;
+  };
+  function toggleWindow() {
+    windowOpen = !windowOpen;
+    const turn = (to) => runtime.room.windowCatches.forEach((handle, i) =>
+      gsap.to(handle.rotation, { z: (i ? 1 : -1) * to, duration: 0.25, ease: "power2.out", overwrite: true }));
+    gsap.killTweensOf(sash);
+    sfx.click();
+    if (windowOpen) {
+      turn(HANDLE_OPEN);
+      gsap.delayedCall(0.25, () => sfx.creak());
+      gsap.to(sash, { open: 1, duration: 1.6, delay: 0.25, ease: "power2.out", onUpdate: swingLeaves });
+      return;
+    }
+    gsap.to(sash, { open: 0, duration: 1.2, ease: "power2.in", onUpdate: swingLeaves, onComplete: () => {
+      sfx.knock();
+      turn(0);
+    } });
+  }
+  runtime.room.windowHandles.forEach((grip, i) => runtime.core.register(grip, {
+    focus: "window",
+    item: true,
+    // brushed past while shut, the handle gives a little turn
+    onHover: (on) => windowOpen || gsap.to(runtime.room.windowCatches[i].rotation, { z: on ? (i ? 0.55 : -0.55) : 0, duration: on ? 0.25 : 0.4, ease: "power2.out", overwrite: true }),
+    onClick: toggleWindow,
+  }));
   runtime.core.register(runtime.windowBlind.blindChain, {
     // brushed past, it swings a little; let go of, a smaller sway the other way
     onHover: (on) => (on ? runtime.windowBlind.swingChain(0.05, 0.16) : runtime.windowBlind.swingChain(-0.03, -0.08)),
@@ -248,6 +286,8 @@ export function createWindowLighting(runtime) {
   // Public state used by the other scene parts.
   return {
     windowLight,
+    toggleWindow,
+    isWindowOpen: () => windowOpen,
     aimWindowLight,
     get cookieRain() { return cookieRain; },
     drawGlassCookie,

@@ -224,8 +224,9 @@ export function createCat(runtime) {
     // further along under the desk, toward the dumbbells, clear of the desk's right leg
     rug: { parent: runtime.core.scene, position: new THREE.Vector3(3.7, runtime.room.FLOOR_Y + 0.08, 0.7), yaw: -0.4, via: new THREE.Vector3(3.9, runtime.room.FLOOR_Y + 0.08, 5.4) },
     // the bed on top of her cat tree, over by the shelf: across the floor in front of the desk
-    // and up by way of its step (out in the room's light)
-    tree: { parent: runtime.catTree.tree, position: runtime.catTree.PERCH, yaw: 2.2, path: runtime.catTree.PATH, lit: true },
+    // and up by way of its step (out in the room's light). Up there she faces out into the room,
+    // toward the overview camera, never with her back to it
+    tree: { parent: runtime.catTree.tree, position: runtime.catTree.PERCH, yaw: -0.75, path: runtime.catTree.PATH, lit: true },
   };
   const bedFor = (night) => CAT_BEDS[night ? "desk" : "floor"];
   let catBed = bedFor(runtime.options.dark);
@@ -425,10 +426,11 @@ export function createCat(runtime) {
   // Asleep she breathes, flicks her tail now and then and twitches an ear. Every so often she
   // wakes: a yawn and a long stretch, then one thing (a wash, watching your pointer, looking
   // out of the window, swatting at the butterfly if it's about, or moving to another spot)
-  // and back to sleep. Naps are short, 6–12 s. A click wakes her whatever she's doing.
+  // and back to sleep. Naps are proper ones, 30–60 s, so she's mostly found asleep; a click
+  // wakes her whatever she's doing.
   let catIdleTl = null;
-  const catLife = { wakeAt: performance.now() + 6000 + Math.random() * 6000, twitchAt: 0 };
-  const napLength = () => 6000 + Math.random() * 6000;
+  const napLength = () => 30000 + Math.random() * 30000;
+  const catLife = { wakeAt: performance.now() + napLength(), twitchAt: 0 };
   const catRay = new THREE.Raycaster();
   const catHeadAt = new THREE.Vector3();
   // the pointer, as a point in the room at her head's distance from the camera

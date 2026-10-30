@@ -9,17 +9,23 @@ export function createWindowLighting(runtime) {
   // aimed through the glass from wherever the sky's light stands. The wall round the glass, the
   // glazing bars and the blind's slats shadow it for real, and its map spans only the beam, so
   // slats a few centimetres apart still print as crisp stripes.
-  const WINDOW_SUN_FAR = 30;
-  const windowLight = new THREE.SpotLight(0xffe5ad, 2.2, 0, 0.13, 0.12, 0);
+  // Far enough out that its rays through the full-size glass stay all but parallel, as the sun's
+  // do: from nearer they fan out, and at noon the edge of the beam strays onto the back wall
+  const WINDOW_SUN_FAR = 150;
+  // the cone just takes in the glass (from its centre to a corner, in world units), at any slant
+  const { GLASS } = runtime.room;
+  const glassReach = Math.hypot(GLASS.x, GLASS.y) * runtime.room.windowGroup.scale.x;
+  const windowLight = new THREE.SpotLight(0xffe5ad, 2.2, 0, Math.atan(glassReach * 1.84 / WINDOW_SUN_FAR), 0.12, 0);
   windowLight.castShadow = true;
   windowLight.shadow.mapSize.setScalar(lowPower ? 1024 : 2048);
-  windowLight.shadow.camera.near = WINDOW_SUN_FAR - 6;
-  windowLight.shadow.camera.far = WINDOW_SUN_FAR + 30;
+  windowLight.shadow.camera.near = WINDOW_SUN_FAR - 8;
+  windowLight.shadow.camera.far = WINDOW_SUN_FAR + 40;
   windowLight.shadow.bias = -0.0002;
   windowLight.shadow.normalBias = 0.02;
   windowLight.shadow.radius = 3;
   runtime.core.scene.add(windowLight, windowLight.target);
-  const windowGlass = new THREE.Vector3(runtime.room.SIDE_X + 0.12 - runtime.room.WINDOW_DEPTH + 0.06, runtime.room.WINDOW_AT.y, runtime.room.WINDOW_AT.z);
+  runtime.room.windowGroup.updateWorldMatrix(true, false);
+  const windowGlass = runtime.room.windowGroup.localToWorld(new THREE.Vector3(0, 0, 0.06));
   const windowRay = new THREE.Vector3();
   // The light's cookie: the glass, as the light sees it, white in black (edges a touch soft, as
   // the sun isn't a point), so it shines only through the window. Redrawn whenever it's aimed.
@@ -37,7 +43,7 @@ export function createWindowLighting(runtime) {
     c.fillRect(0, 0, 512, 512);
     c.filter = `blur(${2 + runtime.room.outside.rain * 6}px)`;
     c.beginPath();
-    [[-2, -2.05], [-2, 2.05], [2, 2.05], [2, -2.05]].forEach(([x, y], k) => {
+    [[-GLASS.x, -GLASS.y], [-GLASS.x, GLASS.y], [GLASS.x, GLASS.y], [GLASS.x, -GLASS.y]].forEach(([x, y], k) => {
       // the shadow matrix takes a world point to the light map's 0–1 square
       runtime.room.windowGroup.localToWorld(glassCorner.set(x, y, 0.06)).applyMatrix4(windowLight.shadow.matrix);
       const px = glassCorner.x * 512;
@@ -54,10 +60,24 @@ export function createWindowLighting(runtime) {
   }
   // `from`: normalized coordinates of the sun or moon in the painted window view.
   function aimWindowLight(from) {
-    // The view's horizontal axis is window-local X (world -Z). Calibrate elevation to this
-    // room: sunrise crosses the monitor face; the overhead noon sun reaches the desktop.
+    // The view's horizontal axis is window-local X (world -Z): the sun's place across the sky
+    // turns the beam toward the back of the room in the morning and the front in the evening.
+    // Its height in the painted sky sets a real elevation: low and slanting at sunrise (25°),
+    // high at noon (45°: the patch reaches across the middle of the desk instead of only the
+    // crowded strip by the window, its bars' shadows on the mat), as low again at
+    // sunset (25°, any lower and the beam sails over the desk to the floor); the moon (30°)
+    // sits between. Heights in between blend.
+    const SUN_ELEVATION = [[0.10, 45], [0.19, 30], [0.30, 25], [0.44, 25]];
+    const v = THREE.MathUtils.clamp(from[1], SUN_ELEVATION[0][0], SUN_ELEVATION[SUN_ELEVATION.length - 1][0]);
+    const k = SUN_ELEVATION.findIndex((_, i) => i === SUN_ELEVATION.length - 2 || v <= SUN_ELEVATION[i + 1][0]);
+    const [[v0, e0], [v1, e1]] = [SUN_ELEVATION[k], SUN_ELEVATION[k + 1]];
+    const elevation = THREE.MathUtils.degToRad(e0 + (e1 - e0) * (v - v0) / (v1 - v0));
+    // A low sun toward the front of the room (sunset) turns the beam only a little that way,
+    // so the long evening streak lies across the desk instead of past its front edge
+    const setting = from[0] > 0.5 ? THREE.MathUtils.smoothstep(v, SUN_ELEVATION[2][0], SUN_ELEVATION[3][0]) : 0;
+    const across = (from[0] - 0.5) * 1.4 * THREE.MathUtils.lerp(1, 0.35, setting);
     runtime.room.windowGroup.updateWorldMatrix(true, false);
-    windowRay.set((from[0] - 0.5) * 1.4, (0.65 - from[1]) * 1.3, -1)
+    windowRay.set(across, Math.tan(elevation) * Math.hypot(1, across), -1)
       .transformDirection(runtime.room.windowGroup.matrixWorld);
     windowLight.position.copy(windowGlass).addScaledVector(windowRay, WINDOW_SUN_FAR);
     windowLight.target.position.copy(windowGlass).addScaledVector(windowRay, -1);
@@ -72,7 +92,8 @@ export function createWindowLighting(runtime) {
   // dozen motes cost two draws, against a raymarched one's full-screen pass. It takes the
   // window light's colour and strength, keeps to the part of the glass the blind leaves open,
   // and thins out in the rain.
-  const SHAFT_LEN = 9;
+  // Long enough to reach the desk or the floor from the top of the full-size window
+  const SHAFT_LEN = 20;
   const shaftGeo = runtime.core.track(new THREE.BufferGeometry());
   const shaftPos = new THREE.BufferAttribute(new Float32Array(16 * 3), 3);
   const shaftUv = new Float32Array(16 * 2);
@@ -139,6 +160,8 @@ export function createWindowLighting(runtime) {
   const shaftPoint = new THREE.Vector3();
   const shaftReach = [SHAFT_LEN, SHAFT_LEN, SHAFT_LEN, SHAFT_LEN];
   const BACK_WALL = runtime.room.WALL_Z + 0.12;
+  // The desktop: 180 × 84 cm, centred on the origin
+  const DESK_HALF = { x: 9, z: 4.2 };
   // How far a ray from `from` along the beam (shaftInto) goes before it meets the back wall, the
   // desk's top (within its edges) or else the floor; never further than SHAFT_LEN
   function beamReach(from) {
@@ -148,19 +171,19 @@ export function createWindowLighting(runtime) {
       const toDesk = -from.y / shaftInto.y;
       const x = from.x + shaftInto.x * toDesk;
       const z = from.z + shaftInto.z * toDesk;
-      const onDesk = Math.abs(x) < 7 && Math.abs(z) < 4.2;
+      const onDesk = Math.abs(x) < DESK_HALF.x && Math.abs(z) < DESK_HALF.z;
       reach = Math.min(reach, onDesk ? toDesk : (runtime.room.FLOOR_Y - from.y) / shaftInto.y);
     }
     return Math.max(0, reach);
   }
   function updateShaft(now) {
     // the open part of the glass, below the blind's bottom bar
-    const top = Math.min(2.05, runtime.windowBlind.bottomBar.position.y - runtime.windowBlind.BAR_H / 2);
+    const top = Math.min(GLASS.y, runtime.windowBlind.bottomBar.position.y - runtime.windowBlind.BAR_H / 2);
     const strength = windowLight.intensity * 0.028 * (1 - 0.7 * runtime.room.outside.rain) * (1 - 0.75 * runtime.core.roomLight.night);
-    shaft.visible = motes.visible = top > -1.95 && strength > 0.002;
+    shaft.visible = motes.visible = top > -GLASS.y + 0.1 && strength > 0.002;
     if (!shaft.visible) return;
     // glass corners, clockwise from the bottom left as seen from the room, then the beam's way in
-    [[-2, -2.05], [-2, top], [2, top], [2, -2.05]].forEach(([x, y], k) => runtime.room.windowGroup.localToWorld(shaftCorner[k].set(x, y, 0.12)));
+    [[-GLASS.x, -GLASS.y], [-GLASS.x, top], [GLASS.x, top], [GLASS.x, -GLASS.y]].forEach(([x, y], k) => runtime.room.windowGroup.localToWorld(shaftCorner[k].set(x, y, 0.12)));
     shaftInto.copy(windowRay).negate();
     // Each edge of the beam stops where it meets the room: the back wall, the desk's top or the
     // floor, whichever comes first, its glow already faded to nothing there. Run on through them,
@@ -185,7 +208,7 @@ export function createWindowLighting(runtime) {
       const s = (along + t * 0.012) % 1;
       const bob = Math.sin(t * 0.6 + phase) * 0.06;
       shaftPoint.copy(shaftCorner[0]).lerp(shaftCorner[3], u);
-      shaftPoint.y += (top + 2.05) * w + bob;
+      shaftPoint.y += (top + GLASS.y) * w + bob;
       // as far in as the beam reaches at that height, short of where it lands
       const reach = THREE.MathUtils.lerp((shaftReach[0] + shaftReach[3]) / 2, (shaftReach[1] + shaftReach[2]) / 2, w);
       shaftPoint.addScaledVector(shaftInto, s * reach * 0.85);
@@ -213,6 +236,44 @@ export function createWindowLighting(runtime) {
       .to(runtime.windowBlind.blind, { sway: swing, duration: 0.18, ease: "power1.out" }, ">-0.1")
       .to(runtime.windowBlind.blind, { sway: 0, duration: 1.3, ease: "elastic.out(1, 0.3)" });
   };
+
+  // The window opens by its handles: click one and both turn up level, then the two leaves
+  // swing right out on their hinges together, all but flat to the wall outside, clear of the
+  // view; click again and they swing shut and the handles drop.
+  // Leaving the window's close-up shuts it. The leaves' shadows swing with them, so the sunlit
+  // patch on the desk opens up as they go.
+  const LEAF_SWING = 3.05; // about 175°, back against the outside wall
+  const HANDLE_OPEN = Math.PI / 2;
+  const sash = { open: 0 };
+  let windowOpen = false;
+  const swingLeaves = () => {
+    runtime.room.leaves.forEach((leaf, i) => (leaf.rotation.y = (i ? -1 : 1) * LEAF_SWING * sash.open));
+    windowLight.shadow.needsUpdate = true;
+  };
+  function toggleWindow() {
+    windowOpen = !windowOpen;
+    const turn = (to) => runtime.room.windowCatches.forEach((handle, i) =>
+      gsap.to(handle.rotation, { z: (i ? 1 : -1) * to, duration: 0.25, ease: "power2.out", overwrite: true }));
+    gsap.killTweensOf(sash);
+    sfx.click();
+    if (windowOpen) {
+      turn(HANDLE_OPEN);
+      gsap.delayedCall(0.25, () => sfx.creak());
+      gsap.to(sash, { open: 1, duration: 1.6, delay: 0.25, ease: "power2.out", onUpdate: swingLeaves });
+      return;
+    }
+    gsap.to(sash, { open: 0, duration: 1.2, ease: "power2.in", onUpdate: swingLeaves, onComplete: () => {
+      sfx.knock();
+      turn(0);
+    } });
+  }
+  runtime.room.windowHandles.forEach((grip, i) => runtime.core.register(grip, {
+    focus: "window",
+    item: true,
+    // brushed past while shut, the handle gives a little turn
+    onHover: (on) => windowOpen || gsap.to(runtime.room.windowCatches[i].rotation, { z: on ? (i ? 0.55 : -0.55) : 0, duration: on ? 0.25 : 0.4, ease: "power2.out", overwrite: true }),
+    onClick: toggleWindow,
+  }));
   runtime.core.register(runtime.windowBlind.blindChain, {
     // brushed past, it swings a little; let go of, a smaller sway the other way
     onHover: (on) => (on ? runtime.windowBlind.swingChain(0.05, 0.16) : runtime.windowBlind.swingChain(-0.03, -0.08)),
@@ -230,6 +291,8 @@ export function createWindowLighting(runtime) {
   // Public state used by the other scene parts.
   return {
     windowLight,
+    toggleWindow,
+    isWindowOpen: () => windowOpen,
     aimWindowLight,
     get cookieRain() { return cookieRain; },
     drawGlassCookie,

@@ -15,10 +15,19 @@ export function setBootProgress(fraction) {
   if (!loader || fraction <= progress) return;
   progress = Math.min(1, fraction);
   const percent = Math.round(progress * 100);
-  loader.style.setProperty("--bl-progress", progress);
-  loader.querySelector(".bl-bar").setAttribute("aria-valuenow", percent);
+  const bar = loader.querySelector(".bl-bar");
+  const filled = Math.round(progress * BAR_CHARS);
+  bar.textContent = "#".repeat(filled) + "-".repeat(BAR_CHARS - filled);
+  bar.setAttribute("aria-valuenow", percent);
   loader.querySelector(".bl-pct span").textContent = percent;
+  // the log: a line comes on as the start reaches it, and is ok once the next one has
+  const lines = [...loader.querySelectorAll(".bl-log li[data-at]")];
+  lines.forEach((line, i) => {
+    line.classList.toggle("is-on", progress >= +line.dataset.at);
+    line.classList.toggle("is-ok", progress >= (lines[i + 1] ? +lines[i + 1].dataset.at : 1));
+  });
 }
+const BAR_CHARS = 17;
 
 export function hideBootLoader() {
   closeGate?.();
@@ -28,36 +37,39 @@ export function hideBootLoader() {
   setTimeout(() => loader.remove(), 600);
 }
 
-// Once the room is drawn the loader becomes the way in. Pressing Enter (or tapping) is the
+// Once the room is ready the loader becomes the way in. Pressing Enter (or tapping) is the
 // gesture browsers need before any sound plays, so the boot sound is heard from its first note.
+// The room waits behind it in the dark, its monitor showing what this screen shows: `screen`
+// is where the terminal window on that monitor sits on the page, and this one moves onto it as the dark
+// lifts, so the visitor is looking at the room's own terminal (`onLanded` puts that window up,
+// under this one, as it arrives). Without it the loader just clears.
 // False when no loader is showing (the desk was reached from another page): enter right away.
-export function showEnterGate(onEnter) {
+export function showEnterGate(onEnter, screen = null, onLanded = null) {
   const loader = showingLoader();
   if (!loader) return false;
-  // the bar fills the rest of the way before the screen says READY
+  // the bar fills the rest of the way, then the screen says ready and hands over
   setBootProgress(1);
   setTimeout(() => {
     if (!closeGate) return;
+    if (screen) {
+      const flip = loader.querySelector(".bl-flip");
+      const from = loader.querySelector(".bl-win").getBoundingClientRect();
+      const dx = screen.left + screen.width / 2 - (from.left + from.width / 2);
+      const dy = screen.top + screen.height / 2 - (from.top + from.height / 2);
+      flip.style.transform = `translate(${dx}px, ${dy}px) scale(${screen.width / from.width}, ${screen.height / from.height})`;
+      // landed (the move takes .9s): the monitor's own window comes up under this one as it fades
+      setTimeout(() => onLanded?.(), 850);
+    }
     loader.classList.add("is-ready");
     loader.setAttribute("aria-label", "The desk is ready");
     loader.querySelector(".bl-enter").focus({ preventScroll: true });
   }, 450);
-  // The keycap goes down, then the view dives into the little monitor's screen and comes out in
-  // the room. The press itself already unlocked audio (see useSfx), so the room can start later.
+  // The press itself unlocks audio (see useSfx); the room takes it from there (the lamp, the
+  // camera drawing back), so the loader only has to clear
   const enter = () => {
     closeGate();
-    loader.classList.add("is-pressed");
-    const stage = loader.querySelector(".bl-stage").getBoundingClientRect();
-    const screen = loader.querySelector(".bl-screen").getBoundingClientRect();
-    // in percent of the stage, as its measured size includes the scale it is drawn at
-    const x = ((screen.left + screen.width / 2 - stage.left) / stage.width) * 100;
-    const y = ((screen.top + screen.height / 2 - stage.top) / stage.height) * 100;
-    loader.style.setProperty("--bl-dive", `${x}% ${y}%`);
-    setTimeout(() => loader.classList.add("is-entering"), 120);
-    setTimeout(() => {
-      onEnter();
-      hideBootLoader();
-    }, 560);
+    onEnter();
+    hideBootLoader();
   };
   // The room behind is live, so no key may reach it before the visitor is in
   const onKey = (e) => {

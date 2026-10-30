@@ -194,7 +194,7 @@ export function drawTerminal(c, w, h, lines, cursor, { alert = false, alertOn = 
   });
   c.font = "700 22px 'Space Grotesk', monospace";
   c.textBaseline = "middle";
-  c.fillText("oka@desk: ~", 120, 23);
+  c.fillText("the@desk: ~", 120, 23);
   if (alert) {
     c.font = "800 18px 'Space Grotesk', monospace";
     const label = "● NEW MESSAGE";

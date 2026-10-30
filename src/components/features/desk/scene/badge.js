@@ -5,11 +5,15 @@ import { canvasTexture, drawBadge, drawGlassSheen } from "../textures";
 
 export function createBadge(runtime) {
   // ---------- ID badge on a lanyard, hung from a push pin on the About board's corner (hero) ----------
-  // The board is 6.8 × 4.2 centred at (4.6, 5.8) on the back wall: the pin sits inside its
-  // top-left corner and the badge hangs just off its left edge. Close up, the camera's near
+  // The board is 6.8 × 4.2 centred at (4.6, 8.4) on the back wall: the pin sits in from its
+  // top-left corner and the badge hangs down over the cork. Close up, the camera's near
   // plane cuts away the monitor in front of it (see the hero shot's depth).
-  const BADGE_PIN = new THREE.Vector3(1.4, 7.55, runtime.room.WALL_Z + 0.48);
-  const BADGE_CLIP = new THREE.Vector3(1.4, 5.85, runtime.room.WALL_Z + 0.58); // straight below the pin: the rope's resting shape
+  const BADGE_PIN = new THREE.Vector3(1.65, 10.05, runtime.room.WALL_Z + 0.48);
+  const BADGE_CLIP = new THREE.Vector3(1.65, 8.35, runtime.room.WALL_Z + 0.58); // straight below the pin: the rope's resting shape
+  // Shown with the About board it hangs from. While hidden, its parts stay out of the scene,
+  // not just invisible, so the lanyard can't be hovered, grabbed or clicked.
+  const SHOW_BADGE = true;
+  const addBadgePart = (part) => SHOW_BADGE && runtime.core.scene.add(part);
   // Blue: it stands off the yellow badge, the red pin and the cork
   const strapWeave = canvasTexture(512, 128);
   runtime.core.track(strapWeave.texture);
@@ -110,7 +114,7 @@ export function createBadge(runtime) {
     // the pin can be dragged anywhere on the wall, past the tube's first bounds
     tube.frustumCulled = hull.frustumCulled = false;
     tube.add(hull);
-    runtime.core.scene.add(tube);
+    addBadgePart(tube);
     return { side, curve, tube };
   });
   const strapPin = new THREE.Group();
@@ -127,7 +131,7 @@ export function createBadge(runtime) {
   pinGlint.position.set(-0.035, 0.04, 0.175);
   strapPin.add(pinSeat, pinStem, pinHead, pinGlint);
   strapPin.position.copy(BADGE_PIN).add(new THREE.Vector3(0, 0, 0.06));
-  runtime.core.scene.add(strapPin);
+  addBadgePart(strapPin);
   // Grabbing the lanyard: the pin, a point along the strap, or the badge (its clip end).
   // Works on the overview and the badge close-up, on the wall-parallel plane the strap hangs in.
   const lanyardPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -(BADGE_PIN.z + 0.05));
@@ -187,7 +191,7 @@ export function createBadge(runtime) {
   }
   const badge = new THREE.Group();
   badge.position.copy(BADGE_CLIP);
-  runtime.core.scene.add(badge);
+  addBadgePart(badge);
   // The badge swings on its clip a little behind the strap's own angle: a damped spring
   let badgeAngle = 0;
   let badgeSpin = 0;
@@ -323,6 +327,7 @@ export function createBadge(runtime) {
 
   // Public state used by the other scene parts.
   return {
+    shown: SHOW_BADGE,
     get badgeClearance() { return badgeClearance; },
     set badgeClearance(value) { badgeClearance = value; },
     badgeFront,

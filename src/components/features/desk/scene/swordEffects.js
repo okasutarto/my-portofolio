@@ -221,8 +221,8 @@ export function createSwordEffects(runtime) {
     "ICHIDAI SANZEN DAISEN SEKAI!", "HYAKUHACHI POUND HO!", "ENMA: KING OF HELL!",
   ];
   let techniqueIndex = Math.floor(Math.random() * TECHNIQUES.length);
-  const SHOUT_W = 4.5;
-  const SHOUT_H = 2.25;
+  const SHOUT_W = 5.85;
+  const SHOUT_H = 2.925;
   const katanaWorld = new THREE.Vector3();
   let slashing = false;
   // the strike under way, and whether it's past the cut and only going home
@@ -501,7 +501,7 @@ export function createSwordEffects(runtime) {
         g.getWorldPosition(katanaWorld);
         drawShout(shoutTex.ctx, 640, 320, "THE CURSE LIKES ME!", { style: "kitetsu" });
         shoutTex.texture.needsUpdate = true;
-        shout.position.set(katanaWorld.x - 2.4, katanaWorld.y + 1.6, katanaWorld.z + 0.25);
+        shout.position.set(katanaWorld.x - 3.1, katanaWorld.y + 1.95, katanaWorld.z + 0.25);
         keepOnScreen(shout, SHOUT_W, SHOUT_H);
         gsap.fromTo(shout.scale, { x: 1, y: 0.5 }, { x: SHOUT_W, y: SHOUT_H, duration: 0.3, ease: "back.out(3)", overwrite: true });
         clearTimeout(shoutTimer);
@@ -656,7 +656,7 @@ export function createSwordEffects(runtime) {
         drawShout(shoutTex.ctx, 640, 320, technique, { style: sword.style });
         shoutTex.texture.needsUpdate = true;
         // Close by the cut: up and a little to the left of the hand, over the top of the arc
-        shout.position.set(katanaWorld.x - 2.4, katanaWorld.y + 2.1, katanaWorld.z + 0.25);
+        shout.position.set(katanaWorld.x - 3.1, katanaWorld.y + 2.45, katanaWorld.z + 0.25);
         keepOnScreen(shout, SHOUT_W, SHOUT_H);
         gsap.fromTo(shout.scale, { x: 1, y: 0.5 }, { x: SHOUT_W, y: SHOUT_H, duration: 0.3, ease: "back.out(3)", overwrite: true });
         gsap.fromTo(shout.material, { rotation: 0.15 }, { rotation: 0, duration: 0.5, ease: "elastic.out(1.2, 0.4)" });
@@ -675,7 +675,7 @@ export function createSwordEffects(runtime) {
   // The sword under the pointer, and a timer for its card once the camera has come in
   let swordZoomTimer = null;
   // The sword's card: a sprite beside the rack, level with the sword, always facing the camera
-  const SWORD_CARD = { w: 3.7, h: 3.7 * (480 / 760) };
+  const SWORD_CARD = { w: 4.8, h: 4.8 * (480 / 760) };
   const swordCardTex = canvasTexture(760, 480);
   runtime.core.track(swordCardTex.texture);
   const swordCard = new THREE.Sprite(runtime.core.track(new THREE.SpriteMaterial({ map: swordCardTex.texture, depthTest: false, transparent: true })));
@@ -704,18 +704,19 @@ export function createSwordEffects(runtime) {
   // the strike sweeps through (high above it for the wind-up, low under it for the finish: so
   // taller than it is wide), drawn after the room but before the cards, plates and the cut's
   // effects, which stay bright.
-  const SPOT_REACH = { x: 3.0, y: 4.0 };
+  // In world units, sized to the full-size swords (about 90 cm, 9 units, across)
+  const SPOT_REACH = { x: 6.0, y: 8.0 };
   // The sword key's own strength at midday, and how much of the room's lost fill (morning,
   // evening, night, rain) it makes up on top
   const SWORD_KEY = 0.3;
   const SWORD_FILL_MAKEUP = 1;
   // A dedicated key keeps the swords lit through every room phase; the overlay only
   // darkens their surroundings. Fade with focus, independently of the room lights.
-  const swordSpotlight = new THREE.SpotLight("#fff4e8", 0, 18, Math.PI / 4, 0.65, 0);
+  const swordSpotlight = new THREE.SpotLight("#fff4e8", 0, 32, Math.PI / 4, 0.65, 0);
   swordSpotlight.castShadow = true;
   swordSpotlight.shadow.mapSize.set(1024, 1024);
   swordSpotlight.shadow.camera.near = 0.5;
-  swordSpotlight.shadow.camera.far = 18;
+  swordSpotlight.shadow.camera.far = 32;
   swordSpotlight.shadow.bias = -0.0002;
   swordSpotlight.shadow.normalBias = 0.015;
   swordSpotlight.shadow.radius = 2;
@@ -799,7 +800,7 @@ export function createSwordEffects(runtime) {
     swordSpotlight.shadow.needsUpdate = true;
     runtime.swordRack.katanaRack.getWorldPosition(spotAt);
     swordSpotlight.target.position.copy(spotAt);
-    swordSpotlight.position.copy(spotAt).add(screenAxis.set(0, 3, 6));
+    swordSpotlight.position.copy(spotAt).add(screenAxis.set(0, 6, 12));
     spotEdge.copy(spotAt).project(runtime.core.camera);
     spotUniforms.center.value.set(spotEdge.x, spotEdge.y);
     const cx = spotEdge.x;

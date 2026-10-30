@@ -1,29 +1,37 @@
 import * as THREE from "three";
 import gsap from "gsap";
 import { sfx } from "@/composables/useSfx";
-import { canvasTexture, drawMangaSpine, drawNarutoCover, drawInvaders, drawBrushedMetal, drawTrophyMetal, drawTrophyStone, drawSatinFinish } from "../textures";
+import { canvasTexture, drawMangaSpine, drawMangaCover, drawBrushedMetal, drawTrophyMetal, drawTrophyStone, drawSatinFinish } from "../textures";
 
 export function createShelfCollectibles(runtime) {
-  // Level 3: a pile of manga volumes lying down, a trophy, and a handheld console. Manga are
+  // Middle bay: a pile of manga volumes lying down, and a trophy. Manga are
   // smaller than the hardbacks, with white covers and the series' colour on each spine, the
   // pile a little untidy.
-  const MANGA = [[1, "#f68026"], [2, "#ffc342"], [3, "#ed6d37"], [4, "#ffb15c"], [5, "#e99a32"]];
-  const stackTop = MANGA.reduce((y, [vol, color], i) => {
-    const thick = 0.15;
-    const lying = runtime.shelfBooks.bookMesh(thick, 1.02, "#fffdf5", i, 0.72, (c, cw, ch) => drawMangaSpine(c, cw, ch, { vol, color }));
-    const coverArt = runtime.core.printed(0.7, 1.0, 750, (c, cw, ch) => drawNarutoCover(c, cw, ch, { vol, color }));
+  const MANGA = [
+    [1, "#f68026", "MARUTO"], [2, "#ffc342", "MARUTO"], [3, "#ed6d37", "MARUTO"],
+    [4, "#ffb15c", "MARUTO"], [5, "#e99a32", "MARUTO"],
+    [1, "#66bfa7", "DRAGON BELL"], [2, "#78addb", "DRAGON BELL"],
+    [3, "#f6bc4b", "DRAGON BELL"], [4, "#e98779", "DRAGON BELL"],
+  ];
+  const PILE_X = -0.7;
+  const mangaPile = [];
+  const stackTop = MANGA.reduce((y, [vol, color, title], i) => {
+    const thick = 0.08;
+    const lying = runtime.shelfBooks.bookMesh(thick, 0.95, "#fffdf5", i, 0.635, (c, cw, ch) => drawMangaSpine(c, cw, ch, { vol, color, title }));
+    const coverArt = runtime.core.printed(0.615, 0.93, 750, (c, cw, ch) => drawMangaCover(c, cw, ch, { vol, color, title }));
     coverArt.rotation.y = Math.PI / 2;
     coverArt.position.x = thick / 2 + 0.003;
     lying.add(coverArt);
     lying.rotation.z = Math.PI / 2;
-    const item = runtime.shelf.addItem(runtime.core.at(runtime.shelf.group(lying), -1.05 + (i % 2 ? 0.05 : -0.04), y + thick / 2, 0.25), "book");
+    const item = runtime.shelf.addItem(runtime.core.at(runtime.shelf.group(lying), PILE_X + (i % 2 ? 0.03 : -0.025), y + thick / 2, 0.25), "book");
     item.rotation.y = (i % 3 - 1) * 0.07;
+    mangaPile.push(item);
     return y + thick;
-  }, runtime.shelf.standOn(3));
+  }, runtime.shelf.standOn(1));
   // A 3×3 puzzle cube on top of the pile: 27 little cubies, each with its stickers on the
   // outside faces, so a layer can really turn. It sits a few twists away from solved; click
   // it and it gets played with: a quick run of layer turns as it spins round.
-  const CUBE = 0.36;
+  const CUBE = 0.28;
   const CUBIE = CUBE / 3;
   const stickerMats = { px: "#e5484d", nx: "#ff8a1f", py: "#fffdf5", ny: "#ffd400", pz: "#22a35a", nz: "#2f7cf6" };
   Object.keys(stickerMats).forEach((k) => (stickerMats[k] = runtime.core.toon(stickerMats[k])));
@@ -51,7 +59,7 @@ export function createShelfCollectibles(runtime) {
   // move to a pivot, it turns, and they come back snapped to the grid
   const AXES = ["x", "y", "z"];
   const snap = (v, step) => Math.round(v / step) * step;
-  function turnLayer(axis, layer, dir, duration = 0, onDone) {
+  function turnLayer(axis, layer, dir, duration = 0, onDone, onUpdate) {
     const pivot = new THREE.Object3D();
     rubik.add(pivot);
     const members = cubies.filter((c) => Math.round(c.position[axis] / CUBIE) === layer);
@@ -70,12 +78,27 @@ export function createShelfCollectibles(runtime) {
       pivot.updateMatrixWorld(true);
       return settle();
     }
-    gsap.to(pivot.rotation, { [axis]: (dir * Math.PI) / 2, duration, ease: "power2.inOut", onComplete: settle });
+    gsap.to(pivot.rotation, { [axis]: (dir * Math.PI) / 2, duration, ease: "power2.inOut", onUpdate, onComplete: settle });
   }
   // a few turns from solved, as if put down mid-solve
   [["y", 1, 1], ["x", -1, -1], ["z", 1, 1], ["y", -1, -1]].forEach(([axis, layer, dir]) => turnLayer(axis, layer, dir));
   rubik.rotation.set(0, 0.6, 0);
-  const rubikItem = runtime.shelf.addItem(runtime.core.at(runtime.shelf.group(rubik), -0.7, stackTop + CUBE / 2, 0.3), "rubik");
+  // Rested on its real lowest point (the stickers stand a little proud of the cubies)
+  const rubikBounds = new THREE.Box3();
+  rubik.updateMatrixWorld(true);
+  const rubikDrop = -rubikBounds.setFromObject(rubik).min.y;
+  const rubikItem = runtime.shelf.addItem(runtime.core.at(runtime.shelf.group(rubik), -0.7, stackTop + rubikDrop, 0.3), "rubik");
+  // While it's played with, a tilt or a turning layer swings a corner below the cube's resting
+  // face: lift the cube by that much, so it rocks on the corner instead of sinking into the pile
+  const rubikAt = new THREE.Vector3();
+  const rubikScale = new THREE.Vector3();
+  function keepOnPile() {
+    rubik.position.y = 0;
+    rubikItem.updateMatrixWorld(true);
+    const scale = rubikItem.getWorldScale(rubikScale).y;
+    const floor = rubikItem.getWorldPosition(rubikAt).y - rubikDrop * scale;
+    rubik.position.y = Math.max(0, floor - rubikBounds.setFromObject(rubik).min.y) / scale;
+  }
   let rubikBusy = false;
   function playRubik() {
     if (rubikBusy) return;
@@ -84,16 +107,42 @@ export function createShelfCollectibles(runtime) {
     const turn = (n) => {
       if (n === TURNS) {
         rubikBusy = false;
+        keepOnPile();
         return;
       }
       const axis = AXES[Math.floor(Math.random() * 3)];
       sfx.tick({ pitch: 1.6 + Math.random() * 0.6 });
-      turnLayer(axis, Math.floor(Math.random() * 3) - 1, Math.random() < 0.5 ? 1 : -1, 0.16, () => turn(n + 1));
+      turnLayer(axis, Math.floor(Math.random() * 3) - 1, Math.random() < 0.5 ? 1 : -1, 0.16, () => turn(n + 1), keepOnPile);
     };
     turn(0);
     // turned over in the hands as it's played
     gsap.to(rubik.rotation, { y: rubik.rotation.y + Math.PI * 2, duration: 6 * 0.17, ease: "power1.inOut" });
-    gsap.fromTo(rubik.rotation, { x: 0 }, { x: 0.35, duration: 6 * 0.085, yoyo: true, repeat: 1, ease: "sine.inOut" });
+    gsap.fromTo(rubik.rotation, { x: 0 }, { x: 0.35, duration: 6 * 0.085, yoyo: true, repeat: 1, ease: "sine.inOut", onUpdate: keepOnPile });
+  }
+  // A volume lying in the pile can't hop out of it: a click slides it a little further out of
+  // the stack and pushes it back in with a slap, and the volumes above (and the cube on top)
+  // ride up and settle as it goes
+  function nudgeManga(item) {
+    const at = mangaPile.indexOf(item);
+    if (at < 0) return false;
+    const z = item.userData.restZ ?? (item.userData.restZ = item.position.z);
+    const turn = item.userData.restTurn ?? (item.userData.restTurn = item.rotation.y);
+    gsap.timeline({ overwrite: true })
+      .to(item.position, { z: z + 0.12, duration: 0.2, ease: "power2.out" })
+      .to(item.rotation, { y: turn + (at % 2 ? 0.08 : -0.08), duration: 0.2, ease: "power2.out" }, 0)
+      .to(item.position, { z, duration: 0.24, ease: "back.in(1.6)" }, 0.26)
+      .to(item.rotation, { y: turn, duration: 0.24, ease: "power2.in" }, 0.26)
+      .call(() => sfx.bookDown({ strength: 0.5 }), null, 0.5);
+    [...mangaPile.slice(at + 1), rubikItem].forEach((above, i) => {
+      const y = above.userData.restY;
+      gsap.fromTo(above.position, { y }, { keyframes: [
+        { y: y + 0.018, duration: 0.12, delay: 0.03 + i * 0.012, ease: "power2.out" },
+        { y, duration: 0.18, ease: "power2.in" },
+        { y: y + 0.006, duration: 0.07, delay: 0.21, ease: "power1.out" },
+        { y, duration: 0.09, ease: "power1.in" },
+      ], overwrite: true });
+    });
+    return true;
   }
   let trophyCelebrating = false;
   let trophyCelebration = null;
@@ -205,24 +254,8 @@ export function createShelfCollectibles(runtime) {
   trophyStar.material.alphaTest = 0.1;
   trophyStar.position.set(0, 0.9, 0.356);
   trophy.add(trophyStar);
-  runtime.shelf.addItem(runtime.core.at(trophy, 0.45, runtime.shelf.standOn(3), 0.15), "trophy");
-  const handheld = runtime.shelf.group(
-    runtime.core.mesh(runtime.core.rbox(0.62, 0.95, 0.14, 0.08), runtime.core.toon("#8fd694"), { outline: 0.03 }),
-    runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.5, 0.42, 0.02, 0.03), runtime.core.toon("#3a4a3a"), { outline: 0 }), 0, 0.2, 0.072),
-    runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.16, 0.05, 0.025, 0.01), runtime.shelfConsole.black, { outline: 0 }), -0.15, -0.16, 0.075),
-    runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.05, 0.16, 0.025, 0.01), runtime.shelfConsole.black, { outline: 0 }), -0.15, -0.16, 0.075),
-    runtime.core.at(runtime.core.mesh(new THREE.SphereGeometry(0.045, 10, 8), runtime.core.toon("#e11d48"), { outline: 0 }), 0.19, -0.13, 0.08),
-    runtime.core.at(runtime.core.mesh(new THREE.SphereGeometry(0.045, 10, 8), runtime.core.toon("#e11d48"), { outline: 0 }), 0.1, -0.19, 0.08),
-  );
-  // a little pixel scene on its screen, and speaker holes
-  // its screen plays a little space-invaders loop (redrawn from the render loop)
-  const handheldScreen = runtime.core.printed(0.4, 0.32, 520, (c, w, h, t) => drawInvaders(c, w, h, t), { unlit: true });
-  handheldScreen.position.set(0, 0.2, 0.084);
-  let handheldDrawnAt = 0;
-  handheld.add(handheldScreen);
-  for (let i = 0; i < 4; i++) handheld.add(runtime.core.at(runtime.core.mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.01, 6), runtime.shelfConsole.black, { outline: 0 }), 0.12 + i * 0.045, -0.36, 0.075, 0.6));
-  const handheldItem = runtime.shelf.addItem(runtime.core.at(handheld, 1.35, runtime.shelf.standOn(3) + 0.47, -0.2), "console");
-  handheldItem.rotation.x = -0.18;
+  runtime.shelf.addItem(runtime.core.at(trophy, 0.55, runtime.shelf.standOn(1), 0.15), "trophy");
+  // End shelf collectibles.
 
   // Public state used by the other scene parts.
   return {
@@ -236,9 +269,7 @@ export function createShelfCollectibles(runtime) {
     set trophyCelebration(value) { trophyCelebration = value; },
     rubikItem,
     playRubik,
+    nudgeManga,
     get rubikBusy() { return rubikBusy; },
-    get handheldDrawnAt() { return handheldDrawnAt; },
-    set handheldDrawnAt(value) { handheldDrawnAt = value; },
-    handheldScreen,
   };
 }

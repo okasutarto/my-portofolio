@@ -82,9 +82,17 @@ export const WOOD_PATTERNS = {
   butcher: "Butcher block",
 };
 
+export const SPEAKER_FINISHES = {
+  // The Edifier R1280DBs's two models: wood-grain sides on a grey box, or all black (the sides'
+  // grain stained dark). `shell` is the top and back, `baffle` the front.
+  wood: { name: "Wood sides", color: null, shell: "#4a4c50", baffle: "#64676b" },
+  black: { name: "Black", color: "#3a3532", shell: "#252527", baffle: "#3a3b3e" },
+};
+
 export const WOOD_TARGETS = {
   desk: "Desk",
   riser: "Monitor riser",
+  speakers: "Speakers",
   window: "Window frame",
   shelf: "Game shelf",
 };
@@ -93,6 +101,7 @@ export const WOOD_TARGETS = {
 export const DEFAULT_WOODS = {
   desk: { wood: "cherry", pattern: "butcher" },
   riser: { wood: "cherry", pattern: "cathedral" },
+  speakers: { wood: "cherry", pattern: "planks", finish: "wood" },
   window: { wood: "cherry", pattern: "planks" },
   shelf: { wood: "cherry", pattern: "planks" },
 };

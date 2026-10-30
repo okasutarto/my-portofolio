@@ -34,10 +34,12 @@ const ambient = new THREE.AmbientLight();
 const readabilityFill = new THREE.DirectionalLight();
 const skyFill = new THREE.HemisphereLight();
 const events = [];
+const speakerWoodPaints = [];
 const context = vm.createContext({
-  ...vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/components/features/desk/woods.js'), 'utf8').replace(/export /g, '') + '; ({ WOODS, WOOD_PATTERNS, DEFAULT_WOODS })'),
+  ...vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/components/features/desk/woods.js'), 'utf8').replace(/export /g, '') + '; ({ WOODS, WOOD_PATTERNS, DEFAULT_WOODS, SPEAKER_FINISHES })'),
   wallColor: '#3a3a3a', woods: {}, diorama: false, roomBackground: isDark => isDark ? '#d6d3e6' : '#ffffff',
-  deskWood: {}, riserGrain: {}, frameGrainTex: {}, shelfWood: {},
+  deskWood: {}, speakerGrain: { canvas: { width: 768, height: 512 }, ctx: {}, texture: new THREE.Texture() },
+  speakerWoodMat: material(), speakerShellMat: material(), speakerBaffleMat: material(), drawWoodTop: (ctx, w, h, choice) => speakerWoodPaints.push({ ...choice }), riserGrain: {}, frameGrainTex: {}, shelfWood: {},
   frameWood: material(), shelfMat: material(), shelfBackMat: material(), lipMat: material(),
   familyPhoto: { userData: { tex: { redraw() {} } } },
   THREE, windowSky, previewTime: null, roomLight: { night: 0 }, dark: false, outside: { night: false, rain: 0 },
@@ -95,11 +97,11 @@ run('updateDaylight(120000)');
 assert.equal(run('dayPart()'), 'evening', 'the room moves on when the visitor\'s clock does');
 assert.equal(windowLight.intensity, clearDay, 'theme request does not jump the light');
 update(121000);
-assert.ok(Math.abs(windowLight.intensity - (clearDay + 1.8) / 2) < 1e-10);
+assert.ok(Math.abs(windowLight.intensity - (clearDay + 3.6) / 2) < 1e-10);
 assert.ok(context.outside.sky.sun[1] > daySky[1], 'sun lowers smoothly toward the evening horizon');
 assert.deepEqual(windowLight.userData.sky, [...context.outside.sky.sun], 'painted sun and shadow light use the same coordinates');
 update(122000);
-assert.equal(windowLight.intensity, 1.8);
+assert.equal(windowLight.intensity, 3.6);
 now = 180000;
 clockPart = 'night';
 run('updateDaylight(180000)');
@@ -136,7 +138,7 @@ assert.deepEqual(events, [['nightShift', true]]);
 // The desk light spans the entire rear edge, with overlapping samples and no monitor hotspots.
 {
   const scene = new THREE.Scene();
-  const ctx = vm.createContext({ THREE, scene, WALL_Z: -4.58, track: (value) => value, noRaycast() {}, DESK_WASH: 0.45 });
+  const ctx = vm.createContext({ THREE, scene, WALL_Z: -4.58, track: (value) => value, noRaycast() {}, DESK_WASH: 0.45, DESK_W: 16, DESK_X: -1 });
   const start = source.indexOf('  const neonLights =');
   const end = source.indexOf('  // A framed illustration on the left wall:', start);
   vm.runInContext(source.slice(start, end), ctx);
@@ -144,8 +146,8 @@ assert.deepEqual(events, [['nightShift', true]]);
   assert.equal(lights.length, 4);
   assert.ok(lights.every((light) => light.isSpotLight && light.castShadow && light.penumbra > 0 && light.penumbra < 0.2), 'strip samples are feathered and shadowed');
   assert.ok(lights.every((light) => light.decay === 0 && light.angle > 1.3), 'line samples must overlap without near-wall inverse-square hotspots');
-  assert.ok(lights[0].position.x < -5 && lights.at(-1).position.x > 5, 'illumination spans the full fourteen-unit desk');
-  for (let i = 1; i < lights.length; i++) assert.ok(Math.abs(lights[i].position.x - lights[i - 1].position.x - 3.5) < 1e-10, 'uniform spacing avoids concentrated light centres');
+  assert.ok(lights[0].position.x < -6 && lights.at(-1).position.x > 4, 'illumination spans the full sixteen-unit desk');
+  for (let i = 1; i < lights.length; i++) assert.ok(Math.abs(lights[i].position.x - lights[i - 1].position.x - 4) < 1e-10, 'uniform spacing avoids concentrated light centres');
   assert.ok(lights.every((light) => light.position.z === -4.23 && light.position.y === -0.3), 'every source belongs to the actual rear LED strip');
   vm.runInContext('updateNeonLights(0)', ctx);
   assert.ok(lights.every((light) => light.intensity === 0), 'strip is off in daylight');
@@ -155,7 +157,7 @@ assert.deepEqual(events, [['nightShift', true]]);
   ctx.monitor = monitor;
   ctx.SCREEN_Y = 2.13;
   const biasStart = source.indexOf('  // The monitor has the same cyan/pink bias strip.');
-  vm.runInContext(source.slice(biasStart, source.indexOf('  // Sticky notes on the right', biasStart)), ctx);
+  vm.runInContext(source.slice(biasStart, source.indexOf('  // Speakers either side of the monitor', biasStart)), ctx);
   const bias = monitor.children.filter((child) => child.isSpotLight);
   assert.equal(bias.length, 2, 'monitor has matching rear-facing strip lighting');
   assert.ok(bias.every((light) => light.position.z < -0.07 && light.target.position.z < light.position.z && light.castShadow));
@@ -221,11 +223,12 @@ assert.equal(run('dayPart()'), 'evening', 'a picked part of the day ignores the 
 {
   const windowGroup = new THREE.Group();
   windowGroup.rotation.y = Math.PI / 2;
-  const windowGlass = new THREE.Vector3(-7.3, 4.7, -1.1);
+  // The full-size window's glass: in the left wall, 8.35 up and 1.45 along from the back
+  const windowGlass = new THREE.Vector3(-9.56, 8.35, 1.45);
   const windowRay = new THREE.Vector3();
   const light = new THREE.SpotLight();
-  const aimContext = vm.createContext({ windowGroup, windowGlass, windowRay, windowLight: light,
-    sun: new THREE.DirectionalLight(), WINDOW_SUN_FAR: 30, drawGlassCookie() {} });
+  const aimContext = vm.createContext({ THREE, windowGroup, windowGlass, windowRay, windowLight: light,
+    sun: new THREE.DirectionalLight(), WINDOW_SUN_FAR: 150, drawGlassCookie() {} });
   const start = source.indexOf('  function aimWindowLight(');
   vm.runInContext(source.slice(start, source.indexOf('  // The beam through the window:', start)), aimContext);
   const direction = (time) => {
@@ -238,17 +241,19 @@ assert.equal(run('dayPart()'), 'evening', 'a picked part of the day ignores the 
   const midday = direction('day');
   const evening = direction('evening');
   const night = direction('night');
-  // The monitor face is at Z=-2.66, centred at X=-0.2, Y=3.13.
-  const hitMonitor = new THREE.Ray(windowGlass, morning).intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 2.66), new THREE.Vector3());
-  assert.ok(hitMonitor && Math.abs(hitMonitor.x + 0.2) < 1 && hitMonitor.y > 1.8 && hitMonitor.y < 4.4,
-    'morning central ray must hit the monitor face, not the chair');
+  // Real elevations: a low, slanting sunrise, a high noon, and a sunset as low as the sunrise
+  const elevation = (ray) => Math.atan2(-ray.y, Math.hypot(ray.x, ray.z)) * 180 / Math.PI;
+  assert.ok(elevation(morning) > 22 && elevation(morning) < 30, 'morning sun is low, as a sunrise is, yet high enough for tabletop shadows');
+  assert.ok(elevation(midday) > 40 && elevation(midday) < 50, 'noon sun stands highest of the day, its patch reaching across the desk');
+  assert.ok(elevation(evening) > 22 && elevation(evening) < 30, 'evening sun is low, yet high enough for its streak to fall on the desk');
+  assert.ok(Math.abs(evening.z) < Math.abs(morning.z), 'the sunset beam turns only a little toward the front, keeping its streak on the desk');
+  // The 180 × 84 cm desktop is centred on the origin; the high noon patch falls by the window
   const hitDesk = new THREE.Ray(windowGlass, midday).intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
-  assert.ok(hitDesk && Math.abs(hitDesk.x) < 7 && Math.abs(hitDesk.z) < 4.2, 'noon central ray lands on the desktop');
-  const morningElevation = Math.atan2(-morning.y, Math.hypot(morning.x, morning.z)) * 180 / Math.PI;
-  assert.ok(morningElevation > 22 && morningElevation < 30, 'morning sun must rise enough to cast useful tabletop shadows');
-  const lowerMonitor = new THREE.Vector3(-0.2, 1.9, -2.66);
+  assert.ok(hitDesk && hitDesk.x > -9 && hitDesk.x < 0 && Math.abs(hitDesk.z) < 4.2, 'noon central ray lands on the window half of the desktop');
+  // The full-size monitor's lower edge: centred at X=-1, 19 cm above the desk, its face at Z≈-2.75
+  const lowerMonitor = new THREE.Vector3(-1, 1.9, -2.75);
   const monitorShadow = new THREE.Ray(lowerMonitor, morning).intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
-  assert.ok(monitorShadow && Math.abs(monitorShadow.x) < 7 && Math.abs(monitorShadow.z) < 4.2,
+  assert.ok(monitorShadow && Math.abs(monitorShadow.x) < 9 && Math.abs(monitorShadow.z) < 4.2,
     'morning shadow of the lower monitor reaches the desk instead of passing beyond its edge');
   assert.ok(morning.z < 0 && evening.z > 0, 'sunrise faces the monitor, sunset reaches toward the front');
   assert.ok(Math.abs(midday.y) > Math.abs(morning.y) && Math.abs(midday.y) > Math.abs(evening.y), 'noon gives shorter shadows');
@@ -311,4 +316,23 @@ console.log('Day/night light-source and shadow switching checks passed.');
   const hue = shelfLeds[0].ledMat.color.getHex();
   vm.runInContext('updateShelfLeds(50000)', shelfContext);
   assert.ok(shelfLeds.every(({ ledMat, glowMat }) => ledMat.color.getHex() === hue && glowMat.opacity === 0.5), 'all shelf bays keep a stable colour at night');
+}
+
+// Speakers use the existing furniture choices, including every wood/pattern combination.
+for (const wood of Object.keys(context.WOODS)) {
+  for (const pattern of Object.keys(context.WOOD_PATTERNS)) {
+    run(`setWood("speakers", { wood: "${wood}", pattern: "${pattern}" })`);
+    assert.equal(speakerWoodPaints.at(-1).wood, wood);
+    assert.equal(speakerWoodPaints.at(-1).pattern, pattern);
+    assert.ok(context.speakerWoodMat.color.equals(new THREE.Color(context.WOODS[wood].tint)), 'speaker tint follows the selected wood');
+  }
+}
+console.log('All speaker wood colours and grain patterns update through furniture settings.');
+
+for (const finish of ['black', 'wood']) {
+  run(`setWood("speakers", { finish: "${finish}" })`);
+  const { color, shell, baffle } = context.SPEAKER_FINISHES[finish];
+  if (color) assert.ok(context.speakerWoodMat.color.equals(new THREE.Color(color)), 'black model stains its side panels');
+  assert.ok(context.speakerShellMat.color.equals(new THREE.Color(shell)), 'top and back follow the model');
+  assert.ok(context.speakerBaffleMat.color.equals(new THREE.Color(baffle)), 'baffle follows the model');
 }

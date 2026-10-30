@@ -4,23 +4,35 @@ import { BODY, DISPLAY, fitFont } from "./base";
 // A case's spine: the platform's header band and logo at the top, the game's own colour with its
 // title running up the spine, and an age rating at the foot
 const RATINGS = ["E", "E10", "T", "3", "7", "12"];
-export function drawGameSpine(c, w, h, { platform, art, title, ink = "#000", i = 0 }) {
+export function drawGameSpine(c, w, h, { platform, art, title, ink = "#000", i = 0, system = "switch" }) {
   c.fillStyle = art;
   c.fillRect(0, 0, w, h);
   const band = h * 0.15;
-  c.fillStyle = platform;
-  c.fillRect(0, 0, w, band);
-  c.fillStyle = "#000";
-  c.fillRect(0, band - 3, w, 6);
-  // logo: a white pill with a dot
-  c.fillStyle = "#fff";
-  c.beginPath();
-  c.roundRect(w * 0.2, band * 0.3, w * 0.6, band * 0.4, band * 0.2);
-  c.fill();
-  c.fillStyle = platform;
-  c.beginPath();
-  c.arc(w * 0.38, band * 0.5, band * 0.1, 0, Math.PI * 2);
-  c.fill();
+  if (system === "ps5") {
+    // a PS5 case: the white header band with the console's name across it
+    c.fillStyle = "#fffdf5";
+    c.fillRect(0, 0, w, band);
+    c.fillStyle = "#000";
+    c.fillRect(0, band - 3, w, 6);
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    fitFont(c, "PS5", 900, DISPLAY, Math.round(band * 0.42), w * 0.8, 6);
+    c.fillText("PS5", w / 2, band * 0.5);
+  } else {
+    c.fillStyle = platform;
+    c.fillRect(0, 0, w, band);
+    c.fillStyle = "#000";
+    c.fillRect(0, band - 3, w, 6);
+    // logo: a white pill with a dot
+    c.fillStyle = "#fff";
+    c.beginPath();
+    c.roundRect(w * 0.2, band * 0.3, w * 0.6, band * 0.4, band * 0.2);
+    c.fill();
+    c.fillStyle = platform;
+    c.beginPath();
+    c.arc(w * 0.38, band * 0.5, band * 0.1, 0, Math.PI * 2);
+    c.fill();
+  }
   // title, reading bottom to top
   c.save();
   c.translate(w / 2 + 1, h * 0.56);

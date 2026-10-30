@@ -52,7 +52,7 @@ vm.runInNewContext(snapStart + '; snapFingers()', {
 assert.deepEqual(order, ['cancel hover', 'snap']);
 
 const textures = require('./helpers/texture-source.cjs').readTexturesSource();
-const manga = textures.slice(textures.indexOf('// ---------- Naruto manga collection'), textures.indexOf('// ---------- the handheld')).replace(/export /g, '');
+const manga = textures.slice(textures.indexOf('// ---------- Maruto manga collection'), textures.indexOf('// ---------- the handheld')).replace(/export /g, '');
 const text = [];
 const ctx = new Proxy({
   measureText: (value) => ({ width: value.length * 20 }),
@@ -61,17 +61,26 @@ const ctx = new Proxy({
 vm.runInNewContext(manga + `
   for (let vol = 1; vol <= 5; vol++) {
     drawMangaSpine(ctx, 150, 1020, { vol, color: '#f68026' });
-    drawNarutoCover(ctx, 700, 1000, { vol });
+    drawMangaCover(ctx, 700, 1000, { vol });
   }
 `, { ctx });
-assert.equal(text.filter((value) => value === 'NARUTO').length, 10, 'all spines and covers carry the new series');
+assert.equal(text.filter((value) => value === 'MARUTO').length, 10, 'all spines and covers carry the new series');
 assert.ok(!text.some((value) => value.includes('ONE PIECE')));
 for (const volume of ['01', '02', '03', '04', '05']) assert.ok(text.includes(volume));
-console.log('Gauntlet lift, leave, snap handoff and Naruto spine/cover rendering passed.');
+console.log('Gauntlet lift, leave, snap handoff and Maruto spine/cover rendering passed.');
 
-// The collection stays a five-volume stack, with no standing display book.
+// The Maruto run is a five-volume pile, in order, with no standing display book.
 const mangaCode = source.slice(source.indexOf('  const MANGA ='), source.indexOf('  // A 3×3 puzzle cube'));
 assert.ok(!mangaCode.includes('mangaDisplay'));
 const volumes = vm.runInNewContext(mangaCode.slice(0, mangaCode.indexOf('  const stackTop')) + '; MANGA');
-assert.deepEqual(Array.from(volumes, (entry) => entry[0]), [1, 2, 3, 4, 5]);
-console.log('Five Naruto volumes remain stacked without a standing display.');
+assert.deepEqual(Array.from(volumes, entry => entry[0]), [1, 2, 3, 4, 5, 1, 2, 3, 4]);
+assert.equal(volumes.filter(entry => entry[2] === 'MARUTO').length, 5);
+assert.equal(volumes.filter(entry => entry[2] === 'DRAGON BELL').length, 4);
+text.length = 0;
+vm.runInNewContext(manga + `
+  drawMangaSpine(ctx, 150, 1020, { vol: 4, color: '#e98779', title: 'DRAGON BELL' });
+  drawMangaCover(ctx, 700, 1000, { vol: 4, title: 'DRAGON BELL' });
+`, { ctx });
+assert.equal(text.filter(value => value === 'DRAGON BELL').length, 2);
+assert.ok(!text.some(value => value.includes('NARUTO')));
+console.log('Five Maruto and four Dragon Bell volumes stack in order.');

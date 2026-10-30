@@ -31,28 +31,27 @@ export const getStreamingResponse = async (prompt, onToken, history = []) => {
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
   let fullResponse = '';
   let buffer = '';
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) return fullResponse;
-    buffer += value;
-    const events = buffer.split('\n\n');
-    buffer = events.pop();
-    for (const event of events) {
-      const data = event.replace(/^data: /, '');
-      if (data === '[DONE]') {
-        reader.cancel();
-        return fullResponse;
-      }
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) throw new Error('Chat stream ended before completion');
+      buffer += value;
+      const events = buffer.split(/\r?\n\r?\n/);
+      buffer = events.pop();
+      for (const event of events) {
+        const data = event.replace(/^data: ?/, '');
+        if (data === '[DONE]') return fullResponse;
 
-      try {
         const parsed = JSON.parse(data);
-        if (parsed.content) {
+        if (typeof parsed.content === 'string' && parsed.content) {
           fullResponse += parsed.content;
           onToken(parsed.content);
         }
-      } catch (error) {
-        console.error('Error parsing SSE message:', error);
       }
     }
+  } finally {
+    // Release the connection on completion, parsing errors, and callback failures.
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
   }
 };

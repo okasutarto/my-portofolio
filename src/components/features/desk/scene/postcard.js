@@ -11,13 +11,13 @@ export function createPostcard(runtime) {
   // area or an address line to write (Tab moves along), press the SEND stamp to mail it. It
   // goes out through EmailJS, like the 2D contact form, and the envelope flies off.
   const mail = new THREE.Group();
-  const MAIL_POS = { x: 4.6, y: 0, z: 2.9 };
+  const MAIL_POS = { x: 4.2, y: 0, z: 3.2 };
   mail.position.set(MAIL_POS.x, MAIL_POS.y, MAIL_POS.z);
   mail.rotation.y = 0.18;
   runtime.core.scene.add(mail);
-  const ENV_W = 1.75;
-  const ENV_D = 1.15;
-  const CARD_W = 1.65;
+  const ENV_W = 1.62;
+  const ENV_D = 1.14;
+  const CARD_W = 1.48;
   const CARD_D = 1.05;
   const envelope = new THREE.Group();
   envelope.position.y = 0.04;

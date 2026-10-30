@@ -130,14 +130,25 @@ export function createSceneMeshes(scene) {
   };
 
   // Paper, prints and labels: part self-lit so the print stays readable in any light, part toon
-  // shaded so it still takes shadows and the neons' colour
-  const PRINT_GLOW = 0.6;
+  // shaded so it still takes shadows and the neons' colour. The self-lit part is one level for
+  // every print, which the theme turns down at dusk and night (see PRINT_GLOW in theme.js), so
+  // the paper doesn't outshine the dim room around it.
   const PRINT_LIT = 0.5;
+  const printMats = [];
+  let printLevel = 0.6;
+  const printGlow = {
+    get level() { return printLevel; },
+    set level(value) {
+      printLevel = value;
+      printMats.forEach((m) => (m.emissiveIntensity = value));
+    },
+  };
   const printMaterial = (map, options = {}) => {
     const m = new THREE.MeshToonMaterial({ map, emissiveMap: map, gradientMap: gradient, ...options });
     m.color.setScalar(PRINT_LIT);
     m.emissive.setScalar(1);
-    m.emissiveIntensity = PRINT_GLOW;
+    m.emissiveIntensity = printLevel;
+    printMats.push(m);
     return track(m);
   };
   // A plane carrying a canvas texture. Screens and views (`unlit`) keep their exact colours
@@ -194,6 +205,6 @@ export function createSceneMeshes(scene) {
 
   return {
     disposables, track, gradient, toon, outlineResolution, outlineMat, hullGeometry, noRaycast, mesh, UP, rbox, rod,
-    roundedRectShape, phoneSlab, at, printMaterial, redrawers, printed, bubbleTimers, speechBubble,
+    roundedRectShape, phoneSlab, at, printMaterial, printGlow, redrawers, printed, bubbleTimers, speechBubble,
   };
 }

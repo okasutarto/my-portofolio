@@ -14,14 +14,16 @@ export function createKeyboard(runtime) {
   runtime.core.track(matPrint.texture);
   drawDeskMat(matPrint.ctx, 1360, 460);
   matMat.map = matPrint.texture;
-  const deskMatPad = runtime.core.mesh(runtime.core.rbox(6.8, MAT_TOP, 2.3, 0.014), matMat, { outline: 0.03, cast: false });
-  deskMatPad.position.set(0.9, MAT_TOP / 2, 0.75);
+  const deskMatPad = runtime.core.mesh(runtime.core.rbox(6.8, MAT_TOP, 3.0, 0.014), matMat, { outline: 0.03, cast: false });
+  // centred on the desk, with the keyboard left of its middle and the mouse to its right
+  // Centred on the desk (x −1), in line with the riser and monitor
+  deskMatPad.position.set(-1, MAT_TOP / 2, 0.75);
   runtime.core.scene.add(deskMatPad);
 
-  const KEYBOARD_SCALE = 0.78;
+  const KEYBOARD_SCALE = 0.68;
   const keyboard = new THREE.Group();
   keyboard.scale.setScalar(KEYBOARD_SCALE);
-  keyboard.position.set(0.2, MAT_TOP, 0.75);
+  keyboard.position.set(-1.7, MAT_TOP, 0.75);
   runtime.core.scene.add(keyboard);
   // A black aluminium case on a smoky see-through bottom, with the Halo's light bar glowing along
   // its left end
@@ -30,8 +32,10 @@ export function createKeyboard(runtime) {
   const KEYS_W = 16 * KEY_UNIT;
   const KEYS_D = 6 * KEY_UNIT;
   const CASE_W = KEYS_W + 0.22;
-  const CASE_D = KEYS_D + 0.38;
-  const KEYBOARD_TILT = THREE.MathUtils.degToRad(6);
+  // 320 × 135 mm at KEYBOARD_SCALE, the Halo75 V2's real footprint
+  const CASE_D = KEYS_D + 0.305;
+  // Just enough tilt that the back row's caps stand 39.2 mm off the mat, its real height
+  const KEYBOARD_TILT = THREE.MathUtils.degToRad(4.27);
   keyboard.rotation.x = KEYBOARD_TILT;
   const keyboardLift = CASE_D / 2 * Math.sin(KEYBOARD_TILT) + 0.012;
   keyboard.position.y = MAT_TOP + keyboardLift * KEYBOARD_SCALE;

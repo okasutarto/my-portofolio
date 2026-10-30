@@ -8,7 +8,7 @@ export function createCoffee(runtime) {
   const mug = new THREE.Group();
   // On a cork coaster, a little closer to the envelope
   const MUG_Y = 0.06;
-  mug.position.set(5.5, MUG_Y, 0.95);
+  mug.position.set(5.75, MUG_Y, 1.6);
   const corkTex = canvasTexture(256, 256);
   runtime.core.track(corkTex.texture);
   drawCork(corkTex.ctx, 256, 256);
@@ -228,16 +228,16 @@ export function createCoffee(runtime) {
   };
   contactShadow(mug, 1.55, 1.55);
   contactShadow(runtime.plant.plant, 1.9, 1.9);
-  contactShadow(runtime.mouse.mouse, 0.85, 1.2, runtime.keyboard.MAT_TOP);
-  contactShadow(runtime.workstation.monitor, 2.2, 1.5, runtime.workstation.RISER_TOP);
-  contactShadow(runtime.workstation.macStudio, 1.45, 1.45, runtime.workstation.RISER_TOP, 0.8);
-  contactShadow(runtime.workstation.riser, 8.0, 2.4, 0, 0.7);
+  contactShadow(runtime.mouse.mouse, 1.1, 1.8, runtime.keyboard.MAT_TOP);
+  contactShadow(runtime.workstation.monitor, 3.2, 2.2, runtime.workstation.RISER_TOP);
+  contactShadow(runtime.workstation.macMini, 1.5, 1.5, runtime.workstation.RISER_TOP, 0.8);
+  contactShadow(runtime.workstation.riser, 12.2, 2.8, 0, 0.7);
   contactShadow(runtime.keyboard.keyboard, 5.8 * runtime.keyboard.KEYBOARD_SCALE, 2.5 * runtime.keyboard.KEYBOARD_SCALE, runtime.keyboard.MAT_TOP, 0.8);
   contactShadow(runtime.chat.phoneStand, 1.7, 1.5);
   contactShadow(runtime.tickets.tickets, 3.4, 1.8, 0, 0.6);
   contactShadow(runtime.projectFiles.folders, runtime.projectFiles.FOLDER_W * 1.35, runtime.projectFiles.FOLDER_D * 1.35, 0, 0.7);
   contactShadow(runtime.postcard.mail, 3.0, 2.1, 0, 0.55);
-  contactShadow(runtime.chair.chair, 4.4, 4.4, runtime.room.FLOOR_Y, 0.8);
+  contactShadow(runtime.chair.chair, 7.2, 7.2, runtime.room.FLOOR_Y + 0.08, 0.8);
 
   // Public state used by the other scene parts.
   return {

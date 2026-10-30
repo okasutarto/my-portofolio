@@ -49,7 +49,8 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   const dark = look.night >= 0.5;
   // Rain greys everything over: a real shower (0.7) is already a dull, overcast sky
   const grey = (color) => mixHex(color, dark ? "#2a2f45" : "#8d97a8", Math.min(1, rain * 1.25) * 0.65);
-  const u = w / 100;
+  // detail sized by the shorter side, so a wider pane shows more landscape, not bigger trees
+  const u = Math.min(w, h) / 100;
   const line = Math.max(3, u * 0.7);
   c.lineJoin = "round";
   c.lineCap = "round";
@@ -174,7 +175,7 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   // Sun (turning rays) or moon (with craters), all but gone behind a shower's clouds
   const sx = w * look.sun[0];
   const sy = h * look.sun[1];
-  const sr = w * 0.085;
+  const sr = u * 8.5;
   const sunColor = look.sun[2];
   // The sun fades before the moon appears (and vice versa), avoiding a silhouette pop.
   const celestial = Math.abs(look.night * 2 - 1);

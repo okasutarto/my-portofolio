@@ -1023,7 +1023,7 @@ function drawSnake(c, w, h, game, hotspots) {
 export function createDesktop({ terminal, player, actions }) {
   // Positions are the windows' homes; maximized they fill the space between bar and dock
   const windows = {
-    terminal: { id: "terminal", title: "oka@desk: ~", home: { x: 18, y: 32, w: 368, h: 212 }, bar: "#ff7a1a", ink: "#000", open: true },
+    terminal: { id: "terminal", title: "the@desk: ~", home: { x: 18, y: 32, w: 368, h: 212 }, bar: "#ff7a1a", ink: "#000", open: true },
     spotifree: { id: "spotifree", title: "Spotifree", home: { x: 376, y: 40, w: 250, h: 272 }, bar: "#000", ink: "#fff", open: false },
     code: { id: "code", title: "portfolio — VS Kode", home: { x: 44, y: 38, w: 420, h: 268 }, bar: "#13141c", ink: "#fff", open: false },
     wallpaper: { id: "wallpaper", title: "Wallpaper — cut paper", home: { x: 46, y: 38, w: 548, h: 192 }, bar: "#b7c8ff", ink: "#000", open: false },
@@ -1043,6 +1043,9 @@ export function createDesktop({ terminal, player, actions }) {
   const pad = { open: false, t0: -9 };
   Object.values(windows).forEach((win) => Object.assign(win, { min: false, max: false, anim: null, surface: null }));
   let order = ["terminal"];
+  // Windows left off the screen for now, where they are and as they are (the terminal, while
+  // the loader's own window is on its way to it)
+  const hiddenWindows = new Set();
   let hoverX = null;
   let bounce = null;
   let notice = null;
@@ -1312,6 +1315,7 @@ export function createDesktop({ terminal, player, actions }) {
     // windows, back to front; finished animations settle their state
     order.forEach((id) => {
       const win = windows[id];
+      if (hiddenWindows.has(id)) return;
       if (win.anim && t >= win.anim.t0 + win.anim.dur) {
         if (win.anim.kind === "close") {
           win.open = false;
@@ -1599,6 +1603,9 @@ export function createDesktop({ terminal, player, actions }) {
     draw,
     click,
     launch,
+    // where a window sits on the screen, in its layout units
+    windowRect: (id) => rectOf(windows[id]),
+    setHidden: (id, hidden) => (hidden ? hiddenWindows.add(id) : hiddenWindows.delete(id)),
     // The console on the shelf switched on: boot, then Straw Hat Strike full screen
     playConsole() {
       Object.assign(tv, { on: true, t0: now() });

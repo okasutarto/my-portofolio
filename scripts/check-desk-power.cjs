@@ -54,4 +54,4 @@ assert.ok(!sceneSource.includes('window.__computer'), 'debug window.__computer i
 assert.ok(sceneSource.includes('if (!computer.on) return;'), 'startMusic and terminal interactions guard on computer.on');
 assert.ok(sceneSource.includes('const computer = { on: false, booting: true, bar: 0 };'), 'starts booting on fresh load');
 
-console.log('Mac Studio power toggle and boot screen checks passed.');
+console.log('Mac mini power toggle and boot screen checks passed.');

@@ -4,14 +4,18 @@ import { sfx } from "@/composables/useSfx";
 import { canvasTexture, drawLeatherGrain, drawChairCrest } from "../textures";
 
 export function createChair(runtime) {
-  // Seat height is roughly 60% of desk height, with a full-size back and armrests.
+  // Secretlab TITAN Evo Regular: 85 cm backrest, 56 × 49 cm seat, set to 52 cm high.
+  const CHAIR_FLOOR = runtime.room.FLOOR_Y + 0.08; // top of the rug
   const chair = new THREE.Group();
-  chair.position.set(-3.1, 0, 7.0);
+  // Parked close in at the desk. It rolls back out to SPIN_Z, where its back clears the
+  // tabletop at any angle, before it turns, and back in, facing the desk, once it stops.
+  const REST_Z = 7.3;
+  const SPIN_Z = 8.6;
+  chair.position.set(-3.1, 0, REST_Z);
   chair.rotation.y = -0.22;
   runtime.room.room.add(chair);
   const chairFrameMat = runtime.core.toon("#1a1714");
-  // Sized against the desk: the desk is 14 wide (about 140 cm), so the seat is about 55 cm
-  // across and sits at roughly 60% of the desk's height. A premium gaming chair in black
+  // A 56 × 49 cm cushion, 70 cm across the armrests. A premium gaming chair in black
   // leatherette all over: a tall back with the headrest built in, a raised centre panel
   // between padded wings, fine dark red stitching along every seam, gold badges, a thick padded
   // seat, recline hubs, 4D armrests and a flat-legged base.
@@ -70,9 +74,9 @@ export function createChair(runtime) {
   // barely half as thick as the lower back, and the wings sweep forward round the sitter, with
   // the lumbar pushing out between them. Its front is leather, with a raised panel stitched
   // round in red; its rear is one smooth leather shell, and a single seam runs round the edge.
-  const BACK_H = 7.0;
+  const BACK_H = 85 / 12;
   const BACK_DEPTH = 0.95;
-  const BACK_FOOT = -2.45;
+  const BACK_FOOT = -2.02;
   // Half-width up a silhouette through these [half-width, height] points, its top corners
   // rounded off
   const halfWidthAlong = (points, height, corner) => {
@@ -248,7 +252,7 @@ export function createChair(runtime) {
   const SEAT_BOLSTER = 0.14;
   const seatBolster = (x, y) =>
     SEAT_BOLSTER *
-    THREE.MathUtils.smoothstep(Math.abs(x), 1.24, 1.85) *
+    THREE.MathUtils.smoothstep(Math.abs(x), 1.87, 2.08) *
     THREE.MathUtils.smoothstep(seatWidth(y) - Math.abs(x), 0, 0.5) *
     (1 - THREE.MathUtils.smoothstep(y, SEAT_L - 1.2, SEAT_L - 0.4));
   const seatPad = pillow(seatWidth, SEAT_L, SEAT_DEPTH, {
@@ -277,11 +281,23 @@ export function createChair(runtime) {
     chairBack.add(crest);
   });
 
-  const chairPost = runtime.core.mesh(new THREE.CylinderGeometry(0.32, 0.36, 2.6, 20), chairFrameMat, { outline: 0.03 });
-  chairPost.position.y = -3.6;
-  // the gas lift, in black like the rest of the chair
+  const CHAIR_SCALE = 1.2;
+  const SEAT_TOP = runtime.room.FLOOR_Y + 5.2;
+  const UPHOLSTERY_Y = SEAT_TOP + 1.77 * CHAIR_SCALE;
+  // Calibrate the upholstered parts independently to the official Regular dimensions.
+  chairSeat.children[0].geometry.computeBoundingBox();
+  const seatSize = chairSeat.children[0].geometry.boundingBox.getSize(new THREE.Vector3());
+  chairSeat.scale.set(5.6 / (seatSize.x * CHAIR_SCALE), 4.9 / (seatSize.y * CHAIR_SCALE), 1);
+  const backSize = new THREE.Box3().setFromObject(chairBack, true).getSize(new THREE.Vector3());
+  chairBack.scale.x = 5.3 / (backSize.x * CHAIR_SCALE);
+  // Join the floor-mounted base to the underside of the resized tilt mechanism.
+  const postBottom = CHAIR_FLOOR + 0.62;
+  const postTop = UPHOLSTERY_Y - 2.3 * CHAIR_SCALE;
+  const chairPost = runtime.core.mesh(new THREE.CylinderGeometry(0.32, 0.36, postTop - postBottom, 20), chairFrameMat, { outline: 0.03 });
+  chairPost.position.y = (postBottom + postTop) / 2;
+  // The gas lift overlaps the post and the tilt mechanism.
   const gasLift = runtime.core.mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.7, 16), runtime.core.toon("#3a3735"), { outline: 0.015 });
-  gasLift.position.y = -2.4;
+  gasLift.position.y = postTop;
   // The back's bracket: an L under the seat that rises up inside the seat's rear edge, under the
   // back, so none of it pokes through the cushion or shows on the back's rear face
   const backPost = new THREE.Group();
@@ -289,16 +305,12 @@ export function createChair(runtime) {
     runtime.core.rod(new THREE.Vector3(0, -2.38, 1.1), new THREE.Vector3(0, -2.38, 2.12), 0.14, chairFrameMat, 0.03),
     runtime.core.rod(new THREE.Vector3(0, -2.38, 2.12), new THREE.Vector3(0, -1.88, 2.12), 0.14, chairFrameMat, 0.03),
   );
-  // Everything above the gas lift turns on it: seat, back and armrests. They're modelled a
-  // size up and shrunk about the desk top's height. The desk is wider and lower than a real
-  // one, so the chair can't match both: this keeps the seat at the real chair's share of the
-  // desk's height (about two thirds) while letting it grow toward its share of the desk's
-  // width, so it neither looks squat nor dwarfed by the desk.
-  const CHAIR_SCALE = 0.95;
-  const SEAT_TOP = -1.77 * CHAIR_SCALE;
+  // Seat, back and armrests share one uniform scale; offset the upholstery so the
+  // cushion stays 52 cm above the floor without changing the spin/sink animation origin.
   const chairTop = new THREE.Group();
   const upholstery = new THREE.Group();
   upholstery.scale.setScalar(CHAIR_SCALE);
+  upholstery.position.y = UPHOLSTERY_Y;
   upholstery.add(chairSeat, seatBase, mechanism, chairBack, backPost);
   chairTop.add(upholstery);
   chair.add(chairTop, chairPost, gasLift);
@@ -308,21 +320,21 @@ export function createChair(runtime) {
     const angle = (i / 5) * Math.PI * 2;
     const leg = new THREE.Group();
     leg.rotation.y = -angle;
-    const bar = runtime.core.mesh(runtime.core.rbox(2.2, 0.2, 0.36, 0.07), chairFrameMat, { outline: 0.025 });
-    bar.position.set(1.1, runtime.room.FLOOR_Y + 0.58, 0);
+    const bar = runtime.core.mesh(runtime.core.rbox(3.35, 0.2, 0.36, 0.07), chairFrameMat, { outline: 0.025 });
+    bar.position.set(1.675, CHAIR_FLOOR + 0.58, 0);
     bar.rotation.z = -0.08;
     const hood = runtime.core.mesh(runtime.core.rbox(0.36, 0.2, 0.42, 0.08), chairFrameMat, { outline: 0.02 });
-    hood.position.set(2.15, runtime.room.FLOOR_Y + 0.4, 0);
+    hood.position.set(3.3, CHAIR_FLOOR + 0.4, 0);
     leg.add(bar, hood);
     [-0.1, 0.1].forEach((z) => {
       const wheel = runtime.core.mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.12, 16), runtime.core.toon("#2b2827"), { outline: 0.015 });
       wheel.rotation.x = Math.PI / 2;
-      wheel.position.set(2.15, runtime.room.FLOOR_Y + 0.2, z * 1.8);
+      wheel.position.set(3.3, CHAIR_FLOOR + 0.2, z * 1.8);
       leg.add(wheel);
     });
     chair.add(leg);
   }
-  chair.add(runtime.core.at(runtime.core.mesh(new THREE.CylinderGeometry(0.42, 0.5, 0.3, 20), chairFrameMat, { outline: 0.02 }), 0, runtime.room.FLOOR_Y + 0.62, 0));
+  chair.add(runtime.core.at(runtime.core.mesh(new THREE.CylinderGeometry(0.42, 0.5, 0.3, 20), chairFrameMat, { outline: 0.02 }), 0, CHAIR_FLOOR + 0.62, 0));
   // 4D armrests: a bracket out from under the seat, a tall slim stem and a flat padded top
   // As the side view has them: a long flat pad well above the seat, on a thick stem that runs
   // down past the seat's underside before turning in beneath it
@@ -330,9 +342,9 @@ export function createChair(runtime) {
     const bracket = runtime.core.mesh(runtime.core.rbox(1.7, 0.2, 0.5, 0.06), chairFrameMat, { outline: 0.02 });
     bracket.position.set(x * 0.72, -3.05, 0.6);
     const stem = runtime.core.mesh(runtime.core.rbox(0.3, 2.75, 0.46, 0.1), chairFrameMat, { outline: 0.03 });
-    stem.position.set(x, -1.73, 0.6);
+    stem.position.set(x, -1.85, 0.6);
     const pad = runtime.core.mesh(runtime.core.rbox(0.6, 0.24, 2.7, 0.1), leatherBox, { outline: 0.03 });
-    pad.position.set(x, -0.3, 0.4);
+    pad.position.set(x, -0.42, 0.4);
     upholstery.add(bracket, stem, pad);
   }
   // The recline hub either side where the back meets the seat: a round cap, a bracket rising
@@ -355,8 +367,18 @@ export function createChair(runtime) {
   // Dragged sideways, the seat turns on its post with the hand, and let go it carries on
   // spinning with the hand's speed, slowing to a stop. It keeps whatever way it ends up facing.
   const CHAIR_TURN_PER_PX = 0.012;
+  function rollOut(duration = 0.35) {
+    gsap.to(chair.position, { z: SPIN_Z, duration, ease: "power2.out", overwrite: true });
+  }
+  function rollIn(delay = 0) {
+    // Back to facing the desk the short way round, so the back never swings into the top
+    const facing = Math.round(chairTop.rotation.y / (Math.PI * 2)) * Math.PI * 2;
+    gsap.to(chairTop.rotation, { y: facing, duration: 0.5, delay, ease: "power2.inOut", overwrite: true });
+    gsap.to(chair.position, { z: REST_Z, duration: 0.8, delay: delay + 0.3, ease: "power2.inOut", overwrite: true });
+  }
   function grabChair(drag) {
     gsap.killTweensOf(chairTop.rotation);
+    rollOut();
     Object.assign(drag, { turned: 0, speed: 0, lastX: drag.startX, lastTime: performance.now(), lastSound: 0 });
   }
   function turnChair(drag, x, time) {
@@ -378,8 +400,9 @@ export function createChair(runtime) {
     const speed = performance.now() - drag.lastTime > 90 ? 0 : THREE.MathUtils.clamp(drag.speed, -0.03, 0.03);
     const coast = speed * 500;
     if (Math.abs(drag.turned + coast) > Math.PI) runtime.secrets.discover("chair");
-    if (Math.abs(coast) < 0.02) return;
-    gsap.to(chairTop.rotation, { y: chairTop.rotation.y + coast, duration: 0.6 + Math.abs(speed) * 60, ease: "power3.out" });
+    if (Math.abs(coast) < 0.02) return rollIn(0.2);
+    const duration = 0.6 + Math.abs(speed) * 60;
+    gsap.to(chairTop.rotation, { y: chairTop.rotation.y + coast, duration, ease: "power3.out", onComplete: () => rollIn(0.15) });
     if (Math.abs(coast) > 1.5) sfx.patter({ duration: 0.4 });
   }
   runtime.core.register(chair, {
@@ -393,15 +416,15 @@ export function createChair(runtime) {
       if (chairBusy) return;
       chairBusy = true;
       runtime.secrets.discover("chair");
-      const z = chair.position.z;
-      gsap.killTweensOf(chairTop.rotation);
-      const y = chairTop.rotation.y;
+      gsap.killTweensOf([chairTop.rotation, chair.position]);
+      const y = Math.round(chairTop.rotation.y / (Math.PI * 2)) * Math.PI * 2;
+      // Out from under the desk first, then the sink and the spin, then back in
       gsap.timeline({ onComplete: () => (chairBusy = false) })
-        .to(chairTop.position, { y: -0.35, duration: 0.18, ease: "power2.in" })
-        .to(chairTop.position, { y: 0, duration: 0.7, ease: "elastic.out(1.1, 0.35)" })
-        .fromTo(chairTop.rotation, { y }, { y: y + Math.PI * 2, duration: 1.5, ease: "power3.out" }, 0.12)
-        .to(chair.position, { z: z + 0.5, duration: 0.5, ease: "power2.out" }, 0.1)
-        .to(chair.position, { z, duration: 0.9, ease: "power2.inOut" }, 0.7);
+        .to(chair.position, { z: SPIN_Z + 0.5, duration: 0.4, ease: "power2.out" })
+        .to(chairTop.position, { y: -0.35, duration: 0.18, ease: "power2.in" }, 0.3)
+        .to(chairTop.position, { y: 0, duration: 0.7, ease: "elastic.out(1.1, 0.35)" }, 0.48)
+        .fromTo(chairTop.rotation, { y }, { y: y + Math.PI * 2, duration: 1.5, ease: "power3.out" }, 0.42)
+        .to(chair.position, { z: REST_Z, duration: 0.9, ease: "power2.inOut" }, 1.75);
       sfx.hiss();
       sfx.creak({ delay: 0.15 });
       sfx.patter({ duration: 0.5, delay: 0.1 });
@@ -413,6 +436,8 @@ export function createChair(runtime) {
     chair,
     chairTop,
     SEAT_TOP,
+    REST_Z,
+    SPIN_Z,
     grabChair,
     turnChair,
     releaseChair,

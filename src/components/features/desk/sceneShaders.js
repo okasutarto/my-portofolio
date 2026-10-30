@@ -57,7 +57,8 @@ export function installSceneShaders(benchmark, lowPower = false) {
         }
         if ( probe == 5.0 ) return 1.0;
         if ( probe == 0.0 ) return 0.0;
-        float spin = rand( dir.xy + dir.z ) * PI2;
+        // Stable taps keep overlapping coloured point lights from turning shadow grain into coloured speckles.
+        float spin = 0.0;
         float blockers = 0.0;
         float blockerDepth = 0.0;
         for ( int i = 0; i < PCSS_SEARCH; i ++ ) {

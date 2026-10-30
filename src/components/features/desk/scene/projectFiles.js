@@ -12,19 +12,22 @@ export function createProjectFiles(runtime) {
   // a tab (or ← →) flips through, and a folder flipped past is refiled at the back. Click the
   // front one to pull it out onto the desk and open it; its sheets then turn like pages (right
   // side forward, left side back, or ← →). The last sheet carries the links as stamps.
-  const FOLDER_W = 2.2;
-  const FOLDER_D = 1.65;
+  const FOLDER_W = 3.1;
+  const FOLDER_D = 2.2;
   const SHEET_W = FOLDER_W - 0.08;
   const SHEET_D = FOLDER_D - 0.08;
   const folders = new THREE.Group();
   // At the left end of the desk, under the window, its front turned to face the room (+x)
-  folders.position.set(-6.3, 0, -0.5);
+  const FOLDERS_AT = { x: -8.1, z: 0.2 }; // world
+  folders.position.set(FOLDERS_AT.x, 0, FOLDERS_AT.z);
   folders.rotation.y = Math.PI / 2;
   runtime.core.scene.add(folders);
   // The drawer, in the folders group's own space
   const DRAWER_W = FOLDER_W + 0.32;
-  const DRAWER_D = runtime.options.projects.length * 0.17 + 0.45;
-  const DRAWER_H = 0.95;
+  // deep enough for the folders standing tilted, their covers a touch ajar, to stay inside it
+  const DRAWER_D = runtime.options.projects.length * 0.17 + 0.75;
+  // 13 cm high: the 22 cm folders stand well up out of it, their tabs on show, but it holds them
+  const DRAWER_H = 1.3;
   const WALL = 0.08;
   const drawerMat = runtime.core.toon("#2b2b2b");
   const drawerPart = (w, h, d, x, y, z, material = drawerMat) => {
@@ -38,11 +41,13 @@ export function createProjectFiles(runtime) {
   drawerPart(WALL, DRAWER_H, DRAWER_D, -DRAWER_W / 2 + WALL / 2, DRAWER_H / 2, 0);
   drawerPart(WALL, DRAWER_H, DRAWER_D, DRAWER_W / 2 - WALL / 2, DRAWER_H / 2, 0);
   const FRONT_H = DRAWER_H * 0.78;
-  // Pulled out, a folder is turned square to the room and laid on the desk in front of the
-  // drawer, between the keyboard and the speaker, its cover opening back toward the drawer.
-  // (In the drawer's own space: +z is out of its front, -x toward the back of the desk.)
-  // set down a little askew, not squared up to the desk
-  const OUT = { x: 0.65, y: 0.04, z: DRAWER_D / 2 + 3.55, r: -Math.PI / 2 + 0.07 };
+  // Pulled out, a folder is turned square to the room and laid open across the clear strip at
+  // the front of the desk, its spine at the desk's centre and in front of the keyboard, the
+  // cover opening back toward the drawer: clear of the riser, the photo, the tickets and the
+  // mail. (In the drawer's own space: +z is out of its front, -x toward the front of the desk.)
+  // Set down a little askew, not squared up to the desk.
+  const OPEN_SPINE = { x: 0, z: 3.0 }; // world
+  const OUT = { x: FOLDERS_AT.z - OPEN_SPINE.z, y: 0.04, z: OPEN_SPINE.x - FOLDERS_AT.x + FOLDER_W / 2, r: -Math.PI / 2 + 0.07 };
   // Opened, the cover's board springs back a touch instead of lying dead flat
   const OPEN_TILT = 0.05;
   drawerPart(DRAWER_W + 0.16, FRONT_H, 0.12, 0, FRONT_H / 2, DRAWER_D / 2 + 0.03, runtime.core.toon("#ffdd00"));
@@ -148,7 +153,9 @@ export function createProjectFiles(runtime) {
       flag.rotation.y = wobble(i, 23 + k) * 0.08;
       body.add(flag);
     });
-    const rest = 0.03 + Math.abs(wobble(i, 1)) * 0.06;
+    // ajar by the same few millimetres whatever the folder's width, so its cover's free edge
+    // stays behind the drawer's front
+    const rest = (0.03 + Math.abs(wobble(i, 1)) * 0.06) * 2.2 / FOLDER_W;
     hinge.rotation.z = rest;
     folders.add(f);
     const lean = { x: wobble(i, 2) * 0.07, y: wobble(i, 3) * 0.05, z: wobble(i, 4) * 0.05, dx: wobble(i, 5) * 0.07 };
@@ -159,7 +166,10 @@ export function createProjectFiles(runtime) {
   // the room. Depth 0 is the front slot; each one further back stands a little higher.
   const STAND_RX = Math.PI / 2 - 0.1;
   const n = folderList.length;
-  const slotZ = (d) => DRAWER_D / 2 - 0.28 - d * 0.17;
+  // Slots run back from the front one by a fixed pitch; both are set once the folders are posed
+  // (below), from how far a standing folder really reaches forward and back of its centre
+  const slots = { front: DRAWER_D / 2 - 0.28, pitch: 0.17 };
+  const slotZ = (d) => slots.front - d * slots.pitch;
   const slotY = (d) => WALL + FOLDER_D / 2 + d * 0.05;
   const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
   const between = (from, to, t, lo, hi) => from + (to - from) * smooth((t - lo) / (hi - lo));
@@ -214,8 +224,29 @@ export function createProjectFiles(runtime) {
     });
   }
   poseFolders();
+  // Standing, a folder's tilt, lean and slightly open cover carry its corners ahead of and behind
+  // its centre; measured once, they set the slots so none reaches the drawer's front panel (its
+  // inner face 0.03 in from the drawer's depth) or its back wall
+  {
+    folders.updateMatrixWorld(true);
+    const box = new THREE.Box3();
+    let ahead = 0;
+    let behind = 0;
+    folderList.forEach(({ f }) => {
+      // the folders group faces +x, so its own z runs along the world's x
+      box.setFromObject(f);
+      const centre = folders.position.x + f.position.z;
+      ahead = Math.max(ahead, box.max.x - centre);
+      behind = Math.max(behind, centre - box.min.x);
+    });
+    const CLEAR = 0.03;
+    slots.front = DRAWER_D / 2 - 0.03 - CLEAR - ahead;
+    const back = -DRAWER_D / 2 + WALL + CLEAR + behind;
+    slots.pitch = Math.min(0.17, (slots.front - back) / Math.max(1, n - 1));
+    poseFolders();
+  }
   // Flip through to a folder (always forward, so the ones in front are refiled at the back),
-  // or one step either way with ← →
+  // or one step either way with ↑ ↓ or the scroll wheel: the files move up and down
   function browseTo(target) {
     if (openFolder || target === browse.target) return;
     const steps = Math.abs(target - browse.target);
@@ -372,17 +403,39 @@ export function createProjectFiles(runtime) {
     },
     onClick: clickFolder,
     onKey: (e) => {
-      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") {
-        if (e.key !== "Enter" || openFolder) return false;
-        openProject(folderList[frontIndex()]);
+      // An open folder's pages turn sideways (← →); in the drawer the files go up and down (↑ ↓)
+      if (openFolder && (e.key === "ArrowRight" || e.key === "ArrowLeft")) {
+        turnSheet(e.key === "ArrowRight" ? 1 : -1);
         return true;
       }
-      const dir = e.key === "ArrowRight" ? 1 : -1;
-      if (openFolder) turnSheet(dir);
-      else browseTo(browse.target + dir);
+      if (!openFolder && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+        browseTo(browse.target + (e.key === "ArrowDown" ? 1 : -1));
+        return true;
+      }
+      if (e.key !== "Enter" || openFolder) return false;
+      openProject(folderList[frontIndex()]);
       return true;
     },
   });
+  // Scrolling in the drawer's close-up flips the files too: down to the next, up to the one
+  // before. A trackpad's stream of small deltas adds up to whole steps, and a pause between
+  // steps keeps one long swipe from racing through the lot.
+  const WHEEL_STEP = 60;
+  const WHEEL_GAP = 280;
+  let wheelSum = 0;
+  let wheelAt = 0;
+  const onWheel = (e) => {
+    if (runtime.camera.focus.name !== "projects" || openFolder || e.ctrlKey) return;
+    e.preventDefault();
+    const delta = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? runtime.options.container.clientHeight : 1);
+    wheelSum += delta;
+    const now = performance.now();
+    if (Math.abs(wheelSum) < WHEEL_STEP || now - wheelAt < WHEEL_GAP) return;
+    browseTo(browse.target + Math.sign(wheelSum));
+    wheelSum = 0;
+    wheelAt = now;
+  };
+  runtime.core.renderer.domElement.addEventListener("wheel", onWheel, { passive: false });
 
   // Public state used by the other scene parts.
   return {
@@ -393,5 +446,6 @@ export function createProjectFiles(runtime) {
     OUT,
     closeProject,
     poseFolders,
+    onWheel,
   };
 }

@@ -403,6 +403,19 @@ export function drawSatinFinish(c, w, h, { grain = 0.06 } = {}) {
   }
 }
 
+// Satin-matte moulded polymer, as on a clothless speaker shell: an even, very fine and
+// low-contrast stipple, smooth to the eye, with no brushed streaks
+export function drawMatteFinish(c, w, h, { grain = 0.03 } = {}) {
+  let r = 4271;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  c.fillStyle = "#d8d8d8";
+  c.fillRect(0, 0, w, h);
+  for (let i = 0; i < w * h * 0.6; i++) {
+    c.fillStyle = `rgba(${rand() < 0.5 ? "255,255,255" : "0,0,0"},${rand() * grain})`;
+    c.fillRect(rand() * w, rand() * h, 1 + rand(), 1 + rand());
+  }
+}
+
 // A speaker cone's surface on its lathe's uv (up the canvas is from the rim in to the centre):
 // pressed concentric ribs, and fine fibres radiating out through the paper
 export function drawConeRibs(c, w, h) {
@@ -621,3 +634,26 @@ export function drawChairCrest(c, w, h, { gold = "#d4a72c" } = {}) {
   c.fill();
 }
 
+
+// The console core's micro-texture: rows of tiny △ ○ × □ moulded into the gloss black, a
+// shade lighter than the plastic, so up close it reads as texture and from afar as a sheen
+export function drawPsSymbols(c, w, h, { base = "#1a1714", ink = "#2b2a33" } = {}) {
+  c.fillStyle = base;
+  c.fillRect(0, 0, w, h);
+  c.strokeStyle = ink;
+  c.lineWidth = Math.max(1, w * 0.012);
+  const step = w / 7;
+  const r = step * 0.22;
+  for (let row = 0; row * step < h + step; row++) for (let col = 0; col < 8; col++) {
+    const x = (col + (row % 2) * 0.5) * step;
+    const y = row * step * 0.9;
+    c.beginPath();
+    switch ((row + col * 3) % 4) {
+      case 0: c.moveTo(x, y - r); c.lineTo(x + r, y + r * 0.8); c.lineTo(x - r, y + r * 0.8); c.closePath(); break;
+      case 1: c.arc(x, y, r * 0.9, 0, Math.PI * 2); break;
+      case 2: c.moveTo(x - r, y - r); c.lineTo(x + r, y + r); c.moveTo(x + r, y - r); c.lineTo(x - r, y + r); break;
+      default: c.rect(x - r * 0.85, y - r * 0.85, r * 1.7, r * 1.7);
+    }
+    c.stroke();
+  }
+}

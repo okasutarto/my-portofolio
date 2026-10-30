@@ -9,6 +9,8 @@ export function createLifecycle(runtime) {
     setTime: runtime.theme.setTime,
     setRain: runtime.weather.setRain,
     setMuted: runtime.workstation.setMuted,
+    standby: runtime.animation.standby,
+    landStandby: runtime.workstation.landStandby,
     enter: runtime.animation.enter,
     back: runtime.camera.back,
     focusOn: (name) => runtime.camera.SHOTS[name] && runtime.camera.setFocus(name),
@@ -38,6 +40,8 @@ export function createLifecycle(runtime) {
       runtime.postcard.mailIntro?.kill();
       runtime.shelfCollectibles.trophyCelebration?.kill();
       gsap.killTweensOf(runtime.shelfCollectibles.trophyHalo.material);
+      gsap.killTweensOf([runtime.shelfConsole.ledSweep, runtime.shelfConsole.ledGlowMat,
+        runtime.shelfConsole.ledMat.color, runtime.shelfConsole.ledGlowMat.color]);
       runtime.gym.confetti.forEach((bit) => gsap.killTweensOf(bit.material));
       runtime.wastebasket.papers.forEach(({ ball }) => gsap.killTweensOf(ball.scale));
       clearTimeout(runtime.wastebasket.binBadgeTimer);
@@ -56,6 +60,7 @@ export function createLifecycle(runtime) {
       runtime.textInput.typer.remove();
       runtime.swordEffects.impactFlash.remove();
       runtime.core.renderer.domElement.removeEventListener("wheel", runtime.chat.onWheel);
+      runtime.core.renderer.domElement.removeEventListener("wheel", runtime.projectFiles.onWheel);
       runtime.core.renderer.domElement.removeEventListener("wheel", runtime.touch.onPinchWheel, { capture: true });
       ["pointerdown", runtime.touch.onTouchDown, "pointermove", runtime.touch.onTouchMove, "pointerup", runtime.touch.onTouchUp, "pointercancel", runtime.touch.onTouchUp].forEach((v, i, a) => {
         if (i % 2 === 0) runtime.core.renderer.domElement.removeEventListener(v, a[i + 1], { capture: true });

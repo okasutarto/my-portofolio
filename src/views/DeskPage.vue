@@ -4,7 +4,8 @@
       <div ref="stageRef" class="absolute inset-0"></div>
 
       <!-- Top-left: title + way out -->
-      <div class="absolute top-4 left-4 flex flex-col items-start gap-2 pointer-events-none">
+      <!-- (kept back while the room waits in the dark behind the loader) -->
+      <div class="hud-corner absolute top-4 left-4 flex flex-col items-start gap-2 pointer-events-none" :class="{ 'hud-corner--waiting': !inRoom }">
         <div class="pointer-events-auto bg-primary border-4 border-black shadow-neo px-3 py-1.5 -rotate-2">
           <h1 class="font-display font-extrabold text-black text-lg md:text-2xl leading-none">THE DESK</h1>
         </div>
@@ -12,7 +13,6 @@
           <!-- Sound lives on the desk, in the speakers; the time of day in the settings -->
           <router-link to="/2d" class="hud-btn bg-white text-black">← 2D site</router-link>
           <button
-            v-if="!zoomed"
             class="hud-btn text-black px-2"
             :class="settingsOpen ? 'settings-toggle--open' : 'bg-white'"
             :aria-expanded="settingsOpen"
@@ -34,7 +34,7 @@
              the window frame and the game shelf. Its close button, the gear or Esc puts it away. -->
         <transition name="hud-pop">
           <div
-            v-if="settingsOpen && !zoomed"
+            v-if="settingsOpen"
             id="room-settings"
             role="dialog"
             aria-label="Room settings"
@@ -122,7 +122,7 @@
                     <div v-for="(label, part) in WOOD_TARGETS" :key="part" class="settings-sub">
                       <h3 class="settings-sublabel">
                         <span class="whitespace-nowrap">{{ label }}</span>
-                        <span class="settings-value">· {{ WOODS[settings.woods[part].wood].name }}, {{ WOOD_PATTERNS[settings.woods[part].pattern].toLowerCase() }}</span>
+                        <span class="settings-value">· {{ `${WOODS[settings.woods[part].wood].name}, ${WOOD_PATTERNS[settings.woods[part].pattern].toLowerCase()}` }}</span>
                       </h3>
                       <div class="flex flex-wrap items-center gap-1.5">
                         <button
@@ -332,7 +332,7 @@ const hint = computed(() => {
   if (focus.value === "mug") return `${isDesktop.value ? "Click" : "Tap"} the mug for a sip. Finish the cup for the night shift`;
   if (focus.value === "experience") return isDesktop.value ? "Click a pass to hold it up, again to flip it (← → to browse)" : "Tap a pass to hold it, tap again to flip it";
   if (focus.value === "projects" && projectOpen.value) return isDesktop.value ? "Click the pages to turn them (or ← →)" : "Tap the pages to turn them";
-  if (focus.value === "projects") return isDesktop.value ? "Click a tab (or ← →) to flip through, the front file to pull it out" : "Tap a tab to flip through, the front file to pull it out";
+  if (focus.value === "projects") return isDesktop.value ? "Click a tab, scroll or press ↑ ↓ to flip through, the front file to pull it out" : "Tap a tab to flip through, the front file to pull it out";
   if (focus.value === "contact") return isDesktop.value ? "Write on the card (Tab moves along), then hit SEND POSTCARD" : "Tap the card to write, then tap SEND POSTCARD";
   if (focus.value === "chat") return isDesktop.value ? "Type a question and hit Enter (scroll to read back)" : "Tap a question or the box below to ask";
   if (focus.value === "hero") return isDesktop.value ? "Click the badge to flip it (links on the back). Drag the pin to move it" : "Tap the badge to flip it. Drag the pin to move it";
@@ -342,10 +342,10 @@ const hint = computed(() => {
 });
 
 // Coming in is a gesture, so audio is unlocked in time for the computer's boot sound
-let entered = false;
+const inRoom = ref(false);
 function enterDesk() {
-  if (entered) return;
-  entered = true;
+  if (inRoom.value) return;
+  inRoom.value = true;
   void initializeAudio();
   scene.value?.enter();
   setTimeout(() => (introPlaying.value = false), 1600);
@@ -357,7 +357,12 @@ function onEvent(name, payload = {}) {
   // Without a loader (the desk was reached from another page) there's nothing to wait for.
   if (name === "drawn") bootLoaderShowing() ? setBootProgress(0.7) : enterDesk();
   else if (name === "loading") setBootProgress(0.7 + 0.3 * payload.progress);
-  else if (name === "ready") showEnterGate(enterDesk) || enterDesk();
+  // With the loader up, the room goes dark behind it, close on the monitor, and the loader's
+  // screen hands over to the monitor's
+  else if (name === "ready") {
+    if (!bootLoaderShowing()) enterDesk();
+    else scene.value.standby().then((screen) => showEnterGate(enterDesk, screen, () => scene.value?.landStandby()) || enterDesk());
+  }
   // An empty coffee cup flips the desk to the night shift, or back to day
   else if (name === "nightShift" && payload.dark !== isDark.value) toggleTheme();
   else if (name === "toggleSound") toggleMute();
@@ -392,6 +397,8 @@ function readSettings() {
   const pickWood = (part, choice = {}) => ({
     wood: WOODS[choice.wood] ? choice.wood : DEFAULT_WOODS[part].wood,
     pattern: WOOD_PATTERNS[choice.pattern] ? choice.pattern : DEFAULT_WOODS[part].pattern,
+    // The finish is no longer offered in settings: a saved black model goes back to wood sides
+    ...(part === "speakers" ? { finish: "wood" } : {}),
   });
   return {
     time: TIME_MODES[saved.time] ? saved.time : DEFAULT_TIME,
@@ -429,7 +436,6 @@ function setRain(mode) {
 }
 
 watch(isDark, (dark) => scene.value?.setTheme(dark));
-watch(zoomed, (value) => value && (settingsOpen.value = false));
 watch(muted, (value) => scene.value?.setMuted(value));
 
 onMounted(async () => {
@@ -492,6 +498,13 @@ onUnmounted(() => {
   z-index: 20;
   /* The boot loader's colour: it fades straight from the loader to the room */
   background: #1a1714;
+}
+.hud-corner {
+  transition: opacity 0.5s ease-out 0.6s;
+}
+.hud-corner--waiting {
+  opacity: 0;
+  visibility: hidden;
 }
 .hud-btn {
   @apply inline-flex items-center gap-1 border-3 border-black px-3 py-1.5 text-xs md:text-sm font-bold uppercase shadow-neo-sm transition-transform;

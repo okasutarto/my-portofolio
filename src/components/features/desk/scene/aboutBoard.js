@@ -7,9 +7,12 @@ import { drawAboutBoard, drawAboutNote } from "../textures";
 export function createAboutBoard(runtime) {
   // ---------- pinned About board, matching the 2D sticker board ----------
   const aboutBoard = new THREE.Group();
-  // Level with the painting across the room
-  aboutBoard.position.set(4.6, 5.8, -4.28); // on the wall: WALL_Z + 0.3
-  runtime.core.scene.add(aboutBoard);
+  // Above the full-size monitor, with every note visible from the overview
+  aboutBoard.position.set(4.6, 8.4, runtime.room.WALL_Z + 0.3); // on the wall: WALL_Z + 0.3
+  // Kept out of the scene, not just invisible, while hidden, so its notes can't be hovered or
+  // clicked
+  const SHOW_BOARD = true;
+  if (SHOW_BOARD) runtime.core.scene.add(aboutBoard);
   const boardWood = runtime.core.toon("#b98550");
   boardWood.map = runtime.room.windowWood.texture;
   const boardFrame = runtime.core.mesh(runtime.core.rbox(6.8, 4.2, 0.16, 0.04), boardWood, { outline: 0.045 });
@@ -255,6 +258,7 @@ export function createAboutBoard(runtime) {
 
   // Public state used by the other scene parts.
   return {
+    shown: SHOW_BOARD,
     get noteDrag() { return noteDrag; },
     set noteDrag(value) { noteDrag = value; },
     clampNote,

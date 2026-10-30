@@ -70,7 +70,7 @@ Prefer a classic page? The same content lives at [`/2d`](https://okasp.dev/2d).
 | 🧤 **Infinity Gauntlet** | Please don't. |
 | 🎮 **Game shelf & console** | Explore the collection and power the console: the monitor becomes a TV running **Straw Hat Strike**. Drag vertically to browse the shelf. |
 | 🤖 **Robot** | A small animated companion on the shelf. |
-| 🐈 **Oyen** | An animated desk cat that watches, settles and reacts to activity around the room. |
+| 🐈 **Oyen** | A ginger kitten who naps on the rug by day and by the desk lamp at night, watches, settles and reacts to activity around the room. |
 | 🗑️ **Wastebasket** | Crumple papers and throw them into the basket. |
 | 🏆 **Secrets trophy** | Tracks 20 discoveries and celebrates when the collection is complete; click it to replay the celebration. |
 
@@ -200,6 +200,9 @@ licenses live in `public/sfx/`; the lo-fi music is generated in the browser.
   Active camera moves and interactions follow browser frames.
 - **Reuse work while idle.** AO and shadow maps are cached and refreshed on schedules, with
   more frequent updates while things move. Unsupported batching falls back to original meshes.
+- **Prints follow the room's light.** Paper, labels, the clock dial and the artwork are part
+  self-lit so they stay readable by day; that glow fades with the room at dusk and night, so
+  they never outshine it.
 - **Keep material detail visible.** Shadow maps share GPU texture slots with printed surfaces,
   bump maps, toon ramps and the window projection. The budget prioritizes active key lights;
   some secondary lights can stay lit without their own shadow map when slots are scarce.

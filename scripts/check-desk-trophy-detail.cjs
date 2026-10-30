@@ -12,7 +12,7 @@ textures.drawTrophyMetal(ctx, 256, 256);
 textures.drawTrophyStone(ctx, 256, 256);
 const source = require('./helpers/desk-source.cjs').readDeskSource();
 const materials = [];
-const trophy = vm.runInNewContext(source.slice(source.indexOf('  const trophyGold ='), source.indexOf('  const handheld =')) + '; trophy', {
+const trophy = vm.runInNewContext(source.slice(source.indexOf('  const trophyGold ='), source.indexOf('  // End shelf collectibles.')) + '; trophy', {
   THREE, ...textures, track: value => value, scene: new THREE.Scene(),
   toon: color => { const mat = new THREE.MeshToonMaterial({ color }); materials.push(mat); return mat; },
   canvasTexture: () => ({ texture: new THREE.Texture(), ctx }),

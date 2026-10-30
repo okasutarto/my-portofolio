@@ -28,8 +28,11 @@ export function createCat(runtime) {
     FUR_MATS.forEach((mat) => gsap.to(mat, { emissiveIntensity: inShade ? 0.38 : 0, duration, overwrite: true }));
   }
   const catInk = runtime.core.toon("#1a1714");
+  // Modelled about 2.7 units nose to tail when curled; at 1 unit = 10 cm this makes her a kitten
+  // of a few months, some 27 cm curled up and 18 cm at the shoulder
+  const CAT_SCALE = 1.0;
   const cat = new THREE.Group();
-  cat.scale.setScalar(0.85);
+  cat.scale.setScalar(CAT_SCALE);
   const catBody = new THREE.Group();
   cat.add(catBody);
   const belly = runtime.core.mesh(new THREE.SphereGeometry(1, 24, 16), fur, { outline: 0.03 });
@@ -213,7 +216,8 @@ export function createCat(runtime) {
   // jumping, so she never passes through the top.
   const CAT_BEDS = {
     floor: { parent: runtime.core.scene, position: new THREE.Vector3(1.4, runtime.room.FLOOR_Y + 0.08, 0.3), yaw: 0.25, via: new THREE.Vector3(1.8, runtime.room.FLOOR_Y + 0.08, 5.4) },
-    desk: { parent: runtime.core.scene, position: new THREE.Vector3(-3.85, 0, -0.55), yaw: 0.45 },
+    // left of the centred keyboard, her back and tail clear of the file drawer's front
+    desk: { parent: runtime.core.scene, position: new THREE.Vector3(-5.6, 0, 1.2), yaw: 0.75 },
     // curled on the gaming chair's seat, on the side that shows past its back (she turns with
     // the chair when it spins)
     chair: { parent: runtime.chair.chairTop, position: new THREE.Vector3(0.95, runtime.chair.SEAT_TOP, -0.55), yaw: -1.25 },
@@ -248,22 +252,22 @@ export function createCat(runtime) {
       cat.rotation.set(0, yawNow, 0);
       sfx.whoosh({ duration: 0.35, volume: 0.45 });
     })
-      .to(cat.scale, { y: 0.85 * 0.8, duration: 0.15, ease: "power2.in" })
+      .to(cat.scale, { y: CAT_SCALE * 0.8, duration: 0.15, ease: "power2.in" })
       .to(cat.rotation, { y: yaw, duration: 0.25, ease: "power2.out" }, "<")
       .to(hop, {
         p: 1,
         duration: 0.7,
         ease: "none",
-        onStart: () => gsap.to(cat.scale, { y: 0.85, duration: 0.2 }),
+        onStart: () => gsap.to(cat.scale, { y: CAT_SCALE, duration: 0.2 }),
         onUpdate: () => {
           cat.position.lerpVectors(from, to, hop.p);
           // Higher for a bigger climb, so she clears the desk's edge
           cat.position.y += Math.sin(hop.p * Math.PI) * (peak + Math.abs(to.y - from.y) * 0.5);
         },
       })
-      .to(cat.scale, { y: 0.85 * 0.82, duration: 0.1, ease: "power2.out" })
+      .to(cat.scale, { y: CAT_SCALE * 0.82, duration: 0.1, ease: "power2.out" })
       .call(() => sfx.catLand({ strength: 0.2 }))
-      .to(cat.scale, { y: 0.85, duration: 0.35, ease: "elastic.out(1.2, 0.4)" });
+      .to(cat.scale, { y: CAT_SCALE, duration: 0.35, ease: "elastic.out(1.2, 0.4)" });
   }
   // Out from under the desk first, when that's where she is
   function catLeave(tl) {
@@ -327,7 +331,7 @@ export function createCat(runtime) {
     catTravel = tl;
     tl.call(() => {
       catPose(true, 0.2);
-      gsap.to(cat.scale, { y: 0.85, duration: 0.2 });
+      gsap.to(cat.scale, { y: CAT_SCALE, duration: 0.2 });
       sfx.meow({ short: true });
       catSay("hmph!");
     });
@@ -764,8 +768,8 @@ export function createCat(runtime) {
       tl.call(() => gsap.to(cat.rotation, { y: towardIt(), duration: 0.3, ease: "power2.out" }))
         .to({}, { duration: 0.3 })
         // a crouch, a jump with a paw out, a landing
-        .to(cat.scale, { y: 0.85 * 0.82, duration: 0.12, ease: "power2.in" })
-        .to(cat.scale, { y: 0.85, duration: 0.1 })
+        .to(cat.scale, { y: CAT_SCALE * 0.82, duration: 0.12, ease: "power2.in" })
+        .to(cat.scale, { y: CAT_SCALE, duration: 0.1 })
         .to(cat.position, { y: floorY + 0.75, duration: 0.22, ease: "power2.out" }, "<")
         .to(paws.children[0].position, { x: 1.35, y: 1.1, z: 0.45, duration: 0.14, yoyo: true, repeat: 1, ease: "power2.out" }, "<")
         .to(cat.position, { y: floorY, duration: 0.2, ease: "power2.in" })
@@ -822,7 +826,7 @@ export function createCat(runtime) {
     catHead.getWorldPosition(catBubbleAt);
     catBubbleRight.set(1, 0, 0).applyQuaternion(runtime.core.camera.quaternion);
     catBubbleUp.set(0, 1, 0).applyQuaternion(runtime.core.camera.quaternion);
-    catBubbleAt.addScaledVector(catBubbleUp, 1.0).addScaledVector(catBubbleRight, 0.15);
+    catBubbleAt.addScaledVector(catBubbleUp, 0.7 * CAT_SCALE).addScaledVector(catBubbleRight, 0.15);
     catBubbleTip.lerp(catBubbleAt, blend);
     catBubbleHolder.position.copy(catBubbleTip)
       .addScaledVector(catBubbleRight, (0.5 - CAT_TIP_X) * CAT_BUBBLE_W * k)
@@ -884,9 +888,11 @@ export function createCat(runtime) {
       if (++catClicks % 3 === 0) return catKeyboardRun();
       catBusy = true;
       catEyes(true);
-      // her head pops up over her chest and drops back
+      // her head pops up over her chest and drops back. From where it lies when she's curled,
+      // not where it is now: a click mid-fidget (sat up, washing) has just laid her back down,
+      // and her head would otherwise drop back to where it was, perched on top of her
       catChest.visible = true;
-      gsap.fromTo(catHead.position, { ...catHead.position }, { ...HEAD_LOAF, duration: 0.25, yoyo: true, repeat: 1, ease: "power2.out", onComplete: () => (catChest.visible = false) });
+      gsap.fromTo(catHead.position, { ...HEAD_CURLED }, { ...HEAD_LOAF, duration: 0.25, yoyo: true, repeat: 1, ease: "power2.out", overwrite: true, onComplete: () => (catChest.visible = false) });
       gsap.fromTo(tailCurl.rotation, { y: 0 }, { y: 0.15, duration: 0.2, yoyo: true, repeat: 5, ease: "sine.inOut" });
       sfx.meow();
       catSay(CAT_LINES[catLine++ % CAT_LINES.length]);

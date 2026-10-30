@@ -10,13 +10,13 @@ export function createWindowBlind(runtime) {
   // chain lets it down in two steps and draws it back up. The roll fattens as the fabric winds
   // onto it, the chain runs while it turns, and the fabric really stops the window's light, so
   // the sunlit patch on the wall and desk shrinks with it.
-  const BLIND_W = 4.5;
-  const ROLL_Y = 2.42; // the roller's axis, just above the frame
+  const BLIND_W = runtime.room.GLASS.x * 2 + 0.5;
+  const ROLL_Y = runtime.room.GLASS.y + 0.2 + 0.17; // the roller's axis, just above the frame
   const ROLL_Z = 0.36; // clear of the catch and the glazing bars
   const ROLL_CORE = 0.05;
   const ROLL_FULL = 0.045; // what the whole length of fabric adds to the roll's radius
   const BAR_H = 0.08;
-  const FULL_DROP = ROLL_Y - (-2.18 + BAR_H / 2 + 0.01); // down to the sill
+  const FULL_DROP = ROLL_Y - (-(runtime.room.GLASS.y + 0.2) + 0.07 + BAR_H / 2 + 0.01); // down to the sill
   const MIN_DROP = 0.13; // rolled up, the bottom bar tucks under the roll
   const FABRIC_TILE = 0.7; // world size of one repeat of the weave
   const blindGroup = new THREE.Group();

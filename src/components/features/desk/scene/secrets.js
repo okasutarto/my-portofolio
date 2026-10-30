@@ -88,7 +88,7 @@ export function createSecrets(runtime) {
         // Align the emitter above the bowl in screen space, then bring it in front of the shelf.
         runtime.shelfCollectibles.trophy.localToWorld(runtime.gauntlet.shelfBubbleAt.set(0, 1.38, 0));
         const towardCamera = new THREE.Vector3(0, 0, 1).applyQuaternion(runtime.core.camera.quaternion);
-        const frontZ = runtime.shelf.shelf.position.z + runtime.shelf.SHELF_D / 2 + 0.25;
+        const frontZ = runtime.shelf.shelf.position.z + runtime.shelf.SHELF_D * runtime.shelf.shelf.scale.z / 2 + 0.25;
         runtime.gauntlet.shelfBubbleAt.addScaledVector(towardCamera, Math.max(0, frontZ - runtime.gauntlet.shelfBubbleAt.z) / towardCamera.z);
         runtime.gym.burst(runtime.gauntlet.shelfBubbleAt.x, runtime.gauntlet.shelfBubbleAt.y, runtime.gauntlet.shelfBubbleAt.z, true);
         sfx.sparkle();

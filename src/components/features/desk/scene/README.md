@@ -5,6 +5,11 @@ its prop's construction, animation state and interaction handlers. Renderer and
 shared mesh helpers are initialized in `core.js`; `camera.js`, `pointer.js`,
 `touch.js`, `theme.js` and `animation.js` coordinate the props.
 
+World-space dimensions use **1 unit = 10 cm**. The desk is 180 × 84 × 74 cm;
+the TITAN Evo Regular seat is 52 cm high. Some detailed models use local modelling dimensions
+with a uniform group scale (monitor, shelving and its contents, guitar). Use
+`localToWorld` or the group scale for camera targets, clearance and world heights.
+
 Factories receive the same scene-local `runtime` object. Access another part
 through its namespace, for example `runtime.keyboard.pressKey(code)`. Return only
 state or functions needed by other parts. A getter exposes a changing local

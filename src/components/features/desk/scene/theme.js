@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import gsap from "gsap";
 import { loadPortrait, windowSky, drawWoodTop } from "../textures";
-import { WOODS, WOOD_PATTERNS, DEFAULT_WOODS } from "../woods";
+import { WOODS, WOOD_PATTERNS, DEFAULT_WOODS, SPEAKER_FINISHES } from "../woods";
 import { TIME_MODES, partFor } from "../daylight";
 import { PALETTES } from "../sceneConfig";
 
@@ -61,6 +61,7 @@ export function createTheme(runtime) {
       mats: [woodMat(runtime.workstation.riserMat, PALETTES.light.desk), woodMat(runtime.workstation.riserLegMat, PALETTES.light.desk, runtime.workstation.RISER_LEG_SHADE)],
       nightly: true,
     },
+    speakers: { grain: runtime.workstation.speakerGrain, mats: [woodMat(runtime.workstation.speakerWoodMat, "#f3d3b0")] },
     window: { grain: runtime.room.frameGrainTex, mats: [woodMat(runtime.room.frameWood, "#f0c7a0")] },
     shelf: {
       grain: runtime.shelf.shelfWood,
@@ -70,6 +71,7 @@ export function createTheme(runtime) {
   const pickWood = (part, choice = {}) => ({
     wood: WOODS[choice.wood] ? choice.wood : DEFAULT_WOODS[part].wood,
     pattern: WOOD_PATTERNS[choice.pattern] ? choice.pattern : DEFAULT_WOODS[part].pattern,
+    ...(part === "speakers" ? { finish: SPEAKER_FINISHES[choice.finish] ? choice.finish : "wood" } : {}),
   });
   const woodChoice = Object.fromEntries(Object.keys(woodParts).map((part) => [part, pickWood(part, runtime.options.woods[part])]));
   function toneWood(part, isDark) {
@@ -124,14 +126,15 @@ export function createTheme(runtime) {
     toneWood("riser", isDark);
     runtime.core.shadowFill.color.set(p.shadow);
     if (!isDark) applyDaylight();
-    // The backboard's print glows to stay readable by day; by dusk and night that glow would
-    // make it the brightest thing in the room, so it settles into the room's own light
+    // Prints (the folders, the clock's dial, the painting, the About board, the backboard...)
+    // glow to stay readable by day; by dusk and night that glow would make them the brightest
+    // things in the room, so they settle into the room's own light
     const part = isDark ? "night" : runtime.room.daylightPart;
-    runtime.wastebasket.hoopBoardFace.material.emissiveIntensity = HOOP_GLOW[part];
+    runtime.core.printGlow.level = PRINT_GLOW[part];
     runtime.wastebasket.net.material.color.setScalar(HOOP_NET[part]);
     runtime.core.fitSunShadow();
   }
-  const HOOP_GLOW = { morning: 0.6, day: 0.6, evening: 0.22, night: 0.08 };
+  const PRINT_GLOW = { morning: 0.6, day: 0.6, evening: 0.22, night: 0.08 };
   const HOOP_NET = { morning: 1, day: 1, evening: 0.62, night: 0.4 };
   // Match the randomly selected sky: warm morning, bright midday or amber evening.
   const DAYLIGHT = {
@@ -142,8 +145,10 @@ export function createTheme(runtime) {
     morning: { sun: "#ffe2b6", sunPower: 1.1, sky: "#fff5e7", skyPower: 1.55, ambient: 0.62, fill: "#fff4e8", pane: "#ffdfa8", panePower: 3.0 },
     day: { sun: "#fff1cc", sunPower: 1.3, sky: "#f2f5ff", skyPower: 1.85, ambient: 0.78, fill: "#eef1ff", pane: "#ffe5ad", panePower: 4.1 },
     // the view's sun rises on the front side of the window and sets on the back side, so the
-    // room's evening sun comes in from behind
-    evening: { sun: "#ff9e66", sunPower: 1.0, sky: "#b7aed7", skyPower: 0.38, ambient: 0.16, fill: "#c3b9de", pane: "#ffab72", panePower: 1.8 },
+    // room's evening sun comes in from behind. Its low beam meets the desk at a slant (under
+    // half the strength a square-on one gives), so the pane runs stronger to keep the golden
+    // streak across the desk showing
+    evening: { sun: "#ff9e66", sunPower: 1.0, sky: "#b7aed7", skyPower: 0.38, ambient: 0.16, fill: "#c3b9de", pane: "#ffab72", panePower: 3.6 },
   };
   function applyDaylight() {
     const light = DAYLIGHT[runtime.room.daylightPart];
@@ -164,7 +169,7 @@ export function createTheme(runtime) {
     [runtime.core.ambient, "intensity"], [runtime.core.skyFill, "intensity"], [runtime.core.readabilityFill, "intensity"],
     [runtime.core.sun, "intensity"], [runtime.windowLighting.windowLight, "intensity"], [runtime.lamp.lampLight, "intensity"],
     [runtime.core.roomLight, "night"], [runtime.workstation.monitorGlowMat, "opacity"], [runtime.windowBlind.blindFabric, "emissiveIntensity"],
-    [runtime.wastebasket.hoopBoardFace.material, "emissiveIntensity"],
+    [runtime.core.printGlow, "level"],
     ...runtime.room.deskNeons.map(({ washMat }) => [washMat, "opacity"]),
   ];
   const lightingColors = [runtime.core.ambient.color, runtime.core.skyFill.color, runtime.core.sun.color, runtime.windowLighting.windowLight.color,
@@ -262,6 +267,7 @@ export function createTheme(runtime) {
   function setWood(part, choice) {
     if (!woodParts[part]) return;
     woodChoice[part] = pickWood(part, { ...woodChoice[part], ...choice });
+    if (part === "speakers" && !choice.finish && (choice.wood || choice.pattern)) woodChoice[part].finish = "wood";
     paintWood(part, true);
   }
   function paintWood(part, redraw) {
@@ -271,8 +277,18 @@ export function createTheme(runtime) {
       drawWoodTop(ctx, canvas.width, canvas.height, woodChoice[part]);
       target.grain.texture.needsUpdate = true;
     }
-    toneWood(part, darkNow);
-    target.mats.forEach(({ mat }) => {
+    const mats = target.mats.map(({ mat }) => mat);
+    if (part === "speakers") {
+      // The side panels keep their grain either way: toned to the wood, or stained for the
+      // black model, whose grey shell and baffle darken with it
+      const finish = SPEAKER_FINISHES[woodChoice.speakers.finish];
+      if (finish.color) runtime.workstation.speakerWoodMat.color.set(finish.color);
+      else toneWood(part, darkNow);
+      runtime.workstation.speakerShellMat.color.set(finish.shell);
+      runtime.workstation.speakerBaffleMat.color.set(finish.baffle);
+      mats.push(runtime.workstation.speakerShellMat, runtime.workstation.speakerBaffleMat);
+    } else toneWood(part, darkNow);
+    mats.forEach((mat) => {
       const at = lightingColors.indexOf(mat.color);
       if (at >= 0) [lightingFrom, lightingTarget].forEach((state) => state.colors[at].copy(mat.color));
     });

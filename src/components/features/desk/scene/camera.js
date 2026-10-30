@@ -10,20 +10,23 @@ export function createCamera(runtime) {
   const focus = { name: "overview" };
   const screenNormal = new THREE.Vector3();
   const screenPos = new THREE.Vector3();
+  // How far above the shelf's top board its close-up can look: the middle of the gauntlet and
+  // the Switch standing on it
+  const SHELF_TOP_LOOK = 2.4;
   const SHOTS = {
     // The camera sits inside the room, with no cutaway edges or outside backdrop; on a portrait
     // screen it stands back to take in the whole diorama instead.
-    overview: () => (runtime.room.diorama ? dioramaShot() : { target: [1.8, 3.0, 0.7], dir: [0.48, 0.72, 1] }),
+    overview: () => (runtime.room.diorama ? dioramaShot() : { target: [3.17, 7.8, 4.04], dir: [0.48, 0.72, 1], fit: [39.4, 23.1], depth: CAM_DISTANCE - 0.1 }),
     // Browse the tall collection in close-up, starting at the console and GAME ON sign.
     shelf: () => {
-      const fit = [runtime.options.container.clientWidth < 900 ? 5.4 : 6.8, 4.6];
+      const fit = [runtime.options.container.clientWidth < 900 ? 8.8 : 10.5, 7.2];
       const visibleH = Math.max(fit[1], fit[0] * runtime.options.container.clientHeight / runtime.options.container.clientWidth);
       const bottom = visibleH / 2 - (runtime.options.container.clientWidth < 600 ? 1.2 : 0.5);
-      const shelfTop = (runtime.room.FLOOR_Y + runtime.shelf.SHELF_H + runtime.swordRack.SHELF_TOP_EXTRA);
-      const top = Math.max(bottom, runtime.shelf.SHELF_H + 1.25, shelfTop - runtime.room.FLOOR_Y + 1.5 - visibleH / 2);
+      const shelfTop = (runtime.room.FLOOR_Y + (runtime.shelf.SHELF_H + runtime.swordRack.SHELF_TOP_EXTRA) * runtime.shelf.shelf.scale.y);
+      const top = Math.max(bottom, runtime.shelf.SHELF_H * runtime.shelf.shelf.scale.y + SHELF_TOP_LOOK, shelfTop - runtime.room.FLOOR_Y + 1.5 - visibleH / 2);
       const y = bottom + (runtime.shelf.shelfLook - 1.7) / 7.3 * (top - bottom);
-      const xOffset = runtime.room.FLOOR_Y + y >= runtime.shelf.shelf.position.y + runtime.shelf.SHELF_H + 0.4 ? 0.1 : 0.35;
-      return { target: [runtime.shelf.shelf.position.x + xOffset, runtime.room.FLOOR_Y + y, runtime.shelf.shelf.position.z], dir: [0.24, 0.1, 1], fit, depth: 1.6 };
+      const xOffset = runtime.room.FLOOR_Y + y >= runtime.shelf.shelf.position.y + runtime.shelf.SHELF_H * runtime.shelf.shelf.scale.y + 0.4 ? 0.1 : 0.35;
+      return { target: [runtime.shelf.shelf.position.x + xOffset, runtime.room.FLOOR_Y + y, runtime.shelf.shelf.position.z], dir: [0.24, 0.1, 1], fit, depth: 3.2 };
     },
     // Clip only what's well in front of the wall (the monitor), not the board behind the badge
     hero: () => ({ target: [runtime.badge.badgePin.x, runtime.badge.badgePin.y - (runtime.badge.BADGE_PIN.y - runtime.badge.BADGE_CLIP.y) - 0.74, runtime.badge.BADGE_CLIP.z], dir: [0.06, 0.14, 1], fit: [1.5, 2.1], depth: 0.9 }),
@@ -41,12 +44,11 @@ export function createCamera(runtime) {
     // cover lies open to the left)
     projects: () => {
       if (!runtime.projectFiles.openFolder) {
-        // Square on the drawer's front, wherever it faces
-        // Square on the drawer's front, wherever it faces. A shallow clip keeps the lamp
-        // head (just over the drawer) out of the shot.
-        runtime.projectFiles.folders.localToWorld(screenPos.set(0, 1.0, 0.2));
+        // Square on the drawer's front, wherever it faces. A shallow clip keeps the lamp head,
+        // just in front of the drawer, out of the shot (the family photo steps aside; see setFocus).
+        runtime.projectFiles.folders.localToWorld(screenPos.set(0, 1.25, 0.2));
         screenNormal.set(0.05, 0.62, 1).applyQuaternion(runtime.projectFiles.folders.quaternion);
-        return { target: screenPos.toArray(), dir: screenNormal.toArray(), fit: [4.6, 3.9], depth: 2.2 };
+        return { target: screenPos.toArray(), dir: screenNormal.toArray(), fit: [4.6, 3.9], depth: 1.4 };
       }
       // Centre on the spine: the open cover lies to its left, the sheets to its right. Laid
       // down, the folder's left is the drawer's -z.
@@ -78,25 +80,44 @@ export function createCamera(runtime) {
     // The sword rack, with room on its left for a sword's card and above it for a slash
     swords: () => {
       runtime.swordRack.katanaRack.getWorldPosition(screenPos);
-      return { target: [screenPos.x - 1.85, screenPos.y + 0.95, screenPos.z], dir: [0.12, 0.08, 1], fit: [9.2, 6], depth: 3.5 };
+      return { target: [screenPos.x - 1.85, screenPos.y + 0.95, screenPos.z], dir: [0.12, 0.08, 1], fit: [17, 11], depth: 7 };
     },
     // Close on the gauntlet for the snap, from a little to its right and above
     gauntlet: () => {
-      // Framed for the glove hovering above its plinth
-      runtime.gauntlet.gauntlet.localToWorld(screenPos.set(0, 1.25, 0));
-      return { target: screenPos.toArray(), dir: [0.3, 0.3, 1], fit: [3.5, 4.3], depth: 3.8 };
+      // Framed for the glove at the top of its snap: 1.8 of its own units tall at rest (48 cm),
+      // it rises another 0.88 (about 23 cm), so the frame centres on that whole reach and keeps
+      // the fingers clear of the Back button above and the hint below
+      runtime.gauntlet.gauntlet.localToWorld(screenPos.set(0, 1.34, 0));
+      return { target: screenPos.toArray(), dir: [0.3, 0.3, 1], fit: [7.2, 9.2], depth: 7.6 };
     },
-    // Square on the window in the left wall. A shallow clip: the desk's left end sits close to it.
-    // The window, with its weather card on the wall to its left
-    window: () => ({ target: [runtime.room.windowGroup.position.x + 0.1, runtime.room.windowGroup.position.y + 0.15, runtime.room.windowGroup.position.z + 1.55], dir: [1, 0.08, 0.04], fit: [8.6, 6.2], depth: 1.4 }),
+    // Square on the window in the left wall, its weather display on the glass, roller to sill.
+    // The clip cuts away the lamp in front, but reaches far enough out that the roller blind and
+    // its chain (sliced, they'd show the black inside of their outlines), the wall's tilted face
+    // and the guitar on it all stay whole to the frame's corners.
+    window: () => ({ target: [runtime.room.windowGroup.position.x + 0.1, runtime.room.windowGroup.position.y + 0.2, runtime.room.windowGroup.position.z], dir: [1, 0.08, 0.04], fit: [14.6, 13.1], depth: 2.0 }),
     // Framed a little high, with room under the monitor's chin for the command chips and the
     // hint (they'd sit over the chin otherwise)
-    monitor: () => ({ target: [-0.2, runtime.workstation.SCREEN_Y - 0.38 + runtime.workstation.RISER_TOP, -2.66], dir: [0.1, 0.32, 1], fit: [5.2, 4.6] }),
-    keyboard: () => ({ target: [0.2, 0.3 * runtime.keyboard.KEYBOARD_SCALE, 0.75], dir: [0.1, 1, 0.75], fit: [5.4 * runtime.keyboard.KEYBOARD_SCALE, 2.6 * runtime.keyboard.KEYBOARD_SCALE] }),
+    monitor: () => {
+      runtime.workstation.monitor.localToWorld(screenPos.set(0, runtime.workstation.SCREEN_Y - 0.38, 0.09));
+      return { target: screenPos.toArray(), dir: [0.1, 0.32, 1], fit: [7.7, 6.8] };
+    },
+    // Behind the loader: square on the screen, the room dark around it (see animation's standby)
+    standby: () => {
+      const { monitor, SCREEN_Y } = runtime.workstation;
+      monitor.updateWorldMatrix(true, false);
+      monitor.localToWorld(screenPos.set(0, SCREEN_Y - 0.6, 0.09));
+      monitor.getWorldDirection(screenNormal);
+      screenNormal.y += 0.12;
+      // on a portrait screen the width is what's short, so the frame closes in on the monitor
+      const portrait = runtime.options.container.clientWidth < runtime.options.container.clientHeight;
+      return { target: screenPos.toArray(), dir: screenNormal.toArray(), fit: portrait ? [6.6, 8.6] : [13, 8.6] };
+    },
+    keyboard: () => ({ target: [runtime.keyboard.keyboard.position.x, 0.3 * runtime.keyboard.KEYBOARD_SCALE, runtime.keyboard.keyboard.position.z], dir: [0.1, 1, 0.75], fit: [5.4 * runtime.keyboard.KEYBOARD_SCALE, 2.6 * runtime.keyboard.KEYBOARD_SCALE] }),
     // A higher angle pushes the plant above the frame and leaves room for the sip quote.
     mug: () => ({ target: [runtime.coffee.mug.position.x - 0.3, 0.95 + runtime.coffee.MUG_Y, runtime.coffee.mug.position.z - 0.45], dir: [-0.2, 1, 0.45], fit: [3.1, 4.1] }),
   };
-  const CAM_DISTANCE = 40;
+  // Keep the wider overview's orthographic rays inside the room at desktop widths.
+  const CAM_DISTANCE = 60;
   // The whole diorama, slab to wall tops, fitted between the page's title and its hint
   // Seen from above and to the right; a sideways swipe turns it between nearly face-on to
   // either wall (any further and a wall would stand between the camera and the room)
@@ -172,11 +193,11 @@ export function createCamera(runtime) {
 
   // Where the shelf's close-up looks (its scroll, 1.7–9) to centre a height in the world
   function shelfLookAt(worldY) {
-    const fit = [runtime.options.container.clientWidth < 900 ? 5.4 : 6.8, 4.6];
+    const fit = [runtime.options.container.clientWidth < 900 ? 8.8 : 10.5, 7.2];
     const visibleH = Math.max(fit[1], fit[0] * runtime.options.container.clientHeight / runtime.options.container.clientWidth);
     const bottom = visibleH / 2 - (runtime.options.container.clientWidth < 600 ? 1.2 : 0.5);
-    const shelfTop = (runtime.room.FLOOR_Y + runtime.shelf.SHELF_H + runtime.swordRack.SHELF_TOP_EXTRA);
-    const top = Math.max(bottom, runtime.shelf.SHELF_H + 1.25, shelfTop - runtime.room.FLOOR_Y + 1.5 - visibleH / 2);
+    const shelfTop = (runtime.room.FLOOR_Y + (runtime.shelf.SHELF_H + runtime.swordRack.SHELF_TOP_EXTRA) * runtime.shelf.shelf.scale.y);
+    const top = Math.max(bottom, runtime.shelf.SHELF_H * runtime.shelf.shelf.scale.y + SHELF_TOP_LOOK, shelfTop - runtime.room.FLOOR_Y + 1.5 - visibleH / 2);
     const norm = top > bottom ? (worldY - runtime.room.FLOOR_Y - bottom) / (top - bottom) : 0;
     return THREE.MathUtils.clamp(1.7 + norm * 7.3, 1.7, 9);
   }
@@ -184,6 +205,9 @@ export function createCamera(runtime) {
   let arriveTimer = null;
   function setFocus(name, hit = null) {
     if (focus.name === name) return;
+    // Keys 1 and 2, and the desktop's About app, have nothing to fly to while the badge or
+    // the board is hidden
+    if ((name === "hero" && !runtime.badge.shown) || (name === "about" && !runtime.aboutBoard.shown)) return;
     runtime.pointer.setHover(null);
     runtime.textInput.stopTyping();
     runtime.core.byFocus.get(focus.name)?.onLeave?.();
@@ -193,15 +217,18 @@ export function createCamera(runtime) {
     // plain sight of the overview; leaving, it's back at once
     runtime.lamp.hideLamp(false);
     if (name === "window") runtime.core.timers.push(setTimeout(() => focus.name === "window" && runtime.lamp.hideLamp(true), 450));
+    // the family photo stands just in front of the folders, so it steps out of their close-up the same way
+    runtime.lamp.familyFrame.visible = true;
+    if (name === "projects") runtime.core.timers.push(setTimeout(() => focus.name === "projects" && (runtime.lamp.familyFrame.visible = false), 450));
     if (name === "shelf") {
-      if (hit?.point) {
-        // A click on the top board frames its two display props, rather than the board edge.
-        const topBoardY = runtime.shelf.shelf.position.y + runtime.shelf.SHELF_H;
-        const lookY = hit.point.y >= topBoardY - 0.2 ? topBoardY + 1.25 : hit.point.y;
-        runtime.shelf.shelfLook = shelfLookAt(lookY);
-      } else {
-        runtime.shelf.shelfLook = 1.7;
-      }
+      // Frame the whole bay that was clicked (whatever part of it was hit), or on the top board
+      // its two display props; with no click, the console's bay at the top
+      const boards = runtime.shelf.LEVELS.map((y) => runtime.shelf.shelf.position.y + y * runtime.shelf.shelf.scale.y);
+      const topBoardY = runtime.shelf.shelf.position.y + runtime.shelf.SHELF_H * runtime.shelf.shelf.scale.y;
+      const y = hit?.point ? hit.point.y : (boards[2] + boards[3]) / 2;
+      const bay = Math.max(0, boards.findLastIndex((board) => board <= y));
+      const lookY = y >= topBoardY - 0.2 || bay >= boards.length - 1 ? topBoardY + SHELF_TOP_LOOK : (boards[bay] + boards[bay + 1]) / 2;
+      runtime.shelf.shelfLook = shelfLookAt(lookY);
     }
     runtime.cat.catSettle();
     resetUserView();
@@ -212,6 +239,17 @@ export function createCamera(runtime) {
     if (!entry) return;
     // Once the camera lands: the prop's arrival move
     arriveTimer = setTimeout(() => focus.name === name && entry.onArrive?.(), 850);
+  }
+
+  // The standby shot is taken at once and left without a sound or a focus event: it isn't a
+  // close-up the visitor chose, and the page's hints don't follow it
+  function standby() {
+    focus.name = "standby";
+    applyShot(true);
+  }
+  function leaveStandby(duration) {
+    focus.name = "overview";
+    applyShot(false, duration);
   }
 
   function back() {
@@ -249,6 +287,8 @@ export function createCamera(runtime) {
   // Public state used by the other scene parts.
   return {
     back,
+    standby,
+    leaveStandby,
     focus,
     shelfLookAt,
     setFocus,

@@ -11,9 +11,10 @@ export function createLamp(runtime) {
   const lamp = new THREE.Group();
   runtime.core.scene.add(lamp);
   const jointMat = runtime.core.toon("#1a1714");
-  const LAMP_BASE = new THREE.Vector3(-5.8, 0, -3.3);
+  // Over by the window wall, its pole just clear of the sill (which reaches out to x −8.38)
+  const LAMP_BASE = new THREE.Vector3(-7.7, 0, -2.9);
   // Where the socket hangs, over the right of the base
-  const SOCKET = new THREE.Vector3(-5.25, 3.35, -3.2);
+  const SOCKET = new THREE.Vector3(-7.15, 3.35, -2.8);
   const lampBrass = runtime.core.toon("#c9a24a");
   const lampWood = runtime.core.toon("#8b5a34");
   lampWood.map = runtime.room.windowWood.texture;
@@ -213,7 +214,7 @@ export function createLamp(runtime) {
   // on the bottom rail, on a black easel leg.
   const familyFrame = new THREE.Group();
   // The tilted easel's rear edge extends below its local origin.
-  familyFrame.position.set(-4.75, 0.034, -2.7);
+  familyFrame.position.set(-5.75, 0.034, -1.2);
   familyFrame.scale.setScalar(0.8);
   familyFrame.rotation.set(-0.08, 0.08, 0);
   const FY = 1.08;
@@ -278,6 +279,7 @@ export function createLamp(runtime) {
     jointMat,
     familyPhoto,
     setLamp,
+    switchLamp,
     updateLampGlow,
     get lampHidden() { return lampHidden; },
     familyFrame,

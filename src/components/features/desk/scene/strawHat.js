@@ -28,7 +28,7 @@ export function createStrawHat(runtime) {
   // Hung on the left wall beside the guitar from a nail by its cord, crown to the room, as if
   // tossed there after a session; it swings from the nail. In the hat's peg, x runs along the
   // wall, y up and z out into the room from the nail.
-  const HAT_NAIL = new THREE.Vector3(runtime.room.SIDE_X + 0.12, 8.0, 8.6);
+  const HAT_NAIL = new THREE.Vector3(runtime.room.SIDE_X + 0.12, 11.2, 16.6); // its brim level with the guitar's neck
   const hatPeg = new THREE.Group();
   hatPeg.position.copy(HAT_NAIL);
   hatPeg.rotation.set(0, Math.PI / 2, -0.25);
@@ -44,7 +44,7 @@ export function createStrawHat(runtime) {
   runtime.room.room.add(hatNail, nailHead);
   // Against the room (the desk is about 140 cm): a brim about 28 cm across, its back just off
   // the wall
-  const HAT_SCALE = 1.9;
+  const HAT_SCALE = 2.7;
   const HAT_OFF_WALL = 0.12;
   // The cord is tied either side of the crown's base, 40 degrees off its top, with a little
   // knot at each tie; it hangs the hat a hand's length below the nail

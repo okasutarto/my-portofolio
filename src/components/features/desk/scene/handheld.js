@@ -270,8 +270,9 @@ export function createHandheld(runtime) {
   const SWITCH_REST = { y: 0.46, z: 0.04, tilt: -0.28 };
   switchConsole.position.set(0, SWITCH_REST.y, SWITCH_REST.z);
   switchConsole.rotation.x = SWITCH_REST.tilt;
-  const nintendoSwitch = runtime.shelf.addItem(runtime.core.at(runtime.shelf.group(switchStand, switchConsole), 0.95, runtime.shelf.standOn(4), 0.05), "switch");
-  nintendoSwitch.rotation.y = -0.12;
+  const nintendoSwitch = runtime.shelf.addItem(runtime.core.at(runtime.shelf.group(switchStand, switchConsole), 0.66, runtime.shelf.standOn(3), 0.05), "switch");
+  nintendoSwitch.scale.setScalar(0.8); // Approximately 24 cm wide at the shelf's scale.
+  nintendoSwitch.rotation.y = 0;
   // Its bubble's anchor: the top of the console; the bubble opens beside it (reach: half its
   // width), its tail pointing back at the red Joy-Con's top corner
   const switchBubbleAt = new THREE.Object3D();

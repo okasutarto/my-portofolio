@@ -3,24 +3,25 @@ import gsap from "gsap";
 import { canvasTexture, drawEnmaBlade, drawEnmaFlower, drawWadoBlade, drawKitetsuBlade, drawBladeGlint } from "../textures";
 
 export function createSwordRack(runtime) {
-  // ---------- Zoro's three swords on a wall rack, above the gauntlet ----------
+  // ---------- Zoro's three swords on a wall rack, above the shelf ----------
   // Two black wall brackets, each a plate with three curved hooks (the wavy arms of a sword
   // stand, turned to hang on the wall), and in them, top to bottom:
   // Wado Ichimonji: white saya and white wrap with black diamonds, a round gold tsuba
   // Sandai Kitetsu: red saya ringed in black, red wrap with black diamonds, a gold tsuba
   // Enma: purple saya with yellow flowers, a red cord and tassels, a lobed gold tsuba
-  const KATANA_SCALE = 1.3;
+  // World scale: each sword is about 90 cm long
+  const KATANA_SCALE = 2.6;
   const RACK_TIERS = [0.6, 0, -0.6];
   const RACK_ARM_X = 1.0;
-  // How far above the shelf's top the rack hangs: clear above the gauntlet, even mid-snap
-  const RACK_Y = 3.6;
   // The shelf's close-up scrolls up to the gauntlet and the handheld, not the swords: they
   // have a close-up of their own
   const SHELF_TOP_EXTRA = 2.9;
   const katanaRack = new THREE.Group();
-  katanaRack.position.set(0.35, runtime.shelf.SHELF_H + RACK_Y, -runtime.shelf.SHELF_D / 2 + 0.05);
+  // On the back wall over the shelf, a little right of its middle, with the lowest
+  // sword about 15 cm over the gauntlet's fingertips
+  katanaRack.position.set(11.45, 14.65, runtime.room.WALL_Z + 0.25);
   katanaRack.scale.setScalar(KATANA_SCALE);
-  runtime.shelf.shelf.add(katanaRack);
+  runtime.room.room.add(katanaRack);
 
   const rackMat = runtime.core.toon("#181513");
   // A bracket in profile (x out from the wall, y up), extruded to its thickness

@@ -229,7 +229,8 @@ export function createWindowLighting(runtime) {
     const duration = 0.5 + Math.abs(lift - runtime.windowBlind.blind.lift) * 1.1;
     sfx.slide({ duration: Math.min(0.8, duration * 0.5), up: lift > runtime.windowBlind.blind.lift });
     // it travels, then the hem swings on and settles, a touch of give rather than a stop dead
-    const swing = lift > runtime.windowBlind.blind.lift ? -0.05 : 0.07;
+    // (out into the room either way: the window stands behind it; see updateBlind)
+    const swing = lift > runtime.windowBlind.blind.lift ? -0.05 : -0.07;
     gsap.killTweensOf(runtime.windowBlind.blind);
     gsap.timeline({ onUpdate: runtime.windowBlind.updateBlind })
       .to(runtime.windowBlind.blind, { lift, duration, ease: "power1.inOut" })

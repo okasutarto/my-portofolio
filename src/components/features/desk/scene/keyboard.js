@@ -14,7 +14,11 @@ export function createKeyboard(runtime) {
   runtime.core.track(matPrint.texture);
   drawDeskMat(matPrint.ctx, 1360, 460);
   matMat.map = matPrint.texture;
-  const deskMatPad = runtime.core.mesh(runtime.core.rbox(6.8, MAT_TOP, 3.0, 0.014), matMat, { outline: 0.03, cast: false });
+  // The print goes on the top alone. Box uv squeeze the whole print onto each 3 mm edge, and
+  // where an edge rolls over toward the top its blur showed as a pale line along the mat's side
+  // (box faces: +x, −x, top, bottom, +z, −z)
+  const matEdge = runtime.core.toon("#2b3a5c");
+  const deskMatPad = runtime.core.mesh(runtime.core.rbox(6.8, MAT_TOP, 3.0, 0.014), [matEdge, matEdge, matMat, matEdge, matEdge, matEdge], { outline: 0.03, cast: false });
   // centred on the desk, with the keyboard left of its middle and the mouse to its right
   // Centred on the desk (x −1), in line with the riser and monitor
   deskMatPad.position.set(-1, MAT_TOP / 2, 0.75);

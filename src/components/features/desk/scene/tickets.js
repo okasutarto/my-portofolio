@@ -8,7 +8,8 @@ export function createTickets(runtime) {
   // Zoomed in, the stack fans out. Click a pass to hold it up to the camera, click it again to
   // turn it over to its itinerary; ← → hold the previous / next one.
   const tickets = new THREE.Group();
-  tickets.position.set(-5.5, 0, 2.7);
+  // left of the desk mat, with a clear strip of wood between them
+  tickets.position.set(-5.9, 0, 2.7);
   tickets.rotation.y = 0.12;
   runtime.core.scene.add(tickets);
   const TICKET_W = 2.1;

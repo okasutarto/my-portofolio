@@ -12,7 +12,9 @@ export function createChair(runtime) {
   const REST_Z = 7.3;
   const SPIN_Z = 8.6;
   chair.position.set(-3.1, 0, REST_Z);
-  chair.rotation.y = -0.22;
+  // Left swung out to the right, side on to the room, as if just got up from: the seat faces
+  // the room's right wall, its far armrest tucked under the tabletop's front edge
+  chair.rotation.y = -1.13;
   runtime.room.room.add(chair);
   const chairFrameMat = runtime.core.toon("#1a1714");
   // A 56 × 49 cm cushion, 70 cm across the armrests. A premium gaming chair in black
@@ -348,16 +350,18 @@ export function createChair(runtime) {
     upholstery.add(bracket, stem, pad);
   }
   // The recline hub either side where the back meets the seat: a round cap, a bracket rising
-  // from it up the back's side and another running forward under the seat
+  // from it up the back's side and another running forward under the seat. The cap stands just
+  // outside the cushion's side (5.6 wide once scaled), so the seat never swallows it.
+  const HUB_X = 5.6 / CHAIR_SCALE / 2 + 0.16;
   for (const side of [-1, 1]) {
     const hub = runtime.core.mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.26, 28), chairFrameMat, { outline: 0.025 });
     hub.rotation.z = Math.PI / 2;
-    hub.position.set(side * 2.05, -2.45, 1.9);
+    hub.position.set(side * HUB_X, -2.45, 1.9);
     const upright = runtime.core.mesh(runtime.core.rbox(0.16, 2.1, 0.75, 0.06), chairFrameMat, { outline: 0.02 });
-    upright.position.set(side * 1.98, -1.35, 2.3);
+    upright.position.set(side * (HUB_X - 0.2), -1.35, 2.3);
     upright.rotation.x = 0.07;
     const runner = runtime.core.mesh(runtime.core.rbox(0.16, 0.45, 1.8, 0.06), chairFrameMat, { outline: 0.02 });
-    runner.position.set(side * 2.05, -2.75, 1.0);
+    runner.position.set(side * (HUB_X - 0.05), -2.75, 1.0);
     runner.rotation.x = 0.12;
     upholstery.add(hub, upright, runner);
   }
@@ -371,7 +375,7 @@ export function createChair(runtime) {
     gsap.to(chair.position, { z: SPIN_Z, duration, ease: "power2.out", overwrite: true });
   }
   function rollIn(delay = 0) {
-    // Back to facing the desk the short way round, so the back never swings into the top
+    // Back to its resting angle the short way round, so the back never swings into the top
     const facing = Math.round(chairTop.rotation.y / (Math.PI * 2)) * Math.PI * 2;
     gsap.to(chairTop.rotation, { y: facing, duration: 0.5, delay, ease: "power2.inOut", overwrite: true });
     gsap.to(chair.position, { z: REST_Z, duration: 0.8, delay: delay + 0.3, ease: "power2.inOut", overwrite: true });

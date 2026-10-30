@@ -45,6 +45,7 @@ export function createLifecycle(runtime) {
       runtime.gym.confetti.forEach((bit) => gsap.killTweensOf(bit.material));
       runtime.wastebasket.papers.forEach(({ ball }) => gsap.killTweensOf(ball.scale));
       clearTimeout(runtime.wastebasket.binBadgeTimer);
+      gsap.killTweensOf(runtime.catTree.toyPivot.rotation);
       gsap.killTweensOf([runtime.camera.cam, runtime.guitar.stringVibration, runtime.guitar.stringMat.color, runtime.room.windowGlare.material, runtime.room.glareTex.texture.offset, runtime.workstation.panelEdge.material.color]);
       runtime.aboutBoard.boardPinGlints.forEach((glint) => gsap.killTweensOf(glint.material));
       runtime.animation.ro.disconnect();

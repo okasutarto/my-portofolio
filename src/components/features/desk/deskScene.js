@@ -36,6 +36,7 @@ import { createHandheld } from "./scene/handheld";
 import { createGauntlet } from "./scene/gauntlet";
 import { createGym } from "./scene/gym";
 import { createWastebasket } from "./scene/wastebasket";
+import { createCatTree } from "./scene/catTree";
 import { createWorkstation } from "./scene/workstation";
 import { createBadge } from "./scene/badge";
 import { createAboutBoard } from "./scene/aboutBoard";
@@ -90,6 +91,7 @@ export function createDeskScene({ container, projects, experiences, dark = false
   runtime.workstation = createWorkstation(runtime);
   runtime.badge = createBadge(runtime);
   runtime.aboutBoard = createAboutBoard(runtime);
+  runtime.catTree = createCatTree(runtime);
   runtime.keyboard = createKeyboard(runtime);
   runtime.mouse = createMouse(runtime);
   runtime.tickets = createTickets(runtime);

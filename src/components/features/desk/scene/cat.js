@@ -223,10 +223,13 @@ export function createCat(runtime) {
     chair: { parent: runtime.chair.chairTop, position: new THREE.Vector3(0.95, runtime.chair.SEAT_TOP, -0.55), yaw: -1.25 },
     // further along under the desk, toward the dumbbells, clear of the desk's right leg
     rug: { parent: runtime.core.scene, position: new THREE.Vector3(3.7, runtime.room.FLOOR_Y + 0.08, 0.7), yaw: -0.4, via: new THREE.Vector3(3.9, runtime.room.FLOOR_Y + 0.08, 5.4) },
+    // the bed on top of her cat tree, over by the shelf: across the floor in front of the desk
+    // and up by way of its step (out in the room's light)
+    tree: { parent: runtime.catTree.tree, position: runtime.catTree.PERCH, yaw: 2.2, path: runtime.catTree.PATH, lit: true },
   };
   const bedFor = (night) => CAT_BEDS[night ? "desk" : "floor"];
   let catBed = bedFor(runtime.options.dark);
-  catShade(catBed !== CAT_BEDS.desk, 0);
+  catShade(catBed !== CAT_BEDS.desk && !catBed.lit, 0);
   catBed.parent.add(cat);
   cat.position.copy(catBed.position);
   cat.rotation.y = catBed.yaw;
@@ -269,15 +272,27 @@ export function createCat(runtime) {
       .call(() => sfx.catLand({ strength: 0.2 }))
       .to(cat.scale, { y: CAT_SCALE, duration: 0.35, ease: "elastic.out(1.2, 0.4)" });
   }
-  // Out from under the desk first, when that's where she is
+  // Bounds from point to point, each facing the way she's going (she faces +x)
+  function catAlong(tl, points) {
+    points.forEach((p, i) => {
+      const [a, b] = i ? [points[i - 1], p] : [p, points[1] ?? p];
+      catHop(tl, p, Math.atan2(a.z - b.z, b.x - a.x), 0.6);
+    });
+  }
+  // Out from under the desk first, when that's where she is; down the cat tree the way she
+  // went up
   function catLeave(tl) {
-    if (catBed.via) catHop(tl, catBed.via, 0.6, 0.3);
+    if (catBed.path) catAlong(tl, [...catBed.path].reverse());
+    else if (catBed.via) catHop(tl, catBed.via, 0.6, 0.3);
   }
   // Settle into a bed: hop there (by way of the front of the desk for the floor), turn round
   // once and curl up
   function catToBed(tl, bed) {
     const target = bed.parent.localToWorld(bed.position.clone());
-    if (bed.via) {
+    if (bed.path) {
+      catAlong(tl, bed.path);
+      catHop(tl, target, worldYaw(bed.parent) + bed.yaw, 0.3);
+    } else if (bed.via) {
       catHop(tl, bed.via, worldYaw(bed.parent) + bed.yaw);
       catHop(tl, target, worldYaw(bed.parent) + bed.yaw, 0.3);
     } else catHop(tl, target, worldYaw(bed.parent) + bed.yaw);
@@ -288,7 +303,7 @@ export function createCat(runtime) {
         cat.position.copy(bed.position);
         cat.rotation.set(0, bed.yaw, 0);
         catBed = bed;
-        catShade(bed !== CAT_BEDS.desk);
+        catShade(bed !== CAT_BEDS.desk && !bed.lit);
       });
   }
   // Where she belongs right now: the desk at night, unless the case files are open on it (then
@@ -314,6 +329,23 @@ export function createCat(runtime) {
       catToBed(tl, bed);
     };
     go();
+  }
+  // Called up to the cat tree (its pom-pom swatted): she wakes, chirps and goes, unless she's
+  // already up there or in the middle of something she can't drop
+  function catToTree() {
+    catInterrupt();
+    if (catBusy || catBed === CAT_BEDS.tree) return;
+    catBusy = true;
+    const tl = gsap.timeline({ delay: 0.2, onComplete: () => (catBusy = false, catTravel = null) });
+    catTravel = tl;
+    tl.call(() => {
+      catPose(true);
+      sfx.meow({ short: true });
+      catSay("!!");
+    });
+    tl.to({}, { duration: 0.4 });
+    catLeave(tl);
+    catToBed(tl, CAT_BEDS.tree);
   }
   // Off the desk before a case file comes out, whatever she's doing: a move or a fidget is cut
   // short, she jumps down to the rug under the desk, and `then` runs as she leaves the desk.
@@ -910,6 +942,7 @@ export function createCat(runtime) {
     catSpotsMouse,
     catShoo,
     catSettle,
+    catToTree,
     get catIdleTl() { return catIdleTl; },
     get catBusy() { return catBusy; },
     updateCatWatch,

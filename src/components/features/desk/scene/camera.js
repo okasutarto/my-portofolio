@@ -108,7 +108,9 @@ export function createCamera(runtime) {
       monitor.localToWorld(screenPos.set(0, SCREEN_Y - 0.6, 0.09));
       monitor.getWorldDirection(screenNormal);
       screenNormal.y += 0.12;
-      return { target: screenPos.toArray(), dir: screenNormal.toArray(), fit: [13, 8.6] };
+      // on a portrait screen the width is what's short, so the frame closes in on the monitor
+      const portrait = runtime.options.container.clientWidth < runtime.options.container.clientHeight;
+      return { target: screenPos.toArray(), dir: screenNormal.toArray(), fit: portrait ? [6.6, 8.6] : [13, 8.6] };
     },
     keyboard: () => ({ target: [runtime.keyboard.keyboard.position.x, 0.3 * runtime.keyboard.KEYBOARD_SCALE, runtime.keyboard.keyboard.position.z], dir: [0.1, 1, 0.75], fit: [5.4 * runtime.keyboard.KEYBOARD_SCALE, 2.6 * runtime.keyboard.KEYBOARD_SCALE] }),
     // A higher angle pushes the plant above the frame and leaves room for the sip quote.

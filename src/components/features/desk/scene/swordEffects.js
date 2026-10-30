@@ -20,6 +20,9 @@ export function createSwordEffects(runtime) {
   haki.raycast = runtime.core.noRaycast;
   haki.renderOrder = 11;
   haki.visible = false;
+  // Kept a touch under full strength and height, so the blade still reads through it
+  const HAKI_PEAK = 0.7;
+  const HAKI_HEIGHT = 0.85;
   // Hovered, Enma leaks a little of its Haki: a faint aura breathing round the bare steel
   // between the guard and the saya's mouth as it slides part way out, gone again when the
   // pointer leaves (a strike takes over from there)
@@ -32,11 +35,11 @@ export function createSwordEffects(runtime) {
     }
     sword.bladeGroup.add(haki);
     haki.position.set(HOVER_BARE / 2, runtime.swordRack.bow(HOVER_BARE / 2) + 0.01, 0);
-    haki.scale.set(HOVER_BARE * 1.6, 0.6, 1);
+    haki.scale.set(HOVER_BARE * 1.6, 0.6 * HAKI_HEIGHT, 1);
     haki.visible = true;
     // in as the blade comes out of the mouth, then breathing
-    gsap.fromTo(haki.material, { opacity: 0 }, { opacity: 1, duration: 0.4, delay: 0.3, ease: "sine.out" });
-    gsap.to(haki.scale, { y: 0.78, duration: 0.8, yoyo: true, repeat: -1, ease: "sine.inOut", delay: 0.3 });
+    gsap.fromTo(haki.material, { opacity: 0 }, { opacity: HAKI_PEAK, duration: 0.4, delay: 0.3, ease: "sine.out" });
+    gsap.to(haki.scale, { y: 0.78 * HAKI_HEIGHT, duration: 0.8, yoyo: true, repeat: -1, ease: "sine.inOut", delay: 0.3 });
   }
   const tipAt = new THREE.Vector3();
   const shoutTex = canvasTexture(640, 320);
@@ -537,13 +540,13 @@ export function createSwordEffects(runtime) {
       // the aura rises off the blade as it's drawn, flickering, and fades as it's sheathed
       sword.bladeGroup.add(haki);
       haki.position.set(runtime.swordRack.BLADE_L / 2 + 0.05, runtime.swordRack.bow(runtime.swordRack.BLADE_L / 2) + 0.02, 0);
-      haki.scale.set(runtime.swordRack.BLADE_L * 1.35, 0.75, 1);
+      haki.scale.set(runtime.swordRack.BLADE_L * 1.35, 0.75 * HAKI_HEIGHT, 1);
       haki.visible = true;
       // it swells in, then breathes slowly while the sword is out
       gsap.killTweensOf([haki.material, haki.scale]);
-      gsap.fromTo(haki.material, { opacity: 0 }, { opacity: 1, duration: 0.7, delay: 0.2, ease: "sine.out" });
-      gsap.fromTo(haki.scale, { y: 0.55 }, { y: 0.95, duration: 0.7, delay: 0.2, ease: "sine.out" });
-      gsap.to(haki.scale, { y: 0.8, x: runtime.swordRack.BLADE_L * 1.28, duration: 0.65, yoyo: true, repeat: 3, ease: "sine.inOut", delay: 0.9 });
+      gsap.fromTo(haki.material, { opacity: 0 }, { opacity: HAKI_PEAK, duration: 0.7, delay: 0.2, ease: "sine.out" });
+      gsap.fromTo(haki.scale, { y: 0.55 * HAKI_HEIGHT }, { y: 0.95 * HAKI_HEIGHT, duration: 0.7, delay: 0.2, ease: "sine.out" });
+      gsap.to(haki.scale, { y: 0.8 * HAKI_HEIGHT, x: runtime.swordRack.BLADE_L * 1.28, duration: 0.65, yoyo: true, repeat: 3, ease: "sine.inOut", delay: 0.9 });
     }
     // Drawn along the saya's curve, swung free of it, then slid back in along the same curve
     const tl = gsap.timeline({
@@ -690,9 +693,9 @@ export function createSwordEffects(runtime) {
     // Left of the rack, level with the sword
     runtime.swordRack.katanaRack.getWorldPosition(swordCardAt);
     sword.tierGroup.getWorldPosition(swordCard.position);
-    // (the card's art starts at the top of its canvas, so the sprite sits a little low to put
-    // the card itself level with the sword)
-    swordCard.position.set(swordCardAt.x - (runtime.swords.SWORD_SPAN / 2) * runtime.swordRack.KATANA_SCALE - SWORD_CARD.w / 2 - 0.25, swordCard.position.y - 0.25, swordCardAt.z + 0.8);
+    // (the card's art starts at the top of its canvas, so the sprite's centre sits above the
+    // sword's height to put the card itself a little above it, and a little clear to its left)
+    swordCard.position.set(swordCardAt.x - (runtime.swords.SWORD_SPAN / 2) * runtime.swordRack.KATANA_SCALE - SWORD_CARD.w / 2 - 0.55, swordCard.position.y + 0.45, swordCardAt.z + 0.8);
     gsap.fromTo(swordCard.scale, { x: SWORD_CARD.w * 0.85, y: SWORD_CARD.h * 0.85 }, { x: SWORD_CARD.w, y: SWORD_CARD.h, duration: 0.3, ease: "back.out(2)", overwrite: true });
   }
   function hideSwordCard() {

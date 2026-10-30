@@ -34,7 +34,8 @@ export function createShelf(runtime) {
   // The back panel and the shelves' front lips share the oak grain, toned a little deeper
   const shelfBackMat = runtime.core.toon("#d9a878");
   shelfBackMat.map = shelfWood.texture;
-  const shelfBack = runtime.core.mesh(runtime.core.rbox(SHELF_W, SHELF_H, 0.12, 0.03), shelfBackMat, { outline: 0.04 });
+  // (between the side panels, like the shelves, so its ends don't flicker on their outer faces)
+  const shelfBack = runtime.core.mesh(runtime.core.rbox(SHELF_W - BOARD * 2 + 0.02, SHELF_H, 0.12, 0.03), shelfBackMat, { outline: 0.04 });
   shelfBack.position.set(0, SHELF_H / 2, -SHELF_D / 2 + 0.06);
   shelf.add(shelfBack);
   // Bay heights follow their contents: 1.78 for the cases, 1.72 for the manga and trophy, and
@@ -61,7 +62,9 @@ export function createShelf(runtime) {
   glowTex.ctx.globalCompositeOperation = "source-over";
   const shelfLeds = [];
   LEVELS.forEach((y, i) => {
-    const board = runtime.core.mesh(runtime.core.rbox(SHELF_W, BOARD, SHELF_D, 0.04), shelfMat, { outline: 0.045 });
+    // Fitted between the side panels, its ends a hair into them: run out to the panels' outer
+    // faces, the two shared a plane there and flickered over each other
+    const board = runtime.core.mesh(runtime.core.rbox(SHELF_W - BOARD * 2 + 0.02, BOARD, SHELF_D, 0.04), shelfMat, { outline: 0.045 });
     board.position.y = y;
     const lip = runtime.core.mesh(runtime.core.rbox(SHELF_W - BOARD * 2, BOARD + 0.06, 0.08, 0.02), lipMat, { outline: 0.02 });
     lip.position.set(0, y, SHELF_D / 2 - 0.02);

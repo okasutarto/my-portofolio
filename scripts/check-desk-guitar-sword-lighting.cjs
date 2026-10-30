@@ -21,9 +21,16 @@ const daylight = vm.runInNewContext('(' + source.slice(source.indexOf('  const D
 const dayFill = daylight.day.ambient + daylight.day.skyPower;
 const ambient = { intensity: daylight.day.ambient };
 const skyFill = { intensity: daylight.day.skyPower };
+const monitor = new THREE.Group();
+const panel = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+const halo = new THREE.Sprite(new THREE.SpriteMaterial());
+const hiddenPart = panel.clone();
+hiddenPart.visible = false;
+const monitorLight = new THREE.PointLight();
+monitor.add(panel, halo, hiddenPart, monitorLight);
 const context = vm.createContext({
   THREE, scene, katanaRack, track: value => value, noRaycast() {},
-  aoPass: { overrideVisibility() {} }, gauntlet: new THREE.Group(), nintendoSwitch: new THREE.Group(), focus: { name: 'swords' },
+  monitor, aoPass: { overrideVisibility() {} }, gauntlet: new THREE.Group(), nintendoSwitch: new THREE.Group(), focus: { name: 'swords' },
   camera: new THREE.PerspectiveCamera(), screenAxis: new THREE.Vector3(),
   DAYLIGHT: daylight, ambient, skyFill,
 });
@@ -32,6 +39,9 @@ const end = source.indexOf("  // The rack's own close-up:", start);
 vm.runInContext(source.slice(start, end), context);
 const run = code => vm.runInContext(code, context);
 run('updateSpotlight(10)');
+assert.equal(panel.visible, false, 'sword close-up hides the monitor');
+assert.equal(halo.visible, false, 'monitor overlays also hide');
+assert.equal(monitorLight.visible, true, 'monitor lighting remains in the shader layout');
 const light = run('swordSpotlight');
 const key = run('SWORD_KEY');
 assert.ok(light.isSpotLight);
@@ -72,7 +82,11 @@ assert.ok(light.intensity < 1e-10);
 light.shadow.needsUpdate = false;
 run('updateSpotlight(0.05)');
 assert.equal(light.shadow.needsUpdate, false, 'inactive focus leaves the shadow map cached');
+assert.equal(panel.visible, true, 'leaving swords restores the monitor');
+assert.equal(halo.visible, true, 'leaving swords restores monitor overlays');
+assert.equal(hiddenPart.visible, false, 'previously hidden monitor parts stay hidden');
 context.focus.name = 'swords';
 run('updateSpotlight(0.05)');
+assert.equal(panel.visible, false, 'returning to swords hides the monitor again');
 assert.equal(light.shadow.needsUpdate, true, 'returning to the rack refreshes the shadow map');
 console.log('Guitar strings and independent sword spotlight checks passed.');

@@ -7,8 +7,11 @@ import { drawAboutBoard, drawAboutNote } from "../textures";
 export function createAboutBoard(runtime) {
   // ---------- pinned About board, matching the 2D sticker board ----------
   const aboutBoard = new THREE.Group();
-  // Above the full-size monitor, with every note visible from the overview
-  aboutBoard.position.set(4.6, 8.4, runtime.room.WALL_Z + 0.3); // on the wall: WALL_Z + 0.3
+  // Well to the right of the shelf, its bottom edge level with the painting's, with the badge still hanging from its corner
+  aboutBoard.position.set(19.3, 10.24, runtime.room.WALL_Z + 0.3); // on the wall: WALL_Z + 0.3
+  // 20% larger than its 6.8 × 4.2 build, so the notes read from the overview
+  const BOARD_SCALE = 1.2;
+  aboutBoard.scale.set(BOARD_SCALE, BOARD_SCALE, 1);
   // Kept out of the scene, not just invisible, while hidden, so its notes can't be hovered or
   // clicked
   const SHOW_BOARD = true;

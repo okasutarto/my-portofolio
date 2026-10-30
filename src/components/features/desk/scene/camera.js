@@ -34,7 +34,7 @@ export function createCamera(runtime) {
   const SHOTS = {
     // The camera sits inside the room, with no cutaway edges or outside backdrop; on a portrait
     // screen it stands back to take in the whole diorama instead.
-    overview: () => (runtime.room.diorama ? dioramaShot() : { target: [3.17, 7.8, 4.04], dir: [0.48, 0.72, 1], fit: [39.4, 23.1], depth: CAM_DISTANCE - 0.1 }),
+    overview: () => (runtime.room.diorama ? dioramaShot() : { target: [4.0, 5.3, 4.04], dir: [0.62, 0.72, 1], fit: [42, 23.1], depth: CAM_DISTANCE - 0.1 }),
     // Browse the tall collection in close-up, starting at the console and GAME ON sign.
     shelf: () => {
       const fit = [runtime.options.container.clientWidth < 900 ? 8.8 : 10.5, 7.2];
@@ -49,7 +49,7 @@ export function createCamera(runtime) {
     },
     // Clip only what's well in front of the wall (the monitor), not the board behind the badge
     hero: () => ({ target: [runtime.badge.badgePin.x, runtime.badge.badgePin.y - (runtime.badge.BADGE_PIN.y - runtime.badge.BADGE_CLIP.y) - 0.74, runtime.badge.BADGE_CLIP.z], dir: [0.06, 0.14, 1], fit: [1.5, 2.1], depth: 0.9 }),
-    about: () => ({ target: runtime.aboutBoard.aboutBoard.position.toArray(), dir: [0, 0.8, 1], fit: [7.3, 4.8] }),
+    about: () => ({ target: runtime.aboutBoard.aboutBoard.position.toArray(), dir: [0, 0.8, 1], fit: [8.75, 5.75] }),
     // The fan, or square on the pass being held up
     experience: () => {
       if (!runtime.tickets.heldTicket) {

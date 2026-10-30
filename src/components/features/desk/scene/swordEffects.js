@@ -763,7 +763,7 @@ export function createSwordEffects(runtime) {
   };
   const spotAt = new THREE.Vector3();
   const spotEdge = new THREE.Vector3();
-  // The gauntlet and the handheld under the rack are put away for the close-up. Only what they
+  // The monitor, gauntlet and handheld step aside for the sword close-up. Only what they
   // draw, like the lamp (see hideLamp): the stones' glow is a light, and a light leaving the
   // scene recompiles every lit shader
   let rackPropsHidden = false;
@@ -772,7 +772,7 @@ export function createSwordEffects(runtime) {
     if (hidden === rackPropsHidden) return;
     rackPropsHidden = hidden;
     if (hidden) {
-      [runtime.gauntlet.gauntlet, runtime.handheld.nintendoSwitch].forEach((prop) => prop.traverse((o) => {
+      [runtime.gauntlet.gauntlet, runtime.handheld.nintendoSwitch, runtime.workstation.monitor].forEach((prop) => prop.traverse((o) => {
         // (the stones' halos are sprites)
         if (!o.isMesh && !o.isSprite) return;
         rackPropsShown.set(o, o.visible);

@@ -9,7 +9,7 @@ export function createShelf(runtime) {
   // Bottom to top: game cases and a robot, then manga and a trophy, then a console with
   // stacked controllers under its neon sign. Click anything on it for a little hop.
   const shelf = new THREE.Group();
-  // Clear of the About board on the wall (it spans x 1.2–8.0)
+  // Clear of the About board on the wall (it now hangs to the right, spanning x 15.2–23.4)
   // Full-size 61 × 30 × 132 cm shelving; its contents share the same scale.
   shelf.scale.setScalar(2);
   // Just right of the desk, far enough out that it doesn't hide the plant in the desk's back corner

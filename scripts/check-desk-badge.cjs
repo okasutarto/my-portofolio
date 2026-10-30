@@ -42,7 +42,7 @@ vm.runInContext('moveLanyard({ index: 0 }, { x: 100, y: 100 });', context);
 update();
 assert.equal(state().strapPin.position.x, state().badgePin.x);
 assert.equal(state().rope[0].x, state().badgePin.x);
-assert.ok(state().badgePin.x <= 8, 'pin stays within board bounds');
+assert.ok(state().badgePin.x <= 23.4 && state().badgePin.x >= 14.1, 'pin stays within relocated board bounds');
 vm.runInContext('flipBadge(true)', context);
 assert.equal(state().badgeFlipped, true);
 assert.ok(state().badgeFront.position.z > 0.0325 && state().badgeBack.position.z < -0.0325, 'print clears both holder faces');

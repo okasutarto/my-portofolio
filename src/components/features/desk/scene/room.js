@@ -538,6 +538,12 @@ export function createRoom(runtime) {
     m.onAfterRender = restoreDraw;
     return m;
   };
+  // The cookie's soft edge can spill beyond the opening. The wall must also block the
+  // window light physically, including above the frame at midday. Keep its shadow geometry
+  // separate: the shadow-only callbacks change its draw range.
+  const windowWallShadow = windowShadow(runtime.core.track(sideWallGeo.clone()));
+  windowWallShadow.position.copy(sideWall.position);
+  room.add(windowWallShadow);
   // Each leaf's wood shadows the beam from the leaf, swinging with it; the middle post stays
   const shadowFrom = (shape) => runtime.core.at(windowShadow(runtime.core.track(new THREE.ShapeGeometry(shape))), 0, 0, -0.13);
   LEAVES.forEach(({ outer }, leaf) => onLeaf(leaf, shadowFrom(cutOut(outer, leafPanes(leaf)))));

@@ -15,6 +15,7 @@ const apply = (target, values) => {
 const { mergeGeometries } = require('three/examples/jsm/utils/BufferGeometryUtils.js');
 const context = vm.createContext({ THREE, mergeGeometries, room, scene, FLOOR_Y: -7.4, SIDE_X: -9.6, WALL_Z: -4.9,
   WINDOW_AT: vm.runInNewContext('(' + source.match(/const WINDOW_AT = ([^;]+);/)[1] + ')'),
+  sideWallMat: material,
   DEFAULT_WOODS: {}, dark: false, time: 'day', previewRain: 0, previewTime: null,
   partFor: () => 'day', windowSky: () => ({}),
   canvasTexture: () => ({ texture: new THREE.Texture(), ctx: new Proxy({}, {
@@ -31,9 +32,19 @@ const context = vm.createContext({ THREE, mergeGeometries, room, scene, FLOOR_Y:
   sfx: { tick() {}, clockStrike() {} }, discover() {},
 });
 vm.runInContext(source.slice(source.indexOf('  const GLASS ='), source.indexOf('  const wallShape')).replace(/const /g, 'var '), context);
+vm.runInContext(source.slice(source.indexOf('  const wallShape ='), source.indexOf('  fullRoom.push(', source.indexOf('  const wallShape ='))), context);
 vm.runInContext(source.slice(source.indexOf('  const windowGroup ='), source.indexOf('  // ---------- a roller blind')) +
   '\nvar windowModel = { windowGroup, windowFrame, sill };', context);
 const { windowGroup, windowFrame, sill } = context.windowModel;
+const wallBlocker = vm.runInContext('windowWallShadow', context);
+const wallMesh = vm.runInContext('sideWall', context);
+assert.notEqual(wallBlocker.geometry, wallMesh.geometry, 'shadow callbacks never change the visible wall draw range');
+assert.ok(wallBlocker.castShadow && wallBlocker.position.equals(wallMesh.position), 'the window light is occluded by the actual wall opening');
+wallBlocker.updateMatrixWorld(true);
+wallBlocker.raycast = THREE.Mesh.prototype.raycast;
+const rayAt = y => new THREE.Raycaster(new THREE.Vector3(-15, y, context.WINDOW_AT.z), new THREE.Vector3(1, 0, 0)).intersectObject(wallBlocker).length;
+assert.ok(rayAt(context.WINDOW_AT.y + context.WINDOW_AT.h / 2 + 0.1), 'wall above the window blocks light');
+assert.equal(rayAt(context.WINDOW_AT.y), 0, 'the glass opening still admits light');
 scene.updateMatrixWorld(true);
 const bounds = obj => new THREE.Box3().setFromObject(obj, true);
 const near = (a, b, label) => assert.ok(Math.abs(a - b) < 1e-5, label);
@@ -47,12 +58,12 @@ assert.ok(bounds(sill).min.y > 1.5, 'sill clears the desktop by at least 15 cm')
 vm.runInContext(source.slice(source.indexOf('  const clock ='), source.indexOf('  // The rug runs')) +
   '\nvar clockModel = { clock, clockMount, clockRim };', context);
 const { clock, clockMount, clockRim } = context.clockModel;
-assert.equal(clockMount.parent, null, 'clock stays hidden while the sword rack hangs in its place');
+assert.equal(clockMount.parent, room, 'clock stays mounted on the wall');
 // Measured where it would hang, ready for when it returns to the wall.
 clockMount.updateMatrixWorld(true);
 const clockBox = bounds(clockRim);
 near(clockBox.max.x - clockBox.min.x, 3, '30 cm clock diameter');
-near(clockBox.getCenter(new THREE.Vector3()).y + 7.4, 18, 'clock centre is 180 cm above floor');
+near(clockBox.getCenter(new THREE.Vector3()).y + 7.4, 20.0, 'clock centre is 200 cm above floor');
 handlers.get(clock).onClick();
 clockMount.updateMatrixWorld(true);
 near(bounds(clockRim).max.x - bounds(clockRim).min.x, 3, 'click animation restores the full-size clock');

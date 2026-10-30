@@ -406,7 +406,7 @@ export function createAnimation(runtime) {
   // compositor's thread, so the loader keeps moving and nothing compiles mid-visit. (Not
   // compileAsync: it waits on each material's latest program, and never settles if a material
   // is disposed meanwhile; the programs themselves are watched here, for a few seconds at most.)
-  function warmShaders() {
+  async function warmShaders() {
     const { renderer, scene, camera, composer } = runtime.core;
     const programs = new Set();
     const compile = (root) => renderer.compile(root, camera, scene).forEach((material) => {
@@ -416,13 +416,19 @@ export function createAnimation(runtime) {
     // the room lands in the composer's buffer (linear, untoned), the overlays on the canvas
     // (see renderFrame), and each gets its own program
     renderer.setRenderTarget(composer.readBuffer);
-    (decorShed ? [false] : [!decorWanted(), decorWanted()]).forEach((decor) => {
+    const variants = decorShed ? [false] : [!decorWanted(), decorWanted()];
+    for (const [index, decor] of variants.entries()) {
+      // Paint the status before a driver without parallel compilation blocks the page.
+      runtime.options.onEvent("shaders", { progress: index / variants.length });
+      await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+      if (runtime.core.destroyed) return;
       updateShadowBudget(decor);
       compile(scene);
-    });
+    }
     renderer.setRenderTarget(null);
     scene.traverse((o) => o.material?.depthTest === false && compile(o));
     // (without parallel compiling a program reports ready at once, and the first frame waits)
+    runtime.options.onEvent("shaders", { progress: 1 });
     const giveUpAt = performance.now() + 8000;
     return new Promise((resolve) => {
       const check = () => {

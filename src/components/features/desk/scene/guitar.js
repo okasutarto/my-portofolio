@@ -7,7 +7,7 @@ export function createGuitar(runtime) {
   // A guitar hanging on the left wall from a hook under its headstock. Click it for a strum;
   // it swings on the hook. Built standing up in its own plane, then turned to face the room.
   const guitar = new THREE.Group();
-  guitar.position.set(runtime.room.SIDE_X + 0.38, 4.95, 11.8); // raised and moved along with the window
+  guitar.position.set(runtime.room.SIDE_X + 0.38, 4.95, 14.0); // leave more wall between the body and the window
   // Approximately 100 cm from body to headstock.
   guitar.scale.setScalar(1.65);
   guitar.rotation.y = Math.PI / 2;

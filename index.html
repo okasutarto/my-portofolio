@@ -74,8 +74,8 @@
         #boot-loader .bl-log li { display: none; white-space: pre; }
         #boot-loader .bl-log li.is-on { display: block; }
         #boot-loader .bl-log .bl-cmd { color: #ff7a1a; }
-        #boot-loader .bl-log li[data-at]:not(.bl-cmd)::after { content: "..."; animation: bl-blink 1s steps(1) infinite; }
-        #boot-loader .bl-log li.is-ok:not(.bl-cmd)::after { content: "... ok"; animation: none; }
+        #boot-loader .bl-log li[data-at]:not(.bl-cmd)::after { content: "..."; animation: bl-blink 1s steps(1) infinite; will-change: opacity; }
+        #boot-loader .bl-log li.is-ok:not(.bl-cmd)::after { content: "... ok"; animation: none; will-change: auto; }
         #boot-loader .bl-hl { display: inline-block; margin: calc(-2.3 * var(--u)) 0 0 calc(-4.6 * var(--u)); padding: 0 calc(5.7 * var(--u)); background: #ffdd00; color: #000; font-weight: 800; font-size: calc(13.75 * var(--u)); line-height: calc(17.8 * var(--u)); }
         #boot-loader .bl-cursor::after { content: ""; display: inline-block; width: calc(7.4 * var(--u)); height: calc(13.75 * var(--u)); margin-left: calc(2.3 * var(--u)); vertical-align: calc(-2 * var(--u)); background: #8fd694; animation: bl-blink 1.06s steps(1) infinite; }
         #boot-loader .bl-tap { display: none; }
@@ -85,6 +85,9 @@
         #boot-loader.is-ready .bl-meter { display: none !important; }
         /* the enter button is for the keyboard and screen readers: the whole page takes the click */
         #boot-loader .bl-enter { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); border: 0; }
+        #boot-loader .bl-pct { display: inline-block; position: relative; }
+        #boot-loader .bl-pct::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: #8fd694; transform-origin: left; animation: bl-working 1.2s ease-in-out infinite alternate; will-change: transform; }
+        @keyframes bl-working { from { transform: scaleX(.15); } to { transform: scaleX(1); } }
         @keyframes bl-blink { 50% { opacity: 0; } }
         @media (prefers-reduced-motion: reduce) { #boot-loader *, #boot-loader *::before, #boot-loader *::after { animation: none !important; transition: none !important; } }
       </style>
@@ -98,7 +101,7 @@
             <li class="bl-cmd is-on">&gt; boot the desk</li>
             <li class="is-on" data-at="0">loading the scene</li>
             <li data-at=".35">building the room</li>
-            <li data-at=".6">drawing it</li>
+            <li data-at=".6">drawing it · preparing shaders</li>
             <li data-at=".7">setting the light</li>
             <li class="bl-meter is-on">[<span class="bl-bar" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="6">-----------------</span>] <span class="bl-pct"><span>6</span>%</span></li>
             <li class="bl-ready"><span class="bl-hl"><span class="bl-press">PRESS ENTER TO COME IN</span><span class="bl-tap">TAP TO COME IN</span></span></li>

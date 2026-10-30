@@ -5,11 +5,11 @@ import { canvasTexture, drawBadge, drawGlassSheen } from "../textures";
 
 export function createBadge(runtime) {
   // ---------- ID badge on a lanyard, hung from a push pin on the About board's corner (hero) ----------
-  // The board is 6.8 × 4.2 centred at (4.6, 8.4) on the back wall: the pin sits in from its
+  // The board is 8.16 × 5.04 (scaled 1.2) centred at (19.3, 10.24) on the back wall: the pin sits in from its
   // top-left corner and the badge hangs down over the cork. Close up, the camera's near
   // plane cuts away the monitor in front of it (see the hero shot's depth).
-  const BADGE_PIN = new THREE.Vector3(1.65, 10.05, runtime.room.WALL_Z + 0.48);
-  const BADGE_CLIP = new THREE.Vector3(1.65, 8.35, runtime.room.WALL_Z + 0.58); // straight below the pin: the rope's resting shape
+  const BADGE_PIN = new THREE.Vector3(15.76, 12.22, runtime.room.WALL_Z + 0.48);
+  const BADGE_CLIP = new THREE.Vector3(15.76, 10.18, runtime.room.WALL_Z + 0.58); // straight below the pin: the rope's resting shape
   // Shown with the About board it hangs from. While hidden, its parts stay out of the scene,
   // not just invisible, so the lanyard can't be hovered, grabbed or clicked.
   const SHOW_BADGE = true;
@@ -37,7 +37,7 @@ export function createBadge(runtime) {
   strapMat.map = strapWeave.texture;
   // Where the pin is now: drag it to re-pin the badge anywhere on this stretch of wall
   const badgePin = BADGE_PIN.clone();
-  const PIN_BOUNDS = { minX: 0.3, maxX: 8.0, minY: 4.9 + runtime.room.WALL_LIFT, maxY: 9.0 + runtime.room.WALL_LIFT };
+  const PIN_BOUNDS = { minX: 14.1, maxX: 23.4, minY: 6.04 + runtime.room.WALL_LIFT, maxY: 10.94 + runtime.room.WALL_LIFT };
   // A strap point (or the pin, index 0) held by the pointer: { index, x, y }
   let ropeHold = null;
   // The strap is a little verlet rope: a chain of points from the pin to the badge's clip,

@@ -356,6 +356,7 @@ function onEvent(name, payload = {}) {
   // see the scene's probe). Once ready the loader asks the visitor in, and the intro waits.
   // Without a loader (the desk was reached from another page) there's nothing to wait for.
   if (name === "drawn") bootLoaderShowing() ? setBootProgress(0.7) : enterDesk();
+  else if (name === "shaders") setBootProgress(0.6 + 0.08 * payload.progress);
   else if (name === "loading") setBootProgress(0.7 + 0.3 * payload.progress);
   // With the loader up, the room goes dark behind it, close on the monitor, and the loader's
   // screen hands over to the monitor's

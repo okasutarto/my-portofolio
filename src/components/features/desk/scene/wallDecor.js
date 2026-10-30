@@ -8,7 +8,7 @@ export function createWallDecor(runtime) {
   const clock = new THREE.Group();
   // Lined up over the monitor as seen from the desk view
   // Low enough that its top stays in frame on wide, short screens
-  clock.position.set(-0.9, 10.6, runtime.room.WALL_Z + 0.25); // midway between the painting and the board
+  clock.position.set(11.05, 12.6, runtime.room.WALL_Z + 0.25); // centred over the shelf, well above the gauntlet
   const clockMount = new THREE.Group();
   clockMount.position.copy(clock.position).add(new THREE.Vector3(0, 0.78, 0));
   clock.position.set(0, -0.78, 0);
@@ -17,7 +17,7 @@ export function createWallDecor(runtime) {
   const SHOW_CLOCK = true;
   if (SHOW_CLOCK) runtime.room.room.add(clockMount);
   const CLOCK_SCALE = 30 / 18;
-  clock.scale.setScalar(CLOCK_SCALE); // 30 cm diameter; centre 180 cm above the floor.
+  clock.scale.setScalar(CLOCK_SCALE); // 30 cm diameter; centre 200 cm above the floor.
   const clockRim = runtime.core.mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.15, 48), runtime.core.toon("#7fb2ff"), { outline: 0.06 });
   clockRim.rotation.x = Math.PI / 2;
   // a rolled bezel round the glass
@@ -117,7 +117,7 @@ export function createWallDecor(runtime) {
   // short screens
   // Centred level with the About board (y 8.4), scaled up as a whole with its nail and wire
   const PAINTING_SCALE = 1.3;
-  paintingHang.position.set(-5.9, 8.4 + PAINTING_DROP * PAINTING_SCALE, runtime.room.WALL_Z + 0.24);
+  paintingHang.position.set(-5.9, 9.6 + PAINTING_DROP * PAINTING_SCALE, runtime.room.WALL_Z + 0.24);
   paintingHang.scale.setScalar(PAINTING_SCALE);
   const SHOW_PAINTING = true;
   if (SHOW_PAINTING) runtime.room.room.add(paintingHang);

@@ -28,9 +28,9 @@ export function createCat(runtime) {
     FUR_MATS.forEach((mat) => gsap.to(mat, { emissiveIntensity: inShade ? 0.38 : 0, duration, overwrite: true }));
   }
   const catInk = runtime.core.toon("#1a1714");
-  // Modelled about 2.7 units nose to tail when curled; at 1 unit = 10 cm this makes her a grown
-  // cat, some 38 cm curled up and 25 cm at the shoulder, not a kitten beside the keyboard
-  const CAT_SCALE = 1.4;
+  // Modelled about 2.7 units nose to tail when curled; at 1 unit = 10 cm this makes her a kitten
+  // of a few months, some 27 cm curled up and 18 cm at the shoulder
+  const CAT_SCALE = 1.0;
   const cat = new THREE.Group();
   cat.scale.setScalar(CAT_SCALE);
   const catBody = new THREE.Group();
@@ -826,7 +826,7 @@ export function createCat(runtime) {
     catHead.getWorldPosition(catBubbleAt);
     catBubbleRight.set(1, 0, 0).applyQuaternion(runtime.core.camera.quaternion);
     catBubbleUp.set(0, 1, 0).applyQuaternion(runtime.core.camera.quaternion);
-    catBubbleAt.addScaledVector(catBubbleUp, 1.0).addScaledVector(catBubbleRight, 0.15);
+    catBubbleAt.addScaledVector(catBubbleUp, 0.7 * CAT_SCALE).addScaledVector(catBubbleRight, 0.15);
     catBubbleTip.lerp(catBubbleAt, blend);
     catBubbleHolder.position.copy(catBubbleTip)
       .addScaledVector(catBubbleRight, (0.5 - CAT_TIP_X) * CAT_BUBBLE_W * k)

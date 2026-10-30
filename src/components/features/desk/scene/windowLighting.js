@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import gsap from "gsap";
 import { sfx } from "@/composables/useSfx";
+import { Pass, FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
 import { canvasTexture } from "../textures";
 import { lowPower } from "../sceneConfig";
 
@@ -87,53 +88,187 @@ export function createWindowLighting(runtime) {
   }
 
   // The beam through the window: a soft shaft of light in the air, from the glass into the room
-  // along the light's own path, with dust drifting in it. A fake volume (four faint additive
-  // sides, bright at the glass and fading out along the beam and toward its edges) and a few
-  // dozen motes cost two draws, against a raymarched one's full-screen pass. It takes the
-  // window light's colour and strength, keeps to the part of the glass the blind leaves open,
-  // and thins out in the rain.
+  // along the light's own path, bright at the glass and fading out along the beam and toward its
+  // edges, with dust drifting in it. It takes the window light's colour and strength, keeps to
+  // the part of the glass the blind leaves open, and thins out in the rain.
+  // Whatever stands in the room in the beam (the chair, the cat) shades the glow and the dust
+  // behind it, as it does the sunlight on the surfaces: each point of the beam looks itself up
+  // in the window light's shadow map. A few taps soften the edge, as the air in a real beam's
+  // shadow isn't cut quite clean.
+  // Only what's in the room counts. The window's frame, the wall round it and the blind already
+  // shape the beam, and the beam's edges run right along their shadow's edge: there the map's
+  // texels stretched into a sawtooth. So anything within BEAM_SKIP of the glass, along
+  // each point's own ray, is passed over. And a surface the beam lies on (the wall, the sill) is
+  // at the beam's own depth to within a texel's slant, which striped it: BEAM_BIAS keeps a point
+  // from shading itself (about 3 cm: the map's depth runs some 0.025 to a unit, 140-odd units out)
+  const BEAM_SKIP = 1.5;
+  const BEAM_BIAS = 0.0075;
+  const beamShadow = {
+    beamShadowMap: { value: null },
+    beamShadowMatrix: { value: new THREE.Matrix4() },
+    beamShadowTexel: { value: new THREE.Vector2() },
+    beamShadowOn: { value: 0 },
+    beamGlassPoint: { value: new THREE.Vector3() },
+    beamGlassNormal: { value: new THREE.Vector3() },
+    beamDir: { value: new THREE.Vector3() },
+  };
+  const BEAM_LIT = `
+    #include <packing>
+    #ifndef BEAM_TAPS
+    #define BEAM_TAPS 5
+    #endif
+    uniform sampler2D beamShadowMap;
+    uniform mat4 beamShadowMatrix;
+    uniform vec2 beamShadowTexel;
+    uniform float beamShadowOn;
+    uniform vec3 beamGlassPoint;
+    uniform vec3 beamGlassNormal;
+    uniform vec3 beamDir;
+    float beamLit(vec3 world) {
+      if (beamShadowOn < 0.5) return 1.0;
+      vec4 s = beamShadowMatrix * vec4(world, 1.0);
+      vec3 c = s.xyz / s.w;
+      // outside the light's map (beyond the glass): nothing there to shade it
+      if (s.w <= 0.0 || c.x < 0.0 || c.x > 1.0 || c.y < 0.0 || c.y > 1.0 || c.z > 1.0) return 1.0;
+      // back along this point's ray to the glass, then ${BEAM_SKIP.toFixed(1)} into the room: the depth
+      // anything nearer the light than that (the window and its blind) is passed over at
+      float t = dot(world - beamGlassPoint, beamGlassNormal) / dot(beamDir, beamGlassNormal);
+      vec4 g = beamShadowMatrix * vec4(world - beamDir * (t - ${BEAM_SKIP.toFixed(1)}), 1.0);
+      float skip = g.z / g.w;
+      float lit = 0.0;
+      for (int i = 0; i < BEAM_TAPS; i++) {
+        vec2 o = i == 0 ? vec2(0.0) : vec2(i < 3 ? -1.5 : 1.5, i % 2 == 0 ? -1.5 : 1.5);
+        float d = unpackRGBAToDepth(texture2D(beamShadowMap, c.xy + o * beamShadowTexel));
+        lit += d < skip || c.z - ${BEAM_BIAS.toFixed(4)} <= d ? 1.0 : 0.0;
+      }
+      return lit / float(BEAM_TAPS);
+    }`;
   // Long enough to reach the desk or the floor from the top of the full-size window
   const SHAFT_LEN = 20;
-  const shaftGeo = runtime.core.track(new THREE.BufferGeometry());
-  const shaftPos = new THREE.BufferAttribute(new Float32Array(16 * 3), 3);
-  const shaftUv = new Float32Array(16 * 2);
-  for (let face = 0; face < 4; face++) {
-    // each side: its two glass corners (u 0 and 1) at the window (v 0), then out along the beam
-    [[0, 0], [1, 0], [0, 1], [1, 1]].forEach(([u, v], k) => shaftUv.set([u, v], (face * 4 + k) * 2));
-  }
-  shaftGeo.setAttribute("position", shaftPos);
-  shaftGeo.setAttribute("uv", new THREE.BufferAttribute(shaftUv, 2));
-  shaftGeo.setIndex([0, 1, 2, 2, 1, 3, 4, 5, 6, 6, 5, 7, 8, 9, 10, 10, 9, 11, 12, 13, 14, 14, 13, 15]);
-  const shaftMat = runtime.core.track(new THREE.ShaderMaterial({
-    uniforms: { color: { value: new THREE.Color() }, strength: { value: 0 } },
-    vertexShader: `
-      varying vec2 vUv;
-      void main() {
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }`,
+  // How bright a unit of lit air glows (to the beam's strength): about what the old sides gave
+  // looking straight through the beam's middle
+  const BEAM_GLOW = 0.3;
+  // The glow is worked out per pixel, at half the frame's size: along each line of sight, from
+  // where it enters the beam (the box the open glass sweeps along the light) to where it leaves
+  // it or meets the first solid surface in the frame's depth, adding up the light at points the
+  // sun reaches. So the air in front of the chair glows only as deep as it is, and nothing of the
+  // beam behind the chair shows through it. (Drawn as the beam's sides instead, each painted with
+  // the whole beam's depth, the glow lay over anything standing in the light.) One shadow tap a
+  // step: the steps' per-pixel offset softens the shadow's edge as the taps did.
+  const beamGlowMat = new THREE.ShaderMaterial({
+    defines: { STEPS: lowPower ? 8 : 16, BEAM_TAPS: 1 },
+    uniforms: {
+      tDepth: { value: null },
+      cameraWorld: { value: new THREE.Matrix4() },
+      projectionInverse: { value: new THREE.Matrix4() },
+      toBeam: { value: new THREE.Matrix4() },
+      // the open glass in the window's units: half its width, its bottom, its top
+      glass: { value: new THREE.Vector3() },
+      color: { value: new THREE.Color() },
+      strength: { value: 0 },
+      ...beamShadow,
+    },
+    vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
     fragmentShader: `
+      uniform sampler2D tDepth;
+      uniform mat4 cameraWorld;
+      uniform mat4 projectionInverse;
+      uniform mat4 toBeam;
+      uniform vec3 glass;
       uniform vec3 color;
       uniform float strength;
       varying vec2 vUv;
+      ${BEAM_LIT}
+      vec3 unproject(float depth) {
+        vec4 p = cameraWorld * projectionInverse * vec4(vec3(vUv, depth) * 2.0 - 1.0, 1.0);
+        return p.xyz / p.w;
+      }
       void main() {
-        // clamped: multisampling reads the uvs a little past a triangle's edge, and pow() of a
-        // negative is NaN, which comes out as a dark dashed line along the beam's edges
-        float along = pow(clamp(1.0 - vUv.y, 0.0, 1.0), 1.8);
-        float across = sin(3.14159265 * clamp(vUv.x, 0.0, 1.0));
-        gl_FragColor = vec4(color * strength * along * across * across, 1.0);
+        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+        // the line of sight, from the near plane to the first surface, in the world and in the
+        // beam's own space (x across the glass, y up it, z along the light from it)
+        vec3 a = unproject(0.0);
+        vec3 b = unproject(texture2D(tDepth, vUv).x);
+        vec3 ba = (toBeam * vec4(a, 1.0)).xyz;
+        vec3 bb = (toBeam * vec4(b, 1.0)).xyz;
+        vec3 lo = vec3(-glass.x, glass.y, 0.0);
+        vec3 hi = vec3(glass.x, glass.z, ${SHAFT_LEN.toFixed(1)});
+        vec3 d = bb - ba;
+        // (never exactly 0: a line of sight square to an axis divides by it)
+        d = mix(d, vec3(1e-6), step(abs(d), vec3(1e-6)));
+        vec3 t0 = (lo - ba) / d;
+        vec3 t1 = (hi - ba) / d;
+        vec3 enter = min(t0, t1);
+        vec3 leave = max(t0, t1);
+        float s0 = max(max(enter.x, enter.y), max(enter.z, 0.0));
+        float s1 = min(min(leave.x, leave.y), min(leave.z, 1.0));
+        if (s1 <= s0) return;
+        // each pixel's steps offset a little (interleaved gradient noise), so they don't band
+        float jitter = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+        float sum = 0.0;
+        for (int i = 0; i < STEPS; i++) {
+          float s = mix(s0, s1, (float(i) + jitter) / float(STEPS));
+          vec3 p = mix(ba, bb, s);
+          // clamped: pow() of a negative is NaN
+          float across = sin(3.14159265 * clamp((p.x - lo.x) / (hi.x - lo.x), 0.0, 1.0)) * sin(3.14159265 * clamp((p.y - lo.y) / (hi.y - lo.y), 0.0, 1.0));
+          float along = pow(clamp(1.0 - p.z / hi.z, 0.0, 1.0), 1.8);
+          sum += across * along * beamLit(mix(a, b, s));
+        }
+        // light per unit of air, times the depth of lit air passed through
+        gl_FragColor.rgb = color * strength * ${BEAM_GLOW.toFixed(2)} * sum / float(STEPS) * distance(a, b) * (s1 - s0);
       }`,
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    side: THREE.DoubleSide,
+  });
+  // Two passes. The glow goes into a buffer of its own straight after the room is drawn, while
+  // the room's depth is still whole: the composer's two buffers share one depth texture, so
+  // drawing into either while reading it is a feedback loop, and each one written lays its own
+  // (empty) depth over it, the occlusion's included. It's added onto the frame after the
+  // occlusion, which so leaves the light in the air undarkened.
+  const beamTarget = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: false });
+  const beamGlowQuad = new FullScreenQuad(beamGlowMat);
+  const beamGlowPass = new Pass();
+  beamGlowPass.needsSwap = false;
+  beamGlowPass.setSize = (width, height) => beamTarget.setSize(Math.max(1, Math.ceil(width / 2)), Math.max(1, Math.ceil(height / 2)));
+  beamGlowPass.render = (renderer, writeBuffer, readBuffer) => {
+    beamGlowMat.uniforms.tDepth.value = readBuffer.depthTexture;
+    beamGlowMat.uniforms.cameraWorld.value.copy(runtime.core.camera.matrixWorld);
+    beamGlowMat.uniforms.projectionInverse.value.copy(runtime.core.camera.projectionMatrixInverse);
+    renderer.setRenderTarget(beamTarget);
+    beamGlowQuad.render(renderer);
+  };
+  const beamAddMat = new THREE.ShaderMaterial({
+    uniforms: { tDiffuse: { value: null }, tGlow: { value: beamTarget.texture } },
+    vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+    fragmentShader: `
+      uniform sampler2D tDiffuse;
+      uniform sampler2D tGlow;
+      varying vec2 vUv;
+      void main() {
+        gl_FragColor = texture2D(tDiffuse, vUv) + vec4(texture2D(tGlow, vUv).rgb, 0.0);
+      }`,
+  });
+  const beamAddQuad = new FullScreenQuad(beamAddMat);
+  const beamAddPass = new Pass();
+  beamAddPass.render = (renderer, writeBuffer, readBuffer) => {
+    beamAddMat.uniforms.tDiffuse.value = readBuffer.texture;
+    renderer.setRenderTarget(beamAddPass.renderToScreen ? null : writeBuffer);
+    beamAddQuad.render(renderer);
+  };
+  [beamGlowPass, beamAddPass].forEach((pass) => (pass.dispose = () => {
+    beamTarget.dispose();
+    [beamGlowQuad, beamAddQuad, beamGlowMat, beamAddMat].forEach((part) => part.dispose());
   }));
-  const shaft = new THREE.Mesh(shaftGeo, shaftMat);
-  shaft.frustumCulled = false;
-  shaft.raycast = runtime.core.noRaycast;
-  runtime.core.scene.add(shaft);
+  // after the room, and after its occlusion (the room, then the occlusion, are the first two)
+  runtime.core.composer.insertPass(beamGlowPass, 1);
+  runtime.core.composer.insertPass(beamAddPass, 3);
+  const beamBasis = new THREE.Matrix4();
+  const beamAcross = new THREE.Vector3();
+  const beamUp = new THREE.Vector3();
+  const beamOrigin = new THREE.Vector3();
   // dust: points scattered through the beam (across, up, along), drifting slowly down it
   const MOTES = 60;
+  // Faint and small: specks you catch in the light, not sparks across it
+  const MOTE_PX = 3.5;
+  const MOTE_GLOW = 2.4;
   const moteAt = Array.from({ length: MOTES }, () => [Math.random(), Math.random(), Math.random(), Math.random() * Math.PI * 2]);
   const moteGeo = runtime.core.track(new THREE.BufferGeometry());
   const motePos = new THREE.BufferAttribute(new Float32Array(MOTES * 3), 3);
@@ -147,10 +282,34 @@ export function createWindowLighting(runtime) {
   moteGlow.addColorStop(1, "rgba(255,255,255,0)");
   moteDot.ctx.fillStyle = moteGlow;
   moteDot.ctx.fillRect(0, 0, 32, 32);
-  const motes = new THREE.Points(moteGeo, runtime.core.track(new THREE.PointsMaterial({
-    size: 5, sizeAttenuation: false, map: moteDot.texture, vertexColors: true,
-    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-  })));
+  // (as a PointsMaterial would draw them, MOTE_PX across whatever the screen's density, but each
+  // mote dark while it drifts through a shadow)
+  const moteMat = runtime.core.track(new THREE.ShaderMaterial({
+    uniforms: { size: { value: MOTE_PX }, map: { value: moteDot.texture }, ...beamShadow },
+    vertexShader: `
+      uniform float size;
+      varying vec3 vGlow;
+      ${BEAM_LIT}
+      void main() {
+        vGlow = color * beamLit(position);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = size;
+      }`,
+    fragmentShader: `
+      uniform sampler2D map;
+      varying vec3 vGlow;
+      void main() {
+        gl_FragColor = vec4(vGlow, texture2D(map, gl_PointCoord).a);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+    vertexColors: true,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  }));
+  const motes = new THREE.Points(moteGeo, moteMat);
+  motes.onBeforeRender = (renderer) => (moteMat.uniforms.size.value = MOTE_PX * renderer.getPixelRatio());
   motes.frustumCulled = false;
   motes.raycast = runtime.core.noRaycast;
   runtime.core.scene.add(motes);
@@ -178,7 +337,7 @@ export function createWindowLighting(runtime) {
   }
   // Up close at the window the camera stands in the beam itself, its sides rising off the
   // frame's edges straight at it, and they'd lay bright bands over the wood. A real beam
-  // seen from inside it, by the glass, shows nothing, so its sides fade out for the close-up
+  // seen from inside it, by the glass, shows nothing, so its glow fades out for the close-up
   // (the motes stay, drifting in the light).
   let shaftCloseUp = 0;
   let shaftAt = 0;
@@ -189,28 +348,33 @@ export function createWindowLighting(runtime) {
     // the open part of the glass, below the blind's bottom bar
     const top = Math.min(GLASS.y, runtime.windowBlind.bottomBar.position.y - runtime.windowBlind.BAR_H / 2);
     const strength = windowLight.intensity * 0.028 * (1 - 0.7 * runtime.room.outside.rain) * (1 - 0.75 * runtime.core.roomLight.night);
-    shaft.visible = motes.visible = top > -GLASS.y + 0.1 && strength > 0.002;
-    shaft.visible &&= shaftCloseUp < 0.99;
+    motes.visible = top > -GLASS.y + 0.1 && strength > 0.002;
+    beamGlowPass.enabled = beamAddPass.enabled = motes.visible && shaftCloseUp < 0.99;
     if (!motes.visible) return;
     // glass corners, clockwise from the bottom left as seen from the room, then the beam's way in
     [[-GLASS.x, -GLASS.y], [-GLASS.x, top], [GLASS.x, top], [GLASS.x, -GLASS.y]].forEach(([x, y], k) => runtime.room.windowGroup.localToWorld(shaftCorner[k].set(x, y, 0.12)));
     shaftInto.copy(windowRay).negate();
-    // Each edge of the beam stops where it meets the room: the back wall, the desk's top or the
-    // floor, whichever comes first, its glow already faded to nothing there. Run on through them,
-    // its sides cut across the wall as bright streaks no real beam leaves.
+    // How far the dust drifts: each edge of the beam stops where it meets the room, the back
+    // wall, the desk's top or the floor, whichever comes first
     shaftCorner.forEach((corner, k) => (shaftReach[k] = beamReach(corner)));
-    // the four sides: left, top, right, bottom; each one corner pair, near then far
-    [[0, 1], [1, 2], [2, 3], [3, 0]].forEach(([a, b], face) => {
-      const i = face * 4;
-      shaftPos.setXYZ(i, shaftCorner[a].x, shaftCorner[a].y, shaftCorner[a].z);
-      shaftPos.setXYZ(i + 1, shaftCorner[b].x, shaftCorner[b].y, shaftCorner[b].z);
-      shaftPos.setXYZ(i + 2, shaftCorner[a].x + shaftInto.x * shaftReach[a], shaftCorner[a].y + shaftInto.y * shaftReach[a], shaftCorner[a].z + shaftInto.z * shaftReach[a]);
-      shaftPos.setXYZ(i + 3, shaftCorner[b].x + shaftInto.x * shaftReach[b], shaftCorner[b].y + shaftInto.y * shaftReach[b], shaftCorner[b].z + shaftInto.z * shaftReach[b]);
-    });
-    shaftPos.needsUpdate = true;
+    // the beam's space for the glow: across and up the glass in the window's units, along the light
+    const frame = runtime.room.windowGroup.matrixWorld;
+    beamBasis.makeBasis(beamAcross.setFromMatrixColumn(frame, 0), beamUp.setFromMatrixColumn(frame, 1), shaftInto)
+      .setPosition(runtime.room.windowGroup.localToWorld(beamOrigin.set(0, 0, 0.12)));
+    beamGlowMat.uniforms.toBeam.value.copy(beamBasis).invert();
+    beamGlowMat.uniforms.glass.value.set(GLASS.x, -GLASS.y, top);
     shaftTint.copy(windowLight.color);
-    shaftMat.uniforms.color.value.copy(shaftTint);
-    shaftMat.uniforms.strength.value = strength * (1 - shaftCloseUp);
+    beamGlowMat.uniforms.color.value.copy(shaftTint);
+    beamGlowMat.uniforms.strength.value = strength * (1 - shaftCloseUp);
+    // the light's map appears once its shadow is first drawn (never, with shadows off)
+    const map = windowLight.shadow.map?.texture ?? null;
+    beamShadow.beamShadowMap.value = map;
+    beamShadow.beamShadowOn.value = map ? 1 : 0;
+    beamShadow.beamShadowMatrix.value.copy(windowLight.shadow.matrix);
+    beamShadow.beamShadowTexel.value.set(1 / windowLight.shadow.mapSize.x, 1 / windowLight.shadow.mapSize.y);
+    beamShadow.beamGlassPoint.value.copy(shaftCorner[0]);
+    beamShadow.beamGlassNormal.value.setFromMatrixColumn(runtime.room.windowGroup.matrixWorld, 2).normalize();
+    beamShadow.beamDir.value.copy(shaftInto);
     // motes: across the glass (u from left to right, w from bottom to top), drifting along the
     // beam and bobbing a little, brightest in its middle
     const t = now / 1000;
@@ -223,7 +387,7 @@ export function createWindowLighting(runtime) {
       const reach = THREE.MathUtils.lerp((shaftReach[0] + shaftReach[3]) / 2, (shaftReach[1] + shaftReach[2]) / 2, w);
       shaftPoint.addScaledVector(shaftInto, s * reach * 0.85);
       motePos.setXYZ(k, shaftPoint.x, shaftPoint.y, shaftPoint.z);
-      const glow = Math.sin(Math.PI * s) * Math.sin(Math.PI * u) * strength * 6 * (0.6 + 0.4 * Math.sin(t * 1.3 + phase * 3));
+      const glow = Math.sin(Math.PI * s) * Math.sin(Math.PI * u) * strength * MOTE_GLOW * (0.6 + 0.4 * Math.sin(t * 1.3 + phase * 3));
       moteCol.setXYZ(k, shaftTint.r * glow, shaftTint.g * glow, shaftTint.b * glow);
     });
     motePos.needsUpdate = true;

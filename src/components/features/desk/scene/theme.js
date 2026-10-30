@@ -186,6 +186,8 @@ export function createTheme(runtime) {
   let lightingTarget = captureLighting();
   let lightingFrom = lightingTarget;
   let lightingStarted = -Infinity;
+  // the window beam's aim when the change began, which it turns from
+  let lightingAimFrom = null;
   const LIGHTING_TRANSITION = 2000;
   const rainLightColor = new THREE.Color("#aab8cf");
   const dryWindowColor = runtime.windowLighting.windowLight.color.clone();
@@ -219,7 +221,7 @@ export function createTheme(runtime) {
     runtime.room.windowGlare.material.color.copy(glareDay).lerp(glareNight, night).multiplyScalar(1 - 0.4 * runtime.room.outside.rain * (1 - night));
     runtime.room.outside.sky = windowSky(runtime.room.dayPart(), runtime.room.outside.skyFrom, blend);
     if (lightingBlending) {
-      runtime.windowLighting.aimWindowLight(runtime.room.outside.sky.sun);
+      runtime.windowLighting.aimWindowLight(windowSky(runtime.room.dayPart()).sun, { aimFrom: lightingAimFrom, blend });
       runtime.lamp.lampLight.castShadow = true;
       if (progress === 1) {
         lightingBlending = false;
@@ -317,6 +319,7 @@ export function createTheme(runtime) {
     from.colors[lightingColors.indexOf(runtime.windowLighting.windowLight.color)].copy(dryWindowColor);
     rainScales.forEach((scale, i) => (from.values[i] /= scale));
     runtime.room.outside.skyFrom = runtime.room.outside.sky;
+    lightingAimFrom = { ...runtime.windowLighting.aimNow };
     const background = runtime.core.scene.background;
     const neonShadows = isDark || runtime.room.shadowedNeons.some((light) => light.castShadow);
     const lightbarPower = runtime.workstation.lightbarState.power;

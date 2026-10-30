@@ -59,8 +59,13 @@ export function createWindowLighting(runtime) {
     glassCookie.texture.needsUpdate = true;
     cookieRain = runtime.room.outside.rain;
   }
-  // `from`: normalized coordinates of the sun or moon in the painted window view.
-  function aimWindowLight(from) {
+  // `from`: normalized coordinates of the sun or moon in the painted window view. Between two
+  // parts of the day, `aimFrom` (the aim it had when the change began, see aimNow) and `blend`
+  // carry the beam straight across to where `from` will put it. Following the painted sun's
+  // place there instead, it overshot: the sun moves out toward the front before it's low enough
+  // for the sunset's shorter turn, so on the way to evening the beam swung out past the desk's
+  // front edge and back.
+  function aimWindowLight(from, { aimFrom = null, blend = 1 } = {}) {
     // The view's horizontal axis is window-local X (world -Z): the sun's place across the sky
     // turns the beam toward the back of the room in the morning and the front in the evening.
     // Its height in the painted sky sets a real elevation: low and slanting at sunrise (25°),
@@ -77,8 +82,10 @@ export function createWindowLighting(runtime) {
     // so the long evening streak lies across the desk instead of past its front edge
     const setting = from[0] > 0.5 ? THREE.MathUtils.smoothstep(v, SUN_ELEVATION[2][0], SUN_ELEVATION[3][0]) : 0;
     const across = (from[0] - 0.5) * 1.4 * THREE.MathUtils.lerp(1, 0.35, setting);
+    aimNow.elevation = aimFrom ? THREE.MathUtils.lerp(aimFrom.elevation, elevation, blend) : elevation;
+    aimNow.across = aimFrom ? THREE.MathUtils.lerp(aimFrom.across, across, blend) : across;
     runtime.room.windowGroup.updateWorldMatrix(true, false);
-    windowRay.set(across, Math.tan(elevation) * Math.hypot(1, across), -1)
+    windowRay.set(aimNow.across, Math.tan(aimNow.elevation) * Math.hypot(1, aimNow.across), -1)
       .transformDirection(runtime.room.windowGroup.matrixWorld);
     windowLight.position.copy(windowGlass).addScaledVector(windowRay, WINDOW_SUN_FAR);
     windowLight.target.position.copy(windowGlass).addScaledVector(windowRay, -1);
@@ -86,6 +93,8 @@ export function createWindowLighting(runtime) {
     windowLight.shadow.needsUpdate = true;
     drawGlassCookie();
   }
+  // The beam's aim as last set: its elevation, and how far it turns across the window
+  const aimNow = { elevation: 0, across: 0 };
 
   // The beam through the window: a soft shaft of light in the air, from the glass into the room
   // along the light's own path, bright at the glass and fading out along the beam and toward its
@@ -469,6 +478,7 @@ export function createWindowLighting(runtime) {
     toggleWindow,
     isWindowOpen: () => windowOpen,
     aimWindowLight,
+    aimNow,
     get cookieRain() { return cookieRain; },
     drawGlassCookie,
     updateShaft,

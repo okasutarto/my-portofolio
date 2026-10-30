@@ -13,6 +13,24 @@ export function createCamera(runtime) {
   // How far above the shelf's top board its close-up can look: the middle of the gauntlet and
   // the Switch standing on it
   const SHELF_TOP_LOOK = 2.4;
+  // The shelf's close-up clips what's in front of it, but the dumbbells on the floor at its
+  // front corner stand in frame: sliced through, a head showed the black inside of its outline.
+  // So the clip reaches past their front, lifted mid-rep (1.5 up) included.
+  const SHELF_DIR = [0.24, 0.1, 1];
+  const shelfNormal = new THREE.Vector3(...SHELF_DIR).normalize();
+  let gymBox = null;
+  const gymCorner = new THREE.Vector3();
+  function gymReach(target) {
+    if (!gymBox) {
+      gymBox = new THREE.Box3().setFromObject(runtime.gym.gym, true);
+      gymBox.max.y += 1.5;
+    }
+    let reach = 0;
+    for (const x of [gymBox.min.x, gymBox.max.x]) for (const y of [gymBox.min.y, gymBox.max.y]) for (const z of [gymBox.min.z, gymBox.max.z]) {
+      reach = Math.max(reach, gymCorner.set(x - target[0], y - target[1], z - target[2]).dot(shelfNormal));
+    }
+    return reach + 0.15;
+  }
   const SHOTS = {
     // The camera sits inside the room, with no cutaway edges or outside backdrop; on a portrait
     // screen it stands back to take in the whole diorama instead.
@@ -26,7 +44,8 @@ export function createCamera(runtime) {
       const top = Math.max(bottom, runtime.shelf.SHELF_H * runtime.shelf.shelf.scale.y + SHELF_TOP_LOOK, shelfTop - runtime.room.FLOOR_Y + 1.5 - visibleH / 2);
       const y = bottom + (runtime.shelf.shelfLook - 1.7) / 7.3 * (top - bottom);
       const xOffset = runtime.room.FLOOR_Y + y >= runtime.shelf.shelf.position.y + runtime.shelf.SHELF_H * runtime.shelf.shelf.scale.y + 0.4 ? 0.1 : 0.35;
-      return { target: [runtime.shelf.shelf.position.x + xOffset, runtime.room.FLOOR_Y + y, runtime.shelf.shelf.position.z], dir: [0.24, 0.1, 1], fit, depth: 3.2 };
+      const target = [runtime.shelf.shelf.position.x + xOffset, runtime.room.FLOOR_Y + y, runtime.shelf.shelf.position.z];
+      return { target, dir: SHELF_DIR, fit, depth: Math.max(3.2, gymReach(target)) };
     },
     // Clip only what's well in front of the wall (the monitor), not the board behind the badge
     hero: () => ({ target: [runtime.badge.badgePin.x, runtime.badge.badgePin.y - (runtime.badge.BADGE_PIN.y - runtime.badge.BADGE_CLIP.y) - 0.74, runtime.badge.BADGE_CLIP.z], dir: [0.06, 0.14, 1], fit: [1.5, 2.1], depth: 0.9 }),

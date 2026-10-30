@@ -136,14 +136,18 @@ export function createWindowBlind(runtime) {
     const drop = FULL_DROP + (MIN_DROP - FULL_DROP) * blind.lift;
     const radius = ROLL_CORE + ROLL_FULL * (1 - drop / FULL_DROP);
     roll.scale.set(1, radius, radius);
-    // hung from the roll's front, straight down to the bar
+    // hung from the roll's front, straight down to the bar. The window behind stops it, so the
+    // hem only ever swings out into the room (a positive sway would carry it in, and let well
+    // down even a small one put it through the glass): a swing back toward the glass bumps it
+    // and leaves it hanging straight.
+    const sway = Math.min(0, blind.sway);
     fabric.position.set(0, ROLL_Y, ROLL_Z + radius);
     fabric.scale.set(BLIND_W, drop, 1);
-    fabric.rotation.x = blind.sway;
+    fabric.rotation.x = sway;
     // the print stays put on the cloth, anchored at the hem, as it unrolls
     blindPrint.texture.repeat.y = drop / FABRIC_TILE;
-    bottomBar.position.set(0, ROLL_Y - drop * Math.cos(blind.sway), ROLL_Z + radius - drop * Math.sin(blind.sway));
-    bottomBar.rotation.x = blind.sway;
+    bottomBar.position.set(0, ROLL_Y - drop * Math.cos(sway), ROLL_Z + radius - drop * Math.sin(sway));
+    bottomBar.rotation.x = sway;
     // the chain runs down the front and up the back as the roll turns
     chainRun = ((drop * 3) % BEAD_GAP + BEAD_GAP) % BEAD_GAP;
     placeBeads();

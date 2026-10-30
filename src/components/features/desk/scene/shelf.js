@@ -109,7 +109,7 @@ export function createShelf(runtime) {
   }
   // A neon sign on the back panel above the console, in the top bay: "GAME ON" with a little controller. By
   // day its glass tubes sit unlit; at night it flickers on and glows
-  const NEON = { w: 1.3, h: 0.448 };
+  const NEON = { x: 0.22, w: 1.3, h: 0.448 };
   const neonSign = (lit) => {
     const t = canvasTexture(1160, 400);
     runtime.core.track(t.texture);
@@ -159,15 +159,16 @@ export function createShelf(runtime) {
   const neonOff = new THREE.Mesh(runtime.core.track(new THREE.PlaneGeometry(NEON.w, NEON.h)), runtime.core.track(new THREE.MeshBasicMaterial({ map: neonSign(false), transparent: true, depthWrite: false })));
   const neonOn = new THREE.Mesh(runtime.core.track(new THREE.PlaneGeometry(NEON.w, NEON.h)), runtime.core.track(new THREE.MeshBasicMaterial({ map: neonSign(true), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 })));
   [neonOff, neonOn].forEach((plane, i) => {
-    // low enough that the shelf above doesn't hide its top from the room
-    plane.position.set(0.55, LEVELS[2] + 1.95, -SHELF_D / 2 + 0.14 + i * 0.01);
+    // low enough that the shelf above doesn't hide its top from the room, and near the middle so
+    // the side panel doesn't cut off the end of "GAME"
+    plane.position.set(NEON.x, LEVELS[2] + 1.95, -SHELF_D / 2 + 0.14 + i * 0.01);
     plane.raycast = runtime.core.noRaycast;
     shelf.add(plane);
   });
   // The sign's magenta-violet spill: on the console and the shelf, with the shelf's things
   // casting back onto the panel
   const signLight = runtime.room.neonLight("#d86bff", 3.5, () => neonOn.material.opacity, { distance: 4, shadow: true });
-  signLight.position.set(0.55, neonOn.position.y, neonOn.position.z + 0.45);
+  signLight.position.set(NEON.x, neonOn.position.y, neonOn.position.z + 0.45);
   shelf.add(signLight);
   // Night: a couple of stuttering flickers, then on. Day: off.
   function setNeon(on, instant = false) {

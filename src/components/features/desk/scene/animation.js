@@ -487,6 +487,16 @@ export function createAnimation(runtime) {
   // and by day the blind is down. Resolves to where the terminal's window sits on the page, so
   // the loader can hand its own window over to it.
   let standing = false;
+  // The dark by the time of day, in linear light: at night the room is all but black, while by
+  // day some light gets round the blind (grey at midday, warm in the morning, amber by dusk) and
+  // the screen's cool spill counts for less
+  const STANDBY_GLOW = {
+    // (the evening room is lit far lower to begin with, so it keeps more of that light)
+    morning: { room: [0.048, 0.03, 0.014], spill: [0.34, 0.34, 0.5] },
+    day: { room: [0.045, 0.045, 0.05], spill: [0.34, 0.38, 0.52] },
+    evening: { room: [0.15, 0.07, 0.045], spill: [0.36, 0.3, 0.58] },
+    night: { room: [0.0015, 0.002, 0.004], spill: [0.35, 0.42, 0.75] },
+  };
   // what's drawn over the frame after the dark (no depth test: the lamp's filament, the badges)
   // sits out the standby
   const overlaysOut = [];
@@ -507,6 +517,9 @@ export function createAnimation(runtime) {
       runtime.windowLighting.windowLight.shadow.needsUpdate = true;
     }
     const pass = runtime.core.standbyPass;
+    const glow = STANDBY_GLOW[runtime.theme.darkNow ? "night" : runtime.room.daylightPart];
+    pass.uniforms.room.value.fromArray(glow.room);
+    pass.uniforms.spill.value.fromArray(glow.spill);
     pass.uniforms.dark.value = 1;
     pass.enabled = true;
     // drawn at full pace for a moment, so the shot is taken within the next frames

@@ -494,26 +494,56 @@ export function createRoom(runtime) {
     windowHandles.push(onLeaf(leaf, grip));
     return handle;
   });
-  const glareTex = canvasTexture(256, 256);
+  // The room mirrored faintly in the glass: one broad soft band and a thin brighter one beside
+  // it, leaning against the rain (which falls the other way, so the two never read as one),
+  // soft at their edges and fading out top and bottom. Drawn once per leaf's whole glass, so
+  // a band cut by a glazing bar carries on in the next pane, as it would on one sheet.
+  const glareTex = canvasTexture(256, 512);
   runtime.core.track(glareTex.texture);
-  glareTex.ctx.fillStyle = "rgba(255,255,255,.32)";
-  [[40, 26], [96, 12]].forEach(([x, wd]) => {
-    glareTex.ctx.beginPath();
-    glareTex.ctx.moveTo(x, 256);
-    glareTex.ctx.lineTo(x + wd, 256);
-    glareTex.ctx.lineTo(x + wd + 130, 0);
-    glareTex.ctx.lineTo(x + 130, 0);
-    glareTex.ctx.closePath();
-    glareTex.ctx.fill();
-  });
-  // Each of the eight panes catches its own pair of streaks, so the glass reads as panes, not
-  // one sheet behind the bars. On the glass, behind the stiles and bars, one sheet per leaf
-  // (both sharing the material, so the hover's sheen lights both).
-  const glareMat = runtime.core.track(new THREE.MeshBasicMaterial({ map: glareTex.texture, transparent: true, opacity: 0.55, depthWrite: false }));
+  const GLARE_LEAN = 0.6; // radians off vertical, top leaning left
+  const glareBand = (x, width, peak) => {
+    const g = glareTex.ctx;
+    // three copies a tile apart, so the band wraps seamlessly as the hover slides it along
+    [-256, 0, 256].forEach((dx) => {
+      g.save();
+      g.translate(x + dx, 256);
+      g.rotate(-GLARE_LEAN);
+      const across = g.createLinearGradient(-width / 2, 0, width / 2, 0);
+      across.addColorStop(0, "rgba(255,255,255,0)");
+      across.addColorStop(0.5, `rgba(255,255,255,${peak})`);
+      across.addColorStop(1, "rgba(255,255,255,0)");
+      g.fillStyle = across;
+      g.fillRect(-width / 2, -400, width, 800);
+      g.restore();
+    });
+  };
+  glareBand(92, 74, 0.55);
+  glareBand(148, 14, 0.8);
+  glareBand(236, 34, 0.25);
+  // fade the bands out along their length, strongest a little above the middle
+  glareTex.ctx.globalCompositeOperation = "destination-in";
+  const along = glareTex.ctx.createLinearGradient(0, 0, 0, 512);
+  along.addColorStop(0, "rgba(0,0,0,0)");
+  along.addColorStop(0.3, "rgba(0,0,0,1)");
+  along.addColorStop(0.6, "rgba(0,0,0,.8)");
+  along.addColorStop(1, "rgba(0,0,0,0)");
+  glareTex.ctx.fillStyle = along;
+  glareTex.ctx.fillRect(0, 0, 256, 512);
+  glareTex.ctx.globalCompositeOperation = "source-over";
+  // On the glass, behind the stiles and bars, one sheet per leaf (both sharing the material,
+  // so the hover's sheen lights both). Added on, not laid over, so the view stays clear under
+  // it; its colour (set with the room's light in theme) is how bright and warm it is.
+  const glareMat = runtime.core.track(new THREE.MeshBasicMaterial({ map: glareTex.texture, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
   glareTex.texture.wrapS = THREE.RepeatWrapping;
-  const [windowGlare] = LEAVES.map((_, leaf) => {
+  const [windowGlare] = LEAVES.map(({ inner: [lx0, lx1, ly0, ly1] }, leaf) => {
     const glareGeo = mergeGeometries(leafPanes(leaf).map(([x0, x1, y0, y1]) =>
       new THREE.PlaneGeometry(x1 - x0, y1 - y0).translate((x0 + x1) / 2, (y0 + y1) / 2, 0)));
+    // the texture spans the leaf's whole glass; the right leaf, hung at its own angle, shows
+    // the reflection a little further along
+    const position = glareGeo.attributes.position;
+    for (let i = 0; i < position.count; i++) {
+      glareGeo.attributes.uv.setXY(i, (position.getX(i) - lx0) / (lx1 - lx0) + leaf * 0.3, (position.getY(i) - ly0) / (ly1 - ly0));
+    }
     const glare = new THREE.Mesh(runtime.core.track(glareGeo), glareMat);
     glare.position.z = -0.13;
     glare.raycast = runtime.core.noRaycast;

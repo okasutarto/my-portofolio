@@ -189,6 +189,8 @@ export function createTheme(runtime) {
   const LIGHTING_TRANSITION = 2000;
   const rainLightColor = new THREE.Color("#aab8cf");
   const dryWindowColor = runtime.windowLighting.windowLight.color.clone();
+  const glareDay = new THREE.Color("#8a94a6");
+  const glareNight = new THREE.Color("#7a5530");
   let lightingBlending = false;
   function updateLighting(now) {
     const progress = Math.min(1, Math.max(0, (now - lightingStarted) / LIGHTING_TRANSITION));
@@ -211,6 +213,10 @@ export function createTheme(runtime) {
     if (Math.abs(runtime.windowLighting.cookieRain - runtime.room.outside.rain) > 0.02) runtime.windowLighting.drawGlassCookie();
     dryWindowColor.copy(runtime.windowLighting.windowLight.color);
     runtime.windowLighting.windowLight.color.lerp(rainLightColor, runtime.room.outside.rain * 0.65);
+    // The glass's reflection: a cool sheen by day (dulled under cloud), the lamp-lit room's
+    // warmer, dimmer one by night
+    const night = runtime.core.roomLight.night;
+    runtime.room.windowGlare.material.color.copy(glareDay).lerp(glareNight, night).multiplyScalar(1 - 0.4 * runtime.room.outside.rain * (1 - night));
     runtime.room.outside.sky = windowSky(runtime.room.dayPart(), runtime.room.outside.skyFrom, blend);
     if (lightingBlending) {
       runtime.windowLighting.aimWindowLight(runtime.room.outside.sky.sun);

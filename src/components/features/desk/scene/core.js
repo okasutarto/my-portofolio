@@ -237,7 +237,7 @@ export function createCore(runtime) {
 
   const {
     disposables, track, gradient, toon, outlineResolution, outlineMat, hullGeometry, noRaycast, mesh, UP, rbox, rod,
-    roundedRectShape, phoneSlab, at, printMaterial, redrawers, printed, bubbleTimers, speechBubble,
+    roundedRectShape, phoneSlab, at, printMaterial, printGlow, redrawers, printed, bubbleTimers, speechBubble,
   } = createSceneMeshes(scene);
   const { bendable, paperFlex, updatePaperFlex, flexTo, flexSettle } = createPaperFlex(track);
   const shadowFill = track(new THREE.MeshBasicMaterial({ color: PALETTES.light.shadow }));
@@ -279,6 +279,7 @@ export function createCore(runtime) {
     UP,
     roomLight,
     printMaterial,
+    printGlow,
     camera,
     aoPass,
     ambient,

@@ -126,14 +126,15 @@ export function createTheme(runtime) {
     toneWood("riser", isDark);
     runtime.core.shadowFill.color.set(p.shadow);
     if (!isDark) applyDaylight();
-    // The backboard's print glows to stay readable by day; by dusk and night that glow would
-    // make it the brightest thing in the room, so it settles into the room's own light
+    // Prints (the folders, the clock's dial, the painting, the About board, the backboard...)
+    // glow to stay readable by day; by dusk and night that glow would make them the brightest
+    // things in the room, so they settle into the room's own light
     const part = isDark ? "night" : runtime.room.daylightPart;
-    runtime.wastebasket.hoopBoardFace.material.emissiveIntensity = HOOP_GLOW[part];
+    runtime.core.printGlow.level = PRINT_GLOW[part];
     runtime.wastebasket.net.material.color.setScalar(HOOP_NET[part]);
     runtime.core.fitSunShadow();
   }
-  const HOOP_GLOW = { morning: 0.6, day: 0.6, evening: 0.22, night: 0.08 };
+  const PRINT_GLOW = { morning: 0.6, day: 0.6, evening: 0.22, night: 0.08 };
   const HOOP_NET = { morning: 1, day: 1, evening: 0.62, night: 0.4 };
   // Match the randomly selected sky: warm morning, bright midday or amber evening.
   const DAYLIGHT = {
@@ -168,7 +169,7 @@ export function createTheme(runtime) {
     [runtime.core.ambient, "intensity"], [runtime.core.skyFill, "intensity"], [runtime.core.readabilityFill, "intensity"],
     [runtime.core.sun, "intensity"], [runtime.windowLighting.windowLight, "intensity"], [runtime.lamp.lampLight, "intensity"],
     [runtime.core.roomLight, "night"], [runtime.workstation.monitorGlowMat, "opacity"], [runtime.windowBlind.blindFabric, "emissiveIntensity"],
-    [runtime.wastebasket.hoopBoardFace.material, "emissiveIntensity"],
+    [runtime.core.printGlow, "level"],
     ...runtime.room.deskNeons.map(({ washMat }) => [washMat, "opacity"]),
   ];
   const lightingColors = [runtime.core.ambient.color, runtime.core.skyFill.color, runtime.core.sun.color, runtime.windowLighting.windowLight.color,

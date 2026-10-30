@@ -15,7 +15,7 @@ Click anything. Play a game on the console. Repaint the walls. Just don't try to
 ![Web Audio](https://img.shields.io/badge/Web_Audio-synths_%2B_samples-ff90e8?style=flat-square)
 ![Vercel](https://img.shields.io/badge/Vercel-deployed-000000?style=flat-square&logo=vercel&logoColor=white)
 
-<img src="public/readme-desk.jpg" alt="The Desk in the morning: a neo-brutalist 3D room with a cherry desk, gaming chair, monitor, About board, game shelf, katana and the Infinity Gauntlet" width="100%" />
+<img src="public/readme-desk.jpg" alt="The Desk at midday: a neo-brutalist 3D room with a cherry desk, gaming chair, monitor, About board, game shelf, katana and the Infinity Gauntlet" width="100%" />
 
 </div>
 

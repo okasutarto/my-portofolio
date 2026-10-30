@@ -88,13 +88,16 @@ export function createCore(runtime) {
   composer.addPass(aoPass);
   // Lights off, for the room waiting behind the loader: everything darkens but the screen
   // (`rect`: its centre and half size in the frame's 0–1 coordinates) and the cool spill from
-  // it. `dark` 0 is the room as lit; off unless the room is in standby (see animation).
+  // it. `dark` 0 is the room as lit; off unless the room is in standby (see animation), which
+  // sets `room` (what's left of the room's light) and `spill` (the screen's) for the time of day.
   const standbyPass = new ShaderPass({
     uniforms: {
       tDiffuse: { value: null },
       dark: { value: 0 },
       rect: { value: new THREE.Vector4(0.5, 0.5, 0.1, 0.1) },
       aspect: { value: 1 },
+      room: { value: new THREE.Vector3(0.0015, 0.002, 0.004) },
+      spill: { value: new THREE.Vector3(0.35, 0.42, 0.75) },
     },
     vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
     fragmentShader: `
@@ -102,6 +105,8 @@ export function createCore(runtime) {
       uniform float dark;
       uniform vec4 rect;
       uniform float aspect;
+      uniform vec3 room;
+      uniform vec3 spill;
       varying vec2 vUv;
       void main() {
         vec4 color = texture2D(tDiffuse, vUv);
@@ -110,8 +115,8 @@ export function createCore(runtime) {
         // how far outside the screen, in screen heights
         float d = length(max(abs(p) - hs, 0.0)) / (2.0 * hs.y);
         // (linear light: what reads as a dark room after the output's sRGB curve is near zero)
-        float spill = exp(-d * 4.0);
-        vec3 lit = mix(vec3(0.0015, 0.002, 0.004), vec3(0.35, 0.42, 0.75), spill * spill);
+        float near = exp(-d * 4.0);
+        vec3 lit = mix(room, spill, near * near);
         color.rgb *= mix(vec3(1.0), mix(lit, vec3(1.0), step(d, 0.0)), dark);
         gl_FragColor = color;
       }`,

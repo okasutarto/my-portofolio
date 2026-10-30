@@ -105,9 +105,12 @@ export function createAboutBoard(runtime) {
     // A strip of washi tape over a corner on a couple of them, as well as the pin
     if (TAPED[note.id]) {
       const [tx, ty] = TAPED[note.id];
-      const tape = new THREE.Mesh(runtime.core.track(new THREE.PlaneGeometry(0.36, 0.1)), runtime.core.track(new THREE.MeshBasicMaterial({ color: note.id === "resume" ? "#00e0c6" : "#ff90e8", transparent: true, opacity: 0.85 })));
-      tape.position.set(tx * (w / 2 - 0.04), ty * (h / 2 - 0.03) - pinY, 0.03);
-      tape.rotation.z = tx * ty * 0.75;
+      // laid on the paper and bent with it, so a curled corner can't poke up through the tape
+      const tapeGeo = new THREE.PlaneGeometry(0.36, 0.1, 12, 2)
+        .rotateZ(tx * ty * 0.75)
+        .translate(tx * (w / 2 - 0.04), ty * (h / 2 - 0.03), 0.03);
+      const tape = new THREE.Mesh(runtime.core.track(curlPaper(tapeGeo, w, h, curl, side)), runtime.core.track(new THREE.MeshBasicMaterial({ color: note.id === "resume" ? "#00e0c6" : "#ff90e8", transparent: true, opacity: 0.85 })));
+      tape.position.y = -pinY;
       sheet.add(tape);
     }
     const pin = new THREE.Group();

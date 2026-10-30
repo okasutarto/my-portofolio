@@ -38,9 +38,12 @@ export function createMouse(runtime) {
   const tailCurve = new THREE.CatmullRomCurve3([[0, 0.08, 0.38], [0, 0.06, 0.55], [0.13, 0.06, 0.66], [0.04, 0.12, 0.76], [-0.08, 0.2, 0.76]].map(([x, y, z]) => new THREE.Vector3(x, y, z)));
   const tail = runtime.core.mesh(new THREE.TubeGeometry(tailCurve, 24, 0.022, 6), runtime.core.toon("#ff90e8"), { outline: 0.012 });
   critter.push(tail);
+  // Hidden, not just shrunk: the outlines are drawn a set number of pixels thick, so a shrunk
+  // ear or tail would still leave a black dot on the mouse, like a pair of eyes
   critter.forEach((part) => {
     part.userData.scale = part.scale.clone();
     part.scale.setScalar(0.001);
+    part.visible = false;
     mouse.add(part);
   });
   let mouseRunning = false;
@@ -54,7 +57,11 @@ export function createMouse(runtime) {
     mouseRunning = true;
     gsap.killTweensOf(mouse.rotation);
     runtime.secrets.discover("rat");
-    critter.forEach((part, i) => gsap.to(part.scale, { ...part.userData.scale, duration: 0.3, delay: i * 0.04, ease: "back.out(3)" }));
+    critter.forEach((part, i) => {
+      gsap.killTweensOf(part.scale);
+      part.visible = true;
+      gsap.to(part.scale, { ...part.userData.scale, duration: 0.3, delay: i * 0.04, ease: "back.out(3)" });
+    });
     sfx.squeak();
     runtime.cat.catSpotsMouse();
     const start = { x: mouse.position.x, z: mouse.position.z };
@@ -83,7 +90,7 @@ export function createMouse(runtime) {
         mouseRunning = false;
         mouseBody.position.y = 0.13;
         mouse.rotation.y = Math.atan2(Math.sin(mouse.rotation.y), Math.cos(mouse.rotation.y));
-        critter.forEach((part) => gsap.to(part.scale, { x: 0.001, y: 0.001, z: 0.001, duration: 0.25, ease: "back.in(2)" }));
+        critter.forEach((part) => gsap.to(part.scale, { x: 0.001, y: 0.001, z: 0.001, duration: 0.25, ease: "back.in(2)", onComplete: () => (part.visible = false) }));
         gsap.to(mouse.rotation, { y: -0.12, duration: 0.4, ease: "back.out(2)" });
       },
     })
@@ -91,7 +98,8 @@ export function createMouse(runtime) {
       .to(out, { u: 1, duration: 0.25, ease: "power1.in", onUpdate: () => place({ x: start.x + (lap.x - start.x) * out.u, z: start.z + (lap.z - start.z) * out.u }) })
       .to(laps, { u: 1, duration: 3.2, ease: "sine.inOut", onUpdate: () => place(onLap(A0 - laps.u * Math.PI * 4)) })
       .to(home, { u: 1, duration: 0.35, ease: "power2.out", onUpdate: () => place({ x: lap.x + (mouseAim.x - lap.x) * home.u, z: lap.z + (mouseAim.z - lap.z) * home.u }) });
-    [0.4, 1.3, 2.2, 3.0].forEach((delay) => sfx.patter({ duration: 0.7, delay }));
+    // its feet up over the squeaks, so the run is heard all the way round
+    [0.4, 1.3, 2.2, 3.0].forEach((delay) => sfx.patter({ duration: 0.7, delay, volume: 2.6 }));
     runtime.core.timers.push(setTimeout(() => sfx.squeak(), 4100));
   }
   runtime.core.register(mouse, {

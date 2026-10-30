@@ -232,6 +232,39 @@ export function drawFur(c, w, h) {
   }
 }
 
+// Sisal rope wound round a scratching post: tight coils a little lighter along their crowns,
+// a dark groove between each, and a few frayed fibres. Tiles seamlessly up and round.
+export function drawSisal(c, w, h) {
+  c.fillStyle = "#cfa86a";
+  c.fillRect(0, 0, w, h);
+  const coils = 16;
+  const pitch = h / coils;
+  for (let i = 0; i < coils; i++) {
+    const y = i * pitch;
+    const crown = c.createLinearGradient(0, y, 0, y + pitch);
+    crown.addColorStop(0, "rgba(120,80,30,.55)");
+    crown.addColorStop(0.45, "rgba(255,240,200,.35)");
+    crown.addColorStop(1, "rgba(120,80,30,.55)");
+    c.fillStyle = crown;
+    c.fillRect(0, y, w, pitch);
+    c.fillStyle = "rgba(70,45,15,.6)";
+    c.fillRect(0, y, w, Math.max(1, pitch * 0.12));
+  }
+  let r = 9241;
+  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+  c.lineCap = "round";
+  for (let i = 0; i < (w * h) / 40; i++) {
+    const x = rand() * w;
+    const y = rand() * h;
+    c.strokeStyle = rand() < 0.5 ? "rgba(255,245,215,.45)" : "rgba(90,60,20,.35)";
+    c.lineWidth = 0.8;
+    c.beginPath();
+    c.moveTo(x, y);
+    c.lineTo(x + 2 + rand() * 4, y + (rand() - 0.5) * 1.5);
+    c.stroke();
+  }
+}
+
 // Woven straw: rows of plaited strands, each a little lighter in the middle
 export function drawStraw(c, w, h) {
   c.fillStyle = "#e9b543";

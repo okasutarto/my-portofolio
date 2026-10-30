@@ -176,12 +176,22 @@ export function createWindowLighting(runtime) {
     }
     return Math.max(0, reach);
   }
+  // Up close at the window the camera stands in the beam itself, its sides rising off the
+  // frame's edges straight at it, and they'd lay bright bands over the wood. A real beam
+  // seen from inside it, by the glass, shows nothing, so its sides fade out for the close-up
+  // (the motes stay, drifting in the light).
+  let shaftCloseUp = 0;
+  let shaftAt = 0;
   function updateShaft(now) {
+    const dt = Math.min(0.1, (now - shaftAt) / 1000);
+    shaftAt = now;
+    shaftCloseUp += ((runtime.camera.focus.name === "window" ? 1 : 0) - shaftCloseUp) * Math.min(1, dt * 4);
     // the open part of the glass, below the blind's bottom bar
     const top = Math.min(GLASS.y, runtime.windowBlind.bottomBar.position.y - runtime.windowBlind.BAR_H / 2);
     const strength = windowLight.intensity * 0.028 * (1 - 0.7 * runtime.room.outside.rain) * (1 - 0.75 * runtime.core.roomLight.night);
     shaft.visible = motes.visible = top > -GLASS.y + 0.1 && strength > 0.002;
-    if (!shaft.visible) return;
+    shaft.visible &&= shaftCloseUp < 0.99;
+    if (!motes.visible) return;
     // glass corners, clockwise from the bottom left as seen from the room, then the beam's way in
     [[-GLASS.x, -GLASS.y], [-GLASS.x, top], [GLASS.x, top], [GLASS.x, -GLASS.y]].forEach(([x, y], k) => runtime.room.windowGroup.localToWorld(shaftCorner[k].set(x, y, 0.12)));
     shaftInto.copy(windowRay).negate();
@@ -200,7 +210,7 @@ export function createWindowLighting(runtime) {
     shaftPos.needsUpdate = true;
     shaftTint.copy(windowLight.color);
     shaftMat.uniforms.color.value.copy(shaftTint);
-    shaftMat.uniforms.strength.value = strength;
+    shaftMat.uniforms.strength.value = strength * (1 - shaftCloseUp);
     // motes: across the glass (u from left to right, w from bottom to top), drifting along the
     // beam and bobbing a little, brightest in its middle
     const t = now / 1000;

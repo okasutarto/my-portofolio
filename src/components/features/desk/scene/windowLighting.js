@@ -63,14 +63,19 @@ export function createWindowLighting(runtime) {
     // The view's horizontal axis is window-local X (world -Z): the sun's place across the sky
     // turns the beam toward the back of the room in the morning and the front in the evening.
     // Its height in the painted sky sets a real elevation: low and slanting at sunrise (25°),
-    // high at noon (60°, so the patch falls by the window with short shadows), lowest at
-    // sunset (15°); the moon (30°) sits between. Heights in between blend.
-    const SUN_ELEVATION = [[0.10, 60], [0.19, 30], [0.30, 25], [0.44, 15]];
+    // high at noon (45°: the patch reaches across the middle of the desk instead of only the
+    // crowded strip by the window, its bars' shadows on the mat), as low again at
+    // sunset (25°, any lower and the beam sails over the desk to the floor); the moon (30°)
+    // sits between. Heights in between blend.
+    const SUN_ELEVATION = [[0.10, 45], [0.19, 30], [0.30, 25], [0.44, 25]];
     const v = THREE.MathUtils.clamp(from[1], SUN_ELEVATION[0][0], SUN_ELEVATION[SUN_ELEVATION.length - 1][0]);
     const k = SUN_ELEVATION.findIndex((_, i) => i === SUN_ELEVATION.length - 2 || v <= SUN_ELEVATION[i + 1][0]);
     const [[v0, e0], [v1, e1]] = [SUN_ELEVATION[k], SUN_ELEVATION[k + 1]];
     const elevation = THREE.MathUtils.degToRad(e0 + (e1 - e0) * (v - v0) / (v1 - v0));
-    const across = (from[0] - 0.5) * 1.4;
+    // A low sun toward the front of the room (sunset) turns the beam only a little that way,
+    // so the long evening streak lies across the desk instead of past its front edge
+    const setting = from[0] > 0.5 ? THREE.MathUtils.smoothstep(v, SUN_ELEVATION[2][0], SUN_ELEVATION[3][0]) : 0;
+    const across = (from[0] - 0.5) * 1.4 * THREE.MathUtils.lerp(1, 0.35, setting);
     runtime.room.windowGroup.updateWorldMatrix(true, false);
     windowRay.set(across, Math.tan(elevation) * Math.hypot(1, across), -1)
       .transformDirection(runtime.room.windowGroup.matrixWorld);

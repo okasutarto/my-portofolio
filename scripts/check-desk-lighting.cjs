@@ -97,11 +97,11 @@ run('updateDaylight(120000)');
 assert.equal(run('dayPart()'), 'evening', 'the room moves on when the visitor\'s clock does');
 assert.equal(windowLight.intensity, clearDay, 'theme request does not jump the light');
 update(121000);
-assert.ok(Math.abs(windowLight.intensity - (clearDay + 1.8) / 2) < 1e-10);
+assert.ok(Math.abs(windowLight.intensity - (clearDay + 3.6) / 2) < 1e-10);
 assert.ok(context.outside.sky.sun[1] > daySky[1], 'sun lowers smoothly toward the evening horizon');
 assert.deepEqual(windowLight.userData.sky, [...context.outside.sky.sun], 'painted sun and shadow light use the same coordinates');
 update(122000);
-assert.equal(windowLight.intensity, 1.8);
+assert.equal(windowLight.intensity, 3.6);
 now = 180000;
 clockPart = 'night';
 run('updateDaylight(180000)');
@@ -241,11 +241,12 @@ assert.equal(run('dayPart()'), 'evening', 'a picked part of the day ignores the 
   const midday = direction('day');
   const evening = direction('evening');
   const night = direction('night');
-  // Real elevations: a low, slanting sunrise, a high noon, the lowest sun at sunset
+  // Real elevations: a low, slanting sunrise, a high noon, and a sunset as low as the sunrise
   const elevation = (ray) => Math.atan2(-ray.y, Math.hypot(ray.x, ray.z)) * 180 / Math.PI;
   assert.ok(elevation(morning) > 22 && elevation(morning) < 30, 'morning sun is low, as a sunrise is, yet high enough for tabletop shadows');
-  assert.ok(elevation(midday) > 55 && elevation(midday) < 65, 'noon sun stands high');
-  assert.ok(elevation(evening) > 10 && elevation(evening) < 20, 'evening sun is the lowest of the day');
+  assert.ok(elevation(midday) > 40 && elevation(midday) < 50, 'noon sun stands highest of the day, its patch reaching across the desk');
+  assert.ok(elevation(evening) > 22 && elevation(evening) < 30, 'evening sun is low, yet high enough for its streak to fall on the desk');
+  assert.ok(Math.abs(evening.z) < Math.abs(morning.z), 'the sunset beam turns only a little toward the front, keeping its streak on the desk');
   // The 180 × 84 cm desktop is centred on the origin; the high noon patch falls by the window
   const hitDesk = new THREE.Ray(windowGlass, midday).intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
   assert.ok(hitDesk && hitDesk.x > -9 && hitDesk.x < 0 && Math.abs(hitDesk.z) < 4.2, 'noon central ray lands on the window half of the desktop');

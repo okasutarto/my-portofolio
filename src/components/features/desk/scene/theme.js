@@ -144,8 +144,10 @@ export function createTheme(runtime) {
     morning: { sun: "#ffe2b6", sunPower: 1.1, sky: "#fff5e7", skyPower: 1.55, ambient: 0.62, fill: "#fff4e8", pane: "#ffdfa8", panePower: 3.0 },
     day: { sun: "#fff1cc", sunPower: 1.3, sky: "#f2f5ff", skyPower: 1.85, ambient: 0.78, fill: "#eef1ff", pane: "#ffe5ad", panePower: 4.1 },
     // the view's sun rises on the front side of the window and sets on the back side, so the
-    // room's evening sun comes in from behind
-    evening: { sun: "#ff9e66", sunPower: 1.0, sky: "#b7aed7", skyPower: 0.38, ambient: 0.16, fill: "#c3b9de", pane: "#ffab72", panePower: 1.8 },
+    // room's evening sun comes in from behind. Its low beam meets the desk at a slant (under
+    // half the strength a square-on one gives), so the pane runs stronger to keep the golden
+    // streak across the desk showing
+    evening: { sun: "#ff9e66", sunPower: 1.0, sky: "#b7aed7", skyPower: 0.38, ambient: 0.16, fill: "#c3b9de", pane: "#ffab72", panePower: 3.6 },
   };
   function applyDaylight() {
     const light = DAYLIGHT[runtime.room.daylightPart];

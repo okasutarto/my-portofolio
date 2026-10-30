@@ -47,7 +47,8 @@ const context = vm.createContext({
   refreshWeather: () => weatherChecks++,
   performance: { now: () => now }, Math: Object.assign(Object.create(Math), { random: () => 0.5 }),
   deskNeons: [{ strip: {}, washMat: {} }, { strip: {}, washMat: {} }], fitSunShadow() {},
-  aimWindowLight: (at) => { windowLight.userData.sky = [...at]; }, blindFabric: {}, shadowedNeons: [{}, {}, {}],
+  aimWindowLight: (at, { aimFrom = null, blend = 1 } = {}) => { windowLight.userData.sky = [...at]; windowLight.userData.aim = { aimFrom, blend }; }, aimNow: { elevation: 0.7, across: 0 },
+  blindFabric: {}, shadowedNeons: [{}, {}, {}],
   cookieRain: 0, drawGlassCookie() {}, DESK_WASH: 0.45, monitorGlowMat: {}, updateLampGlow() {}, updateLightbar() {}, setLightbar() {}, lightbarState: { power: 0 },
   riserMat: material(), riserLegMat: material(), RISER_LEG_SHADE: 0.8,
   hoopBoardFace: { material: { emissiveIntensity: 0 } }, net: { material: material() },
@@ -99,7 +100,11 @@ assert.equal(windowLight.intensity, clearDay, 'theme request does not jump the l
 update(121000);
 assert.ok(Math.abs(windowLight.intensity - (clearDay + 3.6) / 2) < 1e-10);
 assert.ok(context.outside.sky.sun[1] > daySky[1], 'sun lowers smoothly toward the evening horizon');
-assert.deepEqual(windowLight.userData.sky, [...context.outside.sky.sun], 'painted sun and shadow light use the same coordinates');
+// The beam turns straight from its aim when the change began toward the evening sun's, at the
+// sky's own pace, rather than following the painted sun's place (which swung it out and back)
+assert.deepEqual(windowLight.userData.sky, [...windowSky('evening').sun], 'the beam is aimed toward the new part of the day');
+assert.deepEqual({ ...windowLight.userData.aim.aimFrom }, { elevation: 0.7, across: 0 }, 'from the aim it had when the change began');
+assert.equal(windowLight.userData.aim.blend, context.outside.skyBlend, 'in step with the sky');
 update(122000);
 assert.equal(windowLight.intensity, 3.6);
 now = 180000;

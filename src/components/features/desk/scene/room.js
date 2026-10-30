@@ -128,9 +128,9 @@ export function createRoom(runtime) {
   // mask would darken them even outside the window cookie or an indoor light's actual reach.
   // The side wall, with a real opening cut for the window (see the window below). Built as
   // its outline extruded through the wall's thickness, the opening as a hole in it.
-  // World dimensions: a 120 × 105 cm two-leaf European casement, its apron just clear above
-  // the project folders' tabs on the desk.
-  const WINDOW_AT = { y: 9.8, z: 3.05, w: 12.0, h: 10.5 }; // its back edge 14 cm off the back wall
+  // World dimensions: a 120 × 105 cm two-leaf European casement, its sill (110 cm off the
+  // floor) just clear above the project folders' tabs on the desk, even with one lifted on hover.
+  const WINDOW_AT = { y: 8.8, z: 3.05, w: 12.0, h: 10.5 }; // its back edge 14 cm off the back wall
   // Half the glass, in the window group's own units (it's built at half size and scaled ×2),
   // inside the frame's 4 cm border: the frame, bars, view, blind and the light through it
   // all follow from this

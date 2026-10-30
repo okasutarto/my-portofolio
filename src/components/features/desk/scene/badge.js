@@ -86,6 +86,8 @@ export function createBadge(runtime) {
         const dist = Math.hypot(dx, dy) || 1e-6;
         const wa = ropeWeight(i);
         const wb = ropeWeight(i + 1);
+        // both ends fixed (the strap held just under the pin): nothing to move
+        if (!wa && !wb) continue;
         const diff = (dist - ropeSegment) / (dist * (wa + wb));
         a.x += dx * diff * wa;
         a.y += dy * diff * wa;

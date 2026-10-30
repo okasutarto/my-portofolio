@@ -279,6 +279,7 @@ export function createLamp(runtime) {
     jointMat,
     familyPhoto,
     setLamp,
+    switchLamp,
     updateLampGlow,
     get lampHidden() { return lampHidden; },
     familyFrame,

@@ -1,8 +1,9 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { setRainLevel } from "@/composables/useSfx";
+import { setRainLevel, sfx } from "@/composables/useSfx";
 import { createToonBatch } from "../toonBatch";
 import { benchmark, lowPower, VIEW_W, VIEW_H } from "../sceneConfig";
+import { SCREEN_W, SCREEN_H } from "../desktop";
 
 export function createAnimation(runtime) {
   // ---------- sizing & loop ----------
@@ -329,6 +330,7 @@ export function createAnimation(runtime) {
     if (now - lastBlink > 530) {
       lastBlink = now;
       runtime.workstation.cursorOn = !runtime.workstation.cursorOn;
+      if (runtime.workstation.standby) runtime.workstation.redrawScreen();
       runtime.textInput.caretOn = !runtime.textInput.caretOn;
       if (!runtime.workstation.termBusy) runtime.workstation.redrawTerminal();
       runtime.textInput.typing?.redraw();
@@ -368,6 +370,7 @@ export function createAnimation(runtime) {
     // the first frame casts the night's shadows too, so their own depth passes are built
     // before anyone switches the lamp on (see warmShaders)
     updateShadowBudget(firstFrame ? !decorShed : decorWanted());
+    if (runtime.core.standbyPass.enabled) aimStandbyGlow();
     const drawStarted = probe ? performance.now() : 0;
     runtime.core.renderFrame();
     if (firstFrame) {
@@ -448,27 +451,119 @@ export function createAnimation(runtime) {
       });
   }
 
+  // Where the screen is in the frame, as the corners of its glass project
+  const screenCorner = new THREE.Vector3();
+  function screenRect() {
+    const { monitor, SCREEN_Y } = runtime.workstation;
+    runtime.core.camera.updateMatrixWorld();
+    monitor.updateWorldMatrix(true, false);
+    let [minX, minY, maxX, maxY] = [Infinity, Infinity, -Infinity, -Infinity];
+    [[-2, 1.2], [2, 1.2], [-2, -1.2], [2, -1.2]].forEach(([x, y]) => {
+      monitor.localToWorld(screenCorner.set(x, SCREEN_Y + y, 0.09)).project(runtime.core.camera);
+      minX = Math.min(minX, screenCorner.x);
+      maxX = Math.max(maxX, screenCorner.x);
+      minY = Math.min(minY, screenCorner.y);
+      maxY = Math.max(maxY, screenCorner.y);
+    });
+    // 0–1 from the frame's bottom left
+    return { x: (minX + 1) / 2, y: (minY + 1) / 2, w: (maxX - minX) / 2, h: (maxY - minY) / 2 };
+  }
+  function aimStandbyGlow() {
+    const { x, y, w, h } = screenRect();
+    const { uniforms } = runtime.core.standbyPass;
+    uniforms.rect.value.set(x + w / 2, y + h / 2, w / 2, h / 2);
+    const canvas = runtime.core.renderer.domElement;
+    uniforms.aspect.value = canvas.clientWidth / Math.max(1, canvas.clientHeight);
+  }
+
+  // Standby: once timed, the room waits behind the loader with the lights off, close on the
+  // screen, its terminal asking the visitor in. The lamp is off (by night it is the one that comes on),
+  // and by day the blind is down. Resolves to where the terminal's window sits on the page, so
+  // the loader can hand its own window over to it.
+  let standing = false;
+  // what's drawn over the frame after the dark (no depth test: the lamp's filament, the badges)
+  // sits out the standby
+  const overlaysOut = [];
+  function standby() {
+    standing = true;
+    runtime.core.scene.traverse((o) => {
+      if (o.visible && o.material?.depthTest === false) {
+        overlaysOut.push(o);
+        o.visible = false;
+      }
+    });
+    runtime.camera.standby();
+    runtime.workstation.setStandby(true);
+    if (runtime.theme.darkNow) runtime.lamp.setLamp(false);
+    else {
+      runtime.windowBlind.blind.lift = 0;
+      runtime.windowBlind.updateBlind();
+      runtime.windowLighting.windowLight.shadow.needsUpdate = true;
+    }
+    const pass = runtime.core.standbyPass;
+    pass.uniforms.dark.value = 1;
+    pass.enabled = true;
+    // drawn at full pace for a moment, so the shot is taken within the next frames
+    runtime.core.responsiveUntil = performance.now() + 600;
+    const frames = (n, then) => requestAnimationFrame(() => (n > 1 ? frames(n - 1, then) : then()));
+    return new Promise((resolve) => frames(3, () => {
+      if (runtime.core.destroyed) return resolve(null);
+      const { x, y, w, h } = screenRect();
+      const box = runtime.core.renderer.domElement.getBoundingClientRect();
+      // the terminal's window on it, which the loader's own window moves onto
+      const win = runtime.workstation.desktop.windowRect("terminal");
+      const left = box.left + x * box.width;
+      const top = box.top + (1 - y - h) * box.height;
+      const sx = (w * box.width) / SCREEN_W;
+      const sy = (h * box.height) / SCREEN_H;
+      resolve({ left: left + win.x * sx, top: top + win.y * sy, width: win.w * sx, height: win.h * sy });
+    }));
+  }
+  // Coming in from standby: the lamp clicks on (by day the blind goes up), the lights come up
+  // and the camera draws back from the screen to the room
+  function wake() {
+    standing = false;
+    overlaysOut.splice(0).forEach((o) => (o.visible = true));
+    const pass = runtime.core.standbyPass;
+    if (runtime.theme.darkNow) {
+      sfx.click();
+      runtime.lamp.switchLamp(true);
+    } else {
+      sfx.slide({ duration: 0.6, up: true });
+      gsap.to(runtime.windowBlind.blind, { lift: 1, duration: 1.1, ease: "power2.inOut", onUpdate: runtime.windowBlind.updateBlind });
+    }
+    gsap.to(pass.uniforms.dark, { value: 0, duration: 1.2, ease: "power2.out", onComplete: () => (pass.enabled = false) });
+    runtime.camera.leaveStandby(1.7);
+    intro = gsap.delayedCall(0.4, () => runtime.badge.swing(0.3));
+  }
+
   // The room renders behind the loader from the start; the intro (the settle, the badge's swing
   // and the computer booting) waits until the visitor comes in
   let entered = false;
   function enter() {
     if (entered) return;
     entered = true;
-    const settledZoom = runtime.camera.cam.zoom;
-    // Out of the loader's screen: the room starts close and springs back past its spot, toon-like
-    runtime.camera.cam.zoom = settledZoom * 1.35;
-    runtime.badge.swing(0.3);
-    intro = gsap.to(runtime.camera.cam, { zoom: settledZoom, duration: 1.3, ease: "back.out(1.6)" });
+    const fromStandby = standing;
+    if (fromStandby) wake();
+    else {
+      const settledZoom = runtime.camera.cam.zoom;
+      // Out of the loader's screen: the room starts close and springs back past its spot, toon-like
+      runtime.camera.cam.zoom = settledZoom * 1.35;
+      runtime.badge.swing(0.3);
+      intro = gsap.to(runtime.camera.cam, { zoom: settledZoom, duration: 1.3, ease: "back.out(1.6)" });
+    }
     // (the intro would read as a slow device)
     judgeAfter = performance.now() + 4000;
     if (runtime.secrets.previewTrophy) runtime.core.timers.push(setTimeout(runtime.secrets.celebrateSecrets, 2000));
-    // Wait for the boot overlay to fade out before starting the computer's boot sound and progress bar
-    runtime.core.timers.push(setTimeout(() => runtime.workstation.bootComputer({ playSound: true, delay: 0.2 }), 650));
+    // From standby the computer is on already; otherwise it boots once the overlay has faded
+    if (fromStandby) runtime.workstation.wakeFromStandby();
+    else runtime.core.timers.push(setTimeout(() => runtime.workstation.bootComputer({ playSound: true, delay: 0.2 }), 650));
   }
 
   // Public state used by the other scene parts.
   return {
     start,
+    standby,
     enter,
     get viewH() { return viewH; },
     get frame() { return frame; },

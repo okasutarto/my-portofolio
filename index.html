@@ -48,86 +48,65 @@
          #app so Vue's mount doesn't replace it. Once the room is drawn it asks the visitor in. -->
     <div id="boot-loader" role="status" aria-label="Loading the desk" hidden>
       <style>
-        #boot-loader { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: radial-gradient(circle, #ffffff1f 1.4px, transparent 1.6px) 0 0 / 22px 22px #1a1714; font-family: "Space Grotesk", system-ui, sans-serif; color: #000; transition: opacity .5s ease-out, visibility .5s; }
+        /* The desk's own terminal window booting in the dark. Once the room is ready behind it,
+           this window moves onto the same window on the 3D monitor's desktop (which ends on the
+           same lines; see workstation's standby) and the dark lifts off the room. Sizes are in
+           the desktop's window units (--u: 1/368 of the window's width), as it is drawn there.
+           Nothing animates on the main thread while loading (building the room holds it up). */
+        #boot-loader { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; overflow: hidden; transition: opacity .5s ease-out, visibility .5s; --bl-progress: .06; }
         #boot-loader[hidden] { display: none; }
-        #boot-loader.is-done { opacity: 0; visibility: hidden; }
+        #boot-loader.is-done { opacity: 0; visibility: hidden; pointer-events: none; }
         #boot-loader.is-ready { cursor: pointer; }
-        /* The whole monitor grows with the screen, so a big screen isn't mostly empty background */
-        #boot-loader .bl-scale { scale: var(--bl-scale, 1); }
-        @media (min-width: 700px) and (min-height: 640px) { #boot-loader { --bl-scale: 1.25; } }
-        @media (min-width: 900px) and (min-height: 760px) { #boot-loader { --bl-scale: 1.5; } }
-        @media (min-width: 1200px) and (min-height: 900px) { #boot-loader { --bl-scale: 1.75; } }
-        #boot-loader .bl-stage { display: flex; flex-direction: column; align-items: center; animation: bl-in .6s cubic-bezier(.34,1.56,.64,1) both; }
-        /* A cartoon monitor: chunky bezel, dark screen, a neck and a foot */
-        #boot-loader .bl-monitor { position: relative; width: min(300px, calc(100vw - 56px)); padding: 12px 12px 22px; background: #fffdf5; border: 5px solid #000; border-radius: 24px; box-shadow: 8px 8px 0 #ff90e8; }
-        #boot-loader .bl-monitor::after { content: ""; position: absolute; right: 18px; bottom: 6px; width: 9px; height: 9px; border: 2px solid #000; border-radius: 50%; background: #ffdd00; animation: bl-blink .8s steps(1) infinite; }
-        #boot-loader.is-ready .bl-monitor::after { background: #22c55e; animation: none; }
-        #boot-loader .bl-screen { position: relative; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 18px 14px 16px; min-height: 168px; justify-content: center; overflow: hidden; background: repeating-linear-gradient(0deg, #0000000a 0 2px, transparent 2px 4px), #bfe3ff; border: 4px solid #000; border-radius: 14px; }
-        #boot-loader .bl-screen::before { content: ""; position: absolute; top: 8px; left: 10px; width: 34%; height: 16px; border-radius: 10px; background: #ffffff8c; transform: rotate(-8deg); }
-        #boot-loader .bl-title { position: relative; padding: 7px 12px; background: #ffdd00; border: 4px solid #000; border-radius: 10px; box-shadow: 4px 4px 0 #ff90e8; transform: rotate(-3deg); font: 800 21px/1 "Lexend Mega", "Montserrat", system-ui, sans-serif; letter-spacing: -1px; }
-        #boot-loader .bl-props { display: flex; align-items: flex-end; gap: 9px; height: 52px; }
-        #boot-loader .bl-props i { display: block; width: 26px; border: 3px solid #000; border-radius: 5px; box-shadow: 3px 3px 0 #000; animation: bl-hop 1.2s cubic-bezier(.34,1.56,.64,1) infinite; will-change: transform; }
-        #boot-loader .bl-props i:nth-child(1) { height: 22px; background: #00e0c6; }
-        #boot-loader .bl-props i:nth-child(2) { height: 34px; background: #ff6b6b; animation-delay: .12s; }
-        #boot-loader .bl-props i:nth-child(3) { height: 26px; background: #7fb2ff; animation-delay: .24s; border-radius: 50% 50% 5px 5px; }
-        #boot-loader .bl-props i:nth-child(4) { height: 40px; background: #ffdd00; animation-delay: .36s; }
-        #boot-loader .bl-props i:nth-child(5) { height: 18px; background: #ff90e8; animation-delay: .48s; }
-        /* Real progress (see bootLoader.js): striped fill under a white cover that slides off it.
-           Moving the cover is a transform, so it glides even while the room is being built. */
-        #boot-loader { --bl-progress: .06; }
-        #boot-loader .bl-bar { position: relative; width: 86%; height: 16px; border: 3px solid #000; border-radius: 10px; background: #fff; overflow: hidden; }
-        /* the stripes slide by transform, not background-position, so they keep moving while the page is busy building the room */
-        #boot-loader .bl-bar span { display: block; width: calc(100% + 16.97px); height: 100%; margin-left: -16.97px; background: repeating-linear-gradient(-45deg, #000 0 6px, #ffdd00 6px 12px) 0 0 / 16.97px 16.97px; animation: bl-crawl .8s linear infinite; will-change: transform; }
-        #boot-loader .bl-bar::after { content: ""; position: absolute; inset: 0; background: #fff; border-left: 3px solid #000; transform: translateX(calc(var(--bl-progress) * 100%)); transition: transform .45s cubic-bezier(.22,1,.36,1); }
-        #boot-loader .bl-pct { margin: -4px 0 0; color: #000; font: 800 12px/1 "JetBrains Mono", ui-monospace, monospace; letter-spacing: 2px; }
-        #boot-loader .bl-ready { display: none; margin: 0; color: #22c55e; font: 800 22px/1 "JetBrains Mono", ui-monospace, monospace; letter-spacing: 2px; text-shadow: 3px 3px 0 #000; animation: bl-pop .45s cubic-bezier(.34,1.56,.64,1) both; }
-        #boot-loader .bl-ready b { animation: bl-blink 1s steps(1) infinite; }
-        #boot-loader .bl-neck { width: 40px; height: 22px; background: #fffdf5; border: 5px solid #000; border-top: 0; border-bottom: 0; }
-        #boot-loader .bl-foot { width: 132px; height: 18px; background: #fffdf5; border: 5px solid #000; border-radius: 12px 12px 6px 6px; box-shadow: 6px 6px 0 #ff90e8; }
-        /* The way in: a big toon ENTER keycap, top face over a darker side */
-        #boot-loader .bl-key { position: relative; display: none; margin-top: 28px; animation: bl-pop .55s cubic-bezier(.34,1.56,.64,1) both, bl-bob 1.6s ease-in-out .6s infinite; }
-        #boot-loader .bl-key::before, #boot-loader .bl-key::after { content: ""; position: absolute; top: 6px; width: 14px; height: 5px; border-radius: 3px; background: #ffdd00; animation: bl-flick 1.6s ease-in-out .6s infinite; }
-        #boot-loader .bl-key::before { left: -26px; transform: rotate(-25deg); box-shadow: 2px 16px 0 #ffdd00; }
-        #boot-loader .bl-key::after { right: -26px; transform: rotate(25deg); box-shadow: -2px 16px 0 #ffdd00; }
-        #boot-loader .bl-enter { display: block; min-width: 190px; padding: 16px 36px 22px; background: #ffdd00; border: 5px solid #000; border-radius: 18px; box-shadow: inset 0 -10px 0 #f2a900, inset 0 5px 0 #fff7a8, 0 8px 0 #000, 6px 14px 0 #ff90e8; color: #000; font: 800 28px/1 "Lexend Mega", "Montserrat", system-ui, sans-serif; letter-spacing: 1px; cursor: pointer; transition: transform .08s, box-shadow .08s; }
-        #boot-loader .bl-enter:hover { transform: translateY(-2px) rotate(-2deg); }
-        #boot-loader .bl-enter:active, #boot-loader.is-pressed .bl-enter { transform: translateY(7px); box-shadow: inset 0 -5px 0 #f2a900, inset 0 4px 0 #fff7a8, 0 1px 0 #000, 2px 7px 0 #ff90e8; }
-        #boot-loader .bl-enter:focus-visible { outline: 4px solid #ff90e8; outline-offset: 5px; }
-        /* In: a squash, then the view dives into the screen as it flares up, and the room is there */
-        #boot-loader.is-entering .bl-stage { transform-origin: var(--bl-dive, 50% 30%); animation: bl-dive .7s cubic-bezier(.6,0,.8,.3) forwards; }
-        #boot-loader.is-entering .bl-key, #boot-loader.is-entering .bl-neck, #boot-loader.is-entering .bl-foot { animation: bl-drop .25s ease-in forwards; }
-        #boot-loader.is-entering .bl-title, #boot-loader.is-entering .bl-ready { animation: bl-fade .18s ease-in forwards; }
-        #boot-loader .bl-screen::after { content: ""; position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
-        #boot-loader.is-entering .bl-screen::after { animation: bl-flare .7s ease-in forwards; }
-        @keyframes bl-dive { 0% { transform: none; } 20% { transform: scale(.93, .9); } 100% { transform: scale(12); } }
-        @keyframes bl-drop { to { opacity: 0; transform: translateY(24px) scale(.85); } }
-        @keyframes bl-flare { 12% { opacity: 0; } 55%, 100% { opacity: 1; } }
-        @keyframes bl-fade { to { opacity: 0; } }
-        #boot-loader.is-ready .bl-props, #boot-loader.is-ready .bl-bar, #boot-loader.is-ready .bl-pct { display: none; }
-        #boot-loader.is-ready .bl-ready, #boot-loader.is-ready .bl-key { display: block; }
-        @keyframes bl-in { from { opacity: 0; transform: translateY(18px) scale(.9); } }
-        @keyframes bl-pop { from { opacity: 0; transform: scale(.4); } }
-        @keyframes bl-bob { 50% { transform: translateY(-6px) rotate(1.5deg); } }
-        @keyframes bl-flick { 50% { opacity: .2; } }
-        @keyframes bl-hop { 0%, 55%, 100% { transform: translateY(0); } 25% { transform: translateY(-14px) rotate(-6deg); } }
-        @keyframes bl-crawl { to { transform: translateX(16.97px); } }
+        #boot-loader .bl-dark { position: absolute; inset: 0; background: radial-gradient(circle, #ffffff1a 1.4px, transparent 1.6px) 0 0 / 22px 22px #1a1714; transition: opacity .9s ease-in-out; }
+        #boot-loader.is-ready .bl-dark { opacity: 0; }
+        /* the hand-over: translate and scale onto the 3D window (set in bootLoader.js) */
+        #boot-loader .bl-flip { position: relative; transition: transform .9s cubic-bezier(.65,0,.35,1), opacity .3s ease-in .85s; }
+        #boot-loader.is-ready .bl-flip { opacity: 0; }
+        #boot-loader .bl-win { position: relative; width: min(520px, calc(100vw - 40px)); aspect-ratio: 368 / 212; container-type: inline-size; }
+        @media (min-width: 1100px) and (min-height: 800px) { #boot-loader .bl-win { width: 640px; } }
+        #boot-loader .bl-frame { --u: calc(100cqw / 368); position: absolute; inset: 0; overflow: hidden; background: repeating-linear-gradient(0deg, #8fd6940f 0 calc(1.72 * var(--u)), transparent 0 calc(3.44 * var(--u))) 0 calc(20 * var(--u)) / 100% 100% no-repeat, #1a1714; border: calc(2 * var(--u)) solid #000; border-radius: calc(8 * var(--u)); box-shadow: calc(5 * var(--u)) calc(5 * var(--u)) 0 #000000d9; font: 700 calc(12.6 * var(--u)) / calc(18.9 * var(--u)) ui-monospace, Menlo, monospace; color: #8fd694; }
+        #boot-loader .bl-title { display: flex; align-items: center; justify-content: center; position: relative; height: calc(18 * var(--u)); background: #ff7a1a; border-bottom: calc(2 * var(--u)) solid #000; color: #000; font: 700 calc(10 * var(--u)) / 1 "Space Grotesk", system-ui, sans-serif; }
+        #boot-loader .bl-title i { position: absolute; top: calc(4.5 * var(--u)); width: calc(9 * var(--u)); height: calc(9 * var(--u)); border: calc(1.2 * var(--u)) solid #000; border-radius: 50%; box-sizing: border-box; background: #ff5f57; }
+        #boot-loader .bl-title i:nth-child(1) { left: calc(5.5 * var(--u)); }
+        #boot-loader .bl-title i:nth-child(2) { left: calc(19.5 * var(--u)); background: #febc2e; }
+        #boot-loader .bl-title i:nth-child(3) { left: calc(33.5 * var(--u)); background: #28c840; }
+        #boot-loader .bl-log { margin: 0; padding: calc(6.6 * var(--u)) 0 0 calc(11.75 * var(--u)); list-style: none; }
+        #boot-loader .bl-log li { display: none; white-space: pre; }
+        #boot-loader .bl-log li.is-on { display: block; }
+        #boot-loader .bl-log .bl-cmd { color: #ff7a1a; }
+        #boot-loader .bl-log li[data-at]:not(.bl-cmd)::after { content: "..."; animation: bl-blink 1s steps(1) infinite; }
+        #boot-loader .bl-log li.is-ok:not(.bl-cmd)::after { content: "... ok"; animation: none; }
+        #boot-loader .bl-hl { display: inline-block; margin: calc(-2.3 * var(--u)) 0 0 calc(-4.6 * var(--u)); padding: 0 calc(5.7 * var(--u)); background: #ffdd00; color: #000; font-weight: 800; font-size: calc(13.75 * var(--u)); line-height: calc(17.8 * var(--u)); }
+        #boot-loader .bl-cursor::after { content: ""; display: inline-block; width: calc(7.4 * var(--u)); height: calc(13.75 * var(--u)); margin-left: calc(2.3 * var(--u)); vertical-align: calc(-2 * var(--u)); background: #8fd694; animation: bl-blink 1.06s steps(1) infinite; }
+        #boot-loader .bl-tap { display: none; }
+        @media (hover: none) { #boot-loader .bl-press { display: none; } #boot-loader .bl-tap { display: inline; } }
+        #boot-loader .bl-ready { display: none !important; }
+        #boot-loader.is-ready .bl-ready { display: block !important; }
+        #boot-loader.is-ready .bl-meter { display: none !important; }
+        /* the enter button is for the keyboard and screen readers: the whole page takes the click */
+        #boot-loader .bl-enter { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); border: 0; }
         @keyframes bl-blink { 50% { opacity: 0; } }
-        @media (prefers-reduced-motion: reduce) { #boot-loader *, #boot-loader *::before, #boot-loader *::after { animation: none !important; } }
+        @media (prefers-reduced-motion: reduce) { #boot-loader *, #boot-loader *::before, #boot-loader *::after { animation: none !important; transition: none !important; } }
       </style>
-      <div class="bl-scale"><div class="bl-stage">
-        <div class="bl-monitor">
-          <div class="bl-screen">
-            <div class="bl-title">THE DESK</div>
-            <div class="bl-props" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-            <div class="bl-bar" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="6"><span></span></div>
-            <p class="bl-pct" aria-hidden="true">LOADING <span>6</span>%</p>
-            <p class="bl-ready" aria-hidden="true">READY<b>_</b></p>
-          </div>
+      <div class="bl-dark" aria-hidden="true"></div>
+      <div class="bl-flip"><div class="bl-win">
+        <div class="bl-frame">
+          <div class="bl-title" aria-hidden="true"><i></i><i></i><i></i>the@desk: ~</div>
+          <!-- each line comes on as the start reaches it (data-at, a fraction of the bar); the room's
+               terminal ends on the same lines -->
+          <ul class="bl-log" aria-hidden="true">
+            <li class="bl-cmd is-on">&gt; boot the desk</li>
+            <li class="is-on" data-at="0">loading the scene</li>
+            <li data-at=".35">building the room</li>
+            <li data-at=".6">drawing it</li>
+            <li data-at=".7">setting the light</li>
+            <li class="bl-meter is-on">[<span class="bl-bar" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="6">-----------------</span>] <span class="bl-pct"><span>6</span>%</span></li>
+            <li class="bl-ready"><span class="bl-hl"><span class="bl-press">PRESS ENTER TO COME IN</span><span class="bl-tap">TAP TO COME IN</span></span></li>
+            <li class="bl-ready bl-cmd bl-cursor">&gt;</li>
+          </ul>
         </div>
-        <div class="bl-neck" aria-hidden="true"></div>
-        <div class="bl-foot" aria-hidden="true"></div>
-        <div class="bl-key"><button type="button" class="bl-enter">ENTER</button></div>
       </div></div>
+      <button type="button" class="bl-enter">Enter the desk</button>
     </div>
     <script>
       (function () {

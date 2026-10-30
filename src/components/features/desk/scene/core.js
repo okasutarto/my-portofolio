@@ -3,6 +3,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { createSceneMeshes } from "../sceneMeshes";
 import { createPaperFlex } from "../paperFlex";
 import { PALETTES, perfParams, benchmark, lowPower } from "../sceneConfig";
@@ -85,6 +86,38 @@ export function createCore(runtime) {
   useFrameDepth();
   [aoPass.gtaoMaterial, aoPass.pdMaterial].forEach((m) => (m.needsUpdate = true));
   composer.addPass(aoPass);
+  // Lights off, for the room waiting behind the loader: everything darkens but the screen
+  // (`rect`: its centre and half size in the frame's 0–1 coordinates) and the cool spill from
+  // it. `dark` 0 is the room as lit; off unless the room is in standby (see animation).
+  const standbyPass = new ShaderPass({
+    uniforms: {
+      tDiffuse: { value: null },
+      dark: { value: 0 },
+      rect: { value: new THREE.Vector4(0.5, 0.5, 0.1, 0.1) },
+      aspect: { value: 1 },
+    },
+    vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+    fragmentShader: `
+      uniform sampler2D tDiffuse;
+      uniform float dark;
+      uniform vec4 rect;
+      uniform float aspect;
+      varying vec2 vUv;
+      void main() {
+        vec4 color = texture2D(tDiffuse, vUv);
+        vec2 p = (vUv - rect.xy) * vec2(aspect, 1.0);
+        vec2 hs = rect.zw * vec2(aspect, 1.0);
+        // how far outside the screen, in screen heights
+        float d = length(max(abs(p) - hs, 0.0)) / (2.0 * hs.y);
+        // (linear light: what reads as a dark room after the output's sRGB curve is near zero)
+        float spill = exp(-d * 4.0);
+        vec3 lit = mix(vec3(0.0015, 0.002, 0.004), vec3(0.35, 0.42, 0.75), spill * spill);
+        color.rgb *= mix(vec3(1.0), mix(lit, vec3(1.0), step(d, 0.0)), dark);
+        gl_FragColor = color;
+      }`,
+  });
+  standbyPass.enabled = false;
+  composer.addPass(standbyPass);
   composer.addPass(new OutputPass());
   if (benchmark === "no-ao" || lowPower) aoPass.enabled = false;
   // Count the complete frame, including shadow, postprocessing and overlay draws.
@@ -281,6 +314,7 @@ export function createCore(runtime) {
     set aoDue(value) { aoDue = value; },
     updatePaperFlex,
     renderFrame,
+    standbyPass,
     bubbleTimers,
     disposables,
     get gpuQuery() { return gpuQuery; },

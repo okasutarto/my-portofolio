@@ -706,6 +706,34 @@ export function createWorkstation(runtime) {
   // `level` fades the screen's spill.
   const computer = { on: false, booting: true, bar: 0 };
   const screenPower = { level: 0.35 };
+  // The room waits behind the loader with its screen asking the visitor in: the terminal holds
+  // the lines the loader's own terminal ends on (see index.html). The terminal's window stays
+  // off the desktop until the loader's window lands on it.
+  let standby = false;
+  const STANDBY_LOG = ["> boot the desk", ...["loading the scene", "building the room", "drawing it", "setting the light"].map((line) => `${line}... ok`)];
+  const standbyLines = () => [...STANDBY_LOG, window.matchMedia("(hover: none)").matches ? "# TAP TO COME IN" : "# PRESS ENTER TO COME IN", ">"];
+  function setStandby(on) {
+    standby = on;
+    desktop.setHidden("terminal", on);
+    screenPower.level = on ? 1 : screenPower.level;
+    redrawScreen();
+  }
+  function landStandby() {
+    desktop.setHidden("terminal", false);
+    redrawScreen();
+  }
+  // In from standby the computer is already on: no boot, the terminal goes on from the loader's
+  // log to the greeting. (Switching the Mac mini off and on still boots it.)
+  function wakeFromStandby() {
+    standby = false;
+    desktop.setHidden("terminal", false);
+    gsap.killTweensOf(computer);
+    Object.assign(computer, { on: true, booting: false, bar: 1 });
+    termLines = [...STANDBY_LOG];
+    gsap.to(screenPower, { level: 1, duration: 0.4, overwrite: true });
+    redrawTerminal();
+    runtime.core.timers.push(setTimeout(welcome, 1400));
+  }
   // A track asked for while the sound is off: it starts once the speakers are switched on
   let pendingTrack = null;
   function startMusic(index = lofi.index) {
@@ -800,8 +828,11 @@ export function createWorkstation(runtime) {
       // the console is the display's own input, so it lights the screen with the Mac mini off
       if (!computer.on && !computer.booting) gsap.to(screenPower, { level: consoleOn ? 1 : 0, duration: 0.35, overwrite: true });
     }
+    // Waiting behind the loader, the desktop is up with the loader's boot log in the terminal,
+    // every line done, asking the visitor in (the loader's own window hands over to this one)
+    if (standby) drawTerminal(term.ctx, 640, 384, standbyLines(), cursorOn);
     // Off or still starting, the Mac mini shows black or its boot screen and nothing is clickable
-    if (!computer.on && !consoleOn) {
+    if (!computer.on && !consoleOn && !standby) {
       screenTex.ctx.save();
       screenTex.ctx.setTransform(1, 0, 0, 1, 0, 0);
       drawPowerScreen(screenTex.ctx, SCREEN_W * 2, SCREEN_H * 2, { booting: computer.booting, progress: computer.bar });
@@ -835,7 +866,7 @@ export function createWorkstation(runtime) {
   COMMANDS.ls = COMMANDS.projects;
   const AUTORUN = ["help", "whoami", "projects", "hobbies", "sudo hire oka"];
   const MAX_INPUT = 26;
-  let termLines = ["oka@desk ready."];
+  let termLines = ["the@desk ready."];
   let welcomed = false;
   let input = "";
   let termBusy = false;
@@ -1092,6 +1123,10 @@ export function createWorkstation(runtime) {
     lofi,
     get screenDrawnAt() { return screenDrawnAt; },
     bootComputer,
+    get standby() { return standby; },
+    setStandby,
+    landStandby,
+    wakeFromStandby,
     setMuted,
     computer,
     autotype,

@@ -4,7 +4,8 @@
       <div ref="stageRef" class="absolute inset-0"></div>
 
       <!-- Top-left: title + way out -->
-      <div class="absolute top-4 left-4 flex flex-col items-start gap-2 pointer-events-none">
+      <!-- (kept back while the room waits in the dark behind the loader) -->
+      <div class="hud-corner absolute top-4 left-4 flex flex-col items-start gap-2 pointer-events-none" :class="{ 'hud-corner--waiting': !inRoom }">
         <div class="pointer-events-auto bg-primary border-4 border-black shadow-neo px-3 py-1.5 -rotate-2">
           <h1 class="font-display font-extrabold text-black text-lg md:text-2xl leading-none">THE DESK</h1>
         </div>
@@ -341,10 +342,10 @@ const hint = computed(() => {
 });
 
 // Coming in is a gesture, so audio is unlocked in time for the computer's boot sound
-let entered = false;
+const inRoom = ref(false);
 function enterDesk() {
-  if (entered) return;
-  entered = true;
+  if (inRoom.value) return;
+  inRoom.value = true;
   void initializeAudio();
   scene.value?.enter();
   setTimeout(() => (introPlaying.value = false), 1600);
@@ -356,7 +357,12 @@ function onEvent(name, payload = {}) {
   // Without a loader (the desk was reached from another page) there's nothing to wait for.
   if (name === "drawn") bootLoaderShowing() ? setBootProgress(0.7) : enterDesk();
   else if (name === "loading") setBootProgress(0.7 + 0.3 * payload.progress);
-  else if (name === "ready") showEnterGate(enterDesk) || enterDesk();
+  // With the loader up, the room goes dark behind it, close on the monitor, and the loader's
+  // screen hands over to the monitor's
+  else if (name === "ready") {
+    if (!bootLoaderShowing()) enterDesk();
+    else scene.value.standby().then((screen) => showEnterGate(enterDesk, screen, () => scene.value?.landStandby()) || enterDesk());
+  }
   // An empty coffee cup flips the desk to the night shift, or back to day
   else if (name === "nightShift" && payload.dark !== isDark.value) toggleTheme();
   else if (name === "toggleSound") toggleMute();
@@ -492,6 +498,13 @@ onUnmounted(() => {
   z-index: 20;
   /* The boot loader's colour: it fades straight from the loader to the room */
   background: #1a1714;
+}
+.hud-corner {
+  transition: opacity 0.5s ease-out 0.6s;
+}
+.hud-corner--waiting {
+  opacity: 0;
+  visibility: hidden;
 }
 .hud-btn {
   @apply inline-flex items-center gap-1 border-3 border-black px-3 py-1.5 text-xs md:text-sm font-bold uppercase shadow-neo-sm transition-transform;

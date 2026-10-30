@@ -9,6 +9,8 @@ export function createLifecycle(runtime) {
     setTime: runtime.theme.setTime,
     setRain: runtime.weather.setRain,
     setMuted: runtime.workstation.setMuted,
+    standby: runtime.animation.standby,
+    landStandby: runtime.workstation.landStandby,
     enter: runtime.animation.enter,
     back: runtime.camera.back,
     focusOn: (name) => runtime.camera.SHOTS[name] && runtime.camera.setFocus(name),

@@ -101,6 +101,15 @@ export function createCamera(runtime) {
       runtime.workstation.monitor.localToWorld(screenPos.set(0, runtime.workstation.SCREEN_Y - 0.38, 0.09));
       return { target: screenPos.toArray(), dir: [0.1, 0.32, 1], fit: [7.7, 6.8] };
     },
+    // Behind the loader: square on the screen, the room dark around it (see animation's standby)
+    standby: () => {
+      const { monitor, SCREEN_Y } = runtime.workstation;
+      monitor.updateWorldMatrix(true, false);
+      monitor.localToWorld(screenPos.set(0, SCREEN_Y - 0.6, 0.09));
+      monitor.getWorldDirection(screenNormal);
+      screenNormal.y += 0.12;
+      return { target: screenPos.toArray(), dir: screenNormal.toArray(), fit: [13, 8.6] };
+    },
     keyboard: () => ({ target: [runtime.keyboard.keyboard.position.x, 0.3 * runtime.keyboard.KEYBOARD_SCALE, runtime.keyboard.keyboard.position.z], dir: [0.1, 1, 0.75], fit: [5.4 * runtime.keyboard.KEYBOARD_SCALE, 2.6 * runtime.keyboard.KEYBOARD_SCALE] }),
     // A higher angle pushes the plant above the frame and leaves room for the sip quote.
     mug: () => ({ target: [runtime.coffee.mug.position.x - 0.3, 0.95 + runtime.coffee.MUG_Y, runtime.coffee.mug.position.z - 0.45], dir: [-0.2, 1, 0.45], fit: [3.1, 4.1] }),
@@ -230,6 +239,17 @@ export function createCamera(runtime) {
     arriveTimer = setTimeout(() => focus.name === name && entry.onArrive?.(), 850);
   }
 
+  // The standby shot is taken at once and left without a sound or a focus event: it isn't a
+  // close-up the visitor chose, and the page's hints don't follow it
+  function standby() {
+    focus.name = "standby";
+    applyShot(true);
+  }
+  function leaveStandby(duration) {
+    focus.name = "overview";
+    applyShot(false, duration);
+  }
+
   function back() {
     if (runtime.tickets.heldTicket) runtime.tickets.dropTicket();
     else if (runtime.projectFiles.openFolder) runtime.projectFiles.closeProject();
@@ -265,6 +285,8 @@ export function createCamera(runtime) {
   // Public state used by the other scene parts.
   return {
     back,
+    standby,
+    leaveStandby,
     focus,
     shelfLookAt,
     setFocus,

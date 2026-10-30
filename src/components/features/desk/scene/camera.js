@@ -44,8 +44,8 @@ export function createCamera(runtime) {
     // cover lies open to the left)
     projects: () => {
       if (!runtime.projectFiles.openFolder) {
-        // Square on the drawer's front, wherever it faces. A shallow clip keeps the lamp head
-        // and the family photo, both just in front of the drawer, out of the shot.
+        // Square on the drawer's front, wherever it faces. A shallow clip keeps the lamp head,
+        // just in front of the drawer, out of the shot (the family photo steps aside; see setFocus).
         runtime.projectFiles.folders.localToWorld(screenPos.set(0, 1.25, 0.2));
         screenNormal.set(0.05, 0.62, 1).applyQuaternion(runtime.projectFiles.folders.quaternion);
         return { target: screenPos.toArray(), dir: screenNormal.toArray(), fit: [4.6, 3.9], depth: 1.4 };
@@ -206,6 +206,9 @@ export function createCamera(runtime) {
     // plain sight of the overview; leaving, it's back at once
     runtime.lamp.hideLamp(false);
     if (name === "window") runtime.core.timers.push(setTimeout(() => focus.name === "window" && runtime.lamp.hideLamp(true), 450));
+    // the family photo stands just in front of the folders, so it steps out of their close-up the same way
+    runtime.lamp.familyFrame.visible = true;
+    if (name === "projects") runtime.core.timers.push(setTimeout(() => focus.name === "projects" && (runtime.lamp.familyFrame.visible = false), 450));
     if (name === "shelf") {
       // Frame the whole bay that was clicked (whatever part of it was hit), or on the top board
       // its two display props; with no click, the console's bay at the top

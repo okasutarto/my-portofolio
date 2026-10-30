@@ -13,7 +13,7 @@ export function createShelf(runtime) {
   // Full-size 61 × 30 × 132 cm shelving; its contents share the same scale.
   shelf.scale.setScalar(2);
   // Just right of the desk, far enough out that it doesn't hide the plant in the desk's back corner
-  shelf.position.set(9.0 + 3.05, runtime.room.FLOOR_Y, runtime.room.WALL_Z + 1.65); // (half its 61 cm width)
+  shelf.position.set(8.0 + 3.05, runtime.room.FLOOR_Y, runtime.room.WALL_Z + 1.65); // (half its 61 cm width)
   runtime.core.scene.add(shelf);
   const SHELF_W = 3.05;
   const SHELF_D = 1.5;

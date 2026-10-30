@@ -6,7 +6,7 @@ const source = require('./helpers/desk-source.cjs').readDeskSource();
 const start = source.indexOf('  const gym = new THREE.Group();');
 const { gym, dumbbells } = vm.runInNewContext(
   source.slice(start, source.indexOf('  const repTex =', start)) + '; ({ gym, dumbbells })', {
-    THREE, FLOOR_Y: -5.2, scene: new THREE.Scene(), track: (value) => value, shelf: { position: new THREE.Vector3(10.15, -5.2, -2.78) },
+    THREE, FLOOR_Y: -5.2, scene: new THREE.Scene(), track: (value) => value, shelf: { position: new THREE.Vector3(10.15, -5.2, -2.78), scale: new THREE.Vector3(2, 2, 2) }, SHELF_W: 3.05, SHELF_D: 1.5,
     toon: (color) => new THREE.MeshToonMaterial({ color }),
     mesh: (geometry, material) => new THREE.Mesh(geometry, material),
     canvasTexture: () => ({ texture: new THREE.Texture(), ctx: { beginPath() {}, moveTo() {}, lineTo() {}, stroke() {} } }),

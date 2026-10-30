@@ -214,7 +214,7 @@ export function createLamp(runtime) {
   // on the bottom rail, on a black easel leg.
   const familyFrame = new THREE.Group();
   // The tilted easel's rear edge extends below its local origin.
-  familyFrame.position.set(-5.35, 0.034, -1.2);
+  familyFrame.position.set(-5.75, 0.034, -1.2);
   familyFrame.scale.setScalar(0.8);
   familyFrame.rotation.set(-0.08, 0.08, 0);
   const FY = 1.08;

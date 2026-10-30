@@ -186,7 +186,7 @@ part of the scene, not a video playing behind the page.
 | ✒️ **Lines that stay sharp** | Screen-space outlines keep their weight as you zoom in. Rendering follows device density, up to 3×. |
 | 🎬 **Every prop gets a close-up** | GSAP moves between framed camera shots; foreground props clip out of the way so they don't block the view or clicks. |
 | 🧩 **Small things, shared draws** | Compatible toon meshes and simpler shadow proxies are batched. Original meshes still handle picking and animation. |
-| 🚪 **The room starts before the scene** | An HTML boot loader appears before JavaScript, then fades into the desk. |
+| 🚪 **The room starts before the scene** | An HTML boot loader appears before JavaScript and reports each step, shader warm-up included, then hands its terminal over to the monitor on the desk. |
 
 Audio respects the shared mute setting. The app tries to start Web Audio automatically;
 when the browser blocks autoplay, a user gesture unlocks it. Recorded layers and their
@@ -275,6 +275,7 @@ allowlist and an API rate limit of 100 requests per 15 minutes per IP. Frontend-
 | `npm run preview` | Serve the production build locally |
 | `npm run lint` | ESLint |
 | `npm run check:desk` | Every desk check in turn, with a passed count at the end |
+| `npm run check:app` | App checks outside the desk: safe chat formatting, theme storage fallback, the API's CORS allowlist and chat streaming, with no network calls |
 | `node scripts/check-desk-lighting.cjs` | Time cycle, sky/light alignment, rain, transitions, strip lighting and shadow sampler limits |
 | `node scripts/check-desk-quality.cjs` | Resolution, frame scheduling and decorative shadow budgets |
 | `node scripts/check-desk-toon-batch.cjs` | Batching, transforms, visibility, picking and material fallbacks |

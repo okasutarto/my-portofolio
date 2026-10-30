@@ -154,13 +154,14 @@ chair.updateMatrixWorld(true);
 const chairUpper = new THREE.Box3().setFromObject(upholstery.children[3], true);
 const shelfUpper = shelfBox.clone();
 shelfUpper.min.y = (shelfBox.min.y + shelfBox.max.y) / 2;
-const swordBox = new THREE.Box3(new THREE.Vector3(-4.95, 6.2, -4.8), new THREE.Vector3(4.15, 12.0, -3.7));
+const swordBox = new THREE.Box3(new THREE.Vector3(6.84, 11.63, -4.8), new THREE.Vector3(16.06, 17.2, -3.7));
 for (const [w, h] of [[1440, 900], [1024, 768], [1920, 1080]]) {
   const viewH = Math.max(shot.fit[1], shot.fit[0] * h / w);
   for (const box of [deskBox, chairUpper, shelfUpper, monitorBox, swordBox]) {
     for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
       const point = new THREE.Vector3(x, y, z).sub(target);
       assert.ok(Math.abs(point.dot(right)) < viewH * w / h / 2, 'overview fits furniture horizontally');
+      if (Math.abs(point.dot(up)) >= viewH / 2) console.log(w, h, x, y, z, point.dot(up).toFixed(2), (viewH / 2).toFixed(2));
       assert.ok(Math.abs(point.dot(up)) < viewH / 2, 'overview fits swords and the chair back vertically');
     }
   }

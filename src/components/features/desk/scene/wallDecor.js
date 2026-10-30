@@ -13,9 +13,8 @@ export function createWallDecor(runtime) {
   clockMount.position.copy(clock.position).add(new THREE.Vector3(0, 0.78, 0));
   clock.position.set(0, -0.78, 0);
   clockMount.add(clock);
-  // Hidden for now: the sword rack hangs in its place over the monitor. Kept out of the
-  // scene, not just invisible, so it can't be hovered or clicked.
-  const SHOW_CLOCK = false;
+  // Kept out of the scene, not just invisible, while hidden, so it can't be hovered or clicked
+  const SHOW_CLOCK = true;
   if (SHOW_CLOCK) runtime.room.room.add(clockMount);
   const CLOCK_SCALE = 30 / 18;
   clock.scale.setScalar(CLOCK_SCALE); // 30 cm diameter; centre 180 cm above the floor.
@@ -116,9 +115,11 @@ export function createWallDecor(runtime) {
   const paintingHang = new THREE.Group();
   // Hung clear of the lamp, but low enough that the frame and its nail stay in frame on wide,
   // short screens
-  paintingHang.position.set(-4.9, 3.4 + runtime.room.WALL_LIFT + 0.9 + PAINTING_DROP, runtime.room.WALL_Z + 0.24);
-  // Hidden for now, like the clock and the About board: the sword rack hangs over the monitor
-  const SHOW_PAINTING = false;
+  // Centred level with the About board (y 8.4), scaled up as a whole with its nail and wire
+  const PAINTING_SCALE = 1.3;
+  paintingHang.position.set(-5.9, 8.4 + PAINTING_DROP * PAINTING_SCALE, runtime.room.WALL_Z + 0.24);
+  paintingHang.scale.setScalar(PAINTING_SCALE);
+  const SHOW_PAINTING = true;
   if (SHOW_PAINTING) runtime.room.room.add(paintingHang);
   const paintingTurn = new THREE.Group();
   paintingTurn.position.y = -PAINTING_DROP;

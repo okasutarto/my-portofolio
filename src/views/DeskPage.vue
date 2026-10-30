@@ -121,15 +121,9 @@
                     <div v-for="(label, part) in WOOD_TARGETS" :key="part" class="settings-sub">
                       <h3 class="settings-sublabel">
                         <span class="whitespace-nowrap">{{ label }}</span>
-                        <span class="settings-value">· {{ part === "speakers" && settings.woods.speakers.finish !== "wood" ? SPEAKER_FINISHES[settings.woods.speakers.finish].name : `${WOODS[settings.woods[part].wood].name}, ${WOOD_PATTERNS[settings.woods[part].pattern].toLowerCase()}` }}</span>
+                        <span class="settings-value">· {{ `${WOODS[settings.woods[part].wood].name}, ${WOOD_PATTERNS[settings.woods[part].pattern].toLowerCase()}` }}</span>
                       </h3>
-                      <div v-if="part === 'speakers'" class="flex flex-wrap gap-1.5 mb-2">
-                        <button v-for="(finish, key) in SPEAKER_FINISHES" :key="key" class="pattern-chip"
-                          :class="{ 'pattern-chip--on': settings.woods.speakers.finish === key }"
-                          :aria-pressed="settings.woods.speakers.finish === key"
-                          @click="setWood('speakers', { finish: key })">{{ finish.name }}</button>
-                      </div>
-                      <div v-if="part !== 'speakers' || settings.woods.speakers.finish === 'wood'" class="flex flex-wrap items-center gap-1.5">
+                      <div class="flex flex-wrap items-center gap-1.5">
                         <button
                           v-for="(wood, key) in WOODS"
                           :key="key"
@@ -143,7 +137,7 @@
                           <span v-if="settings.woods[part].wood === key" class="swatch-tick" :class="{ 'swatch-tick--light': isDarkColour(wood.swatch) }" aria-hidden="true">✓</span>
                         </button>
                       </div>
-                      <div v-if="part !== 'speakers' || settings.woods.speakers.finish === 'wood'" class="flex flex-wrap gap-1.5 mt-2">
+                      <div class="flex flex-wrap gap-1.5 mt-2">
                         <button
                           v-for="(name, key) in WOOD_PATTERNS"
                           :key="key"
@@ -239,7 +233,7 @@ import { experiences } from "@/data/experience";
 import { useTheme } from "@/composables/useTheme";
 import { useSfx, initializeAudio, sfx } from "@/composables/useSfx";
 import { hideBootLoader, showEnterGate, setBootProgress, bootLoaderShowing } from "@/utils/bootLoader";
-import { WOODS, WOOD_PATTERNS, WOOD_TARGETS, DEFAULT_WOODS, SPEAKER_FINISHES } from "@/components/features/desk/woods";
+import { WOODS, WOOD_PATTERNS, WOOD_TARGETS, DEFAULT_WOODS } from "@/components/features/desk/woods";
 import { DAY_PARTS, TIME_MODES, RAIN_MODES, DEFAULT_TIME, DEFAULT_RAIN, partOfDay, partFor } from "@/components/features/desk/daylight";
 
 const COMMAND_CHIPS = ["help", "whoami", "projects", "hobbies", "sudo hire oka"];
@@ -397,7 +391,8 @@ function readSettings() {
   const pickWood = (part, choice = {}) => ({
     wood: WOODS[choice.wood] ? choice.wood : DEFAULT_WOODS[part].wood,
     pattern: WOOD_PATTERNS[choice.pattern] ? choice.pattern : DEFAULT_WOODS[part].pattern,
-    ...(part === "speakers" ? { finish: SPEAKER_FINISHES[choice.finish] ? choice.finish : "wood" } : {}),
+    // The finish is no longer offered in settings: a saved black model goes back to wood sides
+    ...(part === "speakers" ? { finish: "wood" } : {}),
   });
   return {
     time: TIME_MODES[saved.time] ? saved.time : DEFAULT_TIME,
@@ -420,7 +415,6 @@ function setWall(hex) {
 }
 function setWood(part, choice) {
   Object.assign(settings.woods[part], choice);
-  if (part === "speakers" && !choice.finish && (choice.wood || choice.pattern)) settings.woods.speakers.finish = "wood";
   scene.value?.setWood(part, choice);
   saveSettings();
 }

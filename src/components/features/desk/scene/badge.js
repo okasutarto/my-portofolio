@@ -5,14 +5,14 @@ import { canvasTexture, drawBadge, drawGlassSheen } from "../textures";
 
 export function createBadge(runtime) {
   // ---------- ID badge on a lanyard, hung from a push pin on the About board's corner (hero) ----------
-  // The board is 6.8 × 4.2 centred at (4.6, 5.8) on the back wall: the pin sits inside its
-  // top-left corner and the badge hangs just off its left edge. Close up, the camera's near
+  // The board is 6.8 × 4.2 centred at (4.6, 8.4) on the back wall: the pin sits in from its
+  // top-left corner and the badge hangs down over the cork. Close up, the camera's near
   // plane cuts away the monitor in front of it (see the hero shot's depth).
-  const BADGE_PIN = new THREE.Vector3(1.4, 7.55, runtime.room.WALL_Z + 0.48);
-  const BADGE_CLIP = new THREE.Vector3(1.4, 5.85, runtime.room.WALL_Z + 0.58); // straight below the pin: the rope's resting shape
-  // Hidden for now, with the About board it hangs from. Its parts stay out of the scene, not
-  // just invisible, so the lanyard can't be hovered, grabbed or clicked.
-  const SHOW_BADGE = false;
+  const BADGE_PIN = new THREE.Vector3(1.65, 10.05, runtime.room.WALL_Z + 0.48);
+  const BADGE_CLIP = new THREE.Vector3(1.65, 8.35, runtime.room.WALL_Z + 0.58); // straight below the pin: the rope's resting shape
+  // Shown with the About board it hangs from. While hidden, its parts stay out of the scene,
+  // not just invisible, so the lanyard can't be hovered, grabbed or clicked.
+  const SHOW_BADGE = true;
   const addBadgePart = (part) => SHOW_BADGE && runtime.core.scene.add(part);
   // Blue: it stands off the yellow badge, the red pin and the cork
   const strapWeave = canvasTexture(512, 128);

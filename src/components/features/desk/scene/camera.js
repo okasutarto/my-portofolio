@@ -16,7 +16,7 @@ export function createCamera(runtime) {
   const SHOTS = {
     // The camera sits inside the room, with no cutaway edges or outside backdrop; on a portrait
     // screen it stands back to take in the whole diorama instead.
-    overview: () => (runtime.room.diorama ? dioramaShot() : { target: [3.17, 7.15, 4.04], dir: [0.48, 0.72, 1], fit: [38.7, 22.7], depth: CAM_DISTANCE - 0.1 }),
+    overview: () => (runtime.room.diorama ? dioramaShot() : { target: [3.17, 7.8, 4.04], dir: [0.48, 0.72, 1], fit: [39.4, 23.1], depth: CAM_DISTANCE - 0.1 }),
     // Browse the tall collection in close-up, starting at the console and GAME ON sign.
     shelf: () => {
       const fit = [runtime.options.container.clientWidth < 900 ? 8.8 : 10.5, 7.2];

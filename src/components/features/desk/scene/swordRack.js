@@ -3,7 +3,7 @@ import gsap from "gsap";
 import { canvasTexture, drawEnmaBlade, drawEnmaFlower, drawWadoBlade, drawKitetsuBlade, drawBladeGlint } from "../textures";
 
 export function createSwordRack(runtime) {
-  // ---------- Zoro's three swords on a wall rack, above the monitor ----------
+  // ---------- Zoro's three swords on a wall rack, above the shelf ----------
   // Two black wall brackets, each a plate with three curved hooks (the wavy arms of a sword
   // stand, turned to hang on the wall), and in them, top to bottom:
   // Wado Ichimonji: white saya and white wrap with black diamonds, a round gold tsuba
@@ -17,9 +17,9 @@ export function createSwordRack(runtime) {
   // have a close-up of their own
   const SHELF_TOP_EXTRA = 2.9;
   const katanaRack = new THREE.Group();
-  // On the back wall over the monitor, centred on it, with the lowest tassel just clear of
-  // the display's top edge
-  katanaRack.position.set(-0.4, 9.3, runtime.room.WALL_Z + 0.25);
+  // On the back wall over the shelf, a little right of its middle, with the lowest
+  // sword about 15 cm over the gauntlet's fingertips
+  katanaRack.position.set(11.45, 14.65, runtime.room.WALL_Z + 0.25);
   katanaRack.scale.setScalar(KATANA_SCALE);
   runtime.room.room.add(katanaRack);
 

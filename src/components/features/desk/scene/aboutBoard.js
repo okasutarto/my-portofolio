@@ -9,9 +9,9 @@ export function createAboutBoard(runtime) {
   const aboutBoard = new THREE.Group();
   // Above the full-size monitor, with every note visible from the overview
   aboutBoard.position.set(4.6, 8.4, runtime.room.WALL_Z + 0.3); // on the wall: WALL_Z + 0.3
-  // Hidden for now, with the painting, while the sword rack hangs over the monitor. Kept out
-  // of the scene, not just invisible, so its notes can't be hovered or clicked.
-  const SHOW_BOARD = false;
+  // Kept out of the scene, not just invisible, while hidden, so its notes can't be hovered or
+  // clicked
+  const SHOW_BOARD = true;
   if (SHOW_BOARD) runtime.core.scene.add(aboutBoard);
   const boardWood = runtime.core.toon("#b98550");
   boardWood.map = runtime.room.windowWood.texture;

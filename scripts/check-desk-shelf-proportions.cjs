@@ -97,15 +97,17 @@ factory('swords');
 scene.updateMatrixWorld(true);
 const swords = runtime.swordRack.katanaRack.children.filter(obj => obj.isGroup && obj.children.length === 2);
 assert.equal(swords.length, 3, 'all three swords are audited');
-// The rack hangs on the back wall over the monitor (its top edge is 58.5 cm up from the desk).
-const MONITOR_TOP = 5.85;
+// The rack hangs on the back wall over the shelf, above the gauntlet and its snap
+const gauntletTop = new THREE.Box3().setFromObject(runtime.gauntlet.gauntlet, true).max.y;
+const SNAP_RISE = 0.88 * runtime.gauntlet.gauntlet.scale.y * shelf.scale.y;
 for (const [index, sword] of swords.entries()) {
   const box = new THREE.Box3().setFromObject(sword, true);
   const size = box.getSize(new THREE.Vector3()).multiplyScalar(10);
   console.log(`sword ${index + 1}: ${size.toArray().map(n => n.toFixed(1)).join(' × ')} cm`);
   assert.ok(Math.abs(size.x - 90.4) < 1, 'sword is about 90 cm long');
   assert.ok(box.min.z > runtime.room.WALL_Z + 0.12, 'sword clears the back wall');
-  assert.ok(box.min.y > MONITOR_TOP + 0.3, 'sword hangs clear above the monitor');
-  assert.ok(box.min.x > -5.5 && box.max.x < 4.7, 'sword stays between the window corner and the shelf');
+  assert.ok(box.min.y > gauntletTop + SNAP_RISE + 0.3, 'sword hangs clear above the gauntlet, even mid-snap');
 }
+const rackBottom = Math.min(...swords.map(sword => new THREE.Box3().setFromObject(sword, true).min.y));
+assert.ok(rackBottom < gauntletTop + 3.5, 'the lowest sword hangs close over the gauntlet');
 console.log(`Shelf audit passed: ${all.length + swords.length} objects measured with final transforms and shelf clearances.`);

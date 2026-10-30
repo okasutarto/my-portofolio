@@ -33,7 +33,9 @@ export function createAnimation(runtime) {
     // Outlines keep a steady width in CSS pixels (see outlineMat), but a phone shows the whole
     // room in a fraction of a desktop's pixels: thinned there, the lines keep the same weight
     // against the props instead of swallowing them
-    const outlineScale = THREE.MathUtils.clamp(Math.min(w, h) / 600, 0.55, 1);
+    // (squared, so a 390 px phone drops to ~0.42 while anything 600 px and up keeps full weight)
+    const outlineFit = Math.min(Math.min(w, h) / 600, 1);
+    const outlineScale = THREE.MathUtils.clamp(outlineFit * outlineFit, 0.35, 1);
     runtime.core.outlineResolution.value.set(w / outlineScale, h / outlineScale);
     if (!intro?.isActive()) runtime.camera.applyShot(true);
     runtime.camera.clampUserView();

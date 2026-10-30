@@ -38,9 +38,12 @@ export function createMouse(runtime) {
   const tailCurve = new THREE.CatmullRomCurve3([[0, 0.08, 0.38], [0, 0.06, 0.55], [0.13, 0.06, 0.66], [0.04, 0.12, 0.76], [-0.08, 0.2, 0.76]].map(([x, y, z]) => new THREE.Vector3(x, y, z)));
   const tail = runtime.core.mesh(new THREE.TubeGeometry(tailCurve, 24, 0.022, 6), runtime.core.toon("#ff90e8"), { outline: 0.012 });
   critter.push(tail);
+  // Hidden, not just shrunk: the outlines are drawn a set number of pixels thick, so a shrunk
+  // ear or tail would still leave a black dot on the mouse, like a pair of eyes
   critter.forEach((part) => {
     part.userData.scale = part.scale.clone();
     part.scale.setScalar(0.001);
+    part.visible = false;
     mouse.add(part);
   });
   let mouseRunning = false;
@@ -54,7 +57,11 @@ export function createMouse(runtime) {
     mouseRunning = true;
     gsap.killTweensOf(mouse.rotation);
     runtime.secrets.discover("rat");
-    critter.forEach((part, i) => gsap.to(part.scale, { ...part.userData.scale, duration: 0.3, delay: i * 0.04, ease: "back.out(3)" }));
+    critter.forEach((part, i) => {
+      gsap.killTweensOf(part.scale);
+      part.visible = true;
+      gsap.to(part.scale, { ...part.userData.scale, duration: 0.3, delay: i * 0.04, ease: "back.out(3)" });
+    });
     sfx.squeak();
     runtime.cat.catSpotsMouse();
     const start = { x: mouse.position.x, z: mouse.position.z };
@@ -83,7 +90,7 @@ export function createMouse(runtime) {
         mouseRunning = false;
         mouseBody.position.y = 0.13;
         mouse.rotation.y = Math.atan2(Math.sin(mouse.rotation.y), Math.cos(mouse.rotation.y));
-        critter.forEach((part) => gsap.to(part.scale, { x: 0.001, y: 0.001, z: 0.001, duration: 0.25, ease: "back.in(2)" }));
+        critter.forEach((part) => gsap.to(part.scale, { x: 0.001, y: 0.001, z: 0.001, duration: 0.25, ease: "back.in(2)", onComplete: () => (part.visible = false) }));
         gsap.to(mouse.rotation, { y: -0.12, duration: 0.4, ease: "back.out(2)" });
       },
     })

@@ -221,8 +221,8 @@ export function createSwordEffects(runtime) {
     "ICHIDAI SANZEN DAISEN SEKAI!", "HYAKUHACHI POUND HO!", "ENMA: KING OF HELL!",
   ];
   let techniqueIndex = Math.floor(Math.random() * TECHNIQUES.length);
-  const SHOUT_W = 4.5;
-  const SHOUT_H = 2.25;
+  const SHOUT_W = 5.85;
+  const SHOUT_H = 2.925;
   const katanaWorld = new THREE.Vector3();
   let slashing = false;
   // the strike under way, and whether it's past the cut and only going home
@@ -501,7 +501,7 @@ export function createSwordEffects(runtime) {
         g.getWorldPosition(katanaWorld);
         drawShout(shoutTex.ctx, 640, 320, "THE CURSE LIKES ME!", { style: "kitetsu" });
         shoutTex.texture.needsUpdate = true;
-        shout.position.set(katanaWorld.x - 2.4, katanaWorld.y + 1.6, katanaWorld.z + 0.25);
+        shout.position.set(katanaWorld.x - 3.1, katanaWorld.y + 1.95, katanaWorld.z + 0.25);
         keepOnScreen(shout, SHOUT_W, SHOUT_H);
         gsap.fromTo(shout.scale, { x: 1, y: 0.5 }, { x: SHOUT_W, y: SHOUT_H, duration: 0.3, ease: "back.out(3)", overwrite: true });
         clearTimeout(shoutTimer);
@@ -656,7 +656,7 @@ export function createSwordEffects(runtime) {
         drawShout(shoutTex.ctx, 640, 320, technique, { style: sword.style });
         shoutTex.texture.needsUpdate = true;
         // Close by the cut: up and a little to the left of the hand, over the top of the arc
-        shout.position.set(katanaWorld.x - 2.4, katanaWorld.y + 2.1, katanaWorld.z + 0.25);
+        shout.position.set(katanaWorld.x - 3.1, katanaWorld.y + 2.45, katanaWorld.z + 0.25);
         keepOnScreen(shout, SHOUT_W, SHOUT_H);
         gsap.fromTo(shout.scale, { x: 1, y: 0.5 }, { x: SHOUT_W, y: SHOUT_H, duration: 0.3, ease: "back.out(3)", overwrite: true });
         gsap.fromTo(shout.material, { rotation: 0.15 }, { rotation: 0, duration: 0.5, ease: "elastic.out(1.2, 0.4)" });
@@ -675,7 +675,7 @@ export function createSwordEffects(runtime) {
   // The sword under the pointer, and a timer for its card once the camera has come in
   let swordZoomTimer = null;
   // The sword's card: a sprite beside the rack, level with the sword, always facing the camera
-  const SWORD_CARD = { w: 3.7, h: 3.7 * (480 / 760) };
+  const SWORD_CARD = { w: 4.8, h: 4.8 * (480 / 760) };
   const swordCardTex = canvasTexture(760, 480);
   runtime.core.track(swordCardTex.texture);
   const swordCard = new THREE.Sprite(runtime.core.track(new THREE.SpriteMaterial({ map: swordCardTex.texture, depthTest: false, transparent: true })));

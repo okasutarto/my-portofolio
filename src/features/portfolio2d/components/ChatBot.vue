@@ -70,7 +70,7 @@
 
         <!-- Messages -->
         <div
-          class="flex-1 overflow-y-auto px-4 py-5 space-y-3 bg-dot-grid no-scrollbar"
+          class="flex-1 overflow-y-auto px-4 py-5 space-y-3 bg-[color-mix(in_srgb,var(--color-primary)_14%,#fff)] dark:bg-[color-mix(in_srgb,var(--color-primary)_10%,#241f1a)] no-scrollbar"
           ref="chatMessages"
           @scroll="handleScroll">
           <!-- Welcome card fills the empty window until the first question -->
@@ -198,7 +198,7 @@ import { ref, computed, watch, onMounted } from "vue";
 import BotFace from "./BotFace.vue";
 import { sfx } from "../../../shared/composables/useSfx";
 import { useRouter } from "vue-router";
-import { getStreamingResponse, rateLimitReply, toHistory } from "../../../shared/services/chatApi";
+import { chatErrorReply, getStreamingResponse, toHistory } from "../../../shared/services/chatApi";
 import { usePostHog } from "@/features/portfolio2d/composables/usePostHog";
 import { formatMessageWithLinks } from "@/features/portfolio2d/utils/formatChatMessage";
 
@@ -388,7 +388,7 @@ export default {
         sfx.buzz();
         messages.value.push({
           sender: "bot",
-          text: rateLimitReply(error) || "Oops, my wires got tangled for a sec 😅 Mind trying that again?",
+          text: chatErrorReply(error),
           showContactButton: error.status === 429,
         });
       }

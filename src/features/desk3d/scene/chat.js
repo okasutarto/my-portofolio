@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import gsap from "gsap";
 import { hoverSound, sfx } from "@/shared/composables/useSfx";
-import { getStreamingResponse, rateLimitReply, toHistory } from "@/shared/services/chatApi";
+import { chatErrorReply, getStreamingResponse, toHistory } from "@/shared/services/chatApi";
 import { canvasTexture, drawChatScreen, drawSatinFinish, drawGlassSheen } from "../textures";
 
 export function createChat(runtime) {
@@ -147,7 +147,7 @@ export function createChat(runtime) {
       }, history));
       sfx.pop();
     } catch (error) {
-      reply.text = rateLimitReply(error) || "Sorry, I couldn't reach my brain just now. Try again in a bit?";
+      reply.text = chatErrorReply(error);
       sfx.buzz();
     }
     if (runtime.core.destroyed) return;

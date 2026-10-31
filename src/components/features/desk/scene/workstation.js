@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { sfx, GROOVE_BEAT, setRainLevel, initializeAudio } from "@/composables/useSfx";
+import { hoverSound, sfx, GROOVE_BEAT, setRainLevel, initializeAudio } from "@/composables/useSfx";
 import { canvasTexture, drawTerminal, drawWoodTop, drawBrushedMetal, drawStudioTop, drawVentSlots, drawPowerScreen } from "../textures";
 import { createDesktop, SCREEN_W, SCREEN_H } from "../desktop";
 import { createLofi, TRACKS } from "../lofi";
@@ -258,6 +258,7 @@ export function createWorkstation(runtime) {
       gsap.to(macMini.position, { y: RISER_TOP + (on ? 0.06 : 0), duration: 0.25, ease: "power2.out", overwrite: true });
       gsap.to(miniLed.scale, { x: on ? 1.4 : 1, y: on ? 1.4 : 1, duration: 0.25, overwrite: true });
       gsap.to(miniLedHalo.scale, { x: on ? 1.4 : 1, y: on ? 1.4 : 1, duration: 0.25, overwrite: true });
+      if (on) hoverSound(macMini, (s) => s.tick());
     },
     onClick: () => {
       gsap.fromTo(macMini.scale, { x: MINI_SCALE * 1.04, y: MINI_SCALE * 0.94, z: MINI_SCALE * 1.04 }, { x: MINI_SCALE, y: MINI_SCALE, z: MINI_SCALE, duration: 0.4, ease: "elastic.out(1.2, 0.4)" });
@@ -678,6 +679,7 @@ export function createWorkstation(runtime) {
         if (on) {
           pump(entry, 1.2);
           floatNote(entry);
+          hoverSound(speaker, (s) => s.woofer());
         }
       },
       onClick: () => {
@@ -1070,6 +1072,7 @@ export function createWorkstation(runtime) {
   runtime.core.register(lightbar, {
     onClick: () => toggleLightbar(),
     onHover: (on) => {
+      if (on) hoverSound(lightbar, (s) => s.click());
       gsap.to(lightbarButton.scale, {
         x: on ? 1.25 : 1,
         y: on ? 1.25 : 1,

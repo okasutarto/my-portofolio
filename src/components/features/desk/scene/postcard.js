@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import gsap from "gsap";
 import emailjs from "@emailjs/browser";
-import { sfx } from "@/composables/useSfx";
+import { hoverSound, sfx } from "@/composables/useSfx";
 import { EMAILJS_CONFIG } from "@/config/emailjs";
 import { drawPostcard, drawPostcardBack, drawEnvelope, drawEnvelopeFlap, drawPostcardStamp } from "../textures";
 
@@ -212,6 +212,7 @@ export function createPostcard(runtime) {
     onHover: (on) => {
       if (runtime.camera.focus.name === "contact") return;
       gsap.to(flap.rotation, { x: on ? -0.32 : 0, duration: 0.3, ease: "power2.out", overwrite: true });
+      if (on) hoverSound(mail, (s) => s.coverOpen({ duration: 0.2 }));
     },
     onArrive: openEnvelope,
     onLeave: resetEnvelope,

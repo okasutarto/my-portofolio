@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { sfx } from "@/composables/useSfx";
+import { hoverSound, sfx } from "@/composables/useSfx";
 import { canvasTexture, drawBadge, drawGlassSheen } from "../textures";
 
 export function createBadge(runtime) {
@@ -312,7 +312,11 @@ export function createBadge(runtime) {
   };
   runtime.core.register(badge, {
     focus: "hero",
-    onHover: (on) => on && swing(0.18),
+    onHover: (on) => {
+      if (!on) return;
+      swing(0.18);
+      hoverSound(badge, (s) => s.badgeClick());
+    },
     onClick: () => {
       swing(0.2);
       flipBadge();

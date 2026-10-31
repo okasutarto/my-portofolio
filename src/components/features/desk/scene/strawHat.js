@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { sfx } from "@/composables/useSfx";
+import { hoverSound, sfx } from "@/composables/useSfx";
 import { canvasTexture, drawStraw } from "../textures";
 
 export function createStrawHat(runtime) {
@@ -181,7 +181,11 @@ export function createStrawHat(runtime) {
     runtime.secrets.discover("luffy");
   }
   runtime.core.register(hatPeg, {
-    onHover: (on) => on && !gsap.isTweening(stretch) && gsap.fromTo(hatPeg.rotation, { z: HAT_TILT - 0.1 }, { z: HAT_TILT, duration: 1, ease: "elastic.out(1, 0.3)" }),
+    onHover: (on) => {
+      if (!on || gsap.isTweening(stretch)) return;
+      gsap.fromTo(hatPeg.rotation, { z: HAT_TILT - 0.1 }, { z: HAT_TILT, duration: 1, ease: "elastic.out(1, 0.3)" });
+      hoverSound(hatPeg, (s) => s.rubber({ duration: 0.25 }));
+    },
     onClick: () => {
       gomuGomu();
       sfx.shishishi({ delay: 1.1 });

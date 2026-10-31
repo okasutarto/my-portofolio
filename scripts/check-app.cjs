@@ -98,8 +98,12 @@ async function main() {
     // Cancellation propagates through TextDecoderStream asynchronously.
     await new Promise(resolve => setImmediate(resolve));
     assert.ok(cancelled);
-    global.fetch = async () => ({ ok: false, status: 429 });
-    await assert.rejects(stream('hello', () => {}), /429/);
+    global.fetch = async () => ({ ok: false, status: 429, json: async () => ({ scope: 'visitor', retryAfter: 120 }) });
+    await assert.rejects(stream('hello', () => {}), (error) => error.status === 429 && error.scope === 'visitor' && error.retryAfter === 120);
+    global.fetch = async () => ({ ok: false, status: 429, json: async () => { throw new SyntaxError('not json'); } });
+    await assert.rejects(stream('hello', () => {}), (error) => error.status === 429 && error.retryAfter === undefined);
+    global.fetch = async () => ({ ok: false, status: 500 });
+    await assert.rejects(stream('hello', () => {}), (error) => error.status === 500);
   } finally {
     global.fetch = originalFetch;
   }

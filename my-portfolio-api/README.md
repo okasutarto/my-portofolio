@@ -142,7 +142,16 @@ OPENAI_API_KEY=sk-your-openai-key-here
 # Signs each answer so the chat history a visitor sends back can't be forged.
 # Any long random string, e.g. `openssl rand -hex 32`
 CHAT_HISTORY_SECRET=your-random-secret
+# Shared chat rate limits (Vercel's Upstash Redis integration sets these; KV_REST_API_URL /
+# KV_REST_API_TOKEN also work). Without them each instance counts on its own.
+UPSTASH_REDIS_REST_URL=https://your-db.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-token
+# Optional: questions per day for all visitors together (default 300)
+CHAT_DAILY_CAP=300
 ```
+
+Chat limits: 10 questions per 10 minutes and 50 per day per visitor, plus the daily cap for
+everyone (`src/middleware/chatRateLimit.js`).
 
 **Crucial Step:** Open `assets/context.txt` and paste your Resume or Portfolio text.
 

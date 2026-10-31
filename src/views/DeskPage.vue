@@ -149,9 +149,27 @@
                     <div v-for="(label, part) in WOOD_TARGETS" :key="part" class="settings-sub">
                       <h3 class="settings-sublabel">
                         <span class="whitespace-nowrap">{{ label }}</span>
-                        <span class="settings-value">· {{ `${WOODS[settings.woods[part].wood].name}, ${WOOD_PATTERNS[settings.woods[part].pattern].toLowerCase()}` }}</span>
+                        <span class="settings-value">· {{ woodLabel(part) }}</span>
                       </h3>
-                      <div class="flex flex-wrap items-center gap-1.5">
+                      <!-- A painted frame is picked by its paint; the wood under it hardly shows -->
+                      <div v-if="settings.woods[part].pattern === 'painted'" class="flex flex-wrap items-center gap-1.5">
+                        <button
+                          v-for="paint in FRAME_PAINTS"
+                          :key="paint.hex"
+                          class="swatch"
+                          :class="{ 'swatch--on': settings.woods[part].paint === paint.hex }"
+                          :style="{ background: paint.hex }"
+                          :title="paint.name"
+                          :aria-label="`${paint.name} ${label.toLowerCase()}`"
+                          :aria-pressed="settings.woods[part].paint === paint.hex"
+                          @click="setWood(part, { paint: paint.hex })">
+                          <span v-if="settings.woods[part].paint === paint.hex" class="swatch-tick" :class="{ 'swatch-tick--light': isDarkColour(paint.hex) }" aria-hidden="true">✓</span>
+                        </button>
+                        <label class="swatch swatch--custom" :class="{ 'swatch--on': !FRAME_PAINTS.some((paint) => paint.hex === settings.woods[part].paint) }" title="Any colour" aria-label="Pick any frame colour">
+                          <input :value="settings.woods[part].paint" type="color" class="absolute inset-0 opacity-0 cursor-pointer" @input="setWood(part, { paint: $event.target.value })" />
+                        </label>
+                      </div>
+                      <div v-else class="flex flex-wrap items-center gap-1.5">
                         <button
                           v-for="(wood, key) in WOODS"
                           :key="key"
@@ -167,13 +185,13 @@
                       </div>
                       <div class="flex flex-wrap gap-1.5 mt-2">
                         <button
-                          v-for="(name, key) in WOOD_PATTERNS"
+                          v-for="key in PART_PATTERNS[part]"
                           :key="key"
                           class="pattern-chip"
                           :class="{ 'pattern-chip--on': settings.woods[part].pattern === key }"
                           :aria-pressed="settings.woods[part].pattern === key"
                           @click="setWood(part, { pattern: key })">
-                          {{ name }}
+                          {{ WOOD_PATTERNS[key] }}
                         </button>
                       </div>
                     </div>
@@ -261,7 +279,7 @@ import { experiences } from "@/data/experience";
 import { useTheme } from "@/composables/useTheme";
 import { useSfx, initializeAudio, sfx } from "@/composables/useSfx";
 import { hideBootLoader, showEnterGate, setBootProgress, bootLoaderShowing } from "@/utils/bootLoader";
-import { WOODS, WOOD_PATTERNS, WOOD_TARGETS, DEFAULT_WOODS, FLOOR_LAYOUTS, DEFAULT_FLOOR } from "@/components/features/desk/woods";
+import { WOODS, WOOD_PATTERNS, PART_PATTERNS, WOOD_TARGETS, DEFAULT_WOODS, FLOOR_LAYOUTS, DEFAULT_FLOOR, FRAME_PAINTS, DEFAULT_FRAME_PAINT } from "@/components/features/desk/woods";
 import { DAY_PARTS, TIME_MODES, RAIN_MODES, DEFAULT_TIME, DEFAULT_RAIN, partOfDay, partFor } from "@/components/features/desk/daylight";
 
 const COMMAND_CHIPS = ["help", "whoami", "projects", "hobbies", "sudo hire oka"];
@@ -339,6 +357,12 @@ const groupSummary = computed(() => {
     wood: woods.size === 1 ? WOODS[[...woods][0]].name : "Mixed",
   };
 });
+// A part's wood and cut at a glance (a painted one by its paint)
+function woodLabel(part) {
+  const { wood, pattern, paint } = settings.woods[part];
+  if (pattern === "painted") return `Painted, ${(FRAME_PAINTS.find((coat) => coat.hex === paint)?.name ?? "custom").toLowerCase()}`;
+  return `${WOODS[wood].name}, ${WOOD_PATTERNS[pattern].toLowerCase()}`;
+}
 // Whether a swatch is dark enough that its tick should be drawn in white
 function isDarkColour(hex) {
   const n = parseInt(hex.slice(1), 16);
@@ -426,9 +450,11 @@ function readSettings() {
   }
   const pickWood = (part, choice = {}) => ({
     wood: WOODS[choice.wood] ? choice.wood : DEFAULT_WOODS[part].wood,
-    pattern: WOOD_PATTERNS[choice.pattern] ? choice.pattern : DEFAULT_WOODS[part].pattern,
+    // A cut the part is no longer offered in goes back to the part's own
+    pattern: PART_PATTERNS[part].includes(choice.pattern) ? choice.pattern : DEFAULT_WOODS[part].pattern,
     // The finish is no longer offered in settings: a saved black model goes back to wood sides
     ...(part === "speakers" ? { finish: "wood" } : {}),
+    ...(part === "window" ? { paint: /^#[0-9a-f]{6}$/i.test(choice.paint || "") ? choice.paint : DEFAULT_FRAME_PAINT } : {}),
   });
   return {
     time: TIME_MODES[saved.time] ? saved.time : DEFAULT_TIME,

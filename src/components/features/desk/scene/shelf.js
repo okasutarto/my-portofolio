@@ -31,7 +31,7 @@ export function createShelf(runtime) {
     panel.position.set(side * (SHELF_W / 2 - BOARD / 2), SHELF_H / 2, 0);
     shelf.add(panel);
   });
-  // The back panel and the shelves' front lips share the oak grain, toned a little deeper
+  // The back panel shares the oak grain, toned a little deeper
   const shelfBackMat = runtime.core.toon("#d9a878");
   shelfBackMat.map = shelfWood.texture;
   // (between the side panels, like the shelves, so its ends don't flicker on their outer faces)
@@ -41,8 +41,13 @@ export function createShelf(runtime) {
   // Bay heights follow their contents: 1.78 for the cases, 1.72 for the manga and trophy, and
   // the tall 2.18 at the top for the standing console
   const LEVELS = [0.15, 2.15, 4.09, SHELF_H - BOARD / 2];
-  const lipMat = runtime.core.toon("#e2b384");
-  lipMat.map = shelfWood.texture;
+  // The shelves' front lips read as the boards' own front edges: the boards' tone, and their
+  // grain at the boards' scale (the lip's face maps the whole texture over its 0.28 height, so
+  // it takes only the slice the board's 1.5-deep top would show there)
+  const lipMat = runtime.core.toon("#f3d3b0");
+  lipMat.map = runtime.core.track(shelfWood.texture.clone());
+  lipMat.map.wrapS = lipMat.map.wrapT = THREE.RepeatWrapping;
+  lipMat.map.repeat.set(1, (BOARD + 0.06) / SHELF_D);
   // Recessed diffusers sit flush under the rear of each shelf; all bays share one colour.
   const glowTex = canvasTexture(256, 128);
   runtime.core.track(glowTex.texture);

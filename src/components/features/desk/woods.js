@@ -80,6 +80,20 @@ export const WOOD_PATTERNS = {
   cathedral: "Cathedral",
   knotty: "Knotty",
   butcher: "Butcher block",
+  quartersawn: "Quartersawn",
+  bamboo: "Bamboo",
+  painted: "Painted",
+  plywood: "Plywood",
+};
+
+// The cuts each part can be made in, as such a piece is made: a speaker's sides are a thin
+// veneer, a window frame is never glued up from strips, and only a riser comes in bamboo
+export const PART_PATTERNS = {
+  desk: ["planks", "cathedral", "knotty", "butcher", "quartersawn"],
+  riser: ["planks", "cathedral", "butcher", "bamboo"],
+  speakers: ["planks", "cathedral"],
+  window: ["planks", "knotty", "painted"],
+  shelf: ["planks", "cathedral", "knotty", "plywood"],
 };
 
 export const SPEAKER_FINISHES = {
@@ -88,6 +102,17 @@ export const SPEAKER_FINISHES = {
   wood: { name: "Wood sides", color: null, shell: "#4a4c50", baffle: "#64676b" },
   black: { name: "Black", color: "#3a3532", shell: "#252527", baffle: "#3a3b3e" },
 };
+
+// A painted window frame's coats, and the one it starts in
+export const FRAME_PAINTS = [
+  { name: "White", hex: "#f4f1ea" },
+  { name: "Black", hex: "#2b2b2b" },
+  { name: "Sage", hex: "#9bab8f" },
+  { name: "Navy", hex: "#2f3e5c" },
+  { name: "Terracotta", hex: "#c0694a" },
+  { name: "Butter", hex: "#efd27a" },
+];
+export const DEFAULT_FRAME_PAINT = FRAME_PAINTS[0].hex;
 
 export const WOOD_TARGETS = {
   desk: "Desk",

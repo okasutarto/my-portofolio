@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import gsap from "gsap";
 import { loadPortrait, windowSky, drawWoodTop, drawWoodFloor } from "../textures";
-import { WOODS, WOOD_PATTERNS, DEFAULT_WOODS, SPEAKER_FINISHES, FLOOR_LAYOUTS, DEFAULT_FLOOR } from "../woods";
+import { WOODS, PART_PATTERNS, DEFAULT_WOODS, SPEAKER_FINISHES, FLOOR_LAYOUTS, DEFAULT_FLOOR, DEFAULT_FRAME_PAINT } from "../woods";
 import { TIME_MODES, partFor } from "../daylight";
 import { PALETTES } from "../sceneConfig";
 
@@ -65,18 +65,21 @@ export function createTheme(runtime) {
     window: { grain: runtime.room.frameGrainTex, mats: [woodMat(runtime.room.frameWood, "#f0c7a0")] },
     shelf: {
       grain: runtime.shelf.shelfWood,
-      mats: [woodMat(runtime.shelf.shelfMat, "#f3d3b0"), woodMat(runtime.shelf.shelfBackMat, "#d9a878"), woodMat(runtime.shelf.lipMat, "#e2b384")],
+      mats: [woodMat(runtime.shelf.shelfMat, "#f3d3b0"), woodMat(runtime.shelf.shelfBackMat, "#d9a878"), woodMat(runtime.shelf.lipMat, "#f3d3b0")],
     },
   };
   const pickWood = (part, choice = {}) => ({
     wood: WOODS[choice.wood] ? choice.wood : DEFAULT_WOODS[part].wood,
-    pattern: WOOD_PATTERNS[choice.pattern] ? choice.pattern : DEFAULT_WOODS[part].pattern,
+    pattern: PART_PATTERNS[part].includes(choice.pattern) ? choice.pattern : DEFAULT_WOODS[part].pattern,
     ...(part === "speakers" ? { finish: SPEAKER_FINISHES[choice.finish] ? choice.finish : "wood" } : {}),
+    ...(part === "window" ? { paint: /^#[0-9a-f]{6}$/i.test(choice.paint || "") ? choice.paint : DEFAULT_FRAME_PAINT } : {}),
   });
   const woodChoice = Object.fromEntries(Object.keys(woodParts).map((part) => [part, pickWood(part, runtime.options.woods[part])]));
   function toneWood(part, isDark) {
     const { mats, nightly } = woodParts[part];
     const tint = new THREE.Color(WOODS[woodChoice[part].wood].tint);
+    // Paint shows as it was picked, not toned like the wood under it
+    if (woodChoice[part].pattern === "painted") return mats.forEach(({ mat }) => mat.color.set("#ffffff"));
     mats.forEach(({ mat, rel }) => {
       mat.color.copy(rel).multiply(tint);
       if (nightly && isDark) mat.color.multiply(NIGHT_WOOD);
@@ -282,8 +285,10 @@ export function createTheme(runtime) {
     const target = woodParts[part];
     if (redraw) {
       const { canvas, ctx } = target.grain;
-      drawWoodTop(ctx, canvas.width, canvas.height, woodChoice[part]);
+      drawWoodTop(ctx, canvas.width, canvas.height, { ...woodChoice[part], ...(part === "window" ? { knots: 14 } : {}) });
       target.grain.texture.needsUpdate = true;
+      // the shelf's lips hold their own copy of its grain
+      if (part === "shelf") runtime.shelf.lipMat.map.needsUpdate = true;
     }
     const mats = target.mats.map(({ mat }) => mat);
     if (part === "speakers") {

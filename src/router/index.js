@@ -45,26 +45,50 @@ const routes = [
 
 ];
 
+// Sections can still be laying out (fonts, the lazy page) when the route settles, so a
+// hash target is waited for briefly rather than looked up once
+const waitForElement = (id, timeout = 3000) =>
+  new Promise((resolve) => {
+    const started = performance.now();
+    const look = () => {
+      const el = document.getElementById(id);
+      if (el || performance.now() - started > timeout) return resolve(el);
+      requestAnimationFrame(look);
+    };
+    look();
+  });
+
+const scrollToHash = async (hash, behavior) => {
+  let id = hash.slice(1);
+  try {
+    id = decodeURIComponent(id);
+  } catch {
+    // keep the raw id
+  }
+  const el = await waitForElement(id);
+  if (!el) return { top: 0 };
+  await document.fonts?.ready;
+  return { el, behavior };
+};
+
+const isReload = () => performance.getEntriesByType?.("navigation")[0]?.type === "reload";
+
 const router = createRouter({
   history: createWebHistory(process.env.BASE_URL),
   routes,
   scrollBehavior(to, from, savedPosition) {
     // The drawer scrolls to (and opens) the linked file itself
     if (to.path === "/2d" && to.query.file) return false;
-    if (to.path === "/2d" && from === START_LOCATION) return { top: 0, behavior: "instant" };
+    if (from === START_LOCATION) {
+      // Arriving from a link to /2d#contact lands on Contact. A reload starts at the top like a
+      // plain /2d: the hash is only the last section picked in the navbar, not where you were.
+      if (to.hash && !isReload()) return scrollToHash(to.hash, "instant");
+      if (to.path === "/2d") return { top: 0, behavior: "instant" };
+    }
     if (savedPosition) {
       return savedPosition;
     }
-    if (to.hash) {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({
-            el: to.hash,
-            behavior: "smooth",
-          });
-        }, 100);
-      });
-    }
+    if (to.hash) return scrollToHash(to.hash, "smooth");
     return { top: 0 };
   },
 });

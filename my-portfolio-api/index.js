@@ -36,11 +36,9 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps, curl, Postman in dev)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+    // An unknown origin just gets no CORS headers, so the browser refuses the response;
+    // passing an Error here would turn every such request into a 500
+    callback(null, allowedOrigins.includes(origin));
   },
   credentials: true,
 }));

@@ -54,6 +54,7 @@
         :class="{ opened: fileOpened }"
         :style="fileBox"
         role="dialog"
+        tabindex="-1"
         :aria-label="`${openProject.title} case file`">
         <span class="tab" :style="{ left: tabLeft(openIndex), '--c': colorOf(openIndex) }">
           <span class="tab-label"><b class="font-display">{{ pad(openIndex + 1) }}</b><span class="tab-name">{{ openProject.title }}</span></span>
@@ -232,6 +233,7 @@ const fileBox = ref({});
 let busy = false;
 let target = { x: 0, y: 0 };
 let previousOverflow = "";
+let returnFocus = null;
 const EASE = "power3.inOut";
 
 // While the file moves in or out of the drawer, the part below the drawer front's top edge is
@@ -282,6 +284,10 @@ const openFile = async (index) => {
   await nextTick();
   layoutSheets();
   addInputs();
+  // Keyboard focus moves into the file (and comes back to its folder on close), so Esc and the
+  // arrows reach it without first clicking it
+  returnFocus = document.activeElement;
+  fileRef.value.focus({ preventScroll: true });
 
   fitSheets();
   // Lifted to the middle, a little right of centre so the open cover fits on the left.
@@ -324,10 +330,16 @@ const closeFile = async () => {
   const done = () => {
     gsap.set(drawerRef.value, { clearProps: "transform" });
     removeInputs();
+    const hadFocus = fileRef.value?.contains(document.activeElement) || document.activeElement === document.body;
     openIndex.value = -1;
     document.documentElement.style.overflow = previousOverflow;
     busy = false;
     nextTick(() => {
+      if (hadFocus) {
+        const back = returnFocus?.isConnected && returnFocus !== document.body ? returnFocus : folderEls[index];
+        back?.focus({ preventScroll: true });
+      }
+      returnFocus = null;
       if (!reduced) gsap.fromTo(folderEls[index].querySelector(".face"), { scaleY: 0.97 }, { scaleY: 1, duration: 0.3, ease: "back.out(3)", transformOrigin: "50% 100%", clearProps: "transform" });
     });
   };
@@ -399,7 +411,10 @@ const onTouchEnd = (e) => {
   const dy = touchY - e.changedTouches[0].clientY;
   if (Math.abs(dy) > 40) flip(dy > 0 ? 1 : -1);
 };
+// Typing elsewhere (the chat box, say) keeps its own Esc and arrow keys
+const isEditable = (el) => el instanceof Element && !!el.closest("input, textarea, select, [contenteditable]:not([contenteditable='false'])");
 const onKey = (e) => {
+  if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || isEditable(e.target)) return;
   if (e.key === "Escape") closeFile();
   else if (e.key === "ArrowRight" || e.key === "ArrowDown") flip(1);
   else if (e.key === "ArrowLeft" || e.key === "ArrowUp") flip(-1);
@@ -701,6 +716,8 @@ onUnmounted(() => {
   --front-cover: 20px;
   --lip: 22px;
 }
+/* It takes focus programmatically for its keys; the lifted file itself is the visible state */
+.file:focus { outline: none; }
 .board {
   position: absolute;
   inset: 0;

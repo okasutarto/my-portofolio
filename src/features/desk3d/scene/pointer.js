@@ -330,11 +330,15 @@ export function createPointer(runtime) {
         return;
       }
     }
+    // The lanyard hangs in front of the About board, so a press on it takes the lanyard alone,
+    // never a note behind it too
     const hold = lanyardUnder(e);
     if (hold) {
       lanyardDrag = { ...hold, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moved: false };
       runtime.core.renderer.domElement.setPointerCapture(e.pointerId);
       e.preventDefault();
+      if (e.pointerType === "mouse") runtime.mouse.pressMouse();
+      return;
     }
     const entry = runtime.camera.focus.name === "about" && pick(e)?.entry;
     const point = entry?.note && boardPointer(e);

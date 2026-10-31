@@ -105,8 +105,7 @@ async function streamChat(req, res) {
   });
 
   try {
-    // POST carries the conversation so far; GET (older clients) sends only the message
-    const { message, history } = req.method === 'POST' ? req.body ?? {} : req.query;
+    const { message, history } = req.body ?? {};
 
     // ===================
     // STEP 0: BASIC VALIDATION
@@ -135,7 +134,7 @@ async function streamChat(req, res) {
       });
     }
 
-    const previousTurns = parseHistory(req.method === 'POST' ? history : undefined);
+    const previousTurns = parseHistory(history);
     if (!previousTurns) {
       return res.status(400).json({ error: 'History must be a list of { role, content } turns' });
     }
@@ -162,7 +161,8 @@ async function streamChat(req, res) {
     // The validator and the main completion start together so the visitor doesn't
     // wait for two OpenAI round trips back to back. Nothing from the main stream is
     // sent until the validator approves; if it rejects, the stream is aborted.
-    // Timings go out as a Server-Timing header, so slow replies show which step held them up
+    // Timings stay in the server log (not a response header), so slow replies show which step
+    // held them up without telling visitors how the pipeline is built
     const startedAt = performance.now();
     const elapsed = () => Math.round(performance.now() - startedAt);
     const timings = {};
@@ -200,7 +200,6 @@ async function streamChat(req, res) {
 
     const stream = await streamPromise;
     timings.upstream = elapsed();
-    res.setHeader('Server-Timing', Object.entries(timings).map(([name, dur]) => `${name};dur=${dur}`).join(', '));
     openStream(res);
 
     // ===================

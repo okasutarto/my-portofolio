@@ -1,0 +1,37 @@
+# Lint, the Node checks and a production build on every pull request and push to master.
+# The browser suite (npm run check:browser) still runs by hand: it needs WebGL-capable engines.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: App checks
+        run: npm run check:app
+      - name: Desk checks
+        run: npm run check:desk
+      # A production build with its manifest, plus the checks that keep the 2D shell and
+      # PostHog out of the desk's eager imports
+      - name: Build and bundle checks
+        run: npm run check:bundles

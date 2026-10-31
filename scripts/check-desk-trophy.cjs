@@ -14,7 +14,7 @@ trophy.userData.restY = 2;
 const camera = new THREE.PerspectiveCamera();
 const shelfBubble = { sprite: new THREE.Sprite(), hide() {} };
 const ctx = vm.createContext({
-  THREE, trophy, camera, shelfBubble, BUBBLE_TAILS, shelfBubbleAt: new THREE.Vector3(),
+  THREE, trophy, camera, shelfBubble, BUBBLE_TAILS, shelfBubbleAt: new THREE.Vector3(), shelfBubblePrint: { tail: 'down-left' },
   pad1: { userData: {} }, pad2: { userData: {} }, robot: {}, nintendoSwitch: {},
 });
 const place = vm.runInContext(section('  const shelfBubbleAnchors', '  function shelfSay(') + '; shelfBubbleTarget = trophy; placeShelfBubble', ctx);

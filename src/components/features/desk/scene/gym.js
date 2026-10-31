@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { sfx } from "@/composables/useSfx";
+import { hoverSound, sfx } from "@/composables/useSfx";
 import { canvasTexture, drawRepBadge, drawBrushedMetal, drawSatinFinish } from "../textures";
 
 export function createGym(runtime) {
@@ -176,6 +176,7 @@ export function createGym(runtime) {
     onHover: (on) => {
       if (lifting) return;
       gsap.to(db.position, { y: db.userData.restY + (on ? 0.14 : 0), duration: on ? 0.25 : 0.35, ease: "power2.out", overwrite: true });
+      if (on) hoverSound(db, (s) => s.clank({ strength: 0.5 }));
     },
     onClick: () => lift(db),
   }));

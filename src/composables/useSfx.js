@@ -14,6 +14,8 @@ const readMuted = () => {
 const muted = ref(readMuted());
 let ctx = null;
 let out = null;
+// The master bus. `out` is briefly pointed at the hover bus while a hover cue is built.
+let master = null;
 let noiseBuffer = null;
 let hushDepth = 0;
 // True while a gesture's resume() is pending: sounds scheduled now play once it lands, so the
@@ -40,7 +42,7 @@ function createContext() {
   limiter.ratio.value = 20;
   limiter.attack.value = 0.002;
   limiter.release.value = 0.1;
-  out = ctx.createGain();
+  master = out = ctx.createGain();
   out.gain.value = 1;
   out.connect(comp).connect(makeup).connect(limiter).connect(ctx.destination);
   // One second of white noise, reused by every noisy sound
@@ -175,7 +177,7 @@ function toHall(node, amount) {
     const convolver = ctx.createConvolver();
     convolver.buffer = ir;
     hall = ctx.createGain();
-    hall.connect(convolver).connect(out);
+    hall.connect(convolver).connect(master);
   }
   const send = ctx.createGain();
   send.gain.value = amount;
@@ -307,8 +309,8 @@ const SOUNDS = {
     noise(t, { freq: 2200, to: 900, q: 0.7, attack: 0.02, peak: 0.22, decay: duration });
   },
   // Paper sliding over paper: a soft, breathy "shff" with a little grain in it
-  slide(t, { duration = 0.26, up = true } = {}) {
-    noise(t, { freq: up ? 2200 : 3800, to: up ? 3800 : 2200, q: 0.7, attack: duration * 0.4, peak: 0.13, decay: duration * 0.6 });
+  slide(t, { duration = 0.26, up = true, pitch = 1 } = {}) {
+    noise(t, { freq: (up ? 2200 : 3800) * pitch, to: (up ? 3800 : 2200) * pitch, q: 0.7, attack: duration * 0.4, peak: 0.13, decay: duration * 0.6 });
     for (let at = t + duration * 0.15; at < t + duration * 0.8; at += 0.03 + Math.random() * 0.04) {
       noise(at, { filter: "highpass", freq: vary(5000, 0.2), q: 0.6, attack: 0.002, peak: 0.025, decay: 0.012 });
     }
@@ -465,6 +467,11 @@ const SOUNDS = {
     tone(t, { type: "triangle", freq: base * 1.15, to: base, attack: 0.008, peak: 0.16, decay: 0.07 });
     tone(t, { freq: base * 2.02, to: base * 1.9, attack: 0.008, peak: 0.06, decay: 0.06 });
   },
+  // A console waking to a touch: one short, clean beep from its button, then its fan breathing in
+  consoleWake(t) {
+    tone(t, { freq: 1050, peak: 0.45, decay: 0.09 });
+    noise(t + 0.06, { freq: 450, to: 1100, q: 0.8, attack: 0.12, peak: 0.32, decay: 0.25 });
+  },
   // Robot chatter
   blip(t) {
     const notes = [523, 587, 659, 784, 880];
@@ -479,6 +486,11 @@ const SOUNDS = {
   strum(t) {
     const chord = CHORDS[chordIndex++ % CHORDS.length];
     chord.forEach((freq, i) => pluck(t + i * 0.022 + Math.random() * 0.006, freq, 0.32 - i * 0.025));
+  },
+  // A thumb brushed over the two low strings: a soft open E and A, barely plucked
+  brush(t) {
+    pluck(t, 82.41, 0.16);
+    pluck(t + 0.035, 110, 0.12);
   },
   // Luffy's laugh, "shi-shi-shi": three hissed syllables climbing in pitch, each with a little
   // voiced bounce under it
@@ -520,6 +532,13 @@ const SOUNDS = {
   powerDown(t) {
     tone(t, { type: "sawtooth", freq: 440, to: 55, attack: 0.01, peak: 0.16, decay: 0.45 });
     tone(t + 0.45, { freq: 90, to: 40, peak: 0.4, decay: 0.12 });
+  },
+  // A woofer nudged: one soft bass push of the cone, with the faint rattle of its grille
+  woofer(t) {
+    tone(t, { freq: vary(85, 0.05), to: 48, attack: 0.012, peak: 0.8, decay: 0.16 });
+    // its octave, so a laptop's small speakers still hear the push
+    tone(t, { type: "triangle", freq: vary(170, 0.05), to: 96, attack: 0.012, peak: 0.45, decay: 0.12 });
+    noise(t + 0.01, { filter: "lowpass", freq: 500, q: 0.7, attack: 0.01, peak: 0.25, decay: 0.08 });
   },
   // Rubber pulled taut: a low reedy creak rising in pitch as it stretches
   rubber(t, { duration = 0.4 } = {}) {
@@ -620,6 +639,12 @@ const SOUNDS = {
   mugDown(t, { strength = 0.35 } = {}) {
     if (!sample(t, "mug", { peak: 0.9 * strength })) return SOUNDS.thud(t, { strength });
     tone(t, { freq: vary(130), to: 60, peak: 0.4 * strength, decay: 0.1 });
+  },
+  // Coffee rocking in a lifted mug: a low wash of liquid and a bubble or two
+  slosh(t) {
+    noise(t, { filter: "lowpass", freq: 500, to: 1300, q: 1.6, attack: 0.07, peak: 0.38, decay: 0.24 });
+    noise(t + 0.09, { filter: "lowpass", freq: 1300, to: 550, q: 1.6, attack: 0.05, peak: 0.24, decay: 0.2 });
+    [0.12, 0.2].forEach((d) => tone(t + d + Math.random() * 0.04, { freq: vary(520, 0.2), to: vary(820, 0.15), peak: 0.1, decay: 0.03 }));
   },
   // A dumbbell set down: heavy iron, the synth thump keeping the weight under it
   dumbbell(t, { strength = 1 } = {}) {
@@ -884,7 +909,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { cheer: 2, applause: 4, meow: 0.3, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, rubber: 0.15, boing: 0.3, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, dumbbell: 0.12, rackLand: 0.12, dock: 0.12, rimHit: 0.12, paperBounce: 0.05, swish: 0.2, wingFlap: 0.08, strap: 0.08, badgeClick: 0.12, shing: 0.5, koiguchi: 0.12, koiguchiShut: 0.12, slash: 0.15, sheathe: 0.4, whooshAway: 0.4, power: 1.4, ding: 0.3, trophyHover: 0.5, trophyLift: 0.5, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
+const MIN_GAP = { cheer: 2, applause: 4, meow: 0.3, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, consoleWake: 0.3, brush: 0.3, woofer: 0.15, slosh: 0.3, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, rubber: 0.15, boing: 0.3, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, dumbbell: 0.12, rackLand: 0.12, dock: 0.12, rimHit: 0.12, paperBounce: 0.05, swish: 0.2, wingFlap: 0.08, strap: 0.08, badgeClick: 0.12, shing: 0.5, koiguchi: 0.12, koiguchiShut: 0.12, slash: 0.15, sheathe: 0.4, whooshAway: 0.4, power: 1.4, ding: 0.3, trophyHover: 0.5, trophyLift: 0.5, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || (ctx.state !== "running" && !resuming) || document.hidden) return;
@@ -898,6 +923,37 @@ function play(name, options = {}) {
 
 // sfx.thud(), sfx.paper({ delay: 0.1 }), ...
 export const sfx = Object.fromEntries(Object.keys(SOUNDS).map((name) => [name, (options) => play(name, options)]));
+
+// Hover cues: the same sounds, played quieter through their own bus. A thing is heard only on
+// the first touch (then not again for a second), and a pointer swept across a row of things
+// plays one every so often instead of a clatter. None on touch screens, where a tap hovers first.
+const HOVER_LEVEL = 0.35;
+const HOVER_REPEAT = 1;
+const HOVER_GAP = 0.12;
+const noHover = window.matchMedia("(hover: none)");
+const hoverHeard = new WeakMap();
+let hoverBus = null;
+let lastHover = -Infinity;
+
+// hoverSound(bin, (s) => s.rimHit()): `key` is the hovered thing, `cue` plays through `s` (sfx)
+export function hoverSound(key, cue) {
+  if (noHover.matches || muted.value || !ctx || ctx.state !== "running" || document.hidden) return;
+  const now = ctx.currentTime;
+  if (now - lastHover < HOVER_GAP || now - (hoverHeard.get(key) ?? -Infinity) < HOVER_REPEAT) return;
+  lastHover = now;
+  hoverHeard.set(key, now);
+  if (!hoverBus || hoverBus.context !== ctx) {
+    hoverBus = ctx.createGain();
+    hoverBus.gain.value = HOVER_LEVEL;
+    hoverBus.connect(master);
+  }
+  out = hoverBus;
+  try {
+    cue(sfx);
+  } finally {
+    out = master;
+  }
+}
 
 // True when sounds would actually be heard: not muted and unlocked by a user gesture.
 // Lets an intro wait for a click instead of playing silently.

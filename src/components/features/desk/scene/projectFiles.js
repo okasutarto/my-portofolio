@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { sfx } from "@/composables/useSfx";
+import { hoverSound, sfx } from "@/composables/useSfx";
 import { FOLDER_COLORS } from "@/data/projectFiles";
 import { drawFolderCover, drawCaseSheet, drawCaseBack, CASE_SHEETS, drawDrawerFront } from "../textures";
 
@@ -430,6 +430,7 @@ export function createProjectFiles(runtime) {
       onHover: (on) => {
         const lift = on && !openFolder;
         gsap.to(entry.body.position, { y: 0, z: lift ? -0.42 : 0, duration: lift ? 0.28 : 0.4, ease: "power2.out", overwrite: true });
+        if (lift) hoverSound(entry, (s) => s.folderSlide({ duration: 0.2 }));
       },
       onClick: clickFolder,
       onHotspot: (hs) => openFolder && turnSheet(hs.action === "prev" ? -1 : 1),

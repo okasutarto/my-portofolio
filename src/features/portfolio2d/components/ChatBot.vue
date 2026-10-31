@@ -288,6 +288,15 @@ export default {
       }
     };
 
+    // What the bot says when a question fails: a rate limit says how long to wait
+    const errorReply = (error) => {
+      if (error.status !== 429) return "Oops, my wires got tangled for a sec 😅 Mind trying that again?";
+      if (error.scope === "everyone") return "I've talked a lot today and my circuits need a rest 😴 Try me again tomorrow, or reach Oka directly through the contact page!";
+      const minutes = Math.max(1, Math.ceil((error.retryAfter || 60) / 60));
+      const wait = minutes >= 60 ? "a few hours" : `${minutes} minute${minutes === 1 ? "" : "s"}`;
+      return `Whoa, that's a lot of questions! Give me ${wait} to catch my breath 😅 Or reach Oka directly through the contact page.`;
+    };
+
     const sendMessage = async () => {
       const messageText = userInput.value.trim();
       if (!messageText || isTyping.value || isStreaming.value) return;
@@ -388,7 +397,8 @@ export default {
         sfx.buzz();
         messages.value.push({
           sender: "bot",
-          text: "Oops, my wires got tangled for a sec 😅 Mind trying that again?",
+          text: errorReply(error),
+          showContactButton: error.status === 429,
         });
       }
     };

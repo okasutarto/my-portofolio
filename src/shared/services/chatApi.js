@@ -29,7 +29,17 @@ export const getStreamingResponse = async (prompt, onToken, history = []) => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message: prompt, history }),
   });
-  if (!response.ok || !response.body) throw new Error(`Chat request failed (${response.status})`);
+  if (!response.ok || !response.body) {
+    const error = new Error(`Chat request failed (${response.status})`);
+    error.status = response.status;
+    // A rate limit says how long to wait, and whether it's this visitor or everyone
+    if (response.status === 429) {
+      const body = await response.json().catch(() => ({}));
+      error.retryAfter = body.retryAfter;
+      error.scope = body.scope;
+    }
+    throw error;
+  }
 
   // Read the server-sent events off the body: "data: ..." lines, events split by a blank line
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();

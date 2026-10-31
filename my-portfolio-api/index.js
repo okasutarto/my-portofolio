@@ -46,6 +46,9 @@ app.use(cors({
 }));
 
 // 3. Rate Limiting - Prevent abuse (100 requests per 15 minutes per IP)
+// A general backstop; the chat route has its own, shared across instances
+// (src/middleware/chatRateLimit.js). On Vercel the client's address is in the proxy's headers.
+if (process.env.VERCEL) app.set('trust proxy', 1);
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per windowMs

@@ -763,6 +763,15 @@ const SOUNDS = {
   whooshAway(t) {
     noise(t, { filter: "bandpass", freq: 2600, to: 280, q: 1.8, attack: 0.03, peak: 0.32, decay: 0.95 });
   },
+  // A sent postcard's paper plane taking off like a jet: the engine spooling up, the roar of
+  // the climb, then the sound dropping in pitch as it flies off into the distance
+  planeTakeoff(t, { duration = 1.6 } = {}) {
+    tone(t, { type: "sawtooth", freq: 55, to: 160, attack: duration * 0.55, peak: 0.06, decay: duration * 0.45 });
+    tone(t, { type: "triangle", freq: 420, to: 1300, attack: duration * 0.5, peak: 0.03, decay: duration * 0.4 });
+    noise(t, { filter: "lowpass", freq: 250, to: 1300, attack: duration * 0.5, peak: 0.32, decay: duration * 0.55 });
+    noise(t + duration * 0.2, { freq: 500, to: 3600, q: 1.1, attack: duration * 0.35, peak: 0.26, decay: duration * 0.5, send: 0.3 });
+    noise(t + duration * 0.55, { freq: 3000, to: 450, q: 1.6, attack: 0.05, peak: 0.16, decay: duration * 0.6, send: 0.45 });
+  },
   // The Infinity Stones powering up: a low hum climbing in pitch with a shimmer over it
   power(t, { duration = 1.4 } = {}) {
     tone(t, { type: "sawtooth", freq: 70, to: 280, attack: duration * 0.8, peak: 0.12, decay: duration * 0.3 });
@@ -909,7 +918,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { cheer: 2, applause: 4, meow: 0.3, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, consoleWake: 0.3, brush: 0.3, woofer: 0.15, slosh: 0.3, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, rubber: 0.15, boing: 0.3, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, dumbbell: 0.12, rackLand: 0.12, dock: 0.12, rimHit: 0.12, paperBounce: 0.05, swish: 0.2, wingFlap: 0.08, strap: 0.08, badgeClick: 0.12, shing: 0.5, koiguchi: 0.12, koiguchiShut: 0.12, slash: 0.15, sheathe: 0.4, whooshAway: 0.4, power: 1.4, ding: 0.3, trophyHover: 0.5, trophyLift: 0.5, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
+const MIN_GAP = { cheer: 2, applause: 4, meow: 0.3, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, consoleWake: 0.3, brush: 0.3, woofer: 0.15, slosh: 0.3, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, rubber: 0.15, boing: 0.3, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, dumbbell: 0.12, rackLand: 0.12, dock: 0.12, rimHit: 0.12, paperBounce: 0.05, swish: 0.2, wingFlap: 0.08, strap: 0.08, badgeClick: 0.12, shing: 0.5, koiguchi: 0.12, koiguchiShut: 0.12, slash: 0.15, sheathe: 0.4, whooshAway: 0.4, planeTakeoff: 1.2, power: 1.4, ding: 0.3, trophyHover: 0.5, trophyLift: 0.5, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || (ctx.state !== "running" && !resuming) || document.hidden) return;

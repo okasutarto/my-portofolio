@@ -291,7 +291,7 @@ export function drawPostcardBack(c, w, h, card, { caret = false } = {}) {
     });
     const send = { x: 600, y: 535, w: 350, h: 62, id: "send" };
     brutalBox(c, send.x, send.y, send.w, send.h, "#ffdd00", { shadow: 6, line: 4 });
-    fileText(c, card.status === "sending" ? "SENDING..." : "SEND POSTCARD ↗", 620, 555, 315, { size: 24, weight: 800, lines: 1 });
+    fileText(c, card.status === "sending" ? "SENDING..." : card.status === "sent" ? "SENT ✓" : "SEND POSTCARD ↗", 620, 555, 315, { size: 24, weight: 800, lines: 1 });
     if (card.status === "error") fileText(c, "Couldn't send. Try again?", 600, 611, 350, { size: 16, ink: "#dc2626", lines: 1 });
     hotspots.push(send);
     c.strokeStyle = "#000"; c.lineWidth = 6; c.strokeRect(3, 3, 994, 634);

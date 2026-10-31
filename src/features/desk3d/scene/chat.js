@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import gsap from "gsap";
 import { hoverSound, sfx } from "@/shared/composables/useSfx";
-import { getStreamingResponse, toHistory } from "@/shared/services/chatApi";
+import { getStreamingResponse, rateLimitReply, toHistory } from "@/shared/services/chatApi";
 import { canvasTexture, drawChatScreen, drawSatinFinish, drawGlassSheen } from "../textures";
 
 export function createChat(runtime) {
@@ -140,13 +140,14 @@ export function createChat(runtime) {
     redrawChat();
     sfx.pop({ pitch: 1.2 });
     try {
-      await getStreamingResponse(text, (token) => {
+      // The signature lets the answer go back to the API as context for the next question
+      ({ signature: reply.signature } = await getStreamingResponse(text, (token) => {
         reply.text += token;
         chatDirty = true;
-      }, history);
+      }, history));
       sfx.pop();
-    } catch {
-      reply.text = "Sorry, I couldn't reach my brain just now. Try again in a bit?";
+    } catch (error) {
+      reply.text = rateLimitReply(error) || "Sorry, I couldn't reach my brain just now. Try again in a bit?";
       sfx.buzz();
     }
     if (runtime.core.destroyed) return;

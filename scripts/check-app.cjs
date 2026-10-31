@@ -104,6 +104,12 @@ async function main() {
     await assert.rejects(stream('hello', () => {}), (error) => error.status === 429 && error.retryAfter === undefined);
     global.fetch = async () => ({ ok: false, status: 500 });
     await assert.rejects(stream('hello', () => {}), (error) => error.status === 500);
+    // Both chats (2D bot and the desk phone) word a rate limit the same way
+    const { rateLimitReply } = await loadModule('src/shared/services/chatApi.js');
+    assert.equal(rateLimitReply({ status: 500 }), null);
+    assert.match(rateLimitReply({ status: 429, scope: 'visitor', retryAfter: 120 }), /2 minutes/);
+    assert.match(rateLimitReply({ status: 429, scope: 'visitor', retryAfter: 30 }), /1 minute to/);
+    assert.match(rateLimitReply({ status: 429, scope: 'everyone', retryAfter: 9000 }), /tomorrow/);
   } finally {
     global.fetch = originalFetch;
   }

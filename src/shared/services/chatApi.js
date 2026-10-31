@@ -16,6 +16,20 @@ export const toHistory = (messages) => messages
     : { role: 'assistant', content: m.text, signature: m.signature }));
 
 /**
+ * What the bot says when the API rate-limits a question: how long to wait, or that it's
+ * resting for the day. Null for any other failure, which each chat words its own way.
+ * @param {Error & { status?: number, scope?: string, retryAfter?: number }} error - From getStreamingResponse
+ * @returns {string | null}
+ */
+export const rateLimitReply = (error) => {
+  if (error.status !== 429) return null;
+  if (error.scope === 'everyone') return "I've talked a lot today and my circuits need a rest 😴 Try me again tomorrow, or reach Oka directly through the contact page!";
+  const minutes = Math.max(1, Math.ceil((error.retryAfter || 60) / 60));
+  const wait = minutes >= 60 ? 'a few hours' : `${minutes} minute${minutes === 1 ? '' : 's'}`;
+  return `Whoa, that's a lot of questions! Give me ${wait} to catch my breath 😅 Or reach Oka directly through the contact page.`;
+};
+
+/**
  * Get streaming response from the backend API
  * @param {string} prompt - User message
  * @param {function} onToken - Callback function that receives each token as it arrives

@@ -37,7 +37,7 @@ const events = [];
 const speakerWoodPaints = [];
 const context = vm.createContext({
   ...vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/features/desk3d/woods.js'), 'utf8').replace(/export /g, '') + '; ({ WOODS, WOOD_PATTERNS, PART_PATTERNS, DEFAULT_WOODS, DEFAULT_FLOOR, DEFAULT_FRAME_PAINT, FLOOR_LAYOUTS, SPEAKER_FINISHES })'),
-  wallColor: '#3a3a3a', woods: {}, floor: {}, diorama: false, roomBackground: isDark => isDark ? '#d6d3e6' : '#ffffff',
+  wallColor: '#3a3a3a', wallPattern: {}, WALL_MATERIALS: ['brick', 'slats'], woods: {}, floor: {}, diorama: false, roomBackground: isDark => isDark ? '#d6d3e6' : '#ffffff',
   deskWood: {}, speakerGrain: { canvas: { width: 768, height: 512 }, ctx: {}, texture: new THREE.Texture() },
   speakerWoodMat: material(), speakerShellMat: material(), speakerBaffleMat: material(), drawWoodTop: (ctx, w, h, choice) => speakerWoodPaints.push({ ...choice }), riserGrain: {}, frameGrainTex: {}, shelfWood: {},
   frameWood: material(), shelfMat: material(), shelfBackMat: material(), lipMat: material(),

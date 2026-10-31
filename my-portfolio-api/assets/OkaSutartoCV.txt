@@ -1,5 +1,5 @@
 name: OKA SUTARTO PUTRA
-title: Fullstack Developer
+title: Mobile Engineer & Fullstack Developer
 location: Pontianak, Indonesia
 citizenship: Indonesia
 phone / whatsapp: "+6282216418397"
@@ -9,13 +9,27 @@ github: https://github.com/okasutarto
 website: https://okasutartoputra.vercel.app/
 
 summary / about me: 
-  Versatile Fullstack Developer with 3+ years of experience delivering end-to-end digital solutions across the complete software development lifecycle. Expert in building high-performance user interfaces with Vue.js, React, and Angular while architecting secure, scalable backends using Node.js and SQL/NoSQL databases. Proven track record of optimizing system performance—improving engagement by 40% and reducing database latency by 60%. Skilled in Agile methodologies, cloud deployment, and leading technical initiatives for both global platforms and enterprise-grade IT services.
+  Versatile engineer with 4+ years of experience delivering end-to-end digital solutions across the complete software development lifecycle, currently a Mobile Engineer at Dusitek building cross-platform Android and iOS apps with Flutter. Expert in building high-performance user interfaces with Vue.js, React, and Angular while architecting secure, scalable backends using Node.js and SQL/NoSQL databases. Proven track record of optimizing system performance—improving engagement by 40% and reducing database latency by 60%. Skilled in Agile methodologies, cloud deployment, and leading technical initiatives for both global platforms and enterprise-grade IT services.
 
 experience:
+  - title: Mobile Engineer
+    company: Dusitek
+    company website: https://www.dusitek.com
+    location: Pontianak, Indonesia
+    type: Full-time
+    start date: June 2026
+    end date: Present
+    Tech Stack : Flutter, Dart, REST API, Firebase, Git
+    responsibilities:
+      ● Building cross-platform mobile apps for Android and iOS from a single Flutter codebase.
+      ● Implementing scalable state management and clean architecture for maintainable features.
+      ● Integrating REST APIs and handling offline-friendly data flows for a smooth user experience.
+      ● Collaborating with designers and backend engineers to ship features from design to release.
+
   - title: Tech & Education Content Creator
     company: Self-Employed / Social Media
     location: Remote
-    type: Full-time
+    type: Side activity
     start date: January 2025
     end date: Present
     Tech Stack : TikTok, YouTube, JavaScript, HTML, CSS
@@ -79,34 +93,38 @@ languages:
   ● Bahasa Indonesia: Native
 
 projects:
+  - name: HNDA Studio
+    type: Frontend
+    year: 2026
+    description: Portfolio and commission platform for HNDA Studio, a Jakarta-based architecture and interior design studio. Sanity.io headless CMS lets the studio manage its selected works without a developer, and commission inquiries from a Google Form trigger an automated WhatsApp notification via Fonnte so no lead is missed.
+    tech_stack: [Vue 3, Sanity.io, Fonnte API, WhatsApp API, Google Forms, JavaScript, CSS3, Vite]
+    website: https://hnda.studio/
+
   - name: Gelitik
     type: Fullstack
+    year: 2026
     description: A unified platform to manage and track analytics across multiple social media channels from a single dashboard.
-    tech_stack: [Node.js, Express, PostgreSQL, Prisma ORM, JWT Authentication, Axios, Chart.js, Vue3, Tailwind CSS, TypeScript, Vite.]
+    tech_stack: [Vue 3, TypeScript, Tailwind CSS, Chart.js, Vite, Node.js, Express, PostgreSQL, Prisma ORM, JWT, Axios]
     github: https://github.com/okasutarto/gelitik
-
-  - name: Personal Portfolio Website
-    type: Fullstack
-    description: Personal Portfolio Website.
-    tech_stack: [Vue. Js, OpenAI, Tailwind, AI, Vercel.]
-    github: https://github.com/okasutarto/my-portfolio
-
-  - name: Warung Upin
-    type: Backend
-    description: Developed a POS backend with stock management, Multi-level User Management and Store Management modules, and Designed a secure Transaction Engine to handle sales processing, history logging, and financial reporting.
-    tech_stack: [Node.js, Express, PostgreSQL, Sequelize ORM, JWT Authentication.]
 
   - name: Summarizer
     type: Fullstack
-    description: AI app that summarizes text, PDFs, and images using OpenAI.
-    tech_stack: [Next.js, OpenAI, Tailwind]
+    year: 2024
+    description: AI-powered tool that summarizes text, PDFs, and images into clear, actionable insights.
+    tech_stack: [Next.js, React, Shadcn UI, OpenAI API, Tailwind CSS, TypeScript]
     github: https://github.com/okasutarto/summarizer
 
-  - name: Pokedex
-    type: Frontend
-    description: Explore Pokémon species with detailed info.
-    tech_stack: [Vue.js, Bootstrap, SASS, Axios, Pinia, Vite]
-    demo: https://pokedex-oka.vercel.app
+  - name: Warung Upin POS
+    type: Backend
+    year: 2023
+    description: Developed a POS backend with stock management, Multi-level User Management and Store Management modules, and Designed a secure Transaction Engine to handle sales processing, history logging, and financial reporting.
+    tech_stack: [Node.js, Express, PostgreSQL, Sequelize ORM, JWT, REST API]
+
+  - name: Personal Portfolio Website
+    type: Fullstack
+    description: This portfolio site, with an interactive 3D desk scene and an AI assistant that answers questions about Oka.
+    tech_stack: [Vue.js, Three.js, OpenAI, Tailwind, Vercel]
+    github: https://github.com/okasutarto/my-portfolio
 
   - name: punyagawe.id
     type: Backend
@@ -115,6 +133,7 @@ projects:
     website: https://punyagawe.id
 
 technical skills:
+  - Mobile: Flutter, Dart, Firebase.
   - Frontend: Vue.js, React.js, Angular, Next.js,TypeScript, HTML, CSS, Bootstrap, Tailwind, Unlayer, Vuex, Axios, Pinia, Vite
   - Backend: Node.js, Express.js, MySQL, Sequelize, PostgreSQL, JWT, CORS, dotenv, Rest APIs.
   - Database: PostgreSQL, MySQL, Sequelize ORM, Prisma ORM.

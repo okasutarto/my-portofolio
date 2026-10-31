@@ -135,10 +135,15 @@
           </template>
 
           <!-- The paper plane a sent card folds into before it flies off -->
-          <svg ref="planeRef" class="paper-plane" viewBox="0 0 120 80" aria-hidden="true">
-            <polygon points="4,40 116,6 46,48" fill="#fffdf5" />
-            <polygon points="46,48 116,6 56,74" fill="#e6dcc4" />
-            <polygon points="46,48 56,74 38,60" fill="#d4c6a6" />
+          <svg
+            ref="planeRef"
+            class="paper-plane"
+            viewBox="0 0 200 100"
+            preserveAspectRatio="none"
+            aria-hidden="true">
+            <polygon class="plane-keel" :points="PLANE_SHAPES.sheet[2]" fill="#efeadf" />
+            <polygon class="plane-wing-under" :points="PLANE_SHAPES.sheet[1]" fill="#f6f2e8" />
+            <polygon class="plane-wing" :points="PLANE_SHAPES.sheet[0]" fill="#fffdf5" />
           </svg>
 
           <!-- The closed envelope's stamp once the plane is away, and a way to write again -->
@@ -199,11 +204,12 @@ import { ref, reactive, nextTick, onMounted, onBeforeUnmount } from "vue";
 import gsap from "gsap";
 import { sfx } from "@/shared/composables/useSfx";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import emailjs from "@emailjs/browser";
 import { EMAILJS_CONFIG } from "@/shared/config/emailjs";
 import { usePostHog } from "@/features/portfolio2d/composables/usePostHog";
 
-gsap.registerPlugin(ScrollTrigger);
+gsap.registerPlugin(ScrollTrigger, MotionPathPlugin);
 
 const { posthog } = usePostHog();
 
@@ -257,6 +263,15 @@ const stamped = ref(false);
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 let sendTl = null;
 let ctx = null;
+
+// The sent card's paper, in a 200×100 box laid over the card: the top wing, the wing folded
+// under and the keel, each a quad so one shape morphs into the next. A flat sheet, then
+// folded in half lengthwise with the corners creased in, then a paper plane, nose right.
+const PLANE_SHAPES = {
+  sheet: ["0,0 200,0 200,50 0,50", "0,50 200,50 200,100 100,100", "0,50 100,100 100,100 0,100"],
+  creased: ["14,22 196,32 196,42 26,50", "26,50 196,42 196,42 104,84", "26,50 104,84 104,84 38,74"],
+  plane: ["6,46 196,30 196,30 84,56", "84,56 196,30 196,30 104,92", "84,56 104,92 104,92 66,76"],
+};
 
 const validateForm = () => {
   errors.name = !form.name.trim() ? "Tell me your name" : "";
@@ -326,33 +341,67 @@ const flyOff = () => {
     sfx.stamp();
     return;
   }
-  sendTl = gsap
-    .timeline()
-    // 1. The card creases in from its sides and becomes the plane
-    .to(card, { scaleX: 0.45, scaleY: 0.85, rotate: -4, duration: 0.3, ease: "power2.in" }, 0)
-    .call(() => sfx.paper(), null, 0)
-    .call(() => sfx.paper(), null, 0.2)
-    .to(card, { opacity: 0, duration: 0.12 }, 0.24)
-    .call(clearForm, null, 0.4)
-    .fromTo(plane, { opacity: 0, x: 0, y: 0, scale: 0.5, rotate: 0 }, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2.5)" }, 0.28)
-    .call(() => sfx.rustle({ duration: 0.35 }), null, 0.28)
-    // 2. Ready for takeoff: it lifts, nose up, and rocks once
-    .to(plane, { y: -30, rotate: -14, duration: 0.4, ease: "sine.inOut" }, 0.7)
-    .to(plane, { rotate: -6, duration: 0.2, ease: "sine.inOut" }, 1.1)
-    .call(() => sfx.planeTakeoff({ duration: 1.6 }), null, 0.75)
-    // 3. Takeoff: up and away off the top right of the screen
-    .to(plane, { x: () => window.innerWidth * 0.9, y: () => -window.innerHeight * 0.8, rotate: -24, scale: 0.6, duration: 1.1, ease: "power2.in" }, 1.25)
+  // The paper takes the card's place: same box, same white
+  const [wing, under, keel] = ["plane-wing", "plane-wing-under", "plane-keel"].map((c) => plane.querySelector(`.${c}`));
+  const shape = (name, duration, at, ease = "sine.inOut") =>
+    [wing, under, keel].forEach((piece, i) => sendTl.to(piece, { attr: { points: PLANE_SHAPES[name][i] }, duration, ease }, at));
+  const box = { left: card.offsetLeft, top: card.offsetTop - 6, width: card.offsetWidth, height: card.offsetHeight };
+  // The flight's first stretch, and the heading the plane turns to as it finishes folding, so
+  // it's already pointing along its path when it takes off
+  const climb = { x: window.innerWidth * 0.12, y: -window.innerHeight * 0.1 };
+  const heading = (Math.atan2(climb.y, climb.x) * 180) / Math.PI;
+  sendTl = gsap.timeline();
+  sendTl
+    .set(plane, { ...box, x: 0, y: 0, rotate: 0, scale: 1, opacity: 0, transformOrigin: "50% 50%" }, 0)
+    .set([wing, under, keel], { attr: { points: (i) => PLANE_SHAPES.sheet[i] } }, 0)
+    // The words fade off as the blank sheet covers the card
+    .to(plane, { opacity: 1, duration: 0.2, ease: "none" }, 0)
+    .to(card, { opacity: 0, duration: 0.25, ease: "none" }, 0.05)
+    .call(clearForm, null, 0.3);
+  // 1. Folded in half lengthwise, corners creased in, drawing in as it folds...
+  shape("creased", 0.55, 0.15);
+  sendTl
+    .to(plane, { scale: 0.78, rotate: -2, duration: 0.55, ease: "sine.inOut" }, 0.15)
+    .call(() => sfx.paper(), null, 0.18)
+    .call(() => sfx.rustle({ duration: 0.4 }), null, 0.3);
+  // 2. ...then the wings come down into a paper plane
+  shape("plane", 0.55, 0.7);
+  sendTl
+    .to(plane, { scale: 0.58, rotate: heading, duration: 0.55, ease: "sine.inOut" }, 0.7)
+    .call(() => sfx.paper(), null, 0.75)
+    .call(() => sfx.paper(), null, 1.05)
+    // 3. Takeoff: one smooth climb off the top right, nose along its path, getting smaller
+    .call(() => sfx.planeTakeoff({ duration: 1.8 }), null, 1.15)
+    .to(
+      plane,
+      {
+        motionPath: {
+          path: () => [
+            { x: 0, y: 0 },
+            climb,
+            { x: window.innerWidth * 0.5, y: -window.innerHeight * 0.5 },
+            { x: window.innerWidth * 1.05, y: -window.innerHeight * 1.1 },
+          ],
+          curviness: 1.25,
+          autoRotate: true,
+        },
+        scale: 0.3,
+        duration: 1.8,
+        ease: "power1.in",
+      },
+      1.3,
+    )
     // The section clips it, so it fades out on the way rather than vanishing at the edge
-    .to(plane, { opacity: 0, duration: 0.35, ease: "power1.in" }, 2.0)
+    .to(plane, { opacity: 0, duration: 0.45, ease: "power1.in" }, 2.6)
     // 4. The empty envelope's flap folds shut, coming in front of it halfway over
-    .to(flap, { rotateX: 0, duration: 0.5, ease: "power2.inOut" }, 1.7)
-    .set(flap, { zIndex: 30 }, 1.95)
-    .call(() => sfx.cardDown({ strength: 0.4 }), null, 2.15)
+    .to(flap, { rotateX: 0, duration: 0.6, ease: "power2.inOut" }, 2.0)
+    .set(flap, { zIndex: 30 }, 2.3)
+    .call(() => sfx.cardDown({ strength: 0.4 }), null, 2.55)
     // 5. Stamped
     .call(() => {
       stamped.value = true;
       sfx.stamp();
-    }, null, 2.35);
+    }, null, 2.8);
 };
 
 // A fresh card: the flap opens and a blank card slides out and settles, as in the intro
@@ -600,10 +649,6 @@ onBeforeUnmount(() => {
 /* The paper plane: hidden over the middle of the card until a card is sent */
 .paper-plane {
   position: absolute;
-  left: 50%;
-  top: 45%;
-  width: 180px;
-  margin: -60px 0 0 -90px;
   z-index: 45;
   opacity: 0;
   pointer-events: none;
@@ -611,8 +656,10 @@ onBeforeUnmount(() => {
 }
 .paper-plane polygon {
   stroke: #000;
-  stroke-width: 3;
+  stroke-width: 2.5px;
   stroke-linejoin: round;
+  /* Stretched over the card, the outline stays as thick as the card's border */
+  vector-effect: non-scaling-stroke;
 }
 .postcard-stage {
   perspective: 1400px;

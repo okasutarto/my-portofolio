@@ -260,9 +260,10 @@ node index.js            # listens on port 3000
 Point the site at it with `VUE_APP_API_URL` in a `.env` at the project root (it defaults to
 `http://localhost:3000`).
 
-For local chat, run the frontend with `npm run dev -- --port 8081`: the backend's current
-CORS allowlist includes `http://localhost:8081`, but not the default frontend port 8080.
-If you use another origin, update `allowedOrigins` in `my-portfolio-api/index.js`.
+For local chat, the backend CORS allowlist includes the default frontend origin
+`http://localhost:8080` and the alternative `http://localhost:8081`. If you use a different
+origin (including `127.0.0.1` instead of `localhost`), update `allowedOrigins` in
+`my-portfolio-api/index.js`.
 Restart the frontend after changing its environment variables. The API reads its CV context
 from `my-portfolio-api/assets/OkaSutartoCV.txt`; replace that file for your own assistant.
 Each question is sent with the conversation's last 8 turns to `POST /api/chat/stream`, and the
@@ -338,58 +339,111 @@ measurements. The `time`/`rain` previews themselves do not override production b
 
 ## Project structure
 
-```
+The frontend is one Vue application with two feature folders. The desk is served at `/`;
+the classic portfolio and its shell are loaded on demand at `/2d`.
+
+```text
 the-desk/
-├── index.html                    # Meta tags and the boot loader
-├── vite.config.js                # Vite build, the `@` alias and the env values the code reads
-├── public/
-│   ├── og-image.jpg              # Link preview image
-│   ├── readme-desk.jpg           # README hero screenshot
-│   ├── readme-desk-morning.jpg   # Morning README screenshot, paired with the night one
-│   ├── readme-desk-night.jpg     # Nighttime README screenshot
-│   └── sfx/                      # Recorded sound layers and their licenses
+├── index.html                         # Page metadata and the initial desk boot loader
+├── vite.config.js                     # Vite, @ alias, environment values and dev port 8080
+├── playwright.config.cjs              # Production browser test matrix and preview server
+├── public/                            # Static images, README screenshots and sound samples
 ├── src/
+│   ├── App.vue                       # Route transitions, shared theme init and Vercel analytics
+│   ├── main.js                       # Vue application entry and global styles
+│   ├── router/index.js               # Routes, compatibility redirects and scroll restoration
+│   ├── data/                         # Shared about, experience, skills and project content
 │   ├── features/
 │   │   ├── portfolio2d/
-│   │   │   ├── PortfolioLayout.vue # Lazy navbar, footer, chat and page background
-│   │   │   ├── HomePage.vue      # Classic scrolling portfolio at /2d
-│   │   │   ├── components/      # Sections, site layout, chat UI, files and hero scene
-│   │   │   ├── composables/     # 2D spotlight and PostHog
-│   │   │   ├── directives/      # Local title reveal animation
-│   │   │   └── utils/           # Safe formatting for HTML chat messages
+│   │   │   ├── PortfolioLayout.vue   # Lazy navbar, footer, chatbot and dot-grid background
+│   │   │   ├── HomePage.vue          # Composes the classic portfolio sections
+│   │   │   ├── components/
+│   │   │   │   ├── layout/           # MainLayout, TheNavbar and TheFooter
+│   │   │   │   ├── sections/         # Hero, About, Experience, Projects and Contact
+│   │   │   │   ├── files/            # FileCover, FileSheet and ClipSheet
+│   │   │   │   ├── hero/heroScene.js # The classic page's own 3D hero illustration
+│   │   │   │   ├── ui/NeoMarquee.vue
+│   │   │   │   ├── ChatBot.vue
+│   │   │   │   ├── BotFace.vue
+│   │   │   │   ├── FileDrawer.vue
+│   │   │   │   ├── SoundToggle.vue
+│   │   │   │   └── ThemeSwitcher.vue
+│   │   │   ├── composables/          # useSpotlight and usePostHog, owned by 2D
+│   │   │   ├── directives/titleReveal.js
+│   │   │   └── utils/formatChatMessage.js
 │   │   └── desk3d/
-│   │       ├── DeskPage.vue      # 3D page: HUD, hints and room settings
-│   │       ├── deskScene.js      # Assembles the scene factories
-│   │       ├── scene/            # Props, core, camera, input, animation and lifecycle
-│   │       ├── textures/         # Canvas surfaces for the room and props
-│   │       ├── textures.js       # Texture exports
-│   │       ├── desktop.js        # Interactive monitor desktop, dock and apps
-│   │       ├── desktop/          # Canvas helpers, appearance, Spotifree, editor and Snake
-│   │       ├── composables/      # Room settings, persistence and reactive labels
-│   │       └── …                 # Shaders, meshes, finishes, weather, games and music
-│   ├── shared/
-│   │   ├── components/          # App-level 404 page
-│   │   ├── composables/         # Shared theme and audio state
-│   │   ├── services/            # Chat API client
-│   │   ├── utils/               # Shared boot loader lifecycle
-│   │   ├── config/              # Shared contact configuration
-│   │   └── assets/styles/       # Global styles
-│   ├── data/                    # Content shared by 2D and 3D
-│   ├── router/                  # / → desk3d, /2d → portfolio2d
-│   ├── App.vue                  # Application shell
-│   └── main.js                  # Application entry
-├── my-portfolio-api/             # Express API for the AI chat
-├── scripts/                      # App, desk and bundle checks
-└── tests/browser/                # Production browser smoke tests
+│   │       ├── DeskPage.vue          # Room lifecycle, HUD, hints and settings panel
+│   │       ├── composables/useDeskSettings.js # Preference parsing, storage and scene updates
+│   │       ├── deskScene.js          # Assembles the scene-local runtime and factories
+│   │       ├── scene/                # Props, rendering, input, camera, theme and cleanup
+│   │       ├── desktop.js            # Coordinates the monitor's windows, dock and interactions
+│   │       ├── desktop/
+│   │       │   ├── config.js         # Screen dimensions, apps, dock order and helpers
+│   │       │   ├── canvas.js         # Canvas surfaces, grain, halftone and drawing primitives
+│   │       │   ├── appearance.js     # Desktop themes, wallpaper rendering and icons
+│   │       │   ├── spotifree.js      # Music player drawing
+│   │       │   ├── code.js           # Animated code editor
+│   │       │   └── snake.js          # Snake state, input and drawing
+│   │       ├── textures.js          # Texture module exports
+│   │       ├── textures/            # Canvas textures grouped by surface or prop
+│   │       ├── sceneConfig.js       # Palette, quality selection and benchmark flags
+│   │       ├── sceneMeshes.js       # Shared mesh construction and resource tracking
+│   │       ├── sceneShaders.js      # Toon shading and shadow shader patches
+│   │       ├── toonBatch.js         # Compatible toon mesh and shadow batching
+│   │       ├── paperFlex.js         # Bendable papers, covers and boarding passes
+│   │       ├── woods.js             # Furniture finishes, floor layouts and defaults
+│   │       ├── daylight.js          # Time-of-day and weather settings
+│   │       ├── wallpapers.js        # Wallpaper choices and landscape painting
+│   │       ├── lofi.js              # Synthesized music and playback
+│   │       └── strawHatStrike.js    # Console game
+│   └── shared/
+│       ├── components/NotFound.vue  # Application 404 page, rendered inside the classic shell
+│       ├── composables/useTheme.js # Theme state shared by both experiences
+│       ├── composables/useSfx.js   # Shared audio state, synthesis and hover cues
+│       ├── services/chatApi.js     # Streaming chat client used by the chatbot and 3D phone
+│       ├── config/emailjs.js       # Contact configuration used by both postcards
+│       ├── utils/bootLoader.js     # Boot progress, enter gate and loader cleanup
+│       └── assets/styles/index.css # Global fonts, Tailwind, theme tokens and shared utilities
+├── my-portfolio-api/
+│   ├── index.js                    # Express middleware, CORS and server entry
+│   ├── assets/OkaSutartoCV.txt      # Assistant context
+│   └── src/
+│       ├── routes/                 # Chat streaming endpoints
+│       ├── controllers/            # Request validation and streaming responses
+│       ├── services/               # OpenAI integration
+│       ├── config/                 # Assistant prompts
+│       └── utils/                  # Guardrails and context file loading
+├── scripts/
+│   ├── check-app.cjs               # Chat formatting, theme storage, CORS and SSE checks
+│   ├── check-desk.cjs              # Runs the desk's focused checks
+│   ├── check-bundles.cjs           # Checks source imports and the emitted build manifest
+│   └── helpers/                    # Assembled source views for the legacy VM checks
+└── tests/browser/portfolio.spec.cjs # Chromium/WebKit desktop and mobile smoke tests
 ```
 
-The content lives in `src/data/`, and both the 2D page and the desk read from it, so editing a
-project or a job updates both. Feature-specific code stays inside its own folder;
-shared code and data do not import either feature. `App.vue` and the router compose the two
-experiences. The Express backend remains independent in `my-portfolio-api/`.
-The classic shell and its UI are route-loaded; visits to the desk do not fetch the 2D
-components, icon styles or PostHog SDK. Title directives are local to the classic sections,
-so registering the app does not eagerly load their scrolling plugins.
+### Code ownership and startup
+
+| Area | Flow and responsibility |
+| --- | --- |
+| Application entry | `main.js` mounts `App.vue` and the router. `App.vue` initializes the shared theme and analytics; it does not import the classic UI. |
+| Desk `/` | The router loads `DeskPage.vue` with the app entry, so its backdrop can paint immediately. The page dynamically imports `deskScene.js`, which assembles `scene/` factories using one scene-local `runtime`. |
+| Classic `/2d` | The router dynamically imports `PortfolioLayout.vue` and `HomePage.vue`. The layout owns navigation, chat, the background spotlight and icon font loading; the page composes its sections. |
+| Unknown URLs | The lazy classic layout wraps `shared/components/NotFound.vue`. The 404 text and actions have explicit light/dark contrast. |
+| Monitor apps | `desktop.js` coordinates windows and input; its `desktop/` modules own canvas primitives, appearance, the player, editor and Snake. |
+| Room settings | `useDeskSettings.js` validates saved preferences, supplies reactive labels, persists changes and forwards them to the active scene. |
+| Scene resources | `scene/core.js` owns renderer and resource helpers. `scene/lifecycle.js` removes listeners, timers, tweens and GPU resources when the desk is unmounted. See the [scene module guide](src/features/desk3d/scene/README.md). |
+| Shared content | Both experiences read `src/data/`. Updating a project or job updates both presentations; neither feature needs to import the other. |
+
+Keep feature-specific code in its feature folder. Shared helpers and data must not import
+features. The 404 page is an application fallback; its visual shell belongs to `portfolio2d`.
+Title reveal directives are imported locally by the classic sections. PostHog is owned by
+2D, and icon fonts load independently after its layout mounts, so a blocked font CDN cannot
+reject the route's lazy CSS. A desk-only visit does not fetch these classic UI dependencies.
+`check:bundles` verifies the eager source dependencies and emitted bundle graph.
+
+The Express backend remains an independent package under `my-portfolio-api/`; moving frontend
+features does not change its endpoints or deployment configuration. See [Scripts](#scripts)
+for local checks and the browser test command.
 
 ## Fan touches
 

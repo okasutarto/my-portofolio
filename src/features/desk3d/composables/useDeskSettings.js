@@ -29,6 +29,11 @@ export const WALL_PATTERNS = {
   slats: "Wood slats",
   stripes: "Stripes",
   hexagon: "Hexagon",
+  checker: "Checkerboard",
+  chevron: "Chevron",
+  graph: "Graph paper",
+  terrazzo: "Terrazzo",
+  limewash: "Limewash",
 };
 
 // The picks are a per-visitor convenience: blocked or empty storage just means the default room

@@ -34,7 +34,7 @@ export function createCamera(runtime) {
   const SHOTS = {
     // The camera sits inside the room, with no cutaway edges or outside backdrop; on a portrait
     // screen it stands back to take in the whole diorama instead.
-    overview: () => (runtime.room.diorama ? dioramaShot() : { target: [4.0, 5.3, 4.04], dir: [0.62, 0.72, 1], fit: [42, 23.1], depth: CAM_DISTANCE - 0.1 }),
+    overview: () => (runtime.room.diorama ? dioramaShot() : { target: [4.0, 5.3, 4.04], dir: [0.62, 0.72, 1], fit: [39, 21.4], depth: CAM_DISTANCE - 0.1 }),
     // Browse the tall collection in close-up, starting at the console and GAME ON sign.
     shelf: () => {
       const fit = [runtime.options.container.clientWidth < 900 ? 8.8 : 10.5, 7.2];
@@ -63,11 +63,12 @@ export function createCamera(runtime) {
     // cover lies open to the left)
     projects: () => {
       if (!runtime.projectFiles.openFolder) {
-        // Square on the drawer's front, wherever it faces. A shallow clip keeps the lamp head,
-        // just in front of the drawer, out of the shot (the family photo steps aside; see setFocus).
+        // Square on the drawer's front, wherever it faces. A shallow clip keeps what's in front of
+        // the drawer out of the shot (the lamp and the family photo step aside; see setFocus), yet
+        // reaches far enough to keep whole a file sliding back in over the drawer's side wall.
         runtime.projectFiles.folders.localToWorld(screenPos.set(0, 1.25, 0.2));
         screenNormal.set(0.05, 0.62, 1).applyQuaternion(runtime.projectFiles.folders.quaternion);
-        return { target: screenPos.toArray(), dir: screenNormal.toArray(), fit: [4.6, 3.9], depth: 1.4 };
+        return { target: screenPos.toArray(), dir: screenNormal.toArray(), fit: [4.6, 3.9], depth: 1.7 };
       }
       // Centre on the spine: the open cover lies to its left, the sheets to its right. Laid
       // down, the folder's left is the drawer's -z.
@@ -235,7 +236,7 @@ export function createCamera(runtime) {
     // the lamp only steps aside once the camera is well on its way, so it doesn't vanish in
     // plain sight of the overview; leaving, it's back at once
     runtime.lamp.hideLamp(false);
-    if (name === "window") runtime.core.timers.push(setTimeout(() => focus.name === "window" && runtime.lamp.hideLamp(true), 450));
+    if (name === "window" || name === "projects") runtime.core.timers.push(setTimeout(() => focus.name === name && runtime.lamp.hideLamp(true), 450));
     // the family photo stands just in front of the folders, so it steps out of their close-up the same way
     runtime.lamp.familyFrame.visible = true;
     if (name === "projects") runtime.core.timers.push(setTimeout(() => focus.name === "projects" && (runtime.lamp.familyFrame.visible = false), 450));

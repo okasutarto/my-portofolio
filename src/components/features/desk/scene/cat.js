@@ -35,55 +35,86 @@ export function createCat(runtime) {
   cat.scale.setScalar(CAT_SCALE);
   const catBody = new THREE.Group();
   cat.add(catBody);
-  const belly = runtime.core.mesh(new THREE.SphereGeometry(1, 24, 16), fur, { outline: 0.03 });
+  // Her darker tabby markings are painted into her coat as vertex colours, not laid over it as
+  // pieces of their own, so they take the same light as the fur around them and fade softly
+  // into it at their edges. A vertex colour of white leaves the fur as it is; STRIPE turns it to
+  // furDark's colour (her glow in the shade is tinted the same way).
+  const furStriped = runtime.core.track(fur.clone());
+  furStriped.vertexColors = true;
+  furStriped.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace("vec3 totalEmissiveRadiance = emissive;", "vec3 totalEmissiveRadiance = emissive * vColor;");
+  };
+  FUR_MATS.push(furStriped);
+  const STRIPE = new THREE.Color(furDark.color.r / fur.color.r, furDark.color.g / fur.color.g, furDark.color.b / fur.color.b);
+  const NO_STRIPE = new THREE.Color(1, 1, 1);
+  // `amount(point)`: how far into a stripe each vertex is, 0–1
+  function paintStripes(geo, amount) {
+    const pos = geo.attributes.position;
+    const colors = new Float32Array(pos.count * 3);
+    const point = new THREE.Vector3();
+    const color = new THREE.Color();
+    for (let i = 0; i < pos.count; i++) color.copy(NO_STRIPE).lerp(STRIPE, amount(point.fromBufferAttribute(pos, i))).toArray(colors, i * 3);
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    return geo;
+  }
+  // Tabby stripes over her back: each one widest along her spine and tapering to a point down
+  // her side, with a slight wave and a lean back toward her tail, like a real tabby's markings.
+  // [where along her (x on the unit sphere), half-width, reach round from her spine, seed]
+  const TABBY = [[-0.62, 0.07, 2.0, 1], [-0.3, 0.085, 2.3, 2], [0.02, 0.075, 2.1, 3], [0.33, 0.06, 1.8, 4]];
+  function tabbyAt(p) {
+    const theta = Math.acos(THREE.MathUtils.clamp(p.x, -1, 1));
+    const phi = Math.atan2(p.z, p.y); // round from the top of her back
+    let amount = 0;
+    TABBY.forEach(([x, width, reach, seed]) => {
+      const t = phi / reach + 0.5;
+      if (t <= 0 || t >= 1) return;
+      const taper = Math.sin(Math.PI * t) ** 0.6;
+      const centre = Math.acos(x) + Math.abs(phi) * 0.12 + Math.sin(phi * 3 + seed) * 0.035;
+      const half = width * taper * (0.85 + 0.15 * Math.sin(phi * 5 + seed * 2));
+      amount = Math.max(amount, 1 - THREE.MathUtils.smoothstep(Math.abs(theta - centre), half * 0.5, half * 1.4));
+    });
+    return amount;
+  }
+  const belly = runtime.core.mesh(paintStripes(new THREE.SphereGeometry(1, 128, 80), tabbyAt), furStriped, { outline: 0.03 });
   belly.scale.set(1.15, 0.55, 0.85);
   belly.position.y = 0.55;
   catBody.add(belly);
-  // Tabby stripes over the back, painted onto the same sphere as her body (just proud of it):
-  // each one widest along her spine and tapering to a point down her side, with a slight wave
-  // and a lean back toward her tail, like a real tabby's markings
-  function tabbyStripe(x, width, reach, seed) {
-    const steps = 32;
-    const positions = [];
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const phi = (t - 0.5) * reach; // round from the top of her back
-      const taper = Math.sin(Math.PI * t) ** 0.6;
-      const centre = Math.acos(THREE.MathUtils.clamp(x, -1, 1)) + Math.abs(phi) * 0.12 + Math.sin(phi * 3 + seed) * 0.035;
-      [-1, 1].forEach((edge) => {
-        const theta = centre + edge * width * taper * (0.85 + 0.15 * Math.sin(phi * 5 + seed * 2));
-        positions.push(1.012 * Math.cos(theta), 1.012 * Math.cos(phi) * Math.sin(theta), 1.012 * Math.sin(phi) * Math.sin(theta));
-      });
-    }
-    const index = [];
-    for (let i = 0; i < steps; i++) {
-      const a = i * 2;
-      index.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
-    }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    geo.setIndex(index);
-    geo.computeVertexNormals();
-    const stripe = runtime.core.mesh(geo, furDark, { outline: 0, cast: false });
-    stripe.material.side = THREE.DoubleSide;
-    return stripe;
-  }
-  [[-0.62, 0.07, 2.0, 1], [-0.3, 0.085, 2.3, 2], [0.02, 0.075, 2.1, 3], [0.33, 0.06, 1.8, 4]].forEach(([x, width, reach, seed]) => belly.add(tabbyStripe(x, width, reach, seed)));
+  // a paler tummy under her, which shows when she stands or sits up
+  const tummy = runtime.core.mesh(new THREE.SphereGeometry(1, 20, 14), furLight, { outline: 0.012 });
+  tummy.scale.set(0.85, 0.3, 0.55);
+  tummy.position.set(0.15, 0.3, 0);
+  catBody.add(tummy);
   // her white chest: shown when she's up, tucked away (hidden) when she's curled asleep, where
   // it only showed as a white patch at her neck
   const catChest = runtime.core.at(runtime.core.mesh(new THREE.SphereGeometry(0.42, 16, 12), furLight, { outline: 0.015 }), 0.85, 0.55, 0.15);
   catChest.visible = false;
   catBody.add(catChest);
-  // Legs, shown only when she stands; paws tucked in front when she's curled
+  // Legs, shown only when she stands; paws tucked in front when she's curled. Each tapers to a
+  // white sock and a round, forward-set paw (its own group: aimLeg keeps the paw round when the
+  // leg stretches); the back legs have a thigh at the top.
   const catLegs = [[0.62, 0.32], [0.62, -0.32], [-0.62, 0.32], [-0.62, -0.32]].map(([x, z]) => {
     const leg = new THREE.Group();
     leg.position.set(x, 0.62, z);
-    leg.add(runtime.core.at(runtime.core.mesh(new THREE.CylinderGeometry(0.13, 0.12, 0.62, 12), fur, { outline: 0.015 }), 0, -0.31, 0));
-    leg.add(runtime.core.at(runtime.core.mesh(new THREE.SphereGeometry(0.14, 12, 8), furLight, { outline: 0.012 }), 0, -0.6, 0.02));
+    leg.add(runtime.core.at(runtime.core.mesh(new THREE.CylinderGeometry(0.14, 0.11, 0.62, 12), fur, { outline: 0.015 }), 0, -0.31, 0));
+    const paw = new THREE.Group();
+    paw.position.set(0.03, -0.6, 0);
+    const pawBall = runtime.core.mesh(new THREE.SphereGeometry(0.14, 14, 10), furLight, { outline: 0.012 });
+    pawBall.scale.set(1.2, 0.75, 1.05);
+    paw.add(pawBall);
+    leg.add(paw);
+    leg.add(runtime.core.at(runtime.core.mesh(new THREE.CylinderGeometry(0.115, 0.112, 0.2, 12), furLight, { outline: 0, cast: false }), 0, -0.5, 0));
+    if (x < 0) {
+      const thigh = runtime.core.mesh(new THREE.SphereGeometry(0.2, 14, 10), fur, { outline: 0.014 });
+      thigh.scale.set(1.25, 1.4, 0.85);
+      thigh.position.y = -0.08;
+      leg.add(thigh);
+    }
     leg.visible = false;
     cat.add(leg);
     return leg;
   });
+  // the trot's diagonal pairs: near front with far back, far front with near back
+  const GAIT = [0, Math.PI, Math.PI, 0];
   // Haunches: the rounded thighs a sitting cat sits on, shown only when she's sat up
   const haunches = [0.36, -0.36].map((z) => {
     const thigh = runtime.core.mesh(new THREE.SphereGeometry(1, 16, 12), fur, { outline: 0.014 });
@@ -94,10 +125,11 @@ export function createCat(runtime) {
     return thigh;
   });
   const paws = new THREE.Group();
-  paws.add(
-    runtime.core.at(runtime.core.mesh(new THREE.SphereGeometry(0.16, 12, 8), furLight, { outline: 0.012 }), 1.05, 0.14, 0.62),
-    runtime.core.at(runtime.core.mesh(new THREE.SphereGeometry(0.16, 12, 8), furLight, { outline: 0.012 }), 1.32, 0.14, 0.36),
-  );
+  [[1.05, 0.62], [1.32, 0.36]].forEach(([x, z]) => {
+    const paw = runtime.core.at(runtime.core.mesh(new THREE.SphereGeometry(0.16, 14, 10), furLight, { outline: 0.012 }), x, 0.12, z);
+    paw.scale.set(1.2, 0.75, 1);
+    paws.add(paw);
+  });
   cat.add(paws);
   // Head: ears, a white muzzle, a pink nose, and eyes shut (lines) or open (dots)
   const catHead = new THREE.Group();
@@ -168,16 +200,71 @@ export function createCat(runtime) {
     catNeck.scale.set(0.27, length / 2 + 0.18, 0.27);
     if (length > 0.0001) catNeck.quaternion.setFromUnitVectors(runtime.core.UP, neckDirection.divideScalar(length));
   }
-  // Tail: wrapped round her front when curled, held up in a hook when she walks
-  const tailTube = (points, radius) => runtime.core.mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points.map(([x, y, z]) => new THREE.Vector3(x, y, z))), 32, radius, 10), fur, { outline: 0.015 });
+  // Tail: wrapped round her front when curled, held up in a hook when she walks. Each is a chain
+  // of short joints (a capsule along each joint's +x, the next joint at its end), so it bends
+  // and sways along its length (see waveTail) instead of swinging as one stiff piece. `bends`:
+  // each joint's turn from the one before at rest, [about y, about z]. Tabby rings are painted
+  // round the middle of every other joint, and the last one darkens to its tip.
+  // A capsule from x = -r to len + r, turned on a lathe so it has rings of vertices all along
+  // its length for the stripes to fade over
+  function tailSegment(r, len) {
+    const profile = [];
+    for (let i = 0; i <= 6; i++) profile.push(new THREE.Vector2(r * Math.cos(Math.PI / 2 * (i / 6 - 1)), r * Math.sin(Math.PI / 2 * (i / 6 - 1))));
+    for (let i = 1; i <= 10; i++) profile.push(new THREE.Vector2(r, len * i / 10));
+    for (let i = 1; i <= 6; i++) profile.push(new THREE.Vector2(r * Math.cos(Math.PI / 2 * i / 6), len + r * Math.sin(Math.PI / 2 * i / 6)));
+    return new THREE.LatheGeometry(profile, 12).rotateZ(-Math.PI / 2);
+  }
+  function tailChain(start, radius, segLen, bends) {
+    const root = new THREE.Group();
+    root.position.set(...start);
+    const joints = [];
+    let parent = root;
+    bends.forEach(([ry, rz], i) => {
+      const joint = new THREE.Group();
+      if (i) joint.position.x = segLen;
+      joint.rotation.set(0, ry, rz);
+      joint.userData.rest = [ry, rz];
+      const r = radius * (1 - 0.25 * i / bends.length);
+      const ringed = i % 2 === 1;
+      const tip = i === bends.length - 1;
+      const geo = paintStripes(tailSegment(r, segLen), (p) => Math.max(
+        ringed ? 1 - THREE.MathUtils.smoothstep(Math.abs(p.x - segLen / 2), segLen * 0.12, segLen * 0.3) : 0,
+        tip ? THREE.MathUtils.smoothstep(p.x, segLen * 0.3, segLen * 0.85) : 0,
+      ));
+      joint.add(runtime.core.mesh(geo, furStriped, { outline: 0.015 }));
+      parent.add(joint);
+      parent = joint;
+      joints.push(joint);
+    });
+    return { root, joints };
+  }
+  const curlChain = tailChain([-1.05, 0.35, -0.2], 0.13, 0.29, [[-1.81, -0.06], [0.12, 0], [0.3, 0.02], [0.35, 0], [0.35, 0], [0.3, 0], [0.25, 0], [0.2, 0], [0.12, 0.02], [0.09, 0]]);
+  const upChain = tailChain([-1.0, 0.75, 0], 0.12, 0.19, [[0, 2.25], [0, -0.12], [0, -0.12], [0, -0.12], [0, -0.2], [0, -0.25], [0, -0.3], [0, -0.3]]);
   const tailCurl = new THREE.Group();
-  tailCurl.add(tailTube([[-1.05, 0.35, -0.2], [-1.2, 0.25, 0.4], [-0.6, 0.2, 0.95], [0.3, 0.18, 1.0], [0.85, 0.2, 0.85]], 0.13));
-  tailCurl.add(runtime.core.at(runtime.core.mesh(new THREE.SphereGeometry(0.14, 12, 8), furDark, { outline: 0.012 }), 0.88, 0.2, 0.84));
+  tailCurl.add(curlChain.root);
   const tailUp = new THREE.Group();
-  tailUp.add(tailTube([[-1.0, 0.75, 0], [-1.35, 1.2, 0], [-1.4, 1.75, 0], [-1.2, 2.05, 0]], 0.12));
-  tailUp.add(runtime.core.at(runtime.core.mesh(new THREE.SphereGeometry(0.13, 12, 8), furDark, { outline: 0.012 }), -1.2, 2.05, 0));
+  tailUp.add(upChain.root);
   tailUp.visible = false;
   cat.add(tailCurl, tailUp);
+  // The tail's own life: a slow drift asleep, a lazy sway awake, a lively one on the move,
+  // and `flick` for the tip's twitch in her sleep. The curled tail lies close round her, so it
+  // only ever eases out from there (a turn about y less than at rest), never in through her.
+  const tailMotion = { amp: 0.035, phase: 0, flick: 0 };
+  function waveTail() {
+    const n = curlChain.joints.length;
+    curlChain.joints.forEach((joint, i) => {
+      const w = (i / n) ** 1.5;
+      const out = (1 + Math.sin(tailMotion.phase - i * 0.6)) * 0.5;
+      joint.rotation.y = joint.userData.rest[0] - out * tailMotion.amp * 1.5 * w - tailMotion.flick * 0.3 * w;
+      joint.rotation.z = joint.userData.rest[1] + tailMotion.flick * 0.45 * w * w;
+    });
+    const m = upChain.joints.length;
+    upChain.joints.forEach((joint, i) => {
+      const w = 0.4 + i / m;
+      joint.rotation.y = Math.sin(tailMotion.phase - i * 0.5) * tailMotion.amp * w;
+      joint.rotation.z = joint.userData.rest[1] + Math.sin(tailMotion.phase * 0.5 - i * 0.4) * tailMotion.amp * 0.3 * w;
+    });
+  }
   const HEAD_CURLED = new THREE.Vector3(1.0, 0.55, 0.42);
   const HEAD_UP = new THREE.Vector3(1.25, 1.55, 0);
   // Awake but still lying down (a loaf): head up and out in front of her body over her white
@@ -245,61 +332,148 @@ export function createCat(runtime) {
     return new THREE.Euler().setFromQuaternion(q, "YXZ").y;
   };
 
-  // A hop to a world point: up on her legs, a squash, an arc through the air, a squash on landing
+  // Where she'll be once the moves queued on a timeline so far are done (where she is, before
+  // any): a walk's length is worked out from it when the timeline is built
+  const plannedAt = new WeakMap();
+  const planFrom = (tl) => plannedAt.get(tl) ?? cat.getWorldPosition(new THREE.Vector3());
+  // Lifted out of her bed into the room, facing the same way, to move about in it
+  function catFree() {
+    const yawNow = worldYaw(cat);
+    runtime.core.scene.attach(cat);
+    cat.rotation.set(0, yawNow, 0);
+  }
+  // the nearest angle to `y` that's the same direction as `to`
+  const nearAngle = (to, y) => to + Math.round((y - to) / (Math.PI * 2)) * Math.PI * 2;
+  function resetGait() {
+    catLegs.forEach((leg) => leg.rotation.set(0, 0, 0));
+    catModel.rotation.set(0, 0, 0);
+  }
+  // A jump to a world point: a crouch (with a wiggle of her rear before a big one), a spring
+  // with her front legs reaching and her back legs pushing off, nose up; gathered at the top;
+  // front paws out and nose down to land, and a squash as she lands
   function catHop(tl, to, yaw, peak = 2.2) {
     const from = new THREE.Vector3();
     const hop = { p: 0 };
+    const big = peak >= 1.5;
+    const k = THREE.MathUtils.clamp(peak / 1.5, 0.45, 1);
+    let lean = 0;
     tl.call(() => {
       cat.getWorldPosition(from);
-      const yawNow = worldYaw(cat);
-      runtime.core.scene.attach(cat);
-      cat.rotation.set(0, yawNow, 0);
-      sfx.whoosh({ duration: 0.35, volume: 0.45 });
+      catFree();
+      lean = THREE.MathUtils.clamp((to.y - from.y) * 0.05, -0.25, 0.25);
     })
-      .to(cat.scale, { y: CAT_SCALE * 0.8, duration: 0.15, ease: "power2.in" })
-      .to(cat.rotation, { y: yaw, duration: 0.25, ease: "power2.out" }, "<")
+      .to(cat.scale, { x: CAT_SCALE * 1.06, y: CAT_SCALE * 0.8, z: CAT_SCALE * 1.04, duration: 0.15, ease: "power2.in" })
+      .to(catModel.rotation, { z: 0.1 * k, duration: 0.15, ease: "power2.in" }, "<")
+      .to(cat.rotation, { y: () => nearAngle(yaw, cat.rotation.y), duration: 0.25, ease: "power2.out" }, "<");
+    if (big) tl.to(catModel.rotation, { x: 0.07, duration: 0.07, yoyo: true, repeat: 3, ease: "sine.inOut" });
+    tl.call(() => sfx.whoosh({ duration: 0.35, volume: 0.45 }))
       .to(hop, {
         p: 1,
         duration: 0.7,
         ease: "none",
-        onStart: () => gsap.to(cat.scale, { y: CAT_SCALE, duration: 0.2 }),
+        onStart: () => gsap.to(cat.scale, { x: CAT_SCALE * 0.96, y: CAT_SCALE * 1.08, z: CAT_SCALE * 0.97, duration: 0.15, ease: "power2.out", onComplete: () => gsap.to(cat.scale, { x: CAT_SCALE, y: CAT_SCALE, z: CAT_SCALE, duration: 0.3 }) }),
         onUpdate: () => {
-          cat.position.lerpVectors(from, to, hop.p);
+          const p = hop.p;
+          cat.position.lerpVectors(from, to, p);
           // Higher for a bigger climb, so she clears the desk's edge
-          cat.position.y += Math.sin(hop.p * Math.PI) * (peak + Math.abs(to.y - from.y) * 0.5);
+          cat.position.y += Math.sin(p * Math.PI) * (peak + Math.abs(to.y - from.y) * 0.5);
+          const reach = Math.cos(p * Math.PI * 2);
+          catModel.rotation.z = (0.35 * Math.cos(p * Math.PI) * k + lean) * Math.min(1, p * 6 + 0.4);
+          catModel.rotation.x = 0;
+          [frontL, frontR].forEach((leg) => (leg.rotation.z = (0.25 + 0.6 * reach) * k));
+          [rearL, rearR].forEach((leg) => (leg.rotation.z = (-0.15 - 0.65 * reach * (1 - 0.5 * p)) * k));
         },
       })
-      .to(cat.scale, { y: CAT_SCALE * 0.82, duration: 0.1, ease: "power2.out" })
+      .to(cat.scale, { x: CAT_SCALE * 1.08, y: CAT_SCALE * 0.82, z: CAT_SCALE * 1.05, duration: 0.1, ease: "power2.out" })
+      .to(catLegs.map((leg) => leg.rotation), { z: 0, duration: 0.15, ease: "power2.out" }, "<")
+      .to(catModel.rotation, { z: 0, duration: 0.3, ease: "back.out(2)" }, "<")
       .call(() => sfx.catLand({ strength: 0.2 }))
-      .to(cat.scale, { y: CAT_SCALE, duration: 0.35, ease: "elastic.out(1.2, 0.4)" });
+      .to(cat.scale, { x: CAT_SCALE, y: CAT_SCALE, z: CAT_SCALE, duration: 0.35, ease: "elastic.out(1.2, 0.4)" });
+    plannedAt.set(tl, to.clone());
   }
-  // Bounds from point to point, each facing the way she's going (she faces +x)
+  // A walk over level ground to a world point: she turns toward it as she sets off, and her
+  // legs go in diagonal pairs with a little bob and sway, easing in and out at either end
+  const WALK_SPEED = 2.6;
+  function catWalk(tl, to) {
+    const planned = planFrom(tl);
+    const dist = Math.hypot(to.x - planned.x, to.z - planned.z);
+    const duration = THREE.MathUtils.clamp(dist / WALK_SPEED, 0.45, 3);
+    const from = new THREE.Vector3();
+    const walk = { p: 0 };
+    let strides = 0;
+    tl.call(() => {
+      cat.getWorldPosition(from);
+      catFree();
+      strides = Math.hypot(to.x - from.x, to.z - from.z) * 5.5;
+      const yaw = nearAngle(Math.atan2(from.z - to.z, to.x - from.x), cat.rotation.y);
+      gsap.to(cat.rotation, { y: yaw, duration: Math.min(0.35, duration * 0.5), ease: "power2.inOut" });
+    })
+      .to(walk, {
+        p: 1,
+        duration,
+        ease: "sine.inOut",
+        onUpdate: () => {
+          cat.position.lerpVectors(from, to, walk.p);
+          const gait = walk.p * strides;
+          // legs settle at either end of the walk
+          const swing = Math.min(1, Math.sin(walk.p * Math.PI) * 4);
+          catLegs.forEach((leg, i) => (leg.rotation.z = Math.sin(gait + GAIT[i]) * 0.42 * swing));
+          catBody.position.y = 0.5 + Math.abs(Math.cos(gait)) * 0.035 * swing;
+          catModel.rotation.x = Math.sin(gait) * 0.035 * swing;
+          catHead.position.y = HEAD_UP.y + Math.abs(Math.cos(gait + 0.4)) * 0.03 * swing;
+        },
+      })
+      .call(() => {
+        resetGait();
+        catBody.position.y = 0.5;
+      });
+    plannedAt.set(tl, to.clone());
+  }
+  // Walks where the way is level, jumps where it isn't
+  function catStep(tl, to, yaw, peak) {
+    if (Math.abs(to.y - planFrom(tl).y) < 0.25) catWalk(tl, to);
+    else catHop(tl, to, yaw, peak);
+  }
+  // From point to point, each facing the way she's going (she faces +x)
   function catAlong(tl, points) {
     points.forEach((p, i) => {
       const [a, b] = i ? [points[i - 1], p] : [p, points[1] ?? p];
-      catHop(tl, p, Math.atan2(a.z - b.z, b.x - a.x), 0.6);
+      catStep(tl, p, Math.atan2(a.z - b.z, b.x - a.x), 0.6);
     });
   }
   // Out from under the desk first, when that's where she is; down the cat tree the way she
   // went up
   function catLeave(tl) {
     if (catBed.path) catAlong(tl, [...catBed.path].reverse());
-    else if (catBed.via) catHop(tl, catBed.via, 0.6, 0.3);
+    else if (catBed.via) catStep(tl, catBed.via, 0.6, 0.3);
   }
-  // Settle into a bed: hop there (by way of the front of the desk for the floor), turn round
-  // once and curl up
+  // Settle into a bed: there (by way of the front of the desk for the floor), turn round once,
+  // treading, to face the way she lies, and curl up
   function catToBed(tl, bed) {
     const target = bed.parent.localToWorld(bed.position.clone());
     if (bed.path) {
       catAlong(tl, bed.path);
-      catHop(tl, target, worldYaw(bed.parent) + bed.yaw, 0.3);
+      catStep(tl, target, worldYaw(bed.parent) + bed.yaw, 0.3);
     } else if (bed.via) {
-      catHop(tl, bed.via, worldYaw(bed.parent) + bed.yaw);
-      catHop(tl, target, worldYaw(bed.parent) + bed.yaw, 0.3);
+      catStep(tl, bed.via, worldYaw(bed.parent) + bed.yaw);
+      catStep(tl, target, worldYaw(bed.parent) + bed.yaw, 0.3);
     } else catHop(tl, target, worldYaw(bed.parent) + bed.yaw);
-    tl.to(cat.rotation, { y: `+=${Math.PI * 2}`, duration: 0.6, ease: "power1.inOut" })
+    const tread = { p: 0 };
+    tl.to(cat.rotation, {
+      // one full turn and a bit, ending facing the way the bed lies
+      y: () => nearAngle(worldYaw(bed.parent) + bed.yaw, cat.rotation.y) + Math.PI * 2,
+      duration: 0.9,
+      ease: "power1.inOut",
+    })
+      .to(tread, {
+        p: 1,
+        duration: 0.9,
+        ease: "none",
+        onUpdate: () => catLegs.forEach((leg, i) => (leg.rotation.x = Math.sin(tread.p * Math.PI * 7 + GAIT[i]) * 0.22 * Math.sin(tread.p * Math.PI))),
+      }, "<")
       .call(() => {
-        catPose(false, 0.4);
+        resetGait();
+        catPose(false, 0.5);
         bed.parent.attach(cat);
         cat.position.copy(bed.position);
         cat.rotation.set(0, bed.yaw, 0);
@@ -356,8 +530,8 @@ export function createCat(runtime) {
     catInterrupt();
     catTravel?.kill();
     clearTimeout(catFidget);
-    gsap.killTweensOf([cat.position, cat.rotation, cat.scale, catHead.position, catHead.rotation, catBody.position, tailCurl.rotation]);
-    catLegs.forEach((leg) => (leg.rotation.z = 0));
+    gsap.killTweensOf([cat.position, cat.rotation, cat.scale, catHead.position, catHead.rotation, catBody.position, tailCurl.rotation, catModel.rotation, ...catLegs.map((leg) => leg.rotation)]);
+    resetGait();
     catWatchUntil = 0;
     catBusy = true;
     const tl = gsap.timeline({ onComplete: () => (catBusy = false, catTravel = null) });
@@ -430,7 +604,7 @@ export function createCat(runtime) {
   // wakes her whatever she's doing.
   let catIdleTl = null;
   const napLength = () => 30000 + Math.random() * 30000;
-  const catLife = { wakeAt: performance.now() + napLength(), twitchAt: 0 };
+  const catLife = { wakeAt: performance.now() + napLength(), twitchAt: 0, blinkAt: 0, earAt: 0 };
   const catRay = new THREE.Raycaster();
   const catHeadAt = new THREE.Vector3();
   // the pointer, as a point in the room at her head's distance from the camera
@@ -805,7 +979,8 @@ export function createCat(runtime) {
         .to(cat.scale, { y: CAT_SCALE * 0.82, duration: 0.12, ease: "power2.in" })
         .to(cat.scale, { y: CAT_SCALE, duration: 0.1 })
         .to(cat.position, { y: floorY + 0.75, duration: 0.22, ease: "power2.out" }, "<")
-        .to(paws.children[0].position, { x: 1.35, y: 1.1, z: 0.45, duration: 0.14, yoyo: true, repeat: 1, ease: "power2.out" }, "<")
+        .to(frontL.rotation, { z: 1.6, duration: 0.14, yoyo: true, repeat: 1, ease: "power2.out" }, "<")
+        .to(catModel.rotation, { z: 0.3, duration: 0.14, yoyo: true, repeat: 1, ease: "power2.out" }, "<")
         .to(cat.position, { y: floorY, duration: 0.2, ease: "power2.in" })
         .call(() => sfx.catLand({ strength: 0.12 }))
         .to({}, { duration: 0.45 + Math.random() * 0.3 });
@@ -815,13 +990,33 @@ export function createCat(runtime) {
       .to(cat.rotation, { y: restYaw, duration: 0.5, ease: "power2.inOut" })
       .call(() => catPose(false, 0.6, "auto"));
   }
+  let lastLife = 0;
+  let breath = 0;
   function updateCatLife(now) {
+    const dt = lastLife ? Math.min(0.1, (now - lastLife) / 1000) : 0.016;
+    lastLife = now;
+    const awake = eyesOpen[0].visible;
+    // Breathing, slow and deep asleep, quicker awake; her tail drifting, swaying or swishing
+    breath += dt * (awake ? 4.2 : 2.2);
+    belly.scale.y = 0.55 * (1 + (awake ? 0.025 : 0.035) * Math.sin(breath));
+    tailMotion.amp += ((tailUp.visible ? (catBusy ? 0.24 : 0.14) : awake ? 0.1 : 0.035) - tailMotion.amp) * Math.min(1, dt * 3);
+    tailMotion.phase += dt * (tailUp.visible ? 3.2 : awake ? 2.2 : 0.8);
+    waveTail();
+    // awake: a blink now and then (sometimes two), and an ear turned to some sound
+    if (awake && now > catLife.blinkAt) {
+      catLife.blinkAt = now + 1800 + Math.random() * 3500;
+      gsap.fromTo(eyesOpen.map((eye) => eye.scale), { y: 1 }, { y: 0.1, duration: 0.07, yoyo: true, repeat: Math.random() < 0.25 ? 3 : 1, ease: "sine.inOut" });
+    }
+    if (awake && now > catLife.earAt) {
+      catLife.earAt = now + 1500 + Math.random() * 3000;
+      const ear = catEars[Math.floor(Math.random() * catEars.length)];
+      gsap.to(ear.rotation, { y: (Math.random() - 0.5) * 0.9, duration: 0.15, yoyo: true, repeat: 1, repeatDelay: 0.5 + Math.random(), ease: "power2.out", overwrite: "auto" });
+    }
     if (catBusy || catIdleTl) return;
-    // asleep: breathing, the odd flick of the tail or twitch of an ear
-    belly.scale.y = 0.55 * (1 + 0.035 * Math.sin(now * 0.0022));
+    // asleep: the odd flick of the tail's tip or twitch of an ear
     if (now > catLife.twitchAt) {
       catLife.twitchAt = now + 3000 + Math.random() * 5000;
-      if (Math.random() < 0.5) gsap.fromTo(tailCurl.rotation, { y: 0 }, { y: 0.14, duration: 0.25, yoyo: true, repeat: 1, ease: "sine.inOut" });
+      if (Math.random() < 0.5) gsap.fromTo(tailMotion, { flick: 0 }, { flick: 1, duration: 0.25, yoyo: true, repeat: 1, ease: "sine.inOut" });
       else {
         const ear = catEars[Math.floor(Math.random() * catEars.length)];
         gsap.fromTo(ear.rotation, { x: 0 }, { x: -0.35, duration: 0.08, yoyo: true, repeat: 3, ease: "sine.inOut", onComplete: () => (ear.rotation.x = 0) });
@@ -896,7 +1091,11 @@ export function createCat(runtime) {
       ease: "none",
       onUpdate: () => {
         cat.position.x = runtime.keyboard.keyboard.position.x + (-2.0 + trot.p * 4.1) * runtime.keyboard.KEYBOARD_SCALE;
-        catLegs.forEach((leg, i) => (leg.rotation.z = Math.sin(trot.p * 28 + (i % 2) * Math.PI) * 0.45));
+        const gait = trot.p * 28;
+        catLegs.forEach((leg, i) => (leg.rotation.z = Math.sin(gait + GAIT[i]) * 0.45));
+        catBody.position.y = 0.5 + Math.abs(Math.cos(gait)) * 0.04;
+        catModel.rotation.x = Math.sin(gait) * 0.04;
+        catHead.position.y = HEAD_UP.y + Math.abs(Math.cos(gait + 0.4)) * 0.035;
         const step = Math.floor(trot.p * 14);
         if (step !== lastStep) {
           lastStep = step;
@@ -906,8 +1105,11 @@ export function createCat(runtime) {
         }
       },
     });
+    plannedAt.set(tl, new THREE.Vector3(runtime.keyboard.keyboard.position.x + 2.1 * runtime.keyboard.KEYBOARD_SCALE, top, z));
     tl.call(() => {
-      catLegs.forEach((leg) => (leg.rotation.z = 0));
+      resetGait();
+      catBody.position.y = 0.5;
+      catHead.position.y = HEAD_UP.y;
       runtime.keyboard.pressKey("Enter");
       runtime.workstation.typeKey("Enter");
     });

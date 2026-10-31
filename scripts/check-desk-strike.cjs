@@ -4,7 +4,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const source = fs.readFileSync(require('node:path').join(__dirname, '../src/components/features/desk/strawHatStrike.js'), 'utf8')
+const source = fs.readFileSync(require('node:path').join(__dirname, '../src/features/desk3d/strawHatStrike.js'), 'utf8')
   .replace(/^import .*;\n/gm, '')
   .replace(/^export /gm, '');
 const canvas = () => new Proxy(function () {}, {

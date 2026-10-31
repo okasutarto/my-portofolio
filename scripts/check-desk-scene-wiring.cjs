@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { parse } = require('@babel/parser');
 const traverse = require('@babel/traverse').default;
-const root = path.join(__dirname, '../src/components/features/desk');
+const root = path.join(__dirname, '../src/features/desk3d');
 const entry = fs.readFileSync(path.join(root, 'deskScene.js'), 'utf8');
 const parts = new Map();
 for (const file of fs.readdirSync(path.join(root, 'scene'))) {
@@ -17,6 +17,25 @@ for (const file of fs.readdirSync(path.join(root, 'scene'))) {
   assert.equal(api.type, 'ObjectExpression', file + ' has an explicit API');
   parts.set(file.slice(0, -3), { source, ast, factory, api });
 }
+// Direct reads during construction must only touch already-published parts. Reads in
+// callbacks and methods remain deferred; the API checks below validate those separately.
+const assembly = [...entry.matchAll(/runtime\.(\w+) = create\w+\(runtime\)/g)].map(match => match[1]);
+// Lifecycle is returned directly after all scene parts have been published.
+assembly.push('lifecycle');
+let constructionReads = 0;
+for (const [name, part] of parts) {
+  assert.ok(assembly.includes(name), `${name}: assembled by the entry point`);
+  traverse(part.ast, { MemberExpression(p) {
+    const { object } = p.node;
+    if (object.type !== 'MemberExpression' || object.object.name !== 'runtime' || object.property.name === 'options') return;
+    if (p.getFunctionParent()?.node !== part.factory) return;
+    const owner = object.property.name;
+    assert.ok(assembly.indexOf(owner) >= 0 && assembly.indexOf(owner) < assembly.indexOf(name),
+      `${name}: construction reads ${owner} before it is initialized`);
+    constructionReads++;
+  } });
+}
+assert.ok(constructionReads > 0, 'construction dependencies were inspected');
 let links = 0;
 for (const [name, part] of parts) {
   traverse(part.ast, { MemberExpression(p) {

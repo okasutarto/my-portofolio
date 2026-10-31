@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory, START_LOCATION } from "vue-router";
 // The front page ships with the app bundle (three.js still loads on its own), so a fresh load
 // goes straight to the desk's backdrop instead of a blank page while a chunk downloads
-import DeskPage from "../views/DeskPage.vue";
+import DeskPage from "../features/desk3d/DeskPage.vue";
 
 // Let the router own scroll restoration, including the explicit return to a project.
 window.history.scrollRestoration = "manual";
@@ -16,10 +16,23 @@ const routes = [
     meta: { title: "The Desk | A 3D Portfolio", immersive: true },
   },
   {
-    path: "/2d",
-    name: "home",
-    component: () => import("../views/HomePage.vue"),
-    meta: { title: "Oka Sutarto Putra | 2D" },
+    // Both classic pages share a lazy shell. Desk visits never load its UI or analytics SDK.
+    path: "/",
+    component: () => import("../features/portfolio2d/PortfolioLayout.vue"),
+    children: [
+      {
+        path: "2d",
+        name: "home",
+        component: () => import("../features/portfolio2d/HomePage.vue"),
+        meta: { title: "Oka Sutarto Putra | 2D" },
+      },
+      {
+        path: ":pathMatch(.*)*",
+        name: "not-found",
+        component: () => import("../shared/components/NotFound.vue"),
+        meta: { title: "404 Not Found | okasputra" },
+      },
+    ],
   },
   // Old link to the desk
   { path: "/desk", redirect: "/" },
@@ -29,12 +42,7 @@ const routes = [
     name: "project-details",
     redirect: (to) => ({ path: "/2d", hash: "#projects", query: { file: to.params.id } }),
   },
-  {
-    path: "/:pathMatch(.*)*",
-    name: "not-found",
-    component: () => import("../views/NotFound.vue"),
-    meta: { title: "404 Not Found | okasputra" },
-  },
+
 ];
 
 const router = createRouter({

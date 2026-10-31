@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const THREE = require('three');
-const root = 'src/components/features/desk/scene/';
+const root = 'src/features/desk3d/scene/';
 const noop = () => {};
 const canvasTexture = () => ({ texture: new THREE.Texture(), ctx: new Proxy({}, {
   get: (_, key) => key.startsWith('create') ? () => ({ addColorStop() {} }) : key === 'measureText' ? () => ({ width: 20 }) : noop,
@@ -31,7 +31,7 @@ const context = vm.createContext({ THREE, runtime, canvasTexture, DEFAULT_WOODS:
   gsap: { killTweensOf() {}, to() {}, isTweening: () => false }, sfx: {},
   performance: { now: () => 0 }, setTimeout: () => 0, clearTimeout() {},
 });
-const meshSource = fs.readFileSync('src/components/features/desk/sceneMeshes.js', 'utf8');
+const meshSource = fs.readFileSync('src/features/desk3d/sceneMeshes.js', 'utf8');
 vm.runInContext(meshSource.slice(meshSource.indexOf('  const roundedRectShape ='), meshSource.indexOf('  // Places an object')) + '; runtime.core.roundedRectShape = roundedRectShape; runtime.core.phoneSlab = phoneSlab;', context);
 function factory(name) {
   let source = fs.readFileSync(root + name + '.js', 'utf8');

@@ -19,7 +19,7 @@ const FOLDER_D = num('FOLDER_D');
 const DRAWER_D = vm.runInNewContext(source.match(/const DRAWER_D = ([^;]+);/)[1], { projects: { length: 5 } });
 const literal = (name) => vm.runInNewContext(`(${source.match(new RegExp(`const ${name} = ([^;]+);`))[1]})`);
 const OUT = vm.runInNewContext(`(${source.match(/const OUT = ([^;]+);/)[1]})`, { DRAWER_D, FOLDER_D, FOLDER_W, FOLDERS_AT: literal('FOLDERS_AT'), OPEN_SPINE: literal('OPEN_SPINE') });
-const context = { THREE, gymCalendar: { position: new THREE.Vector3(10.5, 5.8, -4.38) }, shelfLook: 1.7, SHELF_TOP_LOOK: 2.4, LEVELS: [0.15, 2.15, 4.09, 6.49], shelf: { position: new THREE.Vector3(14.6, -7.4, -3.25), scale: new THREE.Vector3(2, 2, 2) }, FLOOR_Y: -7.4, WALL_Z: -4.9, screenPos: new THREE.Vector3(), screenNormal: new THREE.Vector3(), heldTicket: null, openFolder: null, selectedNote: null, OUT, FOLDER_W, FOLDER_D, container: { clientWidth: 1200, clientHeight: 800 } };
+const context = { THREE, SHELF_DIR: literal('SHELF_DIR'), gymReach: () => 0, gymCalendar: { position: new THREE.Vector3(10.5, 5.8, -4.38) }, shelfLook: 1.7, SHELF_TOP_LOOK: 2.4, LEVELS: [0.15, 2.15, 4.09, 6.49], shelf: { position: new THREE.Vector3(14.6, -7.4, -3.25), scale: new THREE.Vector3(2, 2, 2) }, FLOOR_Y: -7.4, WALL_Z: -4.9, screenPos: new THREE.Vector3(), screenNormal: new THREE.Vector3(), heldTicket: null, openFolder: null, selectedNote: null, OUT, FOLDER_W, FOLDER_D, container: { clientWidth: 1200, clientHeight: 800 } };
 context.FOLDERS_AT = literal('FOLDERS_AT');
 for (const name of ['tickets', 'folders', 'aboutBoard']) {
   context[name] = new THREE.Group();
@@ -62,7 +62,7 @@ context.container.clientHeight = 800;
 
 // Clicking the top board centres the gauntlet/Switch display, including portrait screens.
 Object.assign(context, {
-  focus: { name: 'overview' }, byFocus: new Map(), arriveTimer: null,
+  chair: new THREE.Group(), focus: { name: 'overview' }, byFocus: new Map(), arriveTimer: null,
   setHover() {}, stopTyping() {}, clearTimeout() {}, catSettle() {}, resetUserView() {}, applyShot() {}, hideLamp() {}, familyFrame: { visible: true }, timers: [], setTimeout() {},
   sfx: { whoosh() {} }, onEvent() {},
 });

@@ -42,7 +42,7 @@ const celebration = vm.createContext({
   camera, shelf: { position: { z: -3.25 }, scale: { z: 2 } }, SHELF_D: 1.5,
   shelfBubbleAt: new THREE.Vector3(), ledPartyUntil: 0, performance: { now: () => 0 }, THREE,
   burst: (x, y, z, festive) => { assert.equal(festive, true); burstOrigins.push(new THREE.Vector3(x, y, z)); bursts++; },
-  shelfSay: (_, text) => { assert.ok(text.includes('20/20')); bubbles++; }, sfx: { sparkle() {}, cheer() {}, applause() {} },
+  shelfSay: (_, text) => { assert.ok(text.includes('20/20')); bubbles++; }, sfx: { trophyLift() {}, sparkle() {}, cheer() {}, applause() {} },
   gsap: { killTweensOf: gsap.killTweensOf, fromTo: (object, from, to) => gsap.fromTo(object, from, { ...to, paused: true }), timeline: (options) => gsap.timeline({ ...options, paused: true }) },
 });
 const cheer = vm.runInContext(section('  function cheerTrophy()', '  const PALETTE') + '; cheerTrophy', celebration);
@@ -86,7 +86,7 @@ assert.deepEqual([...preview], ['a', 'b']);
 console.log('Preview uses scene-only secrets and preserves stored progress.');
 
 // Both celebration sounds use the existing WebAudio bus and bounded schedules.
-const soundSource = fs.readFileSync(`${__dirname}/../src/composables/useSfx.js`, 'utf8');
+const soundSource = fs.readFileSync(`${__dirname}/../src/shared/composables/useSfx.js`, 'utf8');
 const scheduled = [];
 const voices = [];
 const bus = {};

@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const THREE = require('three');
-const source = fs.readFileSync(path.join(__dirname, '../src/components/features/desk/toonBatch.js'), 'utf8');
+const source = fs.readFileSync(path.join(__dirname, '../src/features/desk3d/toonBatch.js'), 'utf8');
 class RoundedBoxGeometry extends THREE.BoxGeometry {}
 const create = vm.runInNewContext(source.replace(/^import .*;$/gm, '').replace('export function', 'function') + '; createToonBatch', { THREE, RoundedBoxGeometry });
 const renderer = { capabilities: { isWebGL2: true }, extensions: { has: () => true } };

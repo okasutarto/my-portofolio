@@ -3,7 +3,7 @@
 // without each module's imports and shared-export footer, so the old section markers still work.
 const fs = require('node:fs');
 const path = require('node:path');
-const desk = path.join(__dirname, '../../src/components/features/desk');
+const desk = path.join(__dirname, '../../src/features/desk3d');
 function readTexturesSource() {
   const barrel = fs.readFileSync(path.join(desk, 'textures.js'), 'utf8');
   const modules = [...barrel.matchAll(/^export \* from "\.\/(textures\/\w+)";$/gm)].map(match => match[1]);

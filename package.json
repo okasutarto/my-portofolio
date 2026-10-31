@@ -8,7 +8,9 @@
     "preview": "vite preview",
     "lint": "eslint --ext .js,.vue src",
     "check:app": "node scripts/check-app.cjs",
-    "check:desk": "node scripts/check-desk.cjs"
+    "check:desk": "node scripts/check-desk.cjs",
+    "check:bundles": "vite build --manifest && node scripts/check-bundles.cjs",
+    "check:browser": "npm run check:bundles && playwright test"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
@@ -24,6 +26,7 @@
   "devDependencies": {
     "@babel/parser": "^7.29.11",
     "@babel/traverse": "^7.29.10",
+    "@playwright/test": "^1.64.1",
     "@vitejs/plugin-vue": "^5.2.4",
     "autoprefixer": "^10.4.14",
     "eslint": "^7.32.0",

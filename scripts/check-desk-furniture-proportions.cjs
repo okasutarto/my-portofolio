@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const THREE = require('three');
-const read = name => fs.readFileSync(`src/components/features/desk/scene/${name}.js`, 'utf8')
+const read = name => fs.readFileSync(`src/features/desk3d/scene/${name}.js`, 'utf8')
   .replace(/^import .*;\n/gm, '').replace('export function', 'function');
 const material = new THREE.MeshToonMaterial();
 const scene = new THREE.Scene();
@@ -67,7 +67,11 @@ assert.ok(chair.position.z === REST_Z && REST_Z < SPIN_Z, 'chair parks closer in
 for (const angle of [-0.1, 0, 0.1]) {
   chairTop.rotation.y = angle;
   scene.updateMatrixWorld(true);
-  assert.ok(!new THREE.Box3().setFromObject(chairTop, true).intersectsBox(deskBox), 'parked chair clears tabletop');
+  // One box around the whole chair includes the empty space above its seat. Check
+  // individual pieces so that empty space cannot count as a tabletop collision.
+  chairTop.traverse(piece => {
+    if (piece.isMesh) assert.ok(!new THREE.Box3().setFromObject(piece, true).intersectsBox(deskBox), `parked chair piece ${piece.name || piece.geometry.type} clears tabletop`);
+  });
 }
 // Rolled out, every spin angle and the lowest point of the click animation clear the desk.
 chair.position.z = SPIN_Z;
@@ -109,7 +113,7 @@ close(monitorBox.max.x - monitorBox.min.x, 6.23, '62.3 cm monitor width');
 assert.ok(monitorBox.min.y >= riserHeight - 0.02, 'monitor foot rests on its riser');
 assert.ok(monitorBox.min.z > WALL_Z + 0.12, 'monitor clears the wall');
 // Check the Mac mini's complete case plus foot against Apple's 12.7 × 12.7 × 5.0 cm (M4).
-const meshSource = fs.readFileSync('src/components/features/desk/sceneMeshes.js', 'utf8');
+const meshSource = fs.readFileSync('src/features/desk3d/sceneMeshes.js', 'utf8');
 vm.runInContext(meshSource.slice(meshSource.indexOf('  const roundedRectShape ='), meshSource.indexOf('  // A thin slab')) + '; runtime.core.roundedRectShape = roundedRectShape;', context);
 const miniSection = workstation.slice(workstation.indexOf('  // ---------- Mac mini:'), workstation.indexOf('  // Clamped task light:'));
 for (const match of miniSection.matchAll(/\b(draw\w+)\b/g)) context[match[1]] = () => {};
@@ -154,15 +158,42 @@ chair.updateMatrixWorld(true);
 const chairUpper = new THREE.Box3().setFromObject(upholstery.children[3], true);
 const shelfUpper = shelfBox.clone();
 shelfUpper.min.y = (shelfBox.min.y + shelfBox.max.y) / 2;
-const swordBox = new THREE.Box3(new THREE.Vector3(6.84, 11.63, -4.8), new THREE.Vector3(16.06, 17.2, -3.7));
+// Measure the current rack and swords; their old hard-coded bounds described a
+// previous wall position and reported a framing failure after the rack moved.
+runtime.room.WALL_Z = WALL_Z;
+context.canvasTexture = () => ({ texture: new THREE.Texture(), ctx: new Proxy({}, { get: () => () => {} }) });
+for (const name of ['swordRack', 'swords']) {
+  const code = read(name);
+  for (const match of code.matchAll(/\b(draw\w+)\b/g)) context[match[1]] = () => {};
+}
+vm.runInContext(read('swordRack') + '\nruntime.swordRack = createSwordRack(runtime);', context);
+const effects = read('swordEffects');
+const curveAt = effects.indexOf('  const sayaCurve =');
+vm.runInContext(effects.slice(curveAt, effects.indexOf('  //', curveAt)) +
+  '; runtime.swordEffects = { sayaCurve, hitAreaMat: new THREE.MeshBasicMaterial({ visible: false }) };', context);
+vm.runInContext(read('swords') + '\nruntime.swords = createSwords(runtime);', context);
+scene.updateMatrixWorld(true);
+const swordBox = new THREE.Box3().setFromObject(runtime.swordRack.katanaRack, true);
 for (const [w, h] of [[1440, 900], [1024, 768], [1920, 1080]]) {
   const viewH = Math.max(shot.fit[1], shot.fit[0] * h / w);
   for (const box of [deskBox, chairUpper, shelfUpper, monitorBox, swordBox]) {
-    for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
-      const point = new THREE.Vector3(x, y, z).sub(target);
+    const points = [];
+    if (box === swordBox) {
+      // Project real vertices of the tilted swords, rather than empty corners of
+      // their combined axis-aligned box. Invisible picking meshes are not artwork.
+      runtime.swordRack.katanaRack.traverse(piece => {
+        if (!piece.isMesh || !piece.visible || piece.material.visible === false) return;
+        const positions = piece.geometry.attributes.position;
+        for (let i = 0; i < positions.count; i++) points.push(piece.localToWorld(new THREE.Vector3().fromBufferAttribute(positions, i)));
+      });
+      assert.ok(points.length > 0, 'rack geometry was measured');
+    } else {
+      for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) points.push(new THREE.Vector3(x, y, z));
+    }
+    for (const point of points) {
+      point.sub(target);
       assert.ok(Math.abs(point.dot(right)) < viewH * w / h / 2, 'overview fits furniture horizontally');
-      if (Math.abs(point.dot(up)) >= viewH / 2) console.log(w, h, x, y, z, point.dot(up).toFixed(2), (viewH / 2).toFixed(2));
-      assert.ok(Math.abs(point.dot(up)) < viewH / 2, 'overview fits swords and the chair back vertically');
+      assert.ok(Math.abs(point.dot(up)) < viewH / 2, `overview fits object ${[deskBox, chairUpper, shelfUpper, monitorBox, swordBox].indexOf(box)} at ${w}x${h}: ${point.dot(up)} vs ${viewH / 2}`);
     }
   }
 }

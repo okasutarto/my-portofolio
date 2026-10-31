@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
-const read = (name) => fs.readFileSync(path.join(__dirname, '../src/components/features/desk', name), 'utf8');
+const read = (name) => fs.readFileSync(path.join(__dirname, '../src/features/desk3d', name), 'utf8');
 
 // Record the real drawing path for every tail direction.
 const textures = require('./helpers/texture-source.cjs').readTexturesSource();

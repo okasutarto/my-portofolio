@@ -27,7 +27,7 @@ const apply = (target, values) => {
   for (const axis of ['x', 'y', 'z']) if (axis in values) target[axis] = values[axis];
   values.onComplete?.();
 };
-let source = fs.readFileSync('src/components/features/desk/scene/wastebasket.js', 'utf8')
+let source = fs.readFileSync('src/features/desk3d/scene/wastebasket.js', 'utf8')
   .replace(/^import .*;\n/gm, '').replace('export function', 'function')
   .replace('    bin,\n', '    PAPER_R, binPile, binBody, shoot, SHELF_BOX, hoop, ring,\n    bin,\n');
 const context = vm.createContext({ THREE, runtime, performance: { now: () => 1 },

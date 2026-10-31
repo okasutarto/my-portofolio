@@ -17,7 +17,7 @@ let boardContext;
 const board = vm.runInNewContext(
   fs.readFileSync(`${__dirname}/../src/data/about.js`, 'utf8').replace(/export /g, '') +
   section('  const aboutBoard =', '  // ---------- keyboard:') + '; ({ aboutBoard, boardNotes, liftNote, pinNote })', boardContext = {
-    THREE, gsap, focus, WALL_Z: -4.9, badgeClearance: null, scene: new THREE.Group(), renderer: { domElement: { style: {} } },
+    THREE, gsap, focus, hoverSound() {}, WALL_Z: -4.9, badgeClearance: null, scene: new THREE.Group(), renderer: { domElement: { style: {} } },
     track: (value) => value, noRaycast() {}, windowWood: { texture: new THREE.Texture() },
     printed: (w, h) => new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial()),
     mesh: (geometry, material) => new THREE.Mesh(geometry, material), rbox: (w, h, d) => new THREE.BoxGeometry(w, h, d),
@@ -104,7 +104,7 @@ for (const [start, end, name, actor] of [
 ]) {
   let handler;
   const object = new THREE.Group();
-  const ctx = vm.createContext({ gsap, [actor]: object, [name]: object, register: (_, value) => { handler = value; } });
+  const ctx = vm.createContext({ hoverSound() {}, gsap, [actor]: object, [name]: object, register: (_, value) => { handler = value; } });
   vm.runInContext(section(start, end), ctx);
   handler.onHover(true);
   assert.notEqual(object.rotation.z, 0);

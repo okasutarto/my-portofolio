@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { openai, createSystemMessage } = require('../services/openaiService');
 const {
   validateInput,
@@ -14,23 +15,53 @@ const MAX_HISTORY_MESSAGES = 8;
 const MAX_HISTORY_CHARS = 12000;
 const HISTORY_ROLES = ['user', 'assistant'];
 
+// Signs each question and answer this server actually gave, so a visitor can't plant turns in
+// the history it sends back. Without a configured secret, signatures only hold within one
+// warm instance, so follow-ups may lose their context.
+const HISTORY_SECRET = process.env.CHAT_HISTORY_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.CHAT_HISTORY_SECRET) {
+  console.warn('CHAT_HISTORY_SECRET is not set; chat history only carries over within one instance');
+}
+
+function signTurn(question, answer) {
+  return crypto.createHmac('sha256', HISTORY_SECRET)
+    .update(JSON.stringify([question.trim(), answer.trim()]))
+    .digest('hex');
+}
+
+function hasValidSignature(question, answer, signature) {
+  if (typeof signature !== 'string') return false;
+  const expected = Buffer.from(signTurn(question, answer), 'hex');
+  const given = Buffer.from(signature, 'hex');
+  return given.length === expected.length && crypto.timingSafeEqual(given, expected);
+}
+
 // Turns the visitor's history into chat messages. The client sends it, so it can be forged:
-// each turn passes the same guardrails as a live one and failing turns are dropped.
+// only question/answer pairs carrying this server's signature on the answer are kept, since
+// those already passed every guardrail when they were asked; anything else is dropped.
 // Returns null when the history isn't shaped like a list of turns.
 function parseHistory(history) {
   if (history === undefined) return [];
   if (!Array.isArray(history)) return null;
+  const recent = history.slice(-MAX_HISTORY_MESSAGES);
+  for (const turn of recent) {
+    if (!turn || !HISTORY_ROLES.includes(turn.role) || typeof turn.content !== 'string') return null;
+  }
 
   const turns = [];
   let chars = 0;
-  for (const turn of history.slice(-MAX_HISTORY_MESSAGES).reverse()) {
-    if (!turn || !HISTORY_ROLES.includes(turn.role) || typeof turn.content !== 'string') return null;
-    const content = turn.content.trim();
-    if (!content) continue;
-    chars += content.length;
+  for (let i = recent.length - 1; i > 0; i--) {
+    const answer = recent[i];
+    const question = recent[i - 1];
+    if (answer.role !== 'assistant' || question.role !== 'user') continue;
+    if (!hasValidSignature(question.content, answer.content, answer.signature)) continue;
+    chars += question.content.trim().length + answer.content.trim().length;
     if (chars > MAX_HISTORY_CHARS) break;
-    const check = turn.role === 'user' ? validateInput(content) : validateOutput(content, '');
-    if (check.isValid) turns.unshift({ role: turn.role, content });
+    turns.unshift(
+      { role: 'user', content: question.content.trim() },
+      { role: 'assistant', content: answer.content.trim() },
+    );
+    i--;
   }
   return turns;
 }
@@ -51,10 +82,11 @@ function endStream(res) {
   res.end();
 }
 
-// Runs both output guardrails on the accumulated response; returns the reason it failed, if any
-function findOutputProblem(fullResponse, userMessage) {
+// Runs both output guardrails on the accumulated response; returns the reason it failed, if any.
+// `complete`: the whole reply is in, so it can also be judged for staying on topic
+function findOutputProblem(fullResponse, userMessage, complete) {
   // Check for jailbreak indicators
-  const outputValidation = validateOutput(fullResponse, userMessage);
+  const outputValidation = validateOutput(fullResponse, userMessage, { complete });
   if (!outputValidation.isValid) return outputValidation.reason;
 
   // Check for unwanted content types (code, politics, etc.)
@@ -175,6 +207,8 @@ async function streamChat(req, res) {
     // STEP 4: OUTPUT GUARDRAIL & POST-PROCESSING
     // ===================
     let fullResponse = '';
+    // Exactly what the visitor received, which is what gets signed for the history
+    let sent = '';
     let compromiseReason = null;
     const filter = createResponseFilter();
 
@@ -183,33 +217,38 @@ async function streamChat(req, res) {
       if (content) {
         fullResponse += content;
 
-        // Check periodically (every 200 chars) if response seems compromised
-        if (fullResponse.length % 200 < content.length) {
-          compromiseReason = findOutputProblem(fullResponse, trimmedMessage);
-          if (compromiseReason) break;
-        }
+        // Check every chunk before any of it goes out (the patterns are cheap), so text that
+        // trips a guardrail is never sent
+        compromiseReason = findOutputProblem(fullResponse, trimmedMessage, false);
+        if (compromiseReason) break;
 
         // Post-process and stream the content
         const processedContent = filter.push(content);
         if (processedContent) {
           timings.firstToken ??= elapsed();
+          sent += processedContent;
           sendContent(res, processedContent);
         }
       }
     }
 
-    // The tail after the last periodic check hasn't been validated yet
+    // Only the finished reply can be judged for staying on topic
     if (!compromiseReason) {
-      compromiseReason = findOutputProblem(fullResponse, trimmedMessage);
+      compromiseReason = findOutputProblem(fullResponse, trimmedMessage, true);
     }
 
-    // If response was compromised, send fallback instead of the text still held back
+    // If response was compromised, send fallback instead of the text still held back; it isn't
+    // signed, so the exchange never comes back as history
     if (compromiseReason) {
       const fallbackMsg = FALLBACK_RESPONSES[compromiseReason] || FALLBACK_RESPONSES.response_compromised;
       sendContent(res, '\n\n' + fallbackMsg);
     } else {
       const rest = filter.flush();
-      if (rest) sendContent(res, rest);
+      if (rest) {
+        sent += rest;
+        sendContent(res, rest);
+      }
+      if (sent.trim()) res.write(`data: ${JSON.stringify({ signature: signTurn(trimmedMessage, sent) })}\n\n`);
     }
 
     endStream(res);

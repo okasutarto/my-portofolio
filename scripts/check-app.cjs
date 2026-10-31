@@ -75,12 +75,21 @@ async function main() {
   try {
     mockStream(['data: {"content":"Hi ', 'Oka"}\n', '\ndata: [DO', 'NE]\n\n']);
     const tokens = [];
-    assert.equal(await stream('hello', token => tokens.push(token)), 'Hi Oka');
+    assert.deepEqual(await stream('hello', token => tokens.push(token)), { text: 'Hi Oka', signature: undefined });
     assert.deepEqual(tokens, ['Hi Oka']);
+    // The answer's signature arrives as its own event and comes back for the history
+    mockStream(['data: {"content":"Hi"}\n\ndata: {"signature":"ab12"}\n\ndata: [DONE]\n\n']);
+    assert.deepEqual(await stream('hello', () => {}), { text: 'Hi', signature: 'ab12' });
+    const { toHistory } = await loadModule('src/shared/services/chatApi.js');
+    assert.deepEqual(toHistory([{ sender: 'user', text: 'q' }, { sender: 'bot', text: 'a', signature: 'ab12' }, { sender: 'bot', text: 'Oops' }]), [
+      { role: 'user', content: 'q' },
+      { role: 'assistant', content: 'a', signature: 'ab12' },
+      { role: 'assistant', content: 'Oops', signature: undefined },
+    ]);
     mockStream(['data: {"content":"partial"}\n\n']);
     await assert.rejects(stream('hello', () => {}), /before completion/);
     mockStream(['data: [DONE]\r\n\r\n']);
-    assert.equal(await stream('hello', () => {}), '');
+    assert.deepEqual(await stream('hello', () => {}), { text: '', signature: undefined });
     global.fetch = async () => ({ ok: true, body: new ReadableStream({
       start(controller) { controller.enqueue(new TextEncoder().encode('data: broken\n\n')); },
       cancel() { cancelled = true; },

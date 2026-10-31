@@ -85,7 +85,12 @@ export function createPostcard(runtime) {
   const plane = new THREE.Group();
   const planeMesh = new THREE.Mesh(planeGeo, planeMat);
   planeMesh.castShadow = true;
-  plane.add(planeMesh, new THREE.LineSegments(planeLines, runtime.core.track(new THREE.LineBasicMaterial({ color: "#000" }))));
+  const planeOutline = new THREE.LineSegments(planeLines, runtime.core.track(new THREE.LineBasicMaterial({ color: "#000" })));
+  // It waits, hidden, right over the card, and raycasts still hit hidden things: never let it
+  // catch the clicks meant for the card's writing lines and SEND button
+  planeMesh.raycast = runtime.core.noRaycast;
+  planeOutline.raycast = runtime.core.noRaycast;
+  plane.add(planeMesh, planeOutline);
   const fold = { t: 0 };
   const corner = new THREE.Vector3();
   function shapePlane() {

@@ -253,6 +253,14 @@
             </button>
           </div>
         </transition>
+        <transition name="hud-pop">
+          <div
+            v-if="focus === 'window' && weather"
+            class="inline-flex items-center gap-2 bg-white text-black font-bold text-xs md:text-sm px-3 py-1.5 border-3 border-black shadow-neo-sm">
+            <span aria-hidden="true">{{ weatherEmoji }}</span>
+            {{ weather.place }} · {{ weather.temp }}° · {{ weather.label }}
+          </div>
+        </transition>
         <transition name="hud-pop" mode="out-in">
           <div
             v-if="hint"
@@ -332,6 +340,16 @@ const introPlaying = ref(true);
 const projectOpen = ref(false);
 const consoleOn = ref(false);
 const secretToast = ref(null);
+// The real weather where the visitor is, once the scene has it
+const weather = ref(null);
+const WEATHER_EMOJI = { clear: "☀️", partly: "⛅", cloudy: "☁️", fog: "🌫️", rain: "🌧️", snow: "❄️", storm: "⛈️" };
+const weatherEmoji = computed(() => {
+  if (!weather.value) return "";
+  const { kind, isDay } = weather.value;
+  if (!isDay && kind === "clear") return "🌙";
+  if (!isDay && kind === "partly") return "☁️";
+  return WEATHER_EMOJI[kind] || "☁️";
+});
 const settingsOpen = ref(false);
 const openGroup = ref("sky");
 const settings = reactive(readSettings());
@@ -437,6 +455,9 @@ function onEvent(name, payload = {}) {
   }
   else if (name === "focus") {
     focus.value = payload.name;
+  }
+  else if (name === "weather") {
+    weather.value = payload;
   }
 }
 

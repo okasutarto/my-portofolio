@@ -30,6 +30,7 @@
             ref="postcardRef"
             class="postcard relative z-10 grid grid-cols-1 md:grid-cols-[1.2fr_1fr] min-h-[400px] bg-[#fffdf5] text-[#1a1714] border-[2.5px] border-black shadow-[8px_8px_0_#000]"
             :class="{ ready: introDone, sent: status === 'sent', shake: status === 'error' }"
+            :inert="status === 'sent'"
             novalidate
             @submit.prevent="submitForm">
             <!-- Message side -->
@@ -103,7 +104,7 @@
 
               <button
                 type="submit"
-                :disabled="status === 'sending'"
+                :disabled="status === 'sending' || status === 'sent'"
                 class="mt-auto inline-flex items-center justify-center gap-3 px-6 py-3.5 font-display font-bold uppercase text-black bg-primary border-2 border-black shadow-[5px_5px_0_#000] hover:translate-x-1 hover:translate-y-1 hover:shadow-[1px_1px_0_#000] transition-all disabled:opacity-60 disabled:cursor-wait">
                 <template v-if="status === 'sending'">
                   <i class="fas fa-circle-notch animate-spin"></i> Sending...
@@ -180,7 +181,7 @@
 
 <script setup>
 import { titleReveal as vTitleReveal } from "../../directives/titleReveal";
-import { ref, reactive, onMounted, onBeforeUnmount } from "vue";
+import { ref, reactive, nextTick, onMounted, onBeforeUnmount } from "vue";
 import gsap from "gsap";
 import { sfx } from "@/shared/composables/useSfx";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -256,6 +257,8 @@ const validateForm = () => {
 };
 
 const submitForm = async () => {
+  // One card per send: Enter in a field submits even while the button is disabled
+  if (status.value === "sending" || status.value === "sent") return;
   if (!validateForm()) {
     sfx.buzz();
     return;
@@ -299,7 +302,7 @@ const submitForm = async () => {
 onMounted(() => {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
     introDone.value = true;
-    gsap.set(postcardRef.value, { zIndex: 35, y: -6 });
+    gsap.set(postcardRef.value, { zIndex: 35 });
     gsap.set([envelopeBackRef.value, envelopeFrontRef.value], { y: 32, rotate: 1.5, opacity: 1 });
     gsap.set(flapRef.value, { y: 32, rotate: 1.5, rotateX: 180, zIndex: 5, opacity: 1 });
     return;
@@ -320,8 +323,13 @@ onMounted(() => {
     gsap
       .timeline({
         scrollTrigger: { trigger: card, start: "top 80%" },
-        onComplete: () => {
+        onComplete: async () => {
           introDone.value = true;
+          // Hand the resting pose over to the stylesheet (.ready), or GSAP's inline transform
+          // and opacity would outrank .sent and the card could never fly off. Once .ready is
+          // on, both give the same pose, so nothing moves.
+          await nextTick();
+          gsap.set(card, { clearProps: "transform,opacity,transformOrigin" });
         },
       })
       // 1. Envelope slides in
@@ -497,8 +505,10 @@ onBeforeUnmount(() => {
 .postcard {
   transform-origin: center;
 }
+/* Resting on the envelope, where the intro leaves it */
 .postcard.ready {
   z-index: 35;
+  transform: translateY(-6px);
   transition:
     transform 0.8s cubic-bezier(0.6, -0.2, 0.4, 1.2),
     opacity 0.4s 0.5s;
@@ -558,7 +568,7 @@ onBeforeUnmount(() => {
     transition: none;
   }
   .postcard.sent {
-    transform: none;
+    transform: translateY(-6px);
     opacity: 0.25;
   }
   .postcard.shake {

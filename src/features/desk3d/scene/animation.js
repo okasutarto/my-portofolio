@@ -354,8 +354,7 @@ export function createAnimation(runtime) {
       runtime.textInput.typing?.redraw();
     }
     if (runtime.gauntlet.shelfBubble.sprite.scale.x > 0.01) {
-      if (runtime.gauntlet.shelfBubbleTarget === runtime.shelfCollectibles.trophy) runtime.gauntlet.placeTrophyBubble();
-      else if (runtime.gauntlet.shelfBubbleTarget === runtime.shelfConsole.pad1 || runtime.gauntlet.shelfBubbleTarget === runtime.shelfConsole.pad2) runtime.gauntlet.placeControllerBubble();
+      runtime.gauntlet.placeShelfBubble();
     }
     if (runtime.shelfCollectibles.trophyCelebrating) runtime.shelfCollectibles.trophy.localToWorld(runtime.shelfCollectibles.trophyHalo.position.set(0, 0.9, -0.2));
     if (runtime.cat.catBubble.sprite.scale.x > 0.01) runtime.cat.placeCatBubble(1 - Math.exp(-10 * dt));

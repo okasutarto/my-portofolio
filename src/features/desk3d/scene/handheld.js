@@ -273,18 +273,13 @@ export function createHandheld(runtime) {
   const nintendoSwitch = runtime.shelf.addItem(runtime.core.at(runtime.shelf.group(switchStand, switchConsole), 0.66, runtime.shelf.standOn(3), 0.05), "switch");
   nintendoSwitch.scale.setScalar(0.8); // Approximately 24 cm wide at the shelf's scale.
   nintendoSwitch.rotation.y = 0;
-  // Its bubble's anchor: the top of the console; the bubble opens beside it (reach: half its
-  // width), its tail pointing back at the red Joy-Con's top corner
-  const switchBubbleAt = new THREE.Object3D();
-  switchBubbleAt.position.set(0, 0.85, 0.1);
-  nintendoSwitch.add(switchBubbleAt);
   const SWITCH_LINES = ["one more run, I promise", "battery: 12%. still playing.", "kart race tonight?", "the kids want a turn"];
   let switchLine = 0;
   // Each click plays the next trick: the Joy-Cons slide off and click back on; it boots up and
   // races a lap; it drops into its dock for TV mode, then lifts back out.
   let switchTrick = 0;
   let switchBusy = false;
-  const switchSay = (text) => runtime.gauntlet.shelfSay(switchBubbleAt, text, "the handheld", 3000, 0, 0.85);
+  const switchSay = (text) => runtime.gauntlet.shelfSay(nintendoSwitch, text, "the handheld", 3000);
   function joyConsOff() {
     const tl = gsap.timeline({ onComplete: () => (switchBusy = false) });
     [[leftCon, -1], [rightCon, 1]].forEach(([con, side]) => {

@@ -596,63 +596,41 @@ export function createGauntlet(runtime) {
   });
   // Zoomed in on the shelf: the console switches on and boots its game on the monitor, a
   // controller buzzes and hints at a cheat code, the trophy reads out the secrets found
-  // One bubble, out on the wall to the right of what was clicked, its tail pointing straight
-  // across at it (the tip sits at the bubble's left edge, 0.47 of its width from the middle)
+  // One bubble, up and to the right of what was clicked, its tail leaving the bubble's lower
+  // left and pointing down at the speaker's top-right corner (`at`, in the local space of
+  // `part`, the piece that moves: the pad buzzing on its stand, not the stand)
   const SHELF_BUBBLE_W = 2.7;
   const shelfBubbleAt = new THREE.Vector3();
-  const shelfBubblePrint = { size: 40, tail: "side-left", style: "manga" };
+  const shelfBubblePrint = { size: 40, tail: "down-left", style: "manga" };
   const shelfBubble = runtime.core.speechBubble(SHELF_BUBBLE_W, 1.42, shelfBubblePrint);
   let shelfBubbleTarget = null;
-  const trophyBubbleRight = new THREE.Vector3();
-  const trophyBubbleUp = new THREE.Vector3();
-  function placeTrophyBubble() {
-    runtime.shelfCollectibles.trophy.localToWorld(shelfBubbleAt.set(0.25, 1.12, 0.3));
-    trophyBubbleRight.set(1, 0, 0).applyQuaternion(runtime.core.camera.quaternion);
-    trophyBubbleUp.set(0, 1, 0).applyQuaternion(runtime.core.camera.quaternion);
-    shelfBubbleAt.addScaledVector(trophyBubbleRight, 0.06).addScaledVector(trophyBubbleUp, 0.14);
+  const shelfBubbleAnchors = new Map([
+    [runtime.shelfCollectibles.trophy, { part: runtime.shelfCollectibles.trophy, at: new THREE.Vector3(0.25, 1.12, 0.3) }],
+    ...[runtime.shelfConsole.pad1, runtime.shelfConsole.pad2].map((pad) => [pad, { part: pad.userData.moves, at: new THREE.Vector3(0.15, 0.1, -0.26) }]),
+    [runtime.robot.robot, { part: runtime.robot.robot, at: new THREE.Vector3(0.3, 1.02, 0.29) }],
+    [runtime.handheld.nintendoSwitch, { part: runtime.handheld.nintendoSwitch, at: new THREE.Vector3(0.72, 0.78, 0.1) }],
+  ]);
+  const shelfBubbleRight = new THREE.Vector3();
+  const shelfBubbleUp = new THREE.Vector3();
+  // The tip stops a little short of the corner, up and to the right, so it points without
+  // touching. Sprites face the camera, so both placement axes must face it too (including
+  // during zoom); it runs every frame the bubble shows, following the speaker as it moves.
+  function placeShelfBubble() {
+    const { part, at } = shelfBubbleAnchors.get(shelfBubbleTarget);
+    part.localToWorld(shelfBubbleAt.copy(at));
+    shelfBubbleRight.set(1, 0, 0).applyQuaternion(runtime.core.camera.quaternion);
+    shelfBubbleUp.set(0, 1, 0).applyQuaternion(runtime.core.camera.quaternion);
+    shelfBubbleAt.addScaledVector(shelfBubbleRight, 0.06).addScaledVector(shelfBubbleUp, 0.14);
     const [tipX, tipY] = BUBBLE_TAILS["down-left"].tip;
     const sprite = shelfBubble.sprite;
     sprite.position.copy(shelfBubbleAt)
-      .addScaledVector(trophyBubbleRight, (0.5 - tipX) * sprite.scale.x)
-      .addScaledVector(trophyBubbleUp, (tipY - 0.5) * sprite.scale.y);
+      .addScaledVector(shelfBubbleRight, (0.5 - tipX) * sprite.scale.x)
+      .addScaledVector(shelfBubbleUp, (tipY - 0.5) * sprite.scale.y);
   }
-  // Anchor the diagonal tail above the actual pad, not the stand's floor-level origin.
-  // Sprites face the camera, so both placement axes must face it too (including during zoom).
-  function placeControllerBubble() {
-    shelfBubbleTarget.userData.moves.getWorldPosition(shelfBubbleAt);
-    trophyBubbleRight.set(1, 0, 0).applyQuaternion(runtime.core.camera.quaternion);
-    trophyBubbleUp.set(0, 1, 0).applyQuaternion(runtime.core.camera.quaternion);
-    shelfBubbleAt.addScaledVector(trophyBubbleUp, 0.32);
-    const [tipX, tipY] = BUBBLE_TAILS[shelfBubblePrint.tail].tip;
-    const sprite = shelfBubble.sprite;
-    sprite.position.copy(shelfBubbleAt)
-      .addScaledVector(trophyBubbleRight, (0.5 - tipX) * sprite.scale.x)
-      .addScaledVector(trophyBubbleUp, (tipY - 0.5) * sprite.scale.y);
-  }
-  // `reach`: half the width of what's speaking, so the bubble starts beyond its side
-  function shelfSay(obj, text, by = "the shelf", hold = 3200, lift = 0.3, reach = 0) {
+  function shelfSay(obj, text, by = "the shelf", hold = 3200) {
     shelfBubbleTarget = obj;
-    if (obj === runtime.shelfCollectibles.trophy) {
-      shelfBubblePrint.tail = "down-left";
-      shelfBubble.say({ text, by }, hold);
-      placeTrophyBubble();
-      return;
-    }
-    if (obj === runtime.shelfConsole.pad1 || obj === runtime.shelfConsole.pad2) {
-      obj.userData.moves.getWorldPosition(shelfBubbleAt);
-      shelfBubblePrint.tail = shelfBubbleAt.clone().project(runtime.core.camera).x > 0 ? "right" : "left";
-      shelfBubble.say({ text, by }, hold);
-      placeControllerBubble();
-      return;
-    }
-    obj.getWorldPosition(shelfBubbleAt);
-    // To the right if it fits on screen, else to the left; if neither, whichever has more room
-    const spot = (side) => shelfBubbleAt.clone().add(new THREE.Vector3((SHELF_BUBBLE_W * 0.47 + 0.15 + reach) * side, lift, 0.3));
-    const fits = (side) => Math.abs(spot(side).add(new THREE.Vector3((side * SHELF_BUBBLE_W) / 2, 0, 0)).project(runtime.core.camera).x) <= 0.97;
-    const left = fits(1) ? false : fits(-1) || shelfBubbleAt.clone().project(runtime.core.camera).x > 0;
-    shelfBubblePrint.tail = left ? "side-right" : "side-left";
-    shelfBubble.sprite.position.copy(spot(left ? -1 : 1));
     shelfBubble.say({ text, by }, hold);
+    placeShelfBubble();
   }
   function powerConsole() {
     runtime.secrets.discover("console");
@@ -676,7 +654,7 @@ export function createGauntlet(runtime) {
     const x = pad.position.x;
     gsap.fromTo(pad.position, { x: x - 0.04 }, { x, duration: 0.05, repeat: 7, yoyo: true, ease: "none", onComplete: () => (pad.position.x = x) });
     sfx.patter({ duration: 0.35 });
-    shelfSay(item, "↑ ↑ ↓ ↓ ← → ← → B A", "try it on the keyboard", 3200, 0, 0.62);
+    shelfSay(item, "↑ ↑ ↓ ↓ ← → ← → B A", "try it on the keyboard", 3200);
   }
   runtime.core.register(runtime.shelf.shelf, {
     focus: "shelf",
@@ -703,7 +681,7 @@ export function createGauntlet(runtime) {
         const left = runtime.secrets.SECRETS.filter((id) => !runtime.secrets.secretsFound.has(id));
         if (!left.length) return runtime.secrets.cheerTrophy();
         const text = left.length ? `${runtime.secrets.secretsFound.size}/${runtime.secrets.SECRETS.length} found. Hint: ${runtime.secrets.SECRET_HINTS[left[Math.floor(Math.random() * left.length)]]}` : "ALL SECRETS FOUND! 🏆";
-        shelfSay(runtime.shelfCollectibles.trophy, text, "the trophy", 4500, 0.5, 0.55);
+        shelfSay(runtime.shelfCollectibles.trophy, text, "the trophy", 4500);
       }
       // A volume lying in the manga pile slides out and back instead of hopping
       if (item.sound === "book" && runtime.shelfCollectibles.nudgeManga(item.obj)) return;
@@ -756,8 +734,6 @@ export function createGauntlet(runtime) {
     shelfBubble,
     shelfSay,
     gauntlet,
-    get shelfBubbleTarget() { return shelfBubbleTarget; },
-    placeTrophyBubble,
-    placeControllerBubble,
+    placeShelfBubble,
   };
 }

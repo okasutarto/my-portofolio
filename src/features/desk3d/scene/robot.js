@@ -144,7 +144,7 @@ export function createRobot(runtime) {
       .to(botArms[1].rotation, { z: -0.12, duration: 0.3, ease: "power2.in" });
     sfx.blip();
     sfx.blip({ delay: 0.14 });
-    runtime.gauntlet.shelfSay(robot, BOT_LINES[botLine++ % BOT_LINES.length], "Bit", 2600, 0.7, 0.35);
+    runtime.gauntlet.shelfSay(robot, BOT_LINES[botLine++ % BOT_LINES.length], "Bit", 2600);
   }
   function glitchRobot() {
     botBusy = true;
@@ -165,7 +165,7 @@ export function createRobot(runtime) {
       .set(botHead.rotation, { y: 0 })
       .to(bot.scale, { x: 1.15, y: 0.85, z: 1.15, duration: 0.08, yoyo: true, repeat: 3 }, 0.5)
       .to({}, { duration: 1.2 });
-    runtime.core.timers.push(setTimeout(() => runtime.gauntlet.shelfSay(robot, "SYSTEM OVERRIDE… secret unlocked 👾", "Bit", 3200, 0.7, 0.35), 700));
+    runtime.core.timers.push(setTimeout(() => runtime.gauntlet.shelfSay(robot, "SYSTEM OVERRIDE… secret unlocked 👾", "Bit", 3200), 700));
   }
 
   // Public state used by the other scene parts.

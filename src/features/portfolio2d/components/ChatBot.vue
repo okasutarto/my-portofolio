@@ -310,6 +310,7 @@ export default {
         let hasStartedTyping = false;
         let messageIndex;
         let isStreamComplete = false;
+        let signature;
 
         const checkIntent = () => {
           // The stream ended without any text
@@ -318,6 +319,8 @@ export default {
             isStreaming.value = false;
             return;
           }
+          // Lets the answer go back to the API as context for the next question
+          messages.value[messageIndex].signature = signature;
           const botMessage = messages.value[messageIndex].text.toLowerCase();
           const userMessageLower = messageText.toLowerCase();
 
@@ -372,10 +375,10 @@ export default {
           requestAnimationFrame(typeToken);
         };
 
-        await getStreamingResponse(messageText, (token) => {
+        ({ signature } = await getStreamingResponse(messageText, (token) => {
           tokenBuffer += token;
           if (!isProcessingBuffer) typeToken();
-        }, history);
+        }, history));
 
         isStreamComplete = true;
         if (!isProcessingBuffer) typeToken();

@@ -20,7 +20,8 @@ const INJECTION_PATTERNS = [
   // Role manipulation
   /you\s+are\s+now\s+(a|an)\s+/i,
   /pretend\s+(you('re|'re| are)\s+)?(a|an|to be)\s+/i,
-  /act\s+as\s+(if\s+you('re|'re| are)\s+)?(a|an)?\s*/i,
+  // Not any "act as": "did Oka act as tech lead?" is a fair question
+  /\bact\s+as\s+(if\s+you\b|my\b|(a|an)\s+(different|new|unrestricted|uncensored|unfiltered|evil)\b)/i,
   /roleplay\s+as/i,
   /assume\s+the\s+role/i,
   /switch\s+(to\s+)?(a\s+)?different\s+mode/i,
@@ -69,7 +70,8 @@ const OFF_TOPIC_PATTERNS = [
   /home\s+address/i,
   /phone\s+number/i,
   /bank\s+account/i,
-  /password/i,
+  // Someone's password, not the word ("did he build the password reset flow?")
+  /\b(his|oka'?s|your|admin|login)\s+passwords?\b/i,
   /social\s+security/i,
   
   // Trying to make the bot do unrelated tasks
@@ -121,6 +123,9 @@ function validateInput(message) {
 // TWO-STEP AI VALIDATION
 // ===================
 
+// How long the reply may wait on the validator before the message is turned away
+const VALIDATOR_TIMEOUT_MS = 3000;
+
 /**
  * AI-powered input validation using a cheap/fast model
  * This is more robust than regex as it understands context and intent
@@ -131,9 +136,9 @@ function validateInput(message) {
 async function validateInputWithAI(openai, message) {
   try {
     const response = await openai.chat.completions.create({
-      // gpt-4.1-nano was shut down on 2026-10-23; this is OpenAI's recommended replacement.
+      // The same model as the reply: half gpt-5.6-luna's price per token, and newer.
       // Reasoning is off: a one-word YES/NO doesn't need it, and it keeps the check fast.
-      model: 'gpt-5.6-luna',
+      model: 'gpt-6-luna',
       reasoning_effort: 'none',
       messages: [
         {
@@ -168,6 +173,11 @@ async function validateInputWithAI(openai, message) {
       ],
       // Reasoning models take max_completion_tokens and only the default temperature
       max_completion_tokens: 10,
+    }, {
+      // The reply waits on this check, so a stuck validator must not hold it for the SDK's
+      // default 10 minutes (with retries); past this it counts as a failure below
+      timeout: VALIDATOR_TIMEOUT_MS,
+      maxRetries: 0,
     });
 
     // Tolerate "Yes." / "YES!" from the newer model
@@ -183,9 +193,8 @@ async function validateInputWithAI(openai, message) {
     }
   } catch (error) {
     console.error('AI Validator error:', error);
-    // If validator fails, fall back to allowing the message (fail-open)
-    // You could change this to fail-closed (return false) for stricter security
-    return { isValid: true };
+    // Fail closed: an unchecked message never reaches the main model (timeouts included)
+    return { isValid: false, reason: 'validator_unavailable' };
   }
 }
 
@@ -244,9 +253,11 @@ const VALID_RESPONSE_INDICATORS = [
  * Validates AI output for potential compromise or off-topic content
  * @param {string} response - The AI's response
  * @param {string} userMessage - The original user message (for context)
+ * @param {{ complete?: boolean }} [options] - complete: false while the reply is still streaming,
+ *   which skips the on-topic check (an unfinished reply may not have mentioned Oka yet)
  * @returns {{ isValid: boolean, reason?: string }}
  */
-function validateOutput(response, userMessage) {
+function validateOutput(response, userMessage, { complete = true } = {}) {
   // Check for compromised indicators
   for (const pattern of COMPROMISED_INDICATORS) {
     if (pattern.test(response)) {
@@ -258,7 +269,7 @@ function validateOutput(response, userMessage) {
   }
   
   // For longer responses, check if they seem on-topic
-  if (response.length > 100) {
+  if (complete && response.length > 100) {
     let hasValidIndicator = false;
     for (const pattern of VALID_RESPONSE_INDICATORS) {
       if (pattern.test(response)) {
@@ -367,9 +378,10 @@ function validateOutputContent(fullResponse) {
     return { isValid: false, reason: 'unwanted_code' };
   }
   
-  // Detect political content
+  // Detect political content. Not words with everyday senses: "Vice President of Engineering",
+  // "conservative estimates", "leader election", "upvote"
   const politicalPatterns = [
-    /\b(democrat|republican|liberal|conservative|election|vote|president|congress)\b/i,
+    /\b(democrats?|republicans?)\b/i,
     /\b(trump|biden|obama|政治|選挙)\b/i,
   ];
   for (const pattern of politicalPatterns) {
@@ -402,6 +414,7 @@ const FALLBACK_RESPONSES = {
   response_compromised: "I apologize, but I can only provide information about Oka's professional background. How can I help you with that?",
   off_topic_response: "I'm sorry, I can only discuss Oka's professional experience and skills. Is there anything specific about his work you'd like to know?",
   error: "I'm sorry, I couldn't process that request. Please try asking something about Oka's professional background.",
+  validator_unavailable: "I'm a little busy right now. Please try your question again in a moment!",
 };
 
 module.exports = {

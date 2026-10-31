@@ -139,6 +139,9 @@ Create a `.env` file:
 ```env
 PORT=3000
 OPENAI_API_KEY=sk-your-openai-key-here
+# Signs each answer so the chat history a visitor sends back can't be forged.
+# Any long random string, e.g. `openssl rand -hex 32`
+CHAT_HISTORY_SECRET=your-random-secret
 ```
 
 **Crucial Step:** Open `assets/context.txt` and paste your Resume or Portfolio text.
@@ -197,7 +200,7 @@ Edit `src/utils/aiGuardrails.js` to customize:
 
 1. Push to GitHub
 2. Connect to Render.com or Vercel
-3. Add `OPENAI_API_KEY` in Environment Variables
+3. Add `OPENAI_API_KEY` and `CHAT_HISTORY_SECRET` in Environment Variables
 4. **Important:** Update `allowedOrigins` with your production domain
 
 ---

@@ -5,6 +5,7 @@ export function createLifecycle(runtime) {
   return {
     setTheme: runtime.theme.setRoomTheme,
     setWallColor: runtime.theme.setWallColor,
+    setWallPattern: runtime.theme.setWallPattern,
     setWood: runtime.theme.setWood,
     setFloor: runtime.theme.setFloor,
     setTime: runtime.theme.setTime,

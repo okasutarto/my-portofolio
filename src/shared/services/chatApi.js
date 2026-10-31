@@ -3,21 +3,25 @@ const API_URL = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 const HISTORY_LIMIT = 8;
 
 /**
- * Turns displayed chat messages ({ sender: 'user' | 'bot', text }) into the API's history
- * @param {Array<{ sender: string, text: string }>} messages - Finished messages, oldest first
- * @returns {Array<{ role: string, content: string }>}
+ * Turns displayed chat messages ({ sender: 'user' | 'bot', text, signature? }) into the API's
+ * history. Answers keep the signature the API gave them; the API drops turns without one.
+ * @param {Array<{ sender: string, text: string, signature?: string }>} messages - Finished messages, oldest first
+ * @returns {Array<{ role: string, content: string, signature?: string }>}
  */
 export const toHistory = (messages) => messages
   .filter((m) => m.text && m.text.trim())
   .slice(-HISTORY_LIMIT)
-  .map((m) => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text }));
+  .map((m) => (m.sender === 'user'
+    ? { role: 'user', content: m.text }
+    : { role: 'assistant', content: m.text, signature: m.signature }));
 
 /**
  * Get streaming response from the backend API
  * @param {string} prompt - User message
  * @param {function} onToken - Callback function that receives each token as it arrives
- * @param {Array<{ role: string, content: string }>} history - Earlier turns, oldest first
- * @returns {Promise<string>} - The complete response when done
+ * @param {Array<{ role: string, content: string, signature?: string }>} history - Earlier turns, oldest first
+ * @returns {Promise<{ text: string, signature?: string }>} - The complete response when done,
+ *   with the signature to send back in the history (absent when the API refused the question)
  */
 export const getStreamingResponse = async (prompt, onToken, history = []) => {
   const response = await fetch(`${API_URL}/api/chat/stream`, {
@@ -30,6 +34,7 @@ export const getStreamingResponse = async (prompt, onToken, history = []) => {
   // Read the server-sent events off the body: "data: ..." lines, events split by a blank line
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
   let fullResponse = '';
+  let signature;
   let buffer = '';
   try {
     for (;;) {
@@ -40,9 +45,10 @@ export const getStreamingResponse = async (prompt, onToken, history = []) => {
       buffer = events.pop();
       for (const event of events) {
         const data = event.replace(/^data: ?/, '');
-        if (data === '[DONE]') return fullResponse;
+        if (data === '[DONE]') return { text: fullResponse, signature };
 
         const parsed = JSON.parse(data);
+        if (typeof parsed.signature === 'string') signature = parsed.signature;
         if (typeof parsed.content === 'string' && parsed.content) {
           fullResponse += parsed.content;
           onToken(parsed.content);

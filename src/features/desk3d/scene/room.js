@@ -86,13 +86,13 @@ export function createRoom(runtime) {
   floorWood.texture.wrapS = floorWood.texture.wrapT = THREE.RepeatWrapping;
   floorWood.texture.repeat.set(25, 25);
   floorMat.map = floorWood.texture;
-  // Both walls share one painted texture, tiled every 2 units (the back wall's box maps 0–1 over
-  // its 200 × 100; the side wall's extrusion maps in world units)
-  const wallPaint = canvasTexture(256, 256);
+  // Both walls share one painted texture in the visitor's pattern, tiled every 4 units (the back
+  // wall's box maps 0–1 over its 200 × 100; the side wall's extrusion maps in world units)
+  const wallPaint = canvasTexture(512, 512);
   runtime.core.track(wallPaint.texture);
-  drawWallPaint(wallPaint.ctx, 256, 256);
+  drawWallPaint(wallPaint.ctx, 512, 512, runtime.options.wallPattern?.pattern, runtime.options.wallPattern);
   wallPaint.texture.wrapS = wallPaint.texture.wrapT = THREE.RepeatWrapping;
-  const WALL_TILE = 2;
+  const WALL_TILE = 4;
   const backWallPaint = wallPaint.texture;
   backWallPaint.repeat.set(200 / WALL_TILE, 100 / WALL_TILE);
   const sideWallPaint = runtime.core.track(wallPaint.texture.clone());
@@ -606,6 +606,8 @@ export function createRoom(runtime) {
     stripLight,
     backWallMat,
     sideWallMat,
+    wallPaint,
+    sideWallPaint,
     deskWood,
     deskMat,
     frameGrainTex,

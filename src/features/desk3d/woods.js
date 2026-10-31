@@ -114,6 +114,18 @@ export const FRAME_PAINTS = [
 ];
 export const DEFAULT_FRAME_PAINT = FRAME_PAINTS[0].hex;
 
+// A brick wall comes in its own clay, not the wall's paint: `tones` are the bricks' faces (each
+// brick takes one), `mortar` the joints between them
+export const BRICKS = {
+  red: { name: "Red brick", tones: ["#a4503a", "#9e4b36", "#aa553e", "#9a4934", "#a24e38"], mortar: "#cfc6b8" },
+  old: { name: "Old brick", tones: ["#87583d", "#815339", "#8d5d41", "#7c5037", "#85563b"], mortar: "#b9ad9c" },
+  whitewashed: { name: "Whitewashed", tones: ["#e3d9cd", "#ddd2c5", "#e7ded3", "#d9cdbf", "#e1d6ca"], mortar: "#f2ede6" },
+  white: { name: "Painted white", tones: ["#f4f2ee", "#efece7", "#f7f5f1", "#ebe8e2", "#f2f0eb"], mortar: "#dedad3" },
+  charcoal: { name: "Charcoal", tones: ["#4a4744", "#423f3c", "#524e4a", "#3c3936", "#4d4946"], mortar: "#2c2a28" },
+};
+export const DEFAULT_BRICK = "red";
+export const DEFAULT_SLATS = "walnut";
+
 export const WOOD_TARGETS = {
   desk: "Desk",
   riser: "Monitor riser",

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { loadPortrait, windowSky, drawWoodTop, drawWoodFloor } from "../textures";
+import { loadPortrait, windowSky, drawWoodTop, drawWoodFloor, drawWallPaint, WALL_MATERIALS } from "../textures";
 import { WOODS, PART_PATTERNS, DEFAULT_WOODS, SPEAKER_FINISHES, FLOOR_LAYOUTS, DEFAULT_FLOOR, DEFAULT_FRAME_PAINT } from "../woods";
 import { TIME_MODES, partFor } from "../daylight";
 import { PALETTES } from "../sceneConfig";
@@ -33,11 +33,14 @@ export function createTheme(runtime) {
   let darkNow = runtime.options.dark;
   // The walls' paint is the visitor's pick (graphite by default); by night it is tinted by the
   // moonlight the white walls used to be given directly
+  // A brick or slatted wall shows its own colours, so the paint is left off it
   const wallPaintColor = new THREE.Color(runtime.options.wallColor);
+  const WHITE = new THREE.Color("#ffffff");
+  let wallChoice = { pattern: "plain", ...runtime.options.wallPattern };
   const MOONLIT_WALLS = [[runtime.room.backWallMat, new THREE.Color("#d6d3e6")], [runtime.room.sideWallMat, new THREE.Color("#c9c5dc")]];
   function paintWalls(isDark) {
     MOONLIT_WALLS.forEach(([mat, moon]) => {
-      mat.color.copy(wallPaintColor);
+      mat.color.copy(WALL_MATERIALS.includes(wallChoice.pattern) ? WHITE : wallPaintColor);
       if (isDark) mat.color.multiply(moon);
     });
   }
@@ -265,8 +268,21 @@ export function createTheme(runtime) {
   }
   // A new paint goes straight on: both ends of any running blend take it, so the frame loop
   // doesn't lerp it back
+  // A new pattern (or brick, or slats' wood) is drawn over the same tile; both walls' textures
+  // share its canvas. Like a new paint it goes straight on: both ends of any running blend take it,
+  // so the frame loop doesn't lerp it back
+  function setWallPattern(choice) {
+    wallChoice = { ...wallChoice, ...choice };
+    const { canvas, ctx, texture } = runtime.room.wallPaint;
+    drawWallPaint(ctx, canvas.width, canvas.height, wallChoice.pattern, wallChoice);
+    texture.needsUpdate = runtime.room.sideWallPaint.needsUpdate = true;
+    repaintWalls();
+  }
   function setWallColor(hex) {
     wallPaintColor.set(hex);
+    repaintWalls();
+  }
+  function repaintWalls() {
     paintWalls(darkNow);
     MOONLIT_WALLS.forEach(([mat]) => {
       const at = lightingColors.indexOf(mat.color);
@@ -383,6 +399,7 @@ export function createTheme(runtime) {
     updateLighting,
     setRoomTheme,
     setWallColor,
+    setWallPattern,
     setWood,
     setFloor,
     clockTimer,

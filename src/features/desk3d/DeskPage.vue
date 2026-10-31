@@ -100,7 +100,47 @@
                     </div>
                   </template>
                   <div v-else-if="group.key === 'wall'" class="settings-sub">
-                    <div class="flex flex-wrap items-center gap-1.5">
+                    <div class="flex flex-wrap gap-1.5">
+                      <button
+                        v-for="(name, key) in WALL_PATTERNS"
+                        :key="key"
+                        class="pattern-chip"
+                        :class="{ 'pattern-chip--on': settings.wallPattern === key }"
+                        :aria-pressed="settings.wallPattern === key"
+                        @click="setWallPattern(key)">
+                        {{ name }}
+                      </button>
+                    </div>
+                    <!-- Brick comes in its own clay and slats in the furniture's woods; the rest take the paint -->
+                    <div v-if="settings.wallPattern === 'brick'" class="flex flex-wrap items-center gap-1.5 mt-2">
+                      <button
+                        v-for="(brick, key) in BRICKS"
+                        :key="key"
+                        class="swatch"
+                        :class="{ 'swatch--on': settings.wallBrick === key }"
+                        :style="{ background: brick.tones[0] }"
+                        :title="brick.name"
+                        :aria-label="`${brick.name} wall`"
+                        :aria-pressed="settings.wallBrick === key"
+                        @click="setWallBrick(key)">
+                        <span v-if="settings.wallBrick === key" class="swatch-tick" :class="{ 'swatch-tick--light': isDarkColour(brick.tones[0]) }" aria-hidden="true">✓</span>
+                      </button>
+                    </div>
+                    <div v-else-if="settings.wallPattern === 'slats'" class="flex flex-wrap items-center gap-1.5 mt-2">
+                      <button
+                        v-for="(wood, key) in WOODS"
+                        :key="key"
+                        class="swatch"
+                        :class="{ 'swatch--on': settings.wallSlats === key }"
+                        :style="{ background: wood.swatch }"
+                        :title="wood.name"
+                        :aria-label="`${wood.name} slats`"
+                        :aria-pressed="settings.wallSlats === key"
+                        @click="setWallSlats(key)">
+                        <span v-if="settings.wallSlats === key" class="swatch-tick" :class="{ 'swatch-tick--light': isDarkColour(wood.swatch) }" aria-hidden="true">✓</span>
+                      </button>
+                    </div>
+                    <div v-else class="flex flex-wrap items-center gap-1.5 mt-2">
                       <button
                         v-for="paint in WALL_PAINTS"
                         :key="paint.hex"
@@ -287,10 +327,10 @@ import { experiences } from "@/data/experience";
 import { useTheme } from "@/shared/composables/useTheme";
 import { useSfx, initializeAudio, sfx } from "@/shared/composables/useSfx";
 import { hideBootLoader, showEnterGate, setBootProgress, bootLoaderShowing } from "@/shared/utils/bootLoader";
-import { WOODS, WOOD_PATTERNS, PART_PATTERNS, WOOD_TARGETS, FLOOR_LAYOUTS, FRAME_PAINTS } from "@/features/desk3d/woods";
+import { WOODS, WOOD_PATTERNS, PART_PATTERNS, WOOD_TARGETS, FLOOR_LAYOUTS, FRAME_PAINTS, BRICKS } from "@/features/desk3d/woods";
 import { DAY_PARTS, TIME_MODES, RAIN_MODES, partOfDay, partFor } from "@/features/desk3d/daylight";
 
-import { useDeskSettings, SETTINGS_GROUPS, WALL_PAINTS } from "./composables/useDeskSettings";
+import { useDeskSettings, SETTINGS_GROUPS, WALL_PAINTS, WALL_PATTERNS } from "./composables/useDeskSettings";
 
 const COMMAND_CHIPS = ["help", "whoami", "projects", "hobbies", "sudo hire oka"];
 const SECRET_NAMES = {
@@ -336,7 +376,7 @@ const weatherEmoji = computed(() => {
 });
 const settingsOpen = ref(false);
 const openGroup = ref("sky");
-const { settings, wallIsPreset, groupSummary, woodLabel, isDarkColour, setWall, setWood, setFloor, setTime, setRain } = useDeskSettings(scene);
+const { settings, wallIsPreset, groupSummary, woodLabel, isDarkColour, setWall, setWallPattern, setWallBrick, setWallSlats, setWood, setFloor, setTime, setRain } = useDeskSettings(scene);
 let secretTimer = null;
 const zoomed = computed(() => focus.value !== "overview");
 const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -450,6 +490,7 @@ onMounted(async () => {
       dark: isDark.value,
       muted: muted.value,
       wallColor: settings.wall,
+      wallPattern: { pattern: settings.wallPattern, brick: settings.wallBrick, wood: settings.wallSlats },
       woods: JSON.parse(JSON.stringify(settings.woods)),
       floor: { ...settings.floor },
       time: settings.time,

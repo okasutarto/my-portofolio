@@ -1,4 +1,5 @@
 import { DISPLAY } from "./base";
+import { WOODS, BRICKS, DEFAULT_BRICK, DEFAULT_SLATS } from "../woods";
 
 // ---------- room details: the clock face, the guitar's top, straw, the chair's quilting ----------
 // The wall clock's dial: bold hour bars and four numerals
@@ -176,40 +177,176 @@ export function drawGuitarTop(c, w, h, { halfWidth = null } = {}) {
   }, "#ff6b6b");
 }
 
-// The room's painted walls: a faint dot grid (the same grid as the site's loading screen) over a
-// soft paint-roller grain, both low enough to stay a texture, not a pattern. Tiles seamlessly.
-export function drawWallPaint(c, w, h) {
+// The room's walls, one 40 cm tile (a 4-unit square of wall). The painted patterns are drawn in
+// white and greys so the visitor's paint multiplies over it; brick and wood slats are drawn in
+// their own clay or wood (`brick`, `wood`). Every pattern tiles seamlessly; an unknown one is plain.
+export const WALL_MATERIALS = ["brick", "slats"];
+export function drawWallPaint(c, w, h, pattern = "plain", { brick, wood } = {}) {
+  // (on white: the walls are opaque, so a see-through grout would show at its full darkness)
   c.fillStyle = "#ffffff";
   c.fillRect(0, 0, w, h);
-  let r = 7331;
-  const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
-  // roller grain: short soft streaks running up and down, a shade either way of the paint
-  for (let i = 0; i < (w * h) / 40; i++) {
-    c.fillStyle = rand() < 0.5 ? "rgba(26,23,20,.04)" : "rgba(255,255,255,.6)";
-    const x = rand() * w;
-    const y = rand() * h;
-    c.fillRect(x, y, 1 + rand() * 1.5, 3 + rand() * 9);
-  }
-  // roller laps: two broad, barely-there bands where the paint went on a touch thicker
-  [0.18, 0.66].forEach((k) => {
-    const lap = c.createLinearGradient(w * k, 0, w * (k + 0.22), 0);
-    lap.addColorStop(0, "rgba(26,23,20,0)");
-    lap.addColorStop(0.5, "rgba(26,23,20,.018)");
-    lap.addColorStop(1, "rgba(26,23,20,0)");
-    c.fillStyle = lap;
-    c.fillRect(0, 0, w, h);
-  });
-  // the dot grid
-  const step = w / 6;
-  c.fillStyle = "rgba(26,23,20,.16)";
-  for (let y = step / 2; y < h; y += step) {
-    for (let x = step / 2; x < w; x += step) {
-      c.beginPath();
-      c.arc(x, y, w * 0.011, 0, Math.PI * 2);
-      c.fill();
+  (WALL_DRAWS[pattern] || WALL_DRAWS.plain)(c, w, h, { brick: BRICKS[brick] || BRICKS[DEFAULT_BRICK], wood: WOODS[wood] || WOODS[DEFAULT_SLATS] });
+}
+
+// A shade per tile, the same each time it's drawn (k counts tiles across the 40 cm repeat)
+const shadeFor = (k) => (Math.sin(k * 127.1 + 311.7) * 43758.5453) % 1;
+// Draws a shape at its place and again a whole tile over each way, so anything crossing an edge
+// comes back in on the other side
+function wrapped(c, w, h, draw) {
+  [-w, 0, w].forEach((dx) => [-h, 0, h].forEach((dy) => {
+    c.save();
+    c.translate(dx, dy);
+    draw();
+    c.restore();
+  }));
+}
+// Rows of blocks in running bond (brick, subway tile): each block a shade either way of the
+// paint (or one of the clay's tones), a lit top edge and a shadowed bottom one, in grout
+function runningBond(c, w, h, across, rows, grout, bevel, clay = null) {
+  c.fillStyle = clay ? clay.mortar : "rgba(26,23,20,.38)";
+  c.fillRect(0, 0, w, h);
+  const bw = w / across;
+  const bh = h / rows;
+  for (let row = 0; row < rows; row++) {
+    const shift = row % 2 ? bw / 2 : 0;
+    for (let col = -1; col <= across; col++) {
+      const x = col * bw + shift + grout / 2;
+      const y = row * bh + grout / 2;
+      const shade = shadeFor(row * across + ((col + across) % across));
+      c.fillStyle = clay ? clay.tones[Math.floor(Math.abs(shade) * 50) % clay.tones.length] : "#ffffff";
+      c.fillRect(x, y, bw - grout, bh - grout);
+      // (clay already varies brick to brick, so it takes only a touch more, or the wall goes patchy)
+      const light = clay ? 0.06 : 0.5;
+      c.fillStyle = shade < 0 ? `rgba(26,23,20,${(-shade * (clay ? 0.08 : 0.12)).toFixed(3)})` : `rgba(255,255,255,${(shade * light).toFixed(3)})`;
+      c.fillRect(x, y, bw - grout, bh - grout);
+      c.fillStyle = clay ? "rgba(255,255,255,.18)" : "rgba(255,255,255,.7)";
+      c.fillRect(x, y, bw - grout, bevel);
+      c.fillStyle = "rgba(26,23,20,.12)";
+      c.fillRect(x, y + bh - grout - bevel, bw - grout, bevel);
     }
   }
 }
+const WALL_DRAWS = {
+  // Flat paint: a faint dot grid (the same grid as the site's loading screen) over a soft
+  // paint-roller grain, both low enough to stay a texture, not a pattern. Drawn as the 20 cm
+  // tile it always was, four times over.
+  plain(c, w, h) {
+    const tw = w / 2;
+    const th = h / 2;
+    c.fillStyle = "#ffffff";
+    c.fillRect(0, 0, tw, th);
+    let r = 7331;
+    const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+    // roller grain: short soft streaks running up and down, a shade either way of the paint
+    for (let i = 0; i < (tw * th) / 40; i++) {
+      c.fillStyle = rand() < 0.5 ? "rgba(26,23,20,.04)" : "rgba(255,255,255,.6)";
+      const x = rand() * tw;
+      const y = rand() * th;
+      c.fillRect(x, y, 1 + rand() * 1.5, 3 + rand() * 9);
+    }
+    // roller laps: two broad, barely-there bands where the paint went on a touch thicker
+    [0.18, 0.66].forEach((k) => {
+      const lap = c.createLinearGradient(tw * k, 0, tw * (k + 0.22), 0);
+      lap.addColorStop(0, "rgba(26,23,20,0)");
+      lap.addColorStop(0.5, "rgba(26,23,20,.018)");
+      lap.addColorStop(1, "rgba(26,23,20,0)");
+      c.fillStyle = lap;
+      c.fillRect(0, 0, tw, th);
+    });
+    // the dot grid
+    const step = tw / 6;
+    c.fillStyle = "rgba(26,23,20,.16)";
+    for (let y = step / 2; y < th; y += step) {
+      for (let x = step / 2; x < tw; x += step) {
+        c.beginPath();
+        c.arc(x, y, tw * 0.011, 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+    [[tw, 0], [0, th], [tw, th]].forEach(([x, y]) => c.drawImage(c.canvas, 0, 0, tw, th, x, y, tw, th));
+  },
+  // Painted brick: 20 × 6.7 cm courses in running bond, a centimetre of mortar
+  brick(c, w, h, { brick }) {
+    runningBond(c, w, h, 2, 6, w * 0.026, w * 0.008, brick);
+  },
+  // Subway tile: 10 × 5 cm, glazed, in thin grout
+  subway(c, w, h) {
+    runningBond(c, w, h, 4, 8, w * 0.009, w * 0.012);
+  },
+  // Acoustic wood slats: eight 4 cm slats a tile over a dark felt backing, each with its own
+  // tone and a few grain lines running up it
+  slats(c, w, h, { wood }) {
+    c.fillStyle = "#2a2622";
+    c.fillRect(0, 0, w, h);
+    const sw = w / 8;
+    const gap = sw * 0.2;
+    let r = 4421;
+    const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 8; i++) {
+      const x = i * sw + gap / 2;
+      const shade = shadeFor(i + 40);
+      c.fillStyle = wood.tones[i % wood.tones.length];
+      c.fillRect(x, 0, sw - gap, h);
+      c.fillStyle = shade < 0 ? `rgba(26,23,20,${(-shade * 0.1).toFixed(3)})` : `rgba(255,255,255,${(shade * 0.4).toFixed(3)})`;
+      c.fillRect(x, 0, sw - gap, h);
+      // grain: long thin streaks, wrapped top to bottom
+      for (let g = 0; g < 7; g++) {
+        const gx = x + 3 + rand() * (sw - gap - 6);
+        const gy = rand() * h;
+        const len = h * (0.2 + rand() * 0.5);
+        c.fillStyle = `rgba(${wood.grain.join(",")},.18)`;
+        [gy, gy - h].forEach((y) => c.fillRect(gx, y, 1.5, len));
+      }
+      // a rounded edge each side
+      c.fillStyle = "rgba(255,255,255,.55)";
+      c.fillRect(x, 0, sw * 0.06, h);
+      c.fillStyle = "rgba(26,23,20,.14)";
+      c.fillRect(x + sw - gap - sw * 0.06, 0, sw * 0.06, h);
+    }
+  },
+  // Wallpaper stripes: 5 cm bands, the paler ones with a fine pinstripe down the middle
+  stripes(c, w, h) {
+    c.fillStyle = "#ffffff";
+    c.fillRect(0, 0, w, h);
+    const band = w / 8;
+    for (let i = 0; i < 8; i++) {
+      c.fillStyle = i % 2 ? "rgba(26,23,20,.13)" : "rgba(26,23,20,.09)";
+      if (i % 2) c.fillRect(i * band, 0, band, h);
+      else c.fillRect(i * band + band / 2 - w * 0.002, 0, w * 0.004, h);
+    }
+  },
+  // Hexagon tile: about 9 cm across, each a shade of its own, in grout. Three columns' pair and
+  // five rows a tile: the rows sit 4% further apart than a true honeycomb so it repeats.
+  hexagon(c, w, h) {
+    c.fillStyle = "rgba(26,23,20,.38)";
+    c.fillRect(0, 0, w, h);
+    const cols = 6;
+    const rows = 5;
+    const s = w / (cols * 1.5);
+    const vp = h / rows;
+    const ky = vp / (Math.sqrt(3) * s);
+    const inset = s - w * 0.008;
+    for (let i = 0; i < cols; i++) {
+      for (let j = 0; j < rows; j++) {
+        const cx = i * 1.5 * s;
+        const cy = j * vp + (i % 2 ? vp / 2 : 0);
+        const shade = shadeFor(i * rows + j + 80);
+        wrapped(c, w, h, () => {
+          c.beginPath();
+          for (let k = 0; k < 6; k++) {
+            const a = (k * Math.PI) / 3;
+            c.lineTo(cx + inset * Math.cos(a), cy + inset * Math.sin(a) * ky);
+          }
+          c.closePath();
+          c.fillStyle = "#ffffff";
+          c.fill();
+          c.fillStyle = shade < 0 ? `rgba(26,23,20,${(-shade * 0.12).toFixed(3)})` : `rgba(255,255,255,${(shade * 0.5).toFixed(3)})`;
+          c.fill();
+        });
+      }
+    }
+  },
+};
 
 // Soft fur, as a light grey map the fur colours multiply with: short strokes a touch lighter
 // and darker, all leaning the same way like brushed fur. Tiles seamlessly.

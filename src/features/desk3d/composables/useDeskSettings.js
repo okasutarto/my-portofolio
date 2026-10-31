@@ -1,5 +1,5 @@
 import { reactive, computed } from "vue";
-import { WOODS, WOOD_PATTERNS, PART_PATTERNS, WOOD_TARGETS, DEFAULT_WOODS, FLOOR_LAYOUTS, DEFAULT_FLOOR, FRAME_PAINTS, DEFAULT_FRAME_PAINT } from "../woods";
+import { WOODS, WOOD_PATTERNS, PART_PATTERNS, WOOD_TARGETS, DEFAULT_WOODS, FLOOR_LAYOUTS, DEFAULT_FLOOR, FRAME_PAINTS, DEFAULT_FRAME_PAINT, BRICKS, DEFAULT_BRICK, DEFAULT_SLATS } from "../woods";
 import { TIME_MODES, RAIN_MODES, DEFAULT_TIME, DEFAULT_RAIN } from "../daylight";
 
 const SETTINGS_KEY = "desk-settings";
@@ -20,6 +20,16 @@ export const WALL_PAINTS = [
   { name: "Charcoal", hex: "#5c5c5c" },
   { name: "Graphite", hex: "#3a3a3a" },
 ];
+// What's on the wall: the painted ones are drawn in greys that the paint colours; brick and
+// wood slats come in their own clay or wood instead (see drawWallPaint)
+export const WALL_PATTERNS = {
+  plain: "Plain",
+  brick: "Brick",
+  subway: "Subway tile",
+  slats: "Wood slats",
+  stripes: "Stripes",
+  hexagon: "Hexagon",
+};
 
 // The picks are a per-visitor convenience: blocked or empty storage just means the default room
 export function readSettings() {
@@ -44,6 +54,9 @@ export function readSettings() {
     time: TIME_MODES[saved.time] ? saved.time : DEFAULT_TIME,
     rain: RAIN_MODES[saved.rain] ? saved.rain : DEFAULT_RAIN,
     wall: /^#[0-9a-f]{6}$/i.test(saved.wall || "") ? saved.wall : DEFAULT_WALL,
+    wallPattern: Object.hasOwn(WALL_PATTERNS, saved.wallPattern) ? saved.wallPattern : "plain",
+    wallBrick: Object.hasOwn(BRICKS, saved.wallBrick) ? saved.wallBrick : DEFAULT_BRICK,
+    wallSlats: Object.hasOwn(WOODS, saved.wallSlats) ? saved.wallSlats : DEFAULT_SLATS,
     woods: Object.fromEntries(Object.keys(WOOD_TARGETS).map((part) => [part, pickWood(part, saved.woods?.[part])])),
     floor: {
       wood: WOODS[saved.floor?.wood] ? saved.floor.wood : DEFAULT_FLOOR.wood,
@@ -56,12 +69,18 @@ export function useDeskSettings(scene) {
   const settings = reactive(readSettings());
   const wallIsPreset = computed(() => WALL_PAINTS.some((paint) => paint.hex === settings.wall));
   const wallName = computed(() => WALL_PAINTS.find((paint) => paint.hex === settings.wall)?.name ?? "Custom");
+  // The wall at a glance: its brick, its slats' wood, or its paint and pattern
+  const wallLabel = computed(() => {
+    if (settings.wallPattern === "brick") return BRICKS[settings.wallBrick].name;
+    if (settings.wallPattern === "slats") return `${WOODS[settings.wallSlats].name} slats`;
+    return settings.wallPattern === "plain" ? wallName.value : `${wallName.value}, ${WALL_PATTERNS[settings.wallPattern].toLowerCase()}`;
+  });
   // What each closed group is set to, at a glance
   const groupSummary = computed(() => {
     const woods = new Set(Object.values(settings.woods).map((choice) => choice.wood));
     return {
       sky: `${settings.time === "auto" ? "Auto" : TIME_MODES[settings.time]}, ${settings.rain === "auto" ? "auto" : RAIN_MODES[settings.rain].toLowerCase()}`,
-      wall: wallName.value,
+      wall: wallLabel.value,
       floor: `${WOODS[settings.floor.wood].name}, ${FLOOR_LAYOUTS[settings.floor.layout].toLowerCase()}`,
       wood: woods.size === 1 ? WOODS[[...woods][0]].name : "Mixed",
     };
@@ -89,6 +108,23 @@ export function useDeskSettings(scene) {
     scene.value?.setWallColor(hex);
     saveSettings();
   }
+  // The pattern, a brick's clay and the slats' wood are kept apart, so going back to one finds
+  // it as it was left
+  function setWallPattern(pattern) {
+    settings.wallPattern = pattern;
+    scene.value?.setWallPattern({ pattern });
+    saveSettings();
+  }
+  function setWallBrick(brick) {
+    settings.wallBrick = brick;
+    scene.value?.setWallPattern({ brick });
+    saveSettings();
+  }
+  function setWallSlats(wood) {
+    settings.wallSlats = wood;
+    scene.value?.setWallPattern({ wood });
+    saveSettings();
+  }
   function setWood(part, choice) {
     Object.assign(settings.woods[part], choice);
     scene.value?.setWood(part, choice);
@@ -110,5 +146,5 @@ export function useDeskSettings(scene) {
     saveSettings();
   }
 
-  return { settings, wallIsPreset, wallName, groupSummary, woodLabel, isDarkColour, setWall, setWood, setFloor, setTime, setRain };
+  return { settings, wallIsPreset, wallName, groupSummary, woodLabel, isDarkColour, setWall, setWallPattern, setWallBrick, setWallSlats, setWood, setFloor, setTime, setRain };
 }

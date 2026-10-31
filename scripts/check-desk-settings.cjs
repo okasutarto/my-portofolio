@@ -11,7 +11,9 @@ const context = vm.createContext({ ...dependencies, reactive, computed, localSto
   getItem() { if (blocked) throw Error('blocked'); return stored; },
   setItem(key, value) { if (blocked) throw Error('blocked'); assert.equal(key, 'desk-settings'); stored = value; },
 } });
-const { readSettings, useDeskSettings } = vm.runInContext(source('composables/useDeskSettings.js') + '; ({ readSettings, useDeskSettings })', context);
+const { readSettings, useDeskSettings, WALL_PATTERNS } = vm.runInContext(source('composables/useDeskSettings.js') + '; ({ readSettings, useDeskSettings, WALL_PATTERNS })', context);
+const wallDraws = fs.readFileSync(root + 'textures/roomDetails.js', 'utf8');
+for (const key of Object.keys(WALL_PATTERNS)) assert.match(wallDraws, new RegExp(`\\n  ${key}\\(c, w, h`), `the ${key} wall pattern is drawn`);
 const baseline = JSON.stringify(readSettings());
 for (const invalid of ['{', 'null', 'false', '{"woods":{"desk":null,"window":false},"floor":null}']) {
   stored = invalid;

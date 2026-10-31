@@ -346,6 +346,110 @@ const WALL_DRAWS = {
       }
     }
   },
+  // Checkerboard: 10 cm squares, every other one a shade down
+  checker(c, w, h) {
+    const sw = w / 4;
+    const sh = h / 4;
+    c.fillStyle = "rgba(26,23,20,.14)";
+    for (let y = 0; y < 4; y++) {
+      for (let x = (y % 2); x < 4; x += 2) c.fillRect(x * sw, y * sh, sw, sh);
+    }
+  },
+  // Chevron: 5 cm bands zigzagging every 10 cm, alternate bands a shade down
+  chevron(c, w, h) {
+    const band = h / 8;
+    const period = w / 4;
+    c.fillStyle = "rgba(26,23,20,.12)";
+    // each band's top edge and its bottom one a band lower, edge to edge across the tile (the
+    // zigzag meets itself there) and again a tile up for the band that runs off the bottom
+    const zig = (x) => (Math.round(x / (period / 2)) % 2 ? band : 0);
+    for (let b = 1; b < 9; b += 2) {
+      [0, -h].forEach((dy) => {
+        c.beginPath();
+        for (let x = 0; x <= w; x += period / 2) c.lineTo(x, dy + b * band + zig(x));
+        for (let x = w; x >= 0; x -= period / 2) c.lineTo(x, dy + (b + 1) * band + zig(x));
+        c.closePath();
+        c.fill();
+      });
+    }
+  },
+  // Graph paper: a faint line every 2.5 cm and a firmer one every 10 cm
+  graph(c, w, h) {
+    const minor = w / 16;
+    for (let i = 0; i < 16; i++) {
+      c.fillStyle = i % 4 ? "rgba(26,23,20,.09)" : "rgba(26,23,20,.22)";
+      const t = i % 4 ? w * 0.003 : w * 0.006;
+      c.fillRect(i * minor - t / 2, 0, t, h);
+      c.fillRect(0, i * minor - t / 2, w, t);
+      if (i === 0) {
+        c.fillRect(w - t / 2, 0, t, h);
+        c.fillRect(0, h - t / 2, w, t);
+      }
+    }
+  },
+  // Terrazzo: chips of marble, a few millimetres to a centimetre and a half, in muted colours
+  // the paint deepens, scattered over a soft speckle
+  terrazzo(c, w, h) {
+    let r = 9157;
+    const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+    const CHIPS = ["#c98a6b", "#9fb39a", "#8e9bb0", "#d8b56a", "#a9a39b", "#6f6a64", "#e9e4dc"];
+    for (let i = 0; i < 1400; i++) {
+      c.fillStyle = rand() < 0.5 ? "rgba(26,23,20,.08)" : "rgba(26,23,20,.04)";
+      c.fillRect(rand() * w, rand() * h, 1.5, 1.5);
+    }
+    for (let i = 0; i < 230; i++) {
+      const cx = rand() * w;
+      const cy = rand() * h;
+      const size = 4 + Math.pow(rand(), 2) * 16;
+      const sides = 4 + Math.floor(rand() * 3);
+      const turn = rand() * Math.PI;
+      const points = Array.from({ length: sides }, (_, k) => {
+        const a = turn + (k / sides) * Math.PI * 2;
+        const d = size * (0.55 + rand() * 0.45);
+        return [cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.8];
+      });
+      c.fillStyle = CHIPS[Math.floor(rand() * CHIPS.length)];
+      wrapped(c, w, h, () => {
+        c.beginPath();
+        points.forEach(([x, y]) => c.lineTo(x, y));
+        c.closePath();
+        c.fill();
+      });
+    }
+  },
+  // Limewash: soft clouds where the wash went on thicker or thinner, and criss-crossed brush marks
+  limewash(c, w, h) {
+    let r = 2671;
+    const rand = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 26; i++) {
+      const cx = rand() * w;
+      const cy = rand() * h;
+      const rad = w * (0.12 + rand() * 0.22);
+      const dark = rand() < 0.6;
+      wrapped(c, w, h, () => {
+        const cloud = c.createRadialGradient(cx, cy, 0, cx, cy, rad);
+        cloud.addColorStop(0, dark ? "rgba(26,23,20,.09)" : "rgba(255,255,255,.7)");
+        cloud.addColorStop(1, dark ? "rgba(26,23,20,0)" : "rgba(255,255,255,0)");
+        c.fillStyle = cloud;
+        c.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
+      });
+    }
+    c.lineCap = "round";
+    for (let i = 0; i < 60; i++) {
+      const x = rand() * w;
+      const y = rand() * h;
+      const len = w * (0.06 + rand() * 0.1);
+      const a = (rand() < 0.5 ? 1 : -1) * (Math.PI / 4 + (rand() - 0.5) * 0.5);
+      c.strokeStyle = rand() < 0.5 ? "rgba(26,23,20,.03)" : "rgba(255,255,255,.22)";
+      c.lineWidth = 4 + rand() * 8;
+      wrapped(c, w, h, () => {
+        c.beginPath();
+        c.moveTo(x - Math.cos(a) * len / 2, y - Math.sin(a) * len / 2);
+        c.lineTo(x + Math.cos(a) * len / 2, y + Math.sin(a) * len / 2);
+        c.stroke();
+      });
+    }
+  },
 };
 
 // Soft fur, as a light grey map the fur colours multiply with: short strokes a touch lighter

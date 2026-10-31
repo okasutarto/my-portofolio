@@ -15,10 +15,10 @@ export function createShelfBooks(runtime) {
   function bookMesh(w, h, color, i = 0, depth = 1.0, drawSpine = (c, cw, ch) => drawBookSpine(c, cw, ch, { color, i })) {
     const cover = runtime.core.toon(color);
     const book = runtime.shelf.group(
-      runtime.core.at(runtime.core.mesh(runtime.core.rbox(w - 0.05, h - 0.05, depth - 0.06, 0.02), pagesMat, { outline: 0.02 }), 0, 0, -0.02),
-      runtime.core.at(runtime.core.mesh(runtime.core.rbox(w, h, 0.06, 0.02), cover, { outline: 0.025 }), 0, 0, depth / 2 - 0.03),
-      runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.035, h, depth, 0.012), cover, { outline: 0.02 }), -w / 2 + 0.0175, 0, 0),
-      runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.035, h, depth, 0.012), cover, { outline: 0.02 }), w / 2 - 0.0175, 0, 0),
+      runtime.core.at(runtime.core.mesh(runtime.core.rbox(w - 0.05, h - 0.05, depth - 0.06, 0.02), pagesMat, { outline: 0.012 }), 0, 0, -0.02),
+      runtime.core.at(runtime.core.mesh(runtime.core.rbox(w, h, 0.06, 0.02), cover, { outline: 0.015 }), 0, 0, depth / 2 - 0.03),
+      runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.035, h, depth, 0.012), cover, { outline: 0.012 }), -w / 2 + 0.0175, 0, 0),
+      runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.035, h, depth, 0.012), cover, { outline: 0.012 }), w / 2 - 0.0175, 0, 0),
     );
     const spine = runtime.core.printed(w - 0.01, h - 0.01, 420, drawSpine);
     spine.position.z = depth / 2 + 0.002;
@@ -45,8 +45,8 @@ export function createShelfBooks(runtime) {
   const gills = runtime.core.mesh(new THREE.CircleGeometry(0.39, 32), gillMat, { outline: 0, cast: false });
   gills.rotation.x = Math.PI / 2;
   const mushroom = runtime.shelf.group(
-    runtime.core.at(runtime.core.mesh(stemGeo, faceMat, { outline: 0.025 }), 0, 0, 0),
-    runtime.core.at(runtime.core.mesh(capGeo, capMat, { outline: 0.03 }), 0, 0.38, 0),
+    runtime.core.at(runtime.core.mesh(stemGeo, faceMat, { outline: 0.016 }), 0, 0, 0),
+    runtime.core.at(runtime.core.mesh(capGeo, capMat, { outline: 0.018 }), 0, 0.38, 0),
     runtime.core.at(gills, 0, 0.379, 0),
   );
   runtime.shelf.addItem(runtime.core.at(mushroom, -0.84, runtime.shelf.standOn(0) + 0.85, 0.15), "figure");
@@ -71,7 +71,7 @@ export function createShelfBooks(runtime) {
   // (the spines are printed finely enough that the small PS5 mark stays legible)
   const gameCase = ([title, art], i, system, at) => {
     const { platform, t, d } = CASES[system];
-    const caseMesh = runtime.core.mesh(runtime.core.rbox(t, CASE_H, d, 0.02), runtime.core.toon(platform), { outline: 0.022 });
+    const caseMesh = runtime.core.mesh(runtime.core.rbox(t, CASE_H, d, 0.02), runtime.core.toon(platform), { outline: 0.014 });
     const spine = runtime.core.printed(t - 0.005, CASE_H - 0.04, 1000, (c, w, h) => drawGameSpine(c, w, h, { platform, art, title, i, system }));
     spine.position.z = d / 2 + 0.0025;
     runtime.shelf.addItem(runtime.core.at(runtime.shelf.group(caseMesh, spine), at + t / 2, runtime.shelf.standOn(0) + CASE_H / 2, CASE_FRONT - d / 2), "case");
@@ -85,8 +85,8 @@ export function createShelfBooks(runtime) {
   const cover = runtime.core.printed(0.63, 0.81, 600, (c, w, h) => drawGameCover(c, w, h, { platform: PS5_BLUE }));
   cover.position.z = 0.076;
   // On a little black display stand, so its foot sits well clear of the shelf's front edge
-  const caseStand = runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.56, 0.12, 0.34, 0.03), runtime.shelfConsole.black, { outline: 0.02 }), 0, -0.485, -0.04);
-  const faceOut = runtime.shelf.group(runtime.core.mesh(runtime.core.rbox(0.67, 0.85, 0.14, 0.03), runtime.core.toon(PS5_BLUE), { outline: 0.025 }), cover, caseStand);
+  const caseStand = runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.56, 0.12, 0.34, 0.03), runtime.shelfConsole.black, { outline: 0.014 }), 0, -0.485, -0.04);
+  const faceOut = runtime.shelf.group(runtime.core.mesh(runtime.core.rbox(0.67, 0.85, 0.14, 0.03), runtime.core.toon(PS5_BLUE), { outline: 0.016 }), cover, caseStand);
   runtime.shelf.addItem(runtime.core.at(faceOut, -0.1, runtime.shelf.standOn(0) + 0.545, 0.15), "case").rotation.set(-0.06, 0.12, 0);
 
   // Public state used by the other scene parts.

@@ -241,7 +241,7 @@ export function createCore(runtime) {
   let destroyed = false;
 
   const {
-    disposables, track, gradient, toon, outlineResolution, outlineMat, hullGeometry, noRaycast, mesh, UP, rbox, rod,
+    disposables, track, gradient, toon, outlineResolution, outlineBase, outlineMat, hullGeometry, noRaycast, mesh, UP, rbox, rod,
     roundedRectShape, phoneSlab, at, printMaterial, printGlow, redrawers, printed, bubbleTimers, speechBubble,
   } = createSceneMeshes(scene);
   const { bendable, paperFlex, updatePaperFlex, flexTo, flexSettle } = createPaperFlex(track);
@@ -310,6 +310,7 @@ export function createCore(runtime) {
     pickables,
     entryFor,
     outlineResolution,
+    outlineBase,
     composer,
     get drawCalls() { return drawCalls; },
     get triangles() { return triangles; },

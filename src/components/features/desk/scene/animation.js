@@ -19,13 +19,21 @@ export function createAnimation(runtime) {
   // weight), and again for how far out the room is drawn (screen pixels per world unit, pinch
   // and close-ups included), so the whole room at ~9 px a unit doesn't drown a shelf board two
   // pixels thick, while a desktop's overview (~24 px a unit) and anything nearer keep it all.
+  // On a phone the base every line shares shrinks too (2.2 px to ~0.4 on a 375 px screen), so
+  // a small prop's line (a controller, a Rubik's cube) thins with the prop instead of inking it
+  // as heavily as a bookcase; the weight is evened back up so a furniture-weight line (0.025)
+  // stays as it was.
   const OUTLINE_FULL_AT = 24;
+  const FURNITURE_LINE = 0.025 * 30;
   function fitOutlines() {
     const w = runtime.options.container.clientWidth || 1;
     const h = runtime.options.container.clientHeight || 1;
     const screenFit = Math.min(Math.min(w, h) / 600, 1);
     const zoomFit = Math.min((h * runtime.core.camera.zoom) / viewH / OUTLINE_FULL_AT, 1);
-    const outlineScale = Math.max(screenFit ** 3 * zoomFit ** 0.75, 0.18);
+    const base = 0.3 + 1.9 * screenFit ** 6;
+    const even = (2.2 + FURNITURE_LINE) / (base + FURNITURE_LINE);
+    const outlineScale = Math.max(screenFit ** 3 * zoomFit ** 0.75, 0.18) * even;
+    runtime.core.outlineBase.value = base;
     runtime.core.outlineResolution.value.set(w / outlineScale, h / outlineScale);
   }
   function resize() {

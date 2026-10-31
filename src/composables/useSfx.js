@@ -482,6 +482,11 @@ const SOUNDS = {
     const chord = CHORDS[chordIndex++ % CHORDS.length];
     chord.forEach((freq, i) => pluck(t + i * 0.022 + Math.random() * 0.006, freq, 0.32 - i * 0.025));
   },
+  // A thumb brushed over the two low strings: a soft open E and A, barely plucked
+  brush(t) {
+    pluck(t, 82.41, 0.16);
+    pluck(t + 0.035, 110, 0.12);
+  },
   // Luffy's laugh, "shi-shi-shi": three hissed syllables climbing in pitch, each with a little
   // voiced bounce under it
   shishishi(t) {
@@ -522,6 +527,13 @@ const SOUNDS = {
   powerDown(t) {
     tone(t, { type: "sawtooth", freq: 440, to: 55, attack: 0.01, peak: 0.16, decay: 0.45 });
     tone(t + 0.45, { freq: 90, to: 40, peak: 0.4, decay: 0.12 });
+  },
+  // A woofer nudged: one soft bass push of the cone, with the faint rattle of its grille
+  woofer(t) {
+    tone(t, { freq: vary(85, 0.05), to: 48, attack: 0.012, peak: 0.55, decay: 0.16 });
+    // its octave, so a laptop's small speakers still hear the push
+    tone(t, { type: "triangle", freq: vary(170, 0.05), to: 96, attack: 0.012, peak: 0.18, decay: 0.12 });
+    noise(t + 0.01, { filter: "lowpass", freq: 320, q: 0.7, attack: 0.01, peak: 0.12, decay: 0.08 });
   },
   // Rubber pulled taut: a low reedy creak rising in pitch as it stretches
   rubber(t, { duration = 0.4 } = {}) {
@@ -622,6 +634,12 @@ const SOUNDS = {
   mugDown(t, { strength = 0.35 } = {}) {
     if (!sample(t, "mug", { peak: 0.9 * strength })) return SOUNDS.thud(t, { strength });
     tone(t, { freq: vary(130), to: 60, peak: 0.4 * strength, decay: 0.1 });
+  },
+  // Coffee rocking in a lifted mug: a low wash of liquid and a bubble or two
+  slosh(t) {
+    noise(t, { filter: "lowpass", freq: 380, to: 900, q: 1.6, attack: 0.07, peak: 0.16, decay: 0.24 });
+    noise(t + 0.09, { filter: "lowpass", freq: 900, to: 420, q: 1.6, attack: 0.05, peak: 0.1, decay: 0.2 });
+    [0.12, 0.2].forEach((d) => tone(t + d + Math.random() * 0.04, { freq: vary(520, 0.2), to: vary(820, 0.15), peak: 0.04, decay: 0.03 }));
   },
   // A dumbbell set down: heavy iron, the synth thump keeping the weight under it
   dumbbell(t, { strength = 1 } = {}) {
@@ -886,7 +904,7 @@ const SOUNDS = {
 };
 
 // Minimum gap between two plays of the same sound, so fast loops don't machine-gun
-const MIN_GAP = { cheer: 2, applause: 4, meow: 0.3, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, rubber: 0.15, boing: 0.3, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, dumbbell: 0.12, rackLand: 0.12, dock: 0.12, rimHit: 0.12, paperBounce: 0.05, swish: 0.2, wingFlap: 0.08, strap: 0.08, badgeClick: 0.12, shing: 0.5, koiguchi: 0.12, koiguchiShut: 0.12, slash: 0.15, sheathe: 0.4, whooshAway: 0.4, power: 1.4, ding: 0.3, trophyHover: 0.5, trophyLift: 0.5, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
+const MIN_GAP = { cheer: 2, applause: 4, meow: 0.3, slide: 0.08, drawer: 0.4, knock: 0.05, tear: 0.2, riffle: 0.3, key: 0.035, talk: 0.06, blip: 0.07, tick: 0.03, paper: 0.04, scribble: 0.3, printer: 0.5, rustle: 0.3, strum: 0.15, brush: 0.3, woofer: 0.15, slosh: 0.3, shishishi: 0.4, chirp: 0.12, sparkle: 0.6, groove: 1.6, powerDown: 0.6, squeak: 0.2, rubber: 0.15, boing: 0.3, patter: 0.4, clockStrike: 1.2, hiss: 0.4, creak: 0.8, clank: 0.12, dumbbell: 0.12, rackLand: 0.12, dock: 0.12, rimHit: 0.12, paperBounce: 0.05, swish: 0.2, wingFlap: 0.08, strap: 0.08, badgeClick: 0.12, shing: 0.5, koiguchi: 0.12, koiguchiShut: 0.12, slash: 0.15, sheathe: 0.4, whooshAway: 0.4, power: 1.4, ding: 0.3, trophyHover: 0.5, trophyLift: 0.5, snap: 0.2, dust: 1, riser: 0.5, growl: 0.8, roar: 0.6, thunder: 0.3 };
 
 function play(name, options = {}) {
   if (muted.value || hushDepth > 0 || !ctx || (ctx.state !== "running" && !resuming) || document.hidden) return;

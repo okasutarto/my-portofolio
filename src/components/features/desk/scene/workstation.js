@@ -679,7 +679,7 @@ export function createWorkstation(runtime) {
         if (on) {
           pump(entry, 1.2);
           floatNote(entry);
-          hoverSound(speaker, (s) => s.ding({ pitch: 1.5, volume: 0.15 }));
+          hoverSound(speaker, (s) => s.woofer());
         }
       },
       onClick: () => {

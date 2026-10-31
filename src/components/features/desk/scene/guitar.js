@@ -186,8 +186,8 @@ export function createGuitar(runtime) {
       gsap.to(stringMat.color, { r: on ? 1 : stringRestColor.r, g: on ? 0.95 : stringRestColor.g, b: on ? 0.65 : stringRestColor.b, duration: 0.25, overwrite: true });
       if (on) gsap.fromTo(stringVibration, { strength: 0.014, phase: 0 }, { strength: 0, phase: Math.PI * 14, duration: 0.8, ease: "power1.out", onUpdate: updateGuitarStrings, overwrite: true });
       else gsap.to(stringVibration, { strength: 0, duration: 0.2, onUpdate: updateGuitarStrings, overwrite: true });
-      // the strings, brushed, give a faint low note
-      if (on) hoverSound(guitarSwing, (s) => s.ding({ pitch: 0.5, volume: 0.2 }));
+      // a thumb brushes the low strings
+      if (on) hoverSound(guitarSwing, (s) => s.brush());
     },
     onClick: () => {
       if (guitarBusy) return;

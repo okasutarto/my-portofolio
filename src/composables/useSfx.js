@@ -469,8 +469,8 @@ const SOUNDS = {
   },
   // A console waking to a touch: one short, clean beep from its button, then its fan breathing in
   consoleWake(t) {
-    tone(t, { freq: 1050, peak: 0.22, decay: 0.06 });
-    noise(t + 0.05, { freq: 450, to: 1100, q: 0.8, attack: 0.12, peak: 0.14, decay: 0.25 });
+    tone(t, { freq: 1050, peak: 0.45, decay: 0.09 });
+    noise(t + 0.06, { freq: 450, to: 1100, q: 0.8, attack: 0.12, peak: 0.32, decay: 0.25 });
   },
   // Robot chatter
   blip(t) {

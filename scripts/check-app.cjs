@@ -8,7 +8,7 @@ const source = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const loadModule = (file) => import('data:text/javascript;base64,' + Buffer.from(source(file)).toString('base64'));
 
 async function main() {
-  const { formatMessageWithLinks: format } = await loadModule('src/utils/formatChatMessage.js');
+  const { formatMessageWithLinks: format } = await loadModule('src/features/portfolio2d/utils/formatChatMessage.js');
   assert.equal(format('<img src=x onerror="alert(1)">'), '&lt;img src=x onerror=&quot;alert(1)&quot;&gt;');
   assert.equal(format('**<svg onload=alert(1)>**'), '<strong class="font-bold">&lt;svg onload=alert(1)&gt;</strong>');
   for (const url of ['javascript:alert', 'JaVaScRiPt:alert', 'data:text/html,evil', 'java\nscript:alert', '/relative']) {
@@ -22,7 +22,7 @@ async function main() {
   assert.equal(format('Hello **Oka**\nNext'), 'Hello <strong class="font-bold">Oka</strong><br>Next');
   assert.equal((format('- A\n- B').match(/class="flex gap-2 my-1"/g) || []).length, 2);
 
-  const themeSource = source('src/composables/useTheme.js').replace(/^import .*\n/, '').replace('export function', 'function');
+  const themeSource = source('src/shared/composables/useTheme.js').replace(/^import .*\n/, '').replace('export function', 'function');
   function theme(storage) {
     const classes = new Set();
     const api = vm.runInNewContext(themeSource + '; useTheme()', {
@@ -63,7 +63,7 @@ async function main() {
   }
   corsOptions.origin('https://untrusted.example', error => assert.ok(error));
 
-  const { getStreamingResponse: stream } = await loadModule('src/services/chatApi.js');
+  const { getStreamingResponse: stream } = await loadModule('src/shared/services/chatApi.js');
   const originalFetch = global.fetch;
   let cancelled;
   const mockStream = chunks => {

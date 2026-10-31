@@ -67,7 +67,7 @@ near(clockBox.getCenter(new THREE.Vector3()).y + 7.4, 20.0, 'clock centre is 200
 handlers.get(clock).onClick();
 clockMount.updateMatrixWorld(true);
 near(bounds(clockRim).max.x - bounds(clockRim).min.x, 3, 'click animation restores the full-size clock');
-const lightSource = fs.readFileSync('src/components/features/desk/scene/windowLighting.js', 'utf8').replace(/^import .*;\n/gm, '').replace('export function', 'function');
+const lightSource = fs.readFileSync('src/features/desk3d/scene/windowLighting.js', 'utf8').replace(/^import .*;\n/gm, '').replace('export function', 'function');
 const lightContext = vm.createContext({ THREE, lowPower: false, runtime: { core: { scene }, room: { windowGroup, GLASS: context.GLASS } } });
 vm.runInContext(lightSource.slice(0, lightSource.indexOf('  const windowRay =')) + '\nreturn { windowGlass, windowLight }; }\nvar result = createWindowLighting(runtime);', lightContext);
 const glass = windowGroup.localToWorld(new THREE.Vector3(0, 0, 0.06));

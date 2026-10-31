@@ -39,11 +39,11 @@ class AudioContext {
   }
 }
 const sandbox = vm.createContext({
-  window: { AudioContext, addEventListener(event, callback) { gestureListeners[event] = callback; } },
+  window: { AudioContext, matchMedia: () => ({ matches: false }), addEventListener(event, callback) { gestureListeners[event] = callback; } },
   document: { hidden: false },
   localStorage: { getItem: (key) => stored.get(key), setItem: (key, value) => stored.set(key, value) },
 });
-const source = fs.readFileSync(path.join(__dirname, '../src/composables/useSfx.js'), 'utf8')
+const source = fs.readFileSync(path.join(__dirname, '../src/shared/composables/useSfx.js'), 'utf8')
   .replace('import { ref } from "vue";', 'const ref = (value) => ({ value });')
   .replace(/export /g, '');
 vm.runInContext(source, sandbox);

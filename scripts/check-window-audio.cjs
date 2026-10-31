@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const source = fs.readFileSync(path.join(__dirname, '../src/composables/useSfx.js'), 'utf8');
+const source = fs.readFileSync(path.join(__dirname, '../src/shared/composables/useSfx.js'), 'utf8');
 let peaks = [];
 const record = (_time, options) => peaks.push(options.peak);
 const sounds = vm.runInNewContext(source.slice(source.indexOf('const SOUNDS ='), source.indexOf('// Minimum gap')) + '; SOUNDS', {

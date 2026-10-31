@@ -3,3 +3,6 @@
 .vercel
 /dist
 /.claude
+
+/test-results/
+/playwright-report/

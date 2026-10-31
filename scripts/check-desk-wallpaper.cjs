@@ -30,7 +30,7 @@ const context = vm.createContext({
   performance: { now: () => time }, TRACKS: [], DISPLAY: 'display', BODY: 'body',
   createStrike: () => ({ keys: new Set() }), drawStrike() {}, strikeKey() {}, STRIKE_BOOT: 1,
 });
-vm.runInContext(strip('src/components/features/desk/wallpapers.js') + strip('src/components/features/desk/desktop.js') + `
+vm.runInContext(strip('src/features/desk3d/wallpapers.js') + require('./helpers/desktop-source.cjs').readDesktopSource() + `
   globalThis.desktop = createDesktop({ terminal: { canvas: { width: 1280, height: 768 } }, player: {}, actions: {} });
 `, context);
 const desktop = context.desktop;

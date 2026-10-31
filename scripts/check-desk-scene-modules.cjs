@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const THREE = require('three');
 const gsap = require('gsap').gsap;
-const dir = path.join(__dirname, '../src/components/features/desk');
+const dir = path.join(__dirname, '../src/features/desk3d');
 function load(file, name, context) {
   const source = fs.readFileSync(path.join(dir, file), 'utf8')
     .replace(/^import .*;\n/gm, '').replace(/export function /g, 'function ');

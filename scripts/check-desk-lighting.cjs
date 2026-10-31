@@ -12,7 +12,7 @@ const windowSky = vm.runInNewContext(skySource + '; windowSky');
 const moodCode = source.slice(source.indexOf('  const daylightParts ='), source.indexOf('  const windowView ='));
 // The room opens on the part of the day its time mode gives (auto: the visitor's clock); a
 // night start waits for the page's dark theme, so a light page opens on the morning
-const daylightSource = fs.readFileSync(path.join(__dirname, '../src/components/features/desk/daylight.js'), 'utf8').replace(/export /g, '');
+const daylightSource = fs.readFileSync(path.join(__dirname, '../src/features/desk3d/daylight.js'), 'utf8').replace(/export /g, '');
 const daylight = vm.runInNewContext(daylightSource + '; ({ TIME_MODES, partFor, partOfDay })');
 for (const [hour, expected] of [[6, 'morning'], [12, 'day'], [17, 'evening'], [21, 'night'], [2, 'night']]) {
   assert.equal(daylight.partOfDay(new Date(2026, 0, 1, hour)), expected, `${hour}:00 is ${expected}`);
@@ -36,13 +36,13 @@ const skyFill = new THREE.HemisphereLight();
 const events = [];
 const speakerWoodPaints = [];
 const context = vm.createContext({
-  ...vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/components/features/desk/woods.js'), 'utf8').replace(/export /g, '') + '; ({ WOODS, WOOD_PATTERNS, DEFAULT_WOODS, SPEAKER_FINISHES })'),
-  wallColor: '#3a3a3a', woods: {}, diorama: false, roomBackground: isDark => isDark ? '#d6d3e6' : '#ffffff',
+  ...vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/features/desk3d/woods.js'), 'utf8').replace(/export /g, '') + '; ({ WOODS, WOOD_PATTERNS, PART_PATTERNS, DEFAULT_WOODS, DEFAULT_FLOOR, DEFAULT_FRAME_PAINT, FLOOR_LAYOUTS, SPEAKER_FINISHES })'),
+  wallColor: '#3a3a3a', woods: {}, floor: {}, diorama: false, roomBackground: isDark => isDark ? '#d6d3e6' : '#ffffff',
   deskWood: {}, speakerGrain: { canvas: { width: 768, height: 512 }, ctx: {}, texture: new THREE.Texture() },
   speakerWoodMat: material(), speakerShellMat: material(), speakerBaffleMat: material(), drawWoodTop: (ctx, w, h, choice) => speakerWoodPaints.push({ ...choice }), riserGrain: {}, frameGrainTex: {}, shelfWood: {},
   frameWood: material(), shelfMat: material(), shelfBackMat: material(), lipMat: material(),
   familyPhoto: { userData: { tex: { redraw() {} } } },
-  THREE, windowSky, previewTime: null, roomLight: { night: 0 }, dark: false, outside: { night: false, rain: 0 },
+  windowGlare: { material: { color: new THREE.Color() } }, printGlow: { level: 1 }, THREE, windowSky, previewTime: null, roomLight: { night: 0 }, dark: false, outside: { night: false, rain: 0 },
   time: 'auto', TIME_MODES: daylight.TIME_MODES, partFor: (mode) => (daylight.TIME_MODES[mode] && mode !== 'auto' ? mode : clockPart),
   refreshWeather: () => weatherChecks++,
   performance: { now: () => now }, Math: Object.assign(Object.create(Math), { random: () => 0.5 }),
@@ -270,7 +270,7 @@ for (const part of ['morning', 'day', 'evening', 'night']) {
   now += 10000;
   run(`daylightPart = '${part}'; setRoomTheme(${part === 'night'})`);
   update(now + 5000);
-  hoopGlow[part] = [context.hoopBoardFace.material.emissiveIntensity, context.net.material.color.r];
+  hoopGlow[part] = [context.printGlow.level, context.net.material.color.r];
   const clear = windowLight.intensity;
   const clearRadius = windowLight.shadow.radius;
   const localLamp = lampLight.intensity;
@@ -325,11 +325,14 @@ console.log('Day/night light-source and shadow switching checks passed.');
 
 // Speakers use the existing furniture choices, including every wood/pattern combination.
 for (const wood of Object.keys(context.WOODS)) {
-  for (const pattern of Object.keys(context.WOOD_PATTERNS)) {
+  for (const pattern of context.PART_PATTERNS.speakers) {
     run(`setWood("speakers", { wood: "${wood}", pattern: "${pattern}" })`);
     assert.equal(speakerWoodPaints.at(-1).wood, wood);
     assert.equal(speakerWoodPaints.at(-1).pattern, pattern);
-    assert.ok(context.speakerWoodMat.color.equals(new THREE.Color(context.WOODS[wood].tint)), 'speaker tint follows the selected wood');
+    const expected = new THREE.Color('#f3d3b0');
+    const oak = new THREE.Color(context.WOODS.oak.tint);
+    expected.setRGB(expected.r / oak.r, expected.g / oak.g, expected.b / oak.b).multiply(new THREE.Color(context.WOODS[wood].tint));
+    assert.ok(context.speakerWoodMat.color.equals(expected), 'speaker tint keeps its model tone relative to oak');
   }
 }
 console.log('All speaker wood colours and grain patterns update through furniture settings.');

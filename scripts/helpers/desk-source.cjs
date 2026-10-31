@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { parse } = require('@babel/parser');
 const traverse = require('@babel/traverse').default;
-const desk = path.join(__dirname, '../../src/components/features/desk');
+const desk = path.join(__dirname, '../../src/features/desk3d');
 function readDeskSource() {
   const entry = fs.readFileSync(path.join(desk, 'deskScene.js'), 'utf8');
   const ast = parse(entry, { sourceType: 'module' });

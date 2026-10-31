@@ -1,0 +1,44 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const { reactive, computed, ref } = require('vue');
+const root = `${__dirname}/../src/features/desk3d/`;
+const source = file => fs.readFileSync(root + file, 'utf8').replace(/^import .*;\n/gm, '').replace(/\bexport /g, '');
+const dependencies = vm.runInNewContext(source('woods.js') + source('daylight.js') + '; ({ WOODS, WOOD_PATTERNS, PART_PATTERNS, WOOD_TARGETS, DEFAULT_WOODS, FLOOR_LAYOUTS, DEFAULT_FLOOR, FRAME_PAINTS, DEFAULT_FRAME_PAINT, TIME_MODES, RAIN_MODES, DEFAULT_TIME, DEFAULT_RAIN })');
+let stored = null;
+let blocked = false;
+const context = vm.createContext({ ...dependencies, reactive, computed, localStorage: {
+  getItem() { if (blocked) throw Error('blocked'); return stored; },
+  setItem(key, value) { if (blocked) throw Error('blocked'); assert.equal(key, 'desk-settings'); stored = value; },
+} });
+const { readSettings, useDeskSettings } = vm.runInContext(source('composables/useDeskSettings.js') + '; ({ readSettings, useDeskSettings })', context);
+const baseline = JSON.stringify(readSettings());
+for (const invalid of ['{', 'null', 'false', '{"woods":{"desk":null,"window":false},"floor":null}']) {
+  stored = invalid;
+  assert.equal(JSON.stringify(readSettings()), baseline, 'corrupt preferences fall back to defaults');
+}
+blocked = true;
+assert.equal(JSON.stringify(readSettings()), baseline);
+const calls = [];
+const scene = ref(null);
+const ui = useDeskSettings(scene);
+ui.setWall('#ffffff'); // Safe before scene initialization, even without storage.
+assert.equal(ui.wallName.value, 'White');
+assert.equal(ui.wallIsPreset.value, true);
+blocked = false;
+scene.value = Object.fromEntries(['setWallColor', 'setWood', 'setFloor', 'setTime', 'setRain'].map(name => [name, (...args) => calls.push([name, ...args])]));
+ui.setWall('#123456');
+ui.setWood('desk', { wood: 'walnut' });
+ui.setFloor({ wood: 'walnut' });
+ui.setTime('night');
+ui.setRain('auto');
+assert.equal(calls.length, 5, 'each change reaches the live scene');
+assert.equal(ui.wallName.value, 'Custom');
+assert.ok(ui.groupSummary.value.sky.includes('Night'));
+assert.equal(readSettings().woods.desk.wood, 'walnut');
+assert.equal(readSettings().wall, '#123456');
+assert.equal(readSettings().time, 'night');
+assert.ok(ui.woodLabel('desk').length > 0);
+assert.equal(ui.isDarkColour('#000000'), true);
+assert.equal(ui.isDarkColour('#ffffff'), false);
+console.log('Room settings: corrupt/blocked storage, reactive labels, scene updates and persistence passed.');

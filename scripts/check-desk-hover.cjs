@@ -56,7 +56,7 @@ const lampHead = new THREE.Group();
 lampHead.rotation.set(-0.9, 0.2, 0.35);
 const lampRest = lampHead.rotation.clone();
 vm.runInNewContext(section('  const lampHeadRest', '  // Family keepsake:'), {
-  lampHead, lamp: new THREE.Group(), gsap,
+  lampHead, lamp: new THREE.Group(), gsap, hoverSound() {},
   register: (_, handlers) => { lampHandlers = handlers; },
 });
 lampHandlers.onHover(true);

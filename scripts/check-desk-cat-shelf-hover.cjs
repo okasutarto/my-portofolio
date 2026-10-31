@@ -26,7 +26,7 @@ const handlers = new Map();
 let clickHit;
 const interactive = new Map([[shelf, { onClick: (hit) => { clickHit = hit; } }]]);
 const context = vm.createContext({
-  THREE, shelfItems, ...objects, switchConsole, shelf, interactive,
+  sfx: { trophyHover() {} }, THREE, SHELF_HOVER_SOUNDS: {}, hoverSound() {}, shelfItems, ...objects, switchConsole, shelf, interactive,
   trophyCelebrating: false, botBusy: false, rubikBusy: false, switchBusy: false, blinkLed() {},
   gsap: { to: (target, values) => { for (const axis of ['x', 'y', 'z']) if (axis in values) target[axis] = values[axis]; } },
   register: (object, handler) => handlers.set(object, handler),
@@ -75,7 +75,7 @@ dumbbells.forEach((db, i) => { db.userData.restY = 0.3 + i * 0.02; db.position.y
 const gymHandlers = new Map();
 let lifted;
 const gymContext = vm.createContext({
-  dumbbells, gym: new THREE.Group(), lifting: false,
+  hoverSound() {}, dumbbells, gym: new THREE.Group(), lifting: false,
   lift: (db) => { lifted = db; },
   register: (object, handler) => gymHandlers.set(object, handler),
   gsap: { to(target, values) { target.y = values.y; } },

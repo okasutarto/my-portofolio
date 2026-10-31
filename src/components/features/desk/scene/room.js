@@ -25,7 +25,7 @@ export function createRoom(runtime) {
   // A 160 cm top, its left end against the side wall and its right trimmed back to the props
   const DESK_W = 16;
   const DESK_X = -1;
-  const desk = runtime.core.mesh(runtime.core.rbox(DESK_W, 0.35, 8.4, 0.1), deskMat, { outline: 0.06 });
+  const desk = runtime.core.mesh(runtime.core.rbox(DESK_W, 0.35, 8.4, 0.1), deskMat, { outline: 0.035 });
   desk.position.set(DESK_X, -0.175, 0);
   runtime.core.scene.add(desk);
   // A sit-stand frame in matte black: two telescoping columns (three stages, widest at the

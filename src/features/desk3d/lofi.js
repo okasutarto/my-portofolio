@@ -68,13 +68,14 @@ export function createLofi({ onHit = () => {}, onTrack = () => {} } = {}) {
   let playing = false;
   let nextTime = 0;
   let timer = null;
+  let destroyed = false;
   const pending = new Set();
 
   // Built once per audio context: the music bus, its tape filter, an analyser for the visualizer
   // and a slow pitch wobble shared by the piano voices
   function build() {
     const bus = audioBus();
-    if (!bus) return null;
+    if (!bus || destroyed) return null;
     if (graph?.ctx === bus.ctx) return graph;
     const { ctx, out, noiseBuffer } = bus;
     const input = ctx.createGain();
@@ -94,7 +95,7 @@ export function createLofi({ onHit = () => {}, onTrack = () => {} } = {}) {
     wobbleDepth.gain.value = 9; // cents
     wobble.connect(wobbleDepth);
     wobble.start();
-    graph = { ctx, input, tape, analyser, wobbleDepth, noiseBuffer, bins: new Uint8Array(analyser.frequencyBinCount) };
+    graph = { ctx, input, tape, level, analyser, wobble, wobbleDepth, noiseBuffer, bins: new Uint8Array(analyser.frequencyBinCount) };
     return graph;
   }
 
@@ -364,6 +365,23 @@ export function createLofi({ onHit = () => {}, onTrack = () => {} } = {}) {
     clearInterval(timer);
     stopVoices();
   }
+  // Leaving the desk: the shared audio context outlives the page, so everything is stopped
+  // whether or not it's playing, the music is cut from the speakers and nothing restarts it
+  function destroy() {
+    destroyed = true;
+    playing = false;
+    clearInterval(timer);
+    stopVoices();
+    if (graph) {
+      graph.level.disconnect();
+      try {
+        graph.wobble.stop();
+      } catch {
+        // never started
+      }
+      graph = null;
+    }
+  }
   function skip(by) {
     const wasPlaying = playing;
     pause();
@@ -400,6 +418,6 @@ export function createLofi({ onHit = () => {}, onTrack = () => {} } = {}) {
       const usable = Math.floor(graph.bins.length * 0.6);
       return Array.from({ length: count }, (_, i) => graph.bins[Math.floor((i / count) * usable)] / 255);
     },
-    destroy: pause,
+    destroy,
   };
 }

@@ -249,6 +249,14 @@ export function createKeyboard(runtime) {
     onHover: (on) => { if (!on) hoverKey(null); },
     onPointer: hoverKey,
   });
+  // A focused HUD control (a button, a link) keeps Enter and Space for itself, and Esc stays
+  // with the settings panel or an open menu; on a plain button Esc still steps back
+  const HUD_CONTROLS = "button, a[href], select, summary, [role='button'], [role='switch'], [role='menuitem'], [role='menuitemradio'], [role='tab'], [role='radio']";
+  const HUD_ESC_OWNERS = "[role='dialog'], [role='menu'], [role='listbox'], [aria-expanded='true']";
+  const hudOwnsKey = (e) => {
+    if (e.key === "Escape") return !!e.target.closest?.(HUD_ESC_OWNERS);
+    return (e.key === "Enter" || e.key === " ") && !!e.target.closest?.(HUD_CONTROLS);
+  };
   const onKeyDown = (e) => {
     runtime.core.responsiveUntil = performance.now() + 2000;
     // A modifier's own keydown already carries its flag (Cmd sets metaKey), so it's pressed
@@ -257,7 +265,8 @@ export function createKeyboard(runtime) {
       if (!e.repeat) pressKey(e.code);
       return;
     }
-    if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest?.("input, textarea, [contenteditable]")) return;
+    if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || e.target.closest?.("input, textarea, [contenteditable]")) return;
+    if (hudOwnsKey(e)) return;
     if (e.key === "Escape") {
       pressKey("Escape");
       return runtime.camera.back();

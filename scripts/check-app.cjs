@@ -61,7 +61,8 @@ async function main() {
   for (const origin of ['http://localhost:8080', 'https://okasp.dev', undefined]) {
     corsOptions.origin(origin, (error, allowed) => { assert.equal(error, null); assert.equal(allowed, true); });
   }
-  corsOptions.origin('https://untrusted.example', error => assert.ok(error));
+  // Refused without an error, so the server answers normally (no CORS headers) instead of a 500
+  corsOptions.origin('https://untrusted.example', (error, allowed) => { assert.equal(error, null); assert.equal(allowed, false); });
 
   const { getStreamingResponse: stream } = await loadModule('src/shared/services/chatApi.js');
   const originalFetch = global.fetch;

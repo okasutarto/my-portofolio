@@ -164,7 +164,7 @@ export function createSwords(runtime) {
         clicks = clicks.filter((at) => now - at < 900).concat(now);
         if (style === "kitetsu" && clicks.length >= 3) {
           clicks = [];
-          if (runtime.swordEffects.slashing) swordObj.afterSlash = () => runtime.swordEffects.tossKitetsu(swordObj, restY);
+          if (runtime.swordEffects.slashing) runtime.swordEffects.afterStrike(() => runtime.swordEffects.tossKitetsu(swordObj, restY));
           else runtime.swordEffects.tossKitetsu(swordObj, restY);
           return;
         }

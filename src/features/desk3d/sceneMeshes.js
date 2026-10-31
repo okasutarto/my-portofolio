@@ -186,10 +186,13 @@ export function createSceneMeshes(scene) {
       clearTimeout(bubbleTimers[slot]);
       gsap.to(sprite.scale, { x: 0.001, y: 0.001, duration: 0.2, ease: "power2.in", overwrite: true });
     };
-    const say = (quote, hold = 4200) => {
+    // `size` shrinks the bubble from its full width x height (a narrow view)
+    const say = (quote, hold = 4200, size = 1) => {
       drawQuoteBubble(tex.ctx, 760, 400, quote, print);
       tex.texture.needsUpdate = true;
-      gsap.fromTo(sprite.scale, { x: width * 0.16, y: height * 0.15 }, { x: width, y: height, duration: 0.4, ease: "back.out(2)", overwrite: true });
+      const w = width * size;
+      const h = height * size;
+      gsap.fromTo(sprite.scale, { x: w * 0.16, y: h * 0.15 }, { x: w, y: h, duration: 0.4, ease: "back.out(2)", overwrite: true });
       clearTimeout(bubbleTimers[slot]);
       bubbleTimers[slot] = setTimeout(hide, hold);
     };

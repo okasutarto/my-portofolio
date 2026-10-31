@@ -512,17 +512,24 @@ export function createSwordEffects(runtime) {
       })
       .fromTo(g.position, { y: restY + 0.06 }, { y: restY, duration: 0.3, ease: "bounce.out" });
   }
+  // Something to do once the strike under way is home (a toss asked for mid-strike): it's held
+  // on the striking sword and runs as that one is sheathed. With no strike going (a toss still
+  // in the air) it's dropped, so it can't wait around and fire after some later strike.
+  function afterStrike(fn) {
+    if (slashing && activeSlash?.isActive()) activeSword.afterSlash = fn;
+  }
   function slashSword(sword) {
     if (slashing) {
       // Clicked again while the last blade is only going home: it hurries back, and this one
       // goes as soon as it's in
       if (recovering) {
         activeSlash.timeScale(3);
-        activeSword.afterSlash = () => slashSword(sword);
+        afterStrike(() => slashSword(sword));
       }
       return;
     }
     slashing = true;
+    sword.afterSlash = null;
     runtime.secrets.discover("katana");
     const technique = TECHNIQUES[techniqueIndex++ % TECHNIQUES.length];
     const out = runtime.swordRack.drawTurn(runtime.swordRack.BLADE_L + 0.25);
@@ -826,6 +833,7 @@ export function createSwordEffects(runtime) {
     hoverHaki,
     HOVER_BARE,
     tossKitetsu,
+    afterStrike,
     slashSword,
     swordSpotlight,
     updateFx,

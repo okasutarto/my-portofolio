@@ -104,9 +104,10 @@ export function drawEnvelope(c, w, h, { delivered = false } = {}) {
   c.textBaseline = "middle"; c.fillText("PAR AVION ✈", w * 0.025, h * 0.075);
   c.restore();
   if (delivered) {
-    c.save(); c.translate(w * 0.68, h * 0.75); c.rotate(-0.12);
+    // kept clear of PAR AVION, with the right-hand stripes still showing past it
+    c.save(); c.translate(w * 0.72, h * 0.73); c.rotate(-0.12);
     c.strokeStyle = "#16a34a"; c.fillStyle = "#16a34a"; c.lineWidth = 4;
-    c.strokeRect(-w * 0.22, -h * 0.09, w * 0.44, h * 0.18);
+    c.strokeRect(-w * 0.2, -h * 0.09, w * 0.4, h * 0.18);
     c.font = `800 ${Math.round(h * 0.08)}px ${BODY}`;
     c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("DELIVERED ✓", 0, 0);
     c.restore();

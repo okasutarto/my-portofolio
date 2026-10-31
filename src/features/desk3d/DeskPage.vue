@@ -387,9 +387,12 @@ const { muted, toggleMute } = useSfx();
 // The visitor's clock, as a part of the day, for the panel's "Auto" (checked each minute)
 const clockPart = ref(partOfDay());
 let clockTimer = null;
-// Esc puts the settings away, as do their close button and the gear
+// Esc puts the settings away, as do their close button and the gear. It listens first (capture)
+// and claims the key, so the same Esc doesn't also send the camera back
 function closeSettingsOnEscape(e) {
-  if (e.key === "Escape" && settingsOpen.value) settingsOpen.value = false;
+  if (e.key !== "Escape" || !settingsOpen.value) return;
+  settingsOpen.value = false;
+  e.preventDefault();
 }
 
 const hint = computed(() => {
@@ -466,7 +469,7 @@ watch(isDark, (dark) => scene.value?.setTheme(dark));
 watch(muted, (value) => scene.value?.setMuted(value));
 
 onMounted(async () => {
-  window.addEventListener("keydown", closeSettingsOnEscape);
+  window.addEventListener("keydown", closeSettingsOnEscape, true);
   clockTimer = setInterval(() => (clockPart.value = partOfDay()), 60000);
   // The room opens on the visitor's part of the day (or their pick), so the page takes the night
   // theme for a night and the day theme otherwise before the scene is built
@@ -515,7 +518,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   clearInterval(clockTimer);
-  window.removeEventListener("keydown", closeSettingsOnEscape);
+  window.removeEventListener("keydown", closeSettingsOnEscape, true);
   clearTimeout(secretTimer);
   hideBootLoader();
   scene.value?.destroy();

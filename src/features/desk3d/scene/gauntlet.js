@@ -600,9 +600,10 @@ export function createGauntlet(runtime) {
   // left and pointing down at the speaker's top-right corner (`at`, in the local space of
   // `part`, the piece that moves: the pad buzzing on its stand, not the stand)
   const SHELF_BUBBLE_W = 2.7;
+  const SHELF_BUBBLE_H = 1.42;
   const shelfBubbleAt = new THREE.Vector3();
   const shelfBubblePrint = { size: 40, tail: "down-left", style: "manga" };
-  const shelfBubble = runtime.core.speechBubble(SHELF_BUBBLE_W, 1.42, shelfBubblePrint);
+  const shelfBubble = runtime.core.speechBubble(SHELF_BUBBLE_W, SHELF_BUBBLE_H, shelfBubblePrint);
   let shelfBubbleTarget = null;
   const shelfBubbleAnchors = new Map([
     [runtime.shelfCollectibles.trophy, { part: runtime.shelfCollectibles.trophy, at: new THREE.Vector3(0.25, 1.12, 0.3) }],
@@ -621,15 +622,50 @@ export function createGauntlet(runtime) {
     shelfBubbleRight.set(1, 0, 0).applyQuaternion(runtime.core.camera.quaternion);
     shelfBubbleUp.set(0, 1, 0).applyQuaternion(runtime.core.camera.quaternion);
     shelfBubbleAt.addScaledVector(shelfBubbleRight, 0.06).addScaledVector(shelfBubbleUp, 0.14);
-    const [tipX, tipY] = BUBBLE_TAILS["down-left"].tip;
+    const [tipX, tipY] = BUBBLE_TAILS[shelfBubblePrint.tail].tip;
     const sprite = shelfBubble.sprite;
     sprite.position.copy(shelfBubbleAt)
       .addScaledVector(shelfBubbleRight, (0.5 - tipX) * sprite.scale.x)
       .addScaledVector(shelfBubbleUp, (tipY - 0.5) * sprite.scale.y);
   }
+  // On a narrow view a full-size bubble up and to the right runs off the screen: it moves to
+  // the speaker's upper left instead (tail leaving its lower right) when there's more room
+  // there, and shrinks to whatever room is left
+  const shelfBubbleView = new THREE.Vector3();
+  function shelfBubbleRoom(point) {
+    const view = runtime.core.camera;
+    view.updateMatrixWorld();
+    shelfBubbleView.copy(point).applyMatrix4(view.matrixWorldInverse);
+    let halfW, halfH;
+    if (view.isPerspectiveCamera) {
+      halfH = (-shelfBubbleView.z * Math.tan(THREE.MathUtils.degToRad(view.fov / 2))) / view.zoom;
+      halfW = halfH * view.aspect;
+    } else {
+      halfW = (view.right - view.left) / 2 / view.zoom;
+      halfH = (view.top - view.bottom) / 2 / view.zoom;
+    }
+    return { left: halfW + shelfBubbleView.x, right: halfW - shelfBubbleView.x, top: halfH - shelfBubbleView.y };
+  }
+  function shelfBubbleFit(tail, room) {
+    // The bubble reaches tipX of its width left of the tail's tip and the rest to the right;
+    // it stops a little short of each edge
+    const [tipX, tipY] = BUBBLE_TAILS[tail].tip;
+    return Math.min(
+      1,
+      (room.left * 0.92) / (tipX * SHELF_BUBBLE_W),
+      (room.right * 0.92) / ((1 - tipX) * SHELF_BUBBLE_W),
+      (room.top * 0.92) / (tipY * SHELF_BUBBLE_H),
+    );
+  }
   function shelfSay(obj, text, by = "the shelf", hold = 3200) {
     shelfBubbleTarget = obj;
-    shelfBubble.say({ text, by }, hold);
+    placeShelfBubble(); // leaves the tail's tip in shelfBubbleAt
+    const room = shelfBubbleRoom(shelfBubbleAt);
+    const rightFit = shelfBubbleFit("down-left", room);
+    const leftFit = shelfBubbleFit("right", room);
+    shelfBubblePrint.tail = rightFit >= 1 || rightFit >= leftFit ? "down-left" : "right";
+    // never smaller than half size, even where that can't quite fit
+    shelfBubble.say({ text, by }, hold, Math.max(0.5, Math.max(rightFit, leftFit)));
     placeShelfBubble();
   }
   function powerConsole() {

@@ -13,6 +13,21 @@ export function createAnimation(runtime) {
   // Capped, so a deep pinch doesn't ask for an enormous canvas. Phones stop at 1.5×: their 3×
   // screens would otherwise shade four times the pixels for a difference the small screen hides.
   const pixelRatio = () => Math.min(window.devicePixelRatio * (window.visualViewport?.scale || 1), lowPower ? 1.5 : 3);
+  // Outlines keep a steady width in CSS pixels (see outlineMat), which on a phone's small screen
+  // makes them heavy against the props: there they are thinned twice over. Once for the screen
+  // (cubed, so a 375 px phone draws them at ~0.24 while anything 600 px and up keeps full
+  // weight), and again for how far out the room is drawn (screen pixels per world unit, pinch
+  // and close-ups included), so the whole room at ~9 px a unit doesn't drown a shelf board two
+  // pixels thick, while a desktop's overview (~24 px a unit) and anything nearer keep it all.
+  const OUTLINE_FULL_AT = 24;
+  function fitOutlines() {
+    const w = runtime.options.container.clientWidth || 1;
+    const h = runtime.options.container.clientHeight || 1;
+    const screenFit = Math.min(Math.min(w, h) / 600, 1);
+    const zoomFit = Math.min((h * runtime.core.camera.zoom) / viewH / OUTLINE_FULL_AT, 1);
+    const outlineScale = Math.max(screenFit ** 3 * zoomFit ** 0.75, 0.18);
+    runtime.core.outlineResolution.value.set(w / outlineScale, h / outlineScale);
+  }
   function resize() {
     const w = runtime.options.container.clientWidth || 1;
     const h = runtime.options.container.clientHeight || 1;
@@ -31,13 +46,7 @@ export function createAnimation(runtime) {
     runtime.core.camera.updateProjectionMatrix();
     runtime.core.renderer.setSize(w, h, false);
     sizeComposer();
-    // Outlines keep a steady width in CSS pixels (see outlineMat), but a phone shows the whole
-    // room in a fraction of a desktop's pixels: thinned there, the lines keep the same weight
-    // against the props instead of swallowing them
-    // (squared, so a 390 px phone drops to ~0.42 while anything 600 px and up keeps full weight)
-    const outlineFit = Math.min(Math.min(w, h) / 600, 1);
-    const outlineScale = THREE.MathUtils.clamp(outlineFit * outlineFit, 0.35, 1);
-    runtime.core.outlineResolution.value.set(w / outlineScale, h / outlineScale);
+    fitOutlines();
     if (!intro?.isActive()) runtime.camera.applyShot(true);
     runtime.camera.clampUserView();
   }
@@ -252,6 +261,7 @@ export function createAnimation(runtime) {
       runtime.core.camera.zoom = runtime.camera.cam.zoom * runtime.camera.userView.zoom;
       runtime.core.camera.near = runtime.camera.cam.near;
       runtime.core.camera.updateProjectionMatrix();
+      fitOutlines();
     }
     if (runtime.room.diorama) {
       // The backdrop fills the view from just inside the far plane; the shadow sits a few

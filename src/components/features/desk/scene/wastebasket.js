@@ -30,7 +30,7 @@ export function createWastebasket(runtime) {
   drawBinRibs(binRibs.ctx, 512, 512);
   const binMat = runtime.core.toon("#00e0c6");
   binMat.map = binRibs.texture;
-  binBody.add(runtime.core.mesh(new THREE.LatheGeometry(binProfile, 28), binMat, { outline: 0.045 }));
+  binBody.add(runtime.core.mesh(new THREE.LatheGeometry(binProfile, 28), binMat, { outline: 0.025 }));
   const binRim = runtime.core.mesh(new THREE.TorusGeometry(0.54, 0.045, 8, 32), runtime.core.toon("#1a1714"), { outline: 0 });
   binRim.rotation.x = Math.PI / 2;
   binRim.position.y = BIN_H + 0.06;
@@ -77,7 +77,7 @@ export function createWastebasket(runtime) {
     for (let i = 0; i < p.count; i++) maxRadius = Math.max(maxRadius, tmpV.fromBufferAttribute(p, i).length());
     geo.scale(r / maxRadius, r / maxRadius, r / maxRadius);
     geo.computeVertexNormals();
-    return runtime.core.mesh(geo, paperMats[crumpled++ % paperMats.length], { outline: 0.018 });
+    return runtime.core.mesh(geo, paperMats[crumpled++ % paperMats.length], { outline: 0.012 });
   };
   // What's already in it, peeking over the rim; a swish adds to the pile (up to full)
   const tmpV = new THREE.Vector3();
@@ -106,7 +106,7 @@ export function createWastebasket(runtime) {
   clampKnob.position.set(0.11, -0.03, 0);
   hoopClamp.add(clampKnob);
   bin.add(hoopPost, hoopClamp);
-  const backboard = runtime.core.mesh(runtime.core.rbox(0.9, 0.6, 0.05, 0.03), runtime.core.toon("#ffdd00"), { outline: 0.025 });
+  const backboard = runtime.core.mesh(runtime.core.rbox(0.9, 0.6, 0.05, 0.03), runtime.core.toon("#ffdd00"), { outline: 0.015 });
   backboard.position.set(0, 0.28, -0.36);
   // its face (drawBackboard): border, shooter's square, the league's name, bolts and scuffs
   const hoopBoardFace = runtime.core.printed(0.86, 0.56, 420, drawBackboard);

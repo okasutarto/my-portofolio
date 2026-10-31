@@ -32,7 +32,7 @@ export function createWorkstation(runtime) {
   // Centred on the 160 cm desk (x −9 to 7), with everything on it
   riser.position.set(-1, 0, -3.1);
   runtime.core.scene.add(riser);
-  const riserTop = runtime.core.mesh(runtime.core.rbox(RISER_W, RISER_BOARD, 2.4, 0.05), riserMat, { outline: 0.045 });
+  const riserTop = runtime.core.mesh(runtime.core.rbox(RISER_W, RISER_BOARD, 2.4, 0.05), riserMat, { outline: 0.025 });
   riserTop.position.y = RISER_TOP - RISER_BOARD / 2;
   riser.add(riserTop);
   // The legs in a deeper shade of the same grain, set in from the ends under an overhang, so

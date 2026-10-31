@@ -213,11 +213,15 @@ export function drawDeskMat(c, w, h) {
     }
     c.stroke();
   });
-  // the stitched edge
-  c.strokeStyle = "rgba(255,253,245,.45)";
+  // the stitched edge, set in the same distance all round (the print is 2 % of the mat's width
+  // to 4.5 % of its depth). Hugging the edge, the stitches along the mat's foreshortened ends ran
+  // together into a pale line between the felt and its outline.
+  const ix = w * 0.02;
+  const iy = h * 0.045;
+  c.strokeStyle = "rgba(255,253,245,.35)";
   c.lineWidth = 3;
   c.setLineDash([14, 9]);
-  c.strokeRect(14, 14, w - 28, h - 28);
+  c.strokeRect(ix, iy, w - ix * 2, h - iy * 2);
   c.setLineDash([]);
 }
 

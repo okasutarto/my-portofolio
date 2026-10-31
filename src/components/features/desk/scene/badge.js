@@ -111,7 +111,7 @@ export function createBadge(runtime) {
     const tube = new THREE.Mesh(geo, strapMat);
     tube.castShadow = true;
     tube.receiveShadow = true;
-    const hull = new THREE.Mesh(geo, runtime.core.outlineMat(0.03));
+    const hull = new THREE.Mesh(geo, runtime.core.outlineMat(0.018));
     hull.raycast = runtime.core.noRaycast;
     // the pin can be dragged anywhere on the wall, past the tube's first bounds
     tube.frustumCulled = hull.frustumCulled = false;
@@ -126,7 +126,7 @@ export function createBadge(runtime) {
   const pinStem = runtime.core.mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.11, 12), pinMetal, { outline: 0.008 });
   pinStem.rotation.x = Math.PI / 2;
   pinStem.position.z = 0.04;
-  const pinHead = runtime.core.mesh(new THREE.SphereGeometry(0.105, 18, 12), runtime.core.toon("#f43f5e"), { outline: 0.02 });
+  const pinHead = runtime.core.mesh(new THREE.SphereGeometry(0.105, 18, 12), runtime.core.toon("#f43f5e"), { outline: 0.012 });
   pinHead.scale.set(1, 1, 0.65);
   pinHead.position.z = 0.12;
   const pinGlint = runtime.core.mesh(new THREE.SphereGeometry(0.025, 10, 8), runtime.core.toon("#ffbdcc"), { outline: 0, cast: false });
@@ -268,7 +268,7 @@ export function createBadge(runtime) {
   // 0.02 proud of the badge), so neither pokes out through its face
   const clip = new THREE.Group();
   clip.position.z = 0.02;
-  const clipBody = runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.23, 0.14, 0.09, 0.025), pinMetal, { outline: 0.018 }), 0, 0, 0.025);
+  const clipBody = runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.23, 0.14, 0.09, 0.025), pinMetal, { outline: 0.012 }), 0, 0, 0.025);
   const clipInset = runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.15, 0.045, 0.015, 0.01), runtime.core.toon("#526075"), { outline: 0.006 }), 0, 0.01, 0.08);
   const clipRivet = runtime.core.at(runtime.core.mesh(new THREE.SphereGeometry(0.025, 12, 8), runtime.core.toon("#edf4ff"), { outline: 0.006 }), 0, -0.025, 0.085);
   const clipRing = runtime.core.mesh(new THREE.TorusGeometry(0.07, 0.018, 8, 20), pinMetal, { outline: 0.008 });
@@ -282,7 +282,7 @@ export function createBadge(runtime) {
   const badgeBack = runtime.core.printed(0.76, 1.22, 700, (c, w, h) => drawBadge(c, w, h, { back: true }));
   badgeBack.position.z = -0.038;
   badgeBack.rotation.y = Math.PI;
-  const badgeHolder = runtime.core.mesh(runtime.core.phoneSlab(0.86, 1.34, 0.065, 0.06), runtime.core.toon("#d6e2ee"), { outline: 0.025 });
+  const badgeHolder = runtime.core.mesh(runtime.core.phoneSlab(0.86, 1.34, 0.065, 0.06), runtime.core.toon("#d6e2ee"), { outline: 0.015 });
   const badgeLip = runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.23, 0.1, 0.07, 0.025), pinMetal, { outline: 0.012 }), 0, 0.65, 0);
   const holderSlot = runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.115, 0.025, 0.075, 0.01), runtime.core.toon("#273449"), { outline: 0 }), 0, 0.66, 0);
   // the clear vinyl sleeve over each face: two hard streaks of gloss

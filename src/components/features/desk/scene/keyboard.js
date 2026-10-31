@@ -16,13 +16,34 @@ export function createKeyboard(runtime) {
   matMat.map = matPrint.texture;
   // The print goes on the top alone. Box uv squeeze the whole print onto each 3 mm edge, and
   // where an edge rolls over toward the top its blur showed as a pale line along the mat's side
-  // (box faces: +x, −x, top, bottom, +z, −z). The edges are a shade deeper than the felt: the
-  // left one faces the window, and lit full on it showed as a pale line along the mat's end
-  const matEdge = runtime.core.toon("#1c2640");
+  // (box faces: +x, −x, top, bottom, +z, −z)
+  const matEdge = runtime.core.toon("#2b3a5c");
   const deskMatPad = runtime.core.mesh(runtime.core.rbox(6.8, MAT_TOP, 3.0, 0.014), [matEdge, matEdge, matMat, matEdge, matEdge, matEdge], { outline: 0.03, cast: false });
   // centred on the desk, with the keyboard left of its middle and the mouse to its right
   // Centred on the desk (x −1), in line with the riser and monitor
   deskMatPad.position.set(-1, MAT_TOP / 2, 0.75);
+  // The mat is so thin its whole rim is the rounded edge, and only the rim's lower half (facing
+  // away from the camera) draws the outline, pushed along normals that lean down: along its left
+  // end, from the opening view, down on screen is back into the mat, and the outline there
+  // thinned to a hairline beside the full line round the rest. Its outline pushes straight out
+  // in plan instead (the normals laid flat), and is drawn a little nearer so the desk it lies
+  // on doesn't bury it. (Its own copy of the material shares the screen-size uniforms.)
+  const matHull = deskMatPad.children[0];
+  const matHullGeo = matHull.geometry.clone();
+  const matHullNormal = matHullGeo.attributes.normal;
+  for (let i = 0; i < matHullNormal.count; i++) {
+    const x = matHullNormal.getX(i);
+    const z = matHullNormal.getZ(i);
+    const flat = Math.hypot(x, z);
+    if (flat > 1e-3) matHullNormal.setXYZ(i, x / flat, 0, z / flat);
+  }
+  matHull.geometry = runtime.core.track(matHullGeo);
+  const matOutline = runtime.core.track(matHull.material.clone());
+  matOutline.uniforms = matHull.material.uniforms;
+  matOutline.polygonOffset = true;
+  matOutline.polygonOffsetFactor = -4;
+  matOutline.polygonOffsetUnits = -4;
+  matHull.material = matOutline;
   runtime.core.scene.add(deskMatPad);
 
   const KEYBOARD_SCALE = 0.68;

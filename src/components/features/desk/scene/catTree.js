@@ -27,11 +27,11 @@ export function createCatTree(runtime) {
   const ink = runtime.core.toon("#1a1714");
 
   const BASE_H = 0.3;
-  tree.add(runtime.core.at(runtime.core.mesh(runtime.core.rbox(4.0, BASE_H, 4.0, 0.1), carpetDark, { outline: 0.04 }), 0, BASE_H / 2, 0));
+  tree.add(runtime.core.at(runtime.core.mesh(runtime.core.rbox(4.0, BASE_H, 4.0, 0.1), carpetDark, { outline: 0.025 }), 0, BASE_H / 2, 0));
   // The condo, back left: a carpeted box with a round doorway toward the room
   const CONDO = { x: -0.55, z: -0.45, w: 2.5, h: 2.3 };
   const CONDO_TOP = BASE_H + CONDO.h;
-  tree.add(runtime.core.at(runtime.core.mesh(runtime.core.rbox(CONDO.w, CONDO.h, CONDO.w, 0.12), carpet, { outline: 0.04 }), CONDO.x, BASE_H + CONDO.h / 2, CONDO.z));
+  tree.add(runtime.core.at(runtime.core.mesh(runtime.core.rbox(CONDO.w, CONDO.h, CONDO.w, 0.12), carpet, { outline: 0.025 }), CONDO.x, BASE_H + CONDO.h / 2, CONDO.z));
   const door = runtime.core.mesh(new THREE.CircleGeometry(0.72, 28), ink, { outline: 0, cast: false });
   door.position.set(CONDO.x, BASE_H + CONDO.h * 0.45, CONDO.z + CONDO.w / 2 + 0.006);
   const doorLip = runtime.core.mesh(new THREE.TorusGeometry(0.74, 0.07, 8, 28), carpetDark, { outline: 0.012, cast: false });
@@ -48,14 +48,14 @@ export function createCatTree(runtime) {
     mat.map.repeat.set(2, h / 2.2);
     mat.map.needsUpdate = true;
     runtime.core.track(mat.map);
-    tree.add(runtime.core.at(runtime.core.mesh(new THREE.CylinderGeometry(0.3, 0.3, h, 20), mat, { outline: 0.03 }), x, y0 + h / 2, z));
+    tree.add(runtime.core.at(runtime.core.mesh(new THREE.CylinderGeometry(0.3, 0.3, h, 20), mat, { outline: 0.02 }), x, y0 + h / 2, z));
   };
   post(STEP.x + 0.6, STEP.z + 0.3, BASE_H, STEP.y - STEP.t / 2);
   post(BED.x, BED.z, CONDO_TOP, BED.y - BED.t / 2);
-  tree.add(runtime.core.at(runtime.core.mesh(runtime.core.rbox(STEP.w, STEP.t, STEP.d, 0.08), carpetDark, { outline: 0.035 }), STEP.x, STEP.y, STEP.z));
+  tree.add(runtime.core.at(runtime.core.mesh(runtime.core.rbox(STEP.w, STEP.t, STEP.d, 0.08), carpetDark, { outline: 0.02 }), STEP.x, STEP.y, STEP.z));
   // The bed on top: a carpeted disc with a soft bolster round its edge
-  tree.add(runtime.core.at(runtime.core.mesh(new THREE.CylinderGeometry(BED.r, BED.r * 0.94, BED.t, 32), carpetDark, { outline: 0.035 }), BED.x, BED.y, BED.z));
-  const bolster = runtime.core.mesh(new THREE.TorusGeometry(BED.r - 0.2, 0.24, 10, 36), carpet, { outline: 0.025 });
+  tree.add(runtime.core.at(runtime.core.mesh(new THREE.CylinderGeometry(BED.r, BED.r * 0.94, BED.t, 32), carpetDark, { outline: 0.02 }), BED.x, BED.y, BED.z));
+  const bolster = runtime.core.mesh(new THREE.TorusGeometry(BED.r - 0.2, 0.24, 10, 36), carpet, { outline: 0.018 });
   bolster.rotation.x = Math.PI / 2;
   bolster.position.set(BED.x, BED.y + BED.t / 2 + 0.1, BED.z);
   tree.add(bolster);
@@ -69,7 +69,7 @@ export function createCatTree(runtime) {
   toyPivot.add(runtime.core.at(runtime.core.mesh(new THREE.CylinderGeometry(0.018, 0.018, STRING, 6), ink, { outline: 0, cast: false }), 0, -STRING / 2, 0));
   const pomMat = runtime.core.toon("#ff5fa2");
   pomMat.map = carpetTex.texture;
-  const pom = runtime.core.at(runtime.core.mesh(new THREE.SphereGeometry(0.24, 16, 12), pomMat, { outline: 0.02 }), 0, -STRING - 0.2, 0);
+  const pom = runtime.core.at(runtime.core.mesh(new THREE.SphereGeometry(0.24, 16, 12), pomMat, { outline: 0.012 }), 0, -STRING - 0.2, 0);
   toyPivot.add(pom);
   function swing(strength) {
     gsap.fromTo(toyPivot.rotation, { z: strength, x: -strength * 0.4 }, { z: 0, x: 0, duration: 1.6 + strength * 2, ease: "elastic.out(1, 0.2)", overwrite: true });

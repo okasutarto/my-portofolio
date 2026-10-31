@@ -1,16 +1,75 @@
 import { mixHex } from "./windowView";
+import { WOODS } from "../woods";
 
-// ---------- floor: wood planks that tile seamlessly in both directions ----------
-export function drawWoodFloor(c, w, h) {
+// ---------- floor: wood that tiles seamlessly in both directions ----------
+// In any of the woods, as long staggered planks, a herringbone of short boards or a parquet of
+// squares whose strips turn from one square to the next
+export function drawWoodFloor(c, w, h, { wood = "oak", layout = "planks" } = {}) {
+  const look = WOODS[wood] || WOODS.oak;
+  const [gr, gg, gb] = look.grain;
+  const joint = `rgba(${look.glue}, 0.6)`;
+  if (layout === "herringbone" || layout === "parquet") {
+    // Every board is drawn wherever it reaches into the tile, and seeded by where it starts
+    // (wrapped into the tile), so a board cut by one edge carries on, the same, at the other
+    const board = (x, y, len, wide, upright) => {
+      let seed = 1 + Math.round(((x % w) + w) % w) * 7919 + Math.round(((y % h) + h) % h) * 104729 + (upright ? 31 : 0);
+      const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+      for (let i = 0; i < 3; i++) rand();
+      c.save();
+      c.translate(x, y);
+      if (upright) c.transform(0, 1, 1, 0, 0, 0);
+      c.fillStyle = look.tones[Math.floor(rand() * look.tones.length)];
+      c.fillRect(0, 0, len, wide);
+      c.fillStyle = rand() < 0.5 ? `rgba(${look.dark}, 0.1)` : `rgba(${look.light}, 0.1)`;
+      c.fillRect(0, wide * rand() * 0.6, len, wide * 0.4);
+      c.strokeStyle = `rgba(${gr}, ${gg}, ${gb}, 0.22)`;
+      c.lineWidth = 2;
+      for (let g = 0; g < 3; g++) {
+        const gy = wide * (0.2 + g * 0.3 + (rand() - 0.5) * 0.12);
+        const phase = rand() * Math.PI * 2;
+        c.beginPath();
+        for (let t = 0; t <= len; t += 8) c.lineTo(t, gy + Math.sin(t / (len * 0.3) + phase) * wide * 0.06);
+        c.stroke();
+      }
+      c.strokeStyle = joint;
+      c.lineWidth = 3;
+      c.strokeRect(0, 0, len, wide);
+      c.restore();
+    };
+    if (layout === "herringbone") {
+      // Boards four times as long as they're wide, in steps of one width up and across: each
+      // zigzag row is eight widths wide, so a tile of eight widths repeats cleanly
+      const W = w / 16;
+      const L = W * 4;
+      for (let j = -4; j * 8 * W < w + L; j++) {
+        for (let k = -6; k * W < h + L; k++) {
+          const x = j * 8 * W + k * W;
+          board(x, k * W, L, W, false);
+          board(x + L, (k - 3) * W, L, W, true);
+        }
+      }
+    } else {
+      // Squares of four strips, turned a quarter from each square to the next
+      const S = w / 8;
+      for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+          for (let s = 0; s < 4; s++) {
+            if ((i + j) % 2) board(i * S + s * (S / 4), j * S, S, S / 4, true);
+            else board(i * S, j * S + s * (S / 4), S, S / 4, false);
+          }
+        }
+      }
+    }
+    return;
+  }
   const rows = 8;
   const rh = h / rows;
-  const tones = ["#c98d55", "#bf834c", "#d29a62", "#c48851"];
   for (let i = 0; i < rows; i++) {
     const y = i * rh;
-    c.fillStyle = tones[i % tones.length];
+    c.fillStyle = look.tones[i % look.tones.length];
     c.fillRect(0, y, w, rh);
     // Grain whose waves repeat a whole number of times across the tile, so it wraps cleanly
-    c.strokeStyle = "rgba(110, 60, 22, 0.2)";
+    c.strokeStyle = `rgba(${gr}, ${gg}, ${gb}, 0.2)`;
     c.lineWidth = 3;
     for (let g = 0; g < 4; g++) {
       const gy = y + rh * (0.2 + g * 0.2);
@@ -19,7 +78,7 @@ export function drawWoodFloor(c, w, h) {
       c.stroke();
     }
     // Two plank ends per row, staggered from row to row
-    c.fillStyle = "rgba(55, 30, 10, 0.6)";
+    c.fillStyle = joint;
     const start = ((i * 0.37) % 1) * w;
     [start, (start + w / 2) % w].forEach((x) => c.fillRect(x, y, 5, rh));
     c.fillRect(0, y, w, 5);

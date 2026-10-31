@@ -93,7 +93,13 @@ export function createWeather(runtime) {
     } finally {
       weatherLoading = false;
     }
-    if (!runtime.core.destroyed) redrawWeather();
+    if (runtime.core.destroyed) return;
+    redrawWeather();
+    // The page shows the weather right now beside the window's close-up hint
+    if (weatherNow.current) {
+      const [label, kind] = weatherKind(weatherNow.current.code);
+      runtime.options.onEvent("weather", { place: place.name, temp: Math.round(weatherNow.current.temp), label, kind, isDay: weatherNow.current.isDay });
+    }
   }
   function showWeather() {
     redrawWeather();
@@ -113,6 +119,8 @@ export function createWeather(runtime) {
     },
     onArrive: () => {
       if (SHOW_FORECAST) showWeather();
+      // a held rain pick never fetched the weather: the close-up's chip still wants it
+      else loadWeather();
       runtime.windowBlind.lookOut();
     },
     // Leaving the close-up shuts the window behind you

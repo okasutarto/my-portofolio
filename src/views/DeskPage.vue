@@ -118,13 +118,58 @@
                       </label>
                     </div>
                   </div>
+                  <div v-else-if="group.key === 'floor'" class="settings-sub">
+                    <div class="flex flex-wrap items-center gap-1.5">
+                      <button
+                        v-for="(wood, key) in WOODS"
+                        :key="key"
+                        class="swatch"
+                        :class="{ 'swatch--on': settings.floor.wood === key }"
+                        :style="{ background: wood.swatch }"
+                        :title="wood.name"
+                        :aria-label="`${wood.name} floor`"
+                        :aria-pressed="settings.floor.wood === key"
+                        @click="setFloor({ wood: key })">
+                        <span v-if="settings.floor.wood === key" class="swatch-tick" :class="{ 'swatch-tick--light': isDarkColour(wood.swatch) }" aria-hidden="true">✓</span>
+                      </button>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 mt-2">
+                      <button
+                        v-for="(name, key) in FLOOR_LAYOUTS"
+                        :key="key"
+                        class="pattern-chip"
+                        :class="{ 'pattern-chip--on': settings.floor.layout === key }"
+                        :aria-pressed="settings.floor.layout === key"
+                        @click="setFloor({ layout: key })">
+                        {{ name }}
+                      </button>
+                    </div>
+                  </div>
                   <template v-else>
                     <div v-for="(label, part) in WOOD_TARGETS" :key="part" class="settings-sub">
                       <h3 class="settings-sublabel">
                         <span class="whitespace-nowrap">{{ label }}</span>
-                        <span class="settings-value">· {{ `${WOODS[settings.woods[part].wood].name}, ${WOOD_PATTERNS[settings.woods[part].pattern].toLowerCase()}` }}</span>
+                        <span class="settings-value">· {{ woodLabel(part) }}</span>
                       </h3>
-                      <div class="flex flex-wrap items-center gap-1.5">
+                      <!-- A painted frame is picked by its paint; the wood under it hardly shows -->
+                      <div v-if="settings.woods[part].pattern === 'painted'" class="flex flex-wrap items-center gap-1.5">
+                        <button
+                          v-for="paint in FRAME_PAINTS"
+                          :key="paint.hex"
+                          class="swatch"
+                          :class="{ 'swatch--on': settings.woods[part].paint === paint.hex }"
+                          :style="{ background: paint.hex }"
+                          :title="paint.name"
+                          :aria-label="`${paint.name} ${label.toLowerCase()}`"
+                          :aria-pressed="settings.woods[part].paint === paint.hex"
+                          @click="setWood(part, { paint: paint.hex })">
+                          <span v-if="settings.woods[part].paint === paint.hex" class="swatch-tick" :class="{ 'swatch-tick--light': isDarkColour(paint.hex) }" aria-hidden="true">✓</span>
+                        </button>
+                        <label class="swatch swatch--custom" :class="{ 'swatch--on': !FRAME_PAINTS.some((paint) => paint.hex === settings.woods[part].paint) }" title="Any colour" aria-label="Pick any frame colour">
+                          <input :value="settings.woods[part].paint" type="color" class="absolute inset-0 opacity-0 cursor-pointer" @input="setWood(part, { paint: $event.target.value })" />
+                        </label>
+                      </div>
+                      <div v-else class="flex flex-wrap items-center gap-1.5">
                         <button
                           v-for="(wood, key) in WOODS"
                           :key="key"
@@ -140,13 +185,13 @@
                       </div>
                       <div class="flex flex-wrap gap-1.5 mt-2">
                         <button
-                          v-for="(name, key) in WOOD_PATTERNS"
+                          v-for="key in PART_PATTERNS[part]"
                           :key="key"
                           class="pattern-chip"
                           :class="{ 'pattern-chip--on': settings.woods[part].pattern === key }"
                           :aria-pressed="settings.woods[part].pattern === key"
                           @click="setWood(part, { pattern: key })">
-                          {{ name }}
+                          {{ WOOD_PATTERNS[key] }}
                         </button>
                       </div>
                     </div>
@@ -208,6 +253,14 @@
             </button>
           </div>
         </transition>
+        <transition name="hud-pop">
+          <div
+            v-if="focus === 'window' && weather"
+            class="inline-flex items-center gap-2 bg-white text-black font-bold text-xs md:text-sm px-3 py-1.5 border-3 border-black shadow-neo-sm">
+            <span aria-hidden="true">{{ weatherEmoji }}</span>
+            {{ weather.place }} · {{ weather.temp }}° · {{ weather.label }}
+          </div>
+        </transition>
         <transition name="hud-pop" mode="out-in">
           <div
             v-if="hint"
@@ -234,7 +287,7 @@ import { experiences } from "@/data/experience";
 import { useTheme } from "@/composables/useTheme";
 import { useSfx, initializeAudio, sfx } from "@/composables/useSfx";
 import { hideBootLoader, showEnterGate, setBootProgress, bootLoaderShowing } from "@/utils/bootLoader";
-import { WOODS, WOOD_PATTERNS, WOOD_TARGETS, DEFAULT_WOODS } from "@/components/features/desk/woods";
+import { WOODS, WOOD_PATTERNS, PART_PATTERNS, WOOD_TARGETS, DEFAULT_WOODS, FLOOR_LAYOUTS, DEFAULT_FLOOR, FRAME_PAINTS, DEFAULT_FRAME_PAINT } from "@/components/features/desk/woods";
 import { DAY_PARTS, TIME_MODES, RAIN_MODES, DEFAULT_TIME, DEFAULT_RAIN, partOfDay, partFor } from "@/components/features/desk/daylight";
 
 const COMMAND_CHIPS = ["help", "whoami", "projects", "hobbies", "sudo hire oka"];
@@ -242,6 +295,7 @@ const COMMAND_CHIPS = ["help", "whoami", "projects", "hobbies", "sudo hire oka"]
 const SETTINGS_GROUPS = [
   { key: "sky", label: "Time & weather", icon: "☀️", accent: "#ffc900" },
   { key: "wall", label: "Wall", icon: "🧱", accent: "#ff90e8" },
+  { key: "floor", label: "Floor", icon: "🟫", accent: "#ff7a45" },
   { key: "wood", label: "Furniture", icon: "🪵", accent: "#00e0c6" },
 ];
 const WALL_PAINTS = [
@@ -286,6 +340,16 @@ const introPlaying = ref(true);
 const projectOpen = ref(false);
 const consoleOn = ref(false);
 const secretToast = ref(null);
+// The real weather where the visitor is, once the scene has it
+const weather = ref(null);
+const WEATHER_EMOJI = { clear: "☀️", partly: "⛅", cloudy: "☁️", fog: "🌫️", rain: "🌧️", snow: "❄️", storm: "⛈️" };
+const weatherEmoji = computed(() => {
+  if (!weather.value) return "";
+  const { kind, isDay } = weather.value;
+  if (!isDay && kind === "clear") return "🌙";
+  if (!isDay && kind === "partly") return "☁️";
+  return WEATHER_EMOJI[kind] || "☁️";
+});
 const settingsOpen = ref(false);
 const openGroup = ref("sky");
 const settings = reactive(readSettings());
@@ -307,9 +371,16 @@ const groupSummary = computed(() => {
   return {
     sky: `${settings.time === "auto" ? "Auto" : TIME_MODES[settings.time]}, ${settings.rain === "auto" ? "auto" : RAIN_MODES[settings.rain].toLowerCase()}`,
     wall: wallName.value,
+    floor: `${WOODS[settings.floor.wood].name}, ${FLOOR_LAYOUTS[settings.floor.layout].toLowerCase()}`,
     wood: woods.size === 1 ? WOODS[[...woods][0]].name : "Mixed",
   };
 });
+// A part's wood and cut at a glance (a painted one by its paint)
+function woodLabel(part) {
+  const { wood, pattern, paint } = settings.woods[part];
+  if (pattern === "painted") return `Painted, ${(FRAME_PAINTS.find((coat) => coat.hex === paint)?.name ?? "custom").toLowerCase()}`;
+  return `${WOODS[wood].name}, ${WOOD_PATTERNS[pattern].toLowerCase()}`;
+}
 // Whether a swatch is dark enough that its tick should be drawn in white
 function isDarkColour(hex) {
   const n = parseInt(hex.slice(1), 16);
@@ -385,6 +456,9 @@ function onEvent(name, payload = {}) {
   else if (name === "focus") {
     focus.value = payload.name;
   }
+  else if (name === "weather") {
+    weather.value = payload;
+  }
 }
 
 // The picks are a per-visitor convenience: blocked or empty storage just means the default room
@@ -397,15 +471,21 @@ function readSettings() {
   }
   const pickWood = (part, choice = {}) => ({
     wood: WOODS[choice.wood] ? choice.wood : DEFAULT_WOODS[part].wood,
-    pattern: WOOD_PATTERNS[choice.pattern] ? choice.pattern : DEFAULT_WOODS[part].pattern,
+    // A cut the part is no longer offered in goes back to the part's own
+    pattern: PART_PATTERNS[part].includes(choice.pattern) ? choice.pattern : DEFAULT_WOODS[part].pattern,
     // The finish is no longer offered in settings: a saved black model goes back to wood sides
     ...(part === "speakers" ? { finish: "wood" } : {}),
+    ...(part === "window" ? { paint: /^#[0-9a-f]{6}$/i.test(choice.paint || "") ? choice.paint : DEFAULT_FRAME_PAINT } : {}),
   });
   return {
     time: TIME_MODES[saved.time] ? saved.time : DEFAULT_TIME,
     rain: RAIN_MODES[saved.rain] ? saved.rain : DEFAULT_RAIN,
     wall: /^#[0-9a-f]{6}$/i.test(saved.wall || "") ? saved.wall : DEFAULT_WALL,
     woods: Object.fromEntries(Object.keys(WOOD_TARGETS).map((part) => [part, pickWood(part, saved.woods?.[part])])),
+    floor: {
+      wood: WOODS[saved.floor?.wood] ? saved.floor.wood : DEFAULT_FLOOR.wood,
+      layout: FLOOR_LAYOUTS[saved.floor?.layout] ? saved.floor.layout : DEFAULT_FLOOR.layout,
+    },
   };
 }
 function saveSettings() {
@@ -423,6 +503,11 @@ function setWall(hex) {
 function setWood(part, choice) {
   Object.assign(settings.woods[part], choice);
   scene.value?.setWood(part, choice);
+  saveSettings();
+}
+function setFloor(choice) {
+  Object.assign(settings.floor, choice);
+  scene.value?.setFloor(choice);
   saveSettings();
 }
 function setTime(mode) {
@@ -465,6 +550,7 @@ onMounted(async () => {
       muted: muted.value,
       wallColor: settings.wall,
       woods: JSON.parse(JSON.stringify(settings.woods)),
+      floor: { ...settings.floor },
       time: settings.time,
       rain: settings.rain,
       onEvent,

@@ -36,20 +36,57 @@ export function drawDrawerFront(c, w, h, count) {
 // ---------- desk top: light oak planks running the desk's length, flat grain, bold seams ----------
 // Recycled messmate / Victorian ash, like a solid-timber standing desk: full-length boards in a
 // warm honey tone, dense straight grain with darker streaks, and little black gum veins
-export function drawWoodTop(c, w, h, { wood = "oak", pattern = "planks" } = {}) {
+// `knots` overrides how many knots a knotty cut gets (the window frame's grain is stretched over
+// the whole window, glass and all, so it needs more of them to show any), and `paint` is a
+// painted cut's colour
+export function drawWoodTop(c, w, h, { wood = "oak", pattern = "planks", knots: knotCount, paint = "#f4f1ea" } = {}) {
   const look = WOODS[wood] || WOODS.oak;
-  // Butcher block is many narrow strips; every other cut keeps the five wide boards
-  const boards = pattern === "butcher" ? 12 : 5;
+  // Butcher block and bamboo are many narrow strips, plywood one whole sheet; every other cut
+  // keeps the five wide boards
+  const boards = { butcher: 12, bamboo: 16, plywood: 1 }[pattern] ?? 5;
   const bh = h / boards;
   const { tones, grain } = look;
   // A fixed seed, so the grain is the same every load
   let seed = 7;
   const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   const grainStroke = (alpha) => `rgba(${grain[0] + rand() * 30}, ${grain[1] + rand() * 20}, ${grain[2]}, ${alpha})`;
+  // Paint: one flat coat, the grain only just showing through
+  if (pattern === "painted") {
+    c.fillStyle = paint;
+    c.fillRect(0, 0, w, h);
+    for (let g = 0; g < 40; g++) {
+      const gy = rand() * h;
+      const amp = 1 + rand() * 3;
+      const phase = rand() * 10;
+      c.strokeStyle = grainStroke(0.05 + rand() * 0.05);
+      c.lineWidth = 1 + rand() * 2;
+      c.beginPath();
+      for (let x = 0; x <= w; x += 20) c.lineTo(x, gy + Math.sin(x / 260 + phase) * amp);
+      c.stroke();
+    }
+    c.fillStyle = "rgba(0, 0, 0, 0.05)";
+    for (let y = h / 5; y < h; y += h / 5) c.fillRect(0, y, w, 1.5);
+    return;
+  }
   for (let i = 0; i < boards; i++) {
     const y = i * bh;
     c.fillStyle = tones[i % tones.length];
     c.fillRect(0, y, w, bh);
+    // Rotary-cut plywood: a face veneer of broad, soft waves
+    if (pattern === "plywood") {
+      for (let g = 0; g < 14; g++) {
+        const gy = rand() * h;
+        const amp = 10 + rand() * 30;
+        const len = 120 + rand() * 160;
+        const phase = rand() * 10;
+        c.strokeStyle = grainStroke(0.08 + rand() * 0.12);
+        c.lineWidth = 2 + rand() * 5;
+        c.beginPath();
+        for (let x = 0; x <= w; x += 12) c.lineTo(x, gy + Math.sin(x / len + phase) * amp);
+        c.stroke();
+      }
+      continue;
+    }
     // Broad bands of lighter and darker growth
     for (let b = 0; b < 4; b++) {
       const by = y + rand() * bh;
@@ -78,10 +115,12 @@ export function drawWoodTop(c, w, h, { wood = "oak", pattern = "planks" } = {}) 
         }
       }
     }
-    // Dense, nearly straight grain lines that drift a little along the board
-    for (let g = 0; g < (pattern === "cathedral" ? 8 : 22); g++) {
+    // Dense, nearly straight grain lines that drift a little along the board (dead straight and
+    // tighter in quartersawn and bamboo)
+    const straight = pattern === "quartersawn" || pattern === "bamboo";
+    for (let g = 0; g < (pattern === "cathedral" ? 8 : pattern === "quartersawn" ? 34 : pattern === "bamboo" ? 6 : 22); g++) {
       const gy = y + rand() * bh;
-      const amp = 1 + rand() * 4;
+      const amp = straight ? 0.5 + rand() : 1 + rand() * 4;
       const len = 200 + rand() * 300;
       const phase = rand() * 10;
       c.strokeStyle = grainStroke(0.12 + rand() * 0.28);
@@ -90,8 +129,26 @@ export function drawWoodTop(c, w, h, { wood = "oak", pattern = "planks" } = {}) 
       for (let x = 0; x <= w; x += 20) c.lineTo(x, gy + Math.sin(x / len + phase) * amp);
       c.stroke();
     }
+    // Quartersawn's ray fleck: pale ribbons slanting across the straight grain
+    if (pattern === "quartersawn") {
+      for (let f = 0; f < 9; f++) {
+        c.fillStyle = `rgba(${look.light}, ${0.18 + rand() * 0.16})`;
+        c.beginPath();
+        c.ellipse(rand() * w, y + bh * (0.15 + rand() * 0.7), 18 + rand() * 46, 2 + rand() * 4, (rand() - 0.5) * 0.25, 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+    // Bamboo's nodes: a dark ring with a pale lip, staggered from strip to strip
+    if (pattern === "bamboo") {
+      for (let x = rand() * w * 0.3; x < w; x += w * (0.2 + rand() * 0.12)) {
+        c.fillStyle = `rgba(${look.dark}, 0.45)`;
+        c.fillRect(x, y, 4, bh);
+        c.fillStyle = `rgba(${look.light}, 0.3)`;
+        c.fillRect(x + 4, y, 3, bh);
+      }
+    }
     // Gum veins: short, sharp black streaks along the grain
-    for (let v = 0; v < 3; v++) {
+    for (let v = 0; v < (straight ? 0 : 3); v++) {
       const vx = rand() * w;
       const vy = y + bh * (0.15 + rand() * 0.7);
       const len = 14 + rand() * (v === 0 ? 120 : 40);
@@ -109,7 +166,7 @@ export function drawWoodTop(c, w, h, { wood = "oak", pattern = "planks" } = {}) 
   }
   // Knots: a dark heart ringed by the grain swirling round it
   if (pattern === "knotty") {
-    const knots = Math.max(3, Math.round((w * h) / 90000));
+    const knots = knotCount ?? Math.max(3, Math.round((w * h) / 90000));
     for (let k = 0; k < knots; k++) {
       const kx = rand() * w;
       const ky = rand() * h;
@@ -156,11 +213,15 @@ export function drawDeskMat(c, w, h) {
     }
     c.stroke();
   });
-  // the stitched edge
-  c.strokeStyle = "rgba(255,253,245,.45)";
+  // the stitched edge, set in the same distance all round (the print is 2 % of the mat's width
+  // to 4.5 % of its depth). Hugging the edge, the stitches along the mat's foreshortened ends ran
+  // together into a pale line between the felt and its outline.
+  const ix = w * 0.02;
+  const iy = h * 0.045;
+  c.strokeStyle = "rgba(255,253,245,.35)";
   c.lineWidth = 3;
   c.setLineDash([14, 9]);
-  c.strokeRect(14, 14, w - 28, h - 28);
+  c.strokeRect(ix, iy, w - ix * 2, h - iy * 2);
   c.setLineDash([]);
 }
 

@@ -22,6 +22,28 @@ export function createKeyboard(runtime) {
   // centred on the desk, with the keyboard left of its middle and the mouse to its right
   // Centred on the desk (x −1), in line with the riser and monitor
   deskMatPad.position.set(-1, MAT_TOP / 2, 0.75);
+  // The mat is so thin its whole rim is the rounded edge, and only the rim's lower half (facing
+  // away from the camera) draws the outline, pushed along normals that lean down: along its left
+  // end, from the opening view, down on screen is back into the mat, and the outline there
+  // thinned to a hairline beside the full line round the rest. Its outline pushes straight out
+  // in plan instead (the normals laid flat), and is drawn a little nearer so the desk it lies
+  // on doesn't bury it. (Its own copy of the material shares the screen-size uniforms.)
+  const matHull = deskMatPad.children[0];
+  const matHullGeo = matHull.geometry.clone();
+  const matHullNormal = matHullGeo.attributes.normal;
+  for (let i = 0; i < matHullNormal.count; i++) {
+    const x = matHullNormal.getX(i);
+    const z = matHullNormal.getZ(i);
+    const flat = Math.hypot(x, z);
+    if (flat > 1e-3) matHullNormal.setXYZ(i, x / flat, 0, z / flat);
+  }
+  matHull.geometry = runtime.core.track(matHullGeo);
+  const matOutline = runtime.core.track(matHull.material.clone());
+  matOutline.uniforms = matHull.material.uniforms;
+  matOutline.polygonOffset = true;
+  matOutline.polygonOffsetFactor = -4;
+  matOutline.polygonOffsetUnits = -4;
+  matHull.material = matOutline;
   runtime.core.scene.add(deskMatPad);
 
   const KEYBOARD_SCALE = 0.68;

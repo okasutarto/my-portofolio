@@ -17,9 +17,10 @@ export function createSceneMeshes(scene) {
   const outlineMats = new Map();
   // Outlines are drawn in screen pixels, not world units: every prop gets a clear line of the
   // same weight whether the camera is pulled back or zoomed right in. The nominal width a
-  // prop asks for (world units, 0.01–0.06) maps to roughly 2.5–4 CSS pixels.
+  // prop asks for (world units, 0.01–0.06) maps to roughly 2.5–4 CSS pixels: a shared base
+  // every line has (2.2, less on a phone; see fitOutlines) plus 30 px a unit of its own.
   const outlineResolution = { value: new THREE.Vector2(1, 1) };
-  const outlinePixels = (thickness) => 2.2 + thickness * 30;
+  const outlineBase = { value: 2.2 };
   const outlineMat = (thickness) => {
     if (!outlineMats.has(thickness)) {
       outlineMats.set(
@@ -27,7 +28,8 @@ export function createSceneMeshes(scene) {
         track(
           new THREE.ShaderMaterial({
             uniforms: {
-              thickness: { value: outlinePixels(thickness) },
+              thickness: { value: thickness * 30 },
+              base: outlineBase,
               resolution: outlineResolution,
               color: { value: new THREE.Color(0x000000) },
             },
@@ -35,6 +37,7 @@ export function createSceneMeshes(scene) {
             vertexShader: `
               #include <batching_pars_vertex>
               uniform float thickness;
+              uniform float base;
               uniform vec2 resolution;
               void main() {
                 vec4 p = vec4(position, 1.0);
@@ -52,7 +55,7 @@ export function createSceneMeshes(scene) {
                 vec2 dir = (mat3(modelViewMatrix) * n).xy;
                 float len = length(dir);
                 dir = len > 1e-5 ? dir / len : vec2(0.0);
-                clip.xy += dir * thickness * 2.0 / resolution * clip.w;
+                clip.xy += dir * (base + thickness) * 2.0 / resolution * clip.w;
                 gl_Position = clip;
               }`,
             fragmentShader: `
@@ -204,7 +207,7 @@ export function createSceneMeshes(scene) {
   }
 
   return {
-    disposables, track, gradient, toon, outlineResolution, outlineMat, hullGeometry, noRaycast, mesh, UP, rbox, rod,
+    disposables, track, gradient, toon, outlineResolution, outlineBase, outlineMat, hullGeometry, noRaycast, mesh, UP, rbox, rod,
     roundedRectShape, phoneSlab, at, printMaterial, printGlow, redrawers, printed, bubbleTimers, speechBubble,
   };
 }

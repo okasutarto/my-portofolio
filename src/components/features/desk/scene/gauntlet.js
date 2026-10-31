@@ -59,7 +59,7 @@ export function createGauntlet(runtime) {
   });
   // Plinth with a little gold plaque
   gauntlet.add(
-    runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.85, 0.2, 0.65, 0.05), runtime.core.toon("#1a1714"), { outline: 0.02 }), 0, 0.1, 0),
+    runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.85, 0.2, 0.65, 0.05), runtime.core.toon("#1a1714"), { outline: 0.012 }), 0, 0.1, 0),
     runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.42, 0.07, 0.02, 0.01), gloveLight, { outline: 0.008 }), 0, 0.1, 0.33),
   );
   // Everything above the plinth: it floats up off the stand for the snap
@@ -68,7 +68,7 @@ export function createGauntlet(runtime) {
   // The reference's flared cuff narrows into an articulated wrist.
   const cuffProfile = [[0, 0.2], [0.31, 0.2], [0.335, 0.24], [0.31, 0.31],
     [0.275, 0.53], [0.235, 0.75], [0.245, 0.8], [0, 0.8]].map(([r, y]) => new THREE.Vector2(r, y));
-  const forearm = runtime.core.mesh(new THREE.LatheGeometry(cuffProfile, 40), glove, { outline: 0.018 });
+  const forearm = runtime.core.mesh(new THREE.LatheGeometry(cuffProfile, 40), glove, { outline: 0.012 });
   forearm.scale.z = 0.8;
   glovePart.add(forearm);
   [[0.235, 0.335]].forEach(([y, r]) => {
@@ -169,7 +169,7 @@ export function createGauntlet(runtime) {
   const wrist = runtime.core.mesh(new THREE.CylinderGeometry(0.245, 0.245, 0.07, 24), gloveDark, { outline: 0.012 });
   wrist.position.y = 0.84;
   wrist.scale.z = 0.8;
-  glovePart.add(wrist, runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.5, 0.46, 0.22, 0.07), glove, { outline: 0.02 }), 0, 1.1, 0));
+  glovePart.add(wrist, runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.5, 0.46, 0.22, 0.07), glove, { outline: 0.012 }), 0, 1.1, 0));
   glovePart.add(runtime.core.at(runtime.core.mesh(runtime.core.rbox(0.53, 0.09, 0.25, 0.03), gloveDark, { outline: 0.012 }), 0, 1.34, 0));
   // Swept cheek guards follow the round centre setting instead of rectangular appliqués.
   [-1, 1].forEach((side) => {
@@ -726,6 +726,7 @@ export function createGauntlet(runtime) {
           || (item.obj === runtime.shelfCollectibles.rubikItem && runtime.shelfCollectibles.rubikBusy) || (item.obj === runtime.handheld.nintendoSwitch && runtime.handheld.switchBusy);
         if (on && busy) return;
         if (on && item.obj === runtime.shelfConsole.ps5) runtime.shelfConsole.blinkLed();
+        if (on && item.obj === runtime.shelfCollectibles.trophy) sfx.trophyHover();
         gsap.to(carrier.position, { y: on ? lift : 0, z: on ? forward : 0, duration: on ? 0.25 : 0.35, ease: "power2.out", overwrite: true });
       },
       onClick: (hit) => runtime.core.interactive.get(runtime.shelf.shelf).onClick(hit),

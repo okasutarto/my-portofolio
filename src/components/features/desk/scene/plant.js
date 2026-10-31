@@ -28,10 +28,10 @@ export function createPlant(runtime) {
   potTex.texture.repeat.set(3, 1);
   const potMat = runtime.core.toon("#ffffff");
   potMat.map = potTex.texture;
-  const pot = runtime.core.mesh(new THREE.LatheGeometry(potProfile, 36), potMat, { outline: 0.045 });
+  const pot = runtime.core.mesh(new THREE.LatheGeometry(potProfile, 36), potMat, { outline: 0.025 });
   pot.position.y = 0.03;
   const saucerProfile = [[0, 0], [0.62, 0], [0.7, 0.12], [0.64, 0.12], [0.57, 0.035], [0, 0.035]].map(([x, y]) => new THREE.Vector2(x, y));
-  const saucer = runtime.core.mesh(new THREE.LatheGeometry(saucerProfile, 36), runtime.core.toon("#e0631a"), { outline: 0.03 });
+  const saucer = runtime.core.mesh(new THREE.LatheGeometry(saucerProfile, 36), runtime.core.toon("#e0631a"), { outline: 0.02 });
   const soil = runtime.core.mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.04, 24), runtime.core.toon("#3b2a1a"), { outline: 0, cast: false });
   soil.position.y = 1.05;
   const foliage = new THREE.Group();

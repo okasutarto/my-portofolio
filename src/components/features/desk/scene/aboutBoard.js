@@ -18,7 +18,7 @@ export function createAboutBoard(runtime) {
   if (SHOW_BOARD) runtime.core.scene.add(aboutBoard);
   const boardWood = runtime.core.toon("#b98550");
   boardWood.map = runtime.room.windowWood.texture;
-  const boardFrame = runtime.core.mesh(runtime.core.rbox(6.8, 4.2, 0.16, 0.04), boardWood, { outline: 0.045 });
+  const boardFrame = runtime.core.mesh(runtime.core.rbox(6.8, 4.2, 0.16, 0.04), boardWood, { outline: 0.025 });
   const boardFace = runtime.core.printed(6.55, 3.95, 170, drawAboutBoard);
   boardFace.position.z = 0.09;
   aboutBoard.add(boardFrame, boardFace);
@@ -94,7 +94,7 @@ export function createAboutBoard(runtime) {
     const sheet = new THREE.Group();
     sheet.position.y = pinY;
     paper.add(sheet);
-    const backing = runtime.core.mesh(curlPaper(new THREE.BoxGeometry(w, h, 0.025, 10, 10, 1), w, h, curl, side), runtime.core.toon("#fffdf5"), { outline: 0.018 });
+    const backing = runtime.core.mesh(curlPaper(new THREE.BoxGeometry(w, h, 0.025, 10, 10, 1), w, h, curl, side), runtime.core.toon("#fffdf5"), { outline: 0.01 });
     // Same canvas as a full-size paper, so the print keeps its layout and sharpness
     const face = runtime.core.printed(w, h, 230 / NOTE_SCALE, (c, pw, ph) => drawAboutNote(c, pw, ph, note));
     face.geometry.dispose();

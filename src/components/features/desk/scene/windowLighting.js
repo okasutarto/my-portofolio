@@ -432,6 +432,8 @@ export function createWindowLighting(runtime) {
   let windowOpen = false;
   const swingLeaves = () => {
     runtime.room.leaves.forEach((leaf, i) => (leaf.rotation.y = (i ? -1 : 1) * LEAF_SWING * sash.open));
+    // the raindrops on the glass swing away with it
+    runtime.room.outside.glass = 1 - sash.open;
     windowLight.shadow.needsUpdate = true;
   };
   function toggleWindow() {

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { sfx } from "@/composables/useSfx";
+import { hoverSound, sfx } from "@/composables/useSfx";
 import { canvasTexture, drawPlantLeaf, drawTerracotta } from "../textures";
 
 export function createPlant(runtime) {
@@ -212,7 +212,10 @@ export function createPlant(runtime) {
   }
 
   runtime.core.register(plant, {
-    onHover: (on) => gsap.to(foliage.rotation, { z: on ? 0.12 : 0, duration: on ? 0.3 : 0.65, ease: "power2.out", overwrite: true }),
+    onHover: (on) => {
+      gsap.to(foliage.rotation, { z: on ? 0.12 : 0, duration: on ? 0.3 : 0.65, ease: "power2.out", overwrite: true });
+      if (on) hoverSound(plant, (s) => s.leaves({ duration: 0.2 }));
+    },
     onClick: () => {
       gsap.fromTo(foliage.rotation, { z: 0.15 }, { z: 0, duration: 1.4, ease: "elastic.out(1, 0.25)", overwrite: true });
       gsap.fromTo(pot.scale, { x: 1.12, y: 0.88, z: 1.12 }, { x: 1, y: 1, z: 1, duration: 0.6, ease: "elastic.out(1.2, 0.35)" });

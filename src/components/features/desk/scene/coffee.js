@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { sfx } from "@/composables/useSfx";
+import { hoverSound, sfx } from "@/composables/useSfx";
 import { canvasTexture, SIP_QUOTES, drawCoffeeTop, drawCork } from "../textures";
 
 export function createCoffee(runtime) {
@@ -189,6 +189,8 @@ export function createCoffee(runtime) {
       gsap.to(mug.position, { y: on ? MUG_Y + 0.06 : MUG_Y, duration: 0.3, ease: "power2.out", overwrite: true });
       gsap.to(steam.scale, { ...(on ? STEAM_SCALE_HOVER : STEAM_SCALE), duration: 0.4, overwrite: true });
       if (on) gsap.fromTo(coffee.rotation, { y: -0.25 }, { y: 0, duration: 0.7, ease: "elastic.out(1, 0.4)", overwrite: true });
+      // the cup clinks
+      if (on) hoverSound(mug, (s) => s.tick({ pitch: 2 }));
     },
     onArrive: sip,
     onClick: sip,

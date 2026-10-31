@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { sfx } from "@/composables/useSfx";
+import { hoverSound, sfx } from "@/composables/useSfx";
 
 export function createMouse(runtime) {
   // ---------- mouse (decor) ----------
@@ -107,6 +107,8 @@ export function createMouse(runtime) {
       if (mouseRunning) return;
       gsap.to(mouse.rotation, { y: on ? -0.28 : -0.12, duration: 0.25, ease: "power2.out", overwrite: true });
       gsap.to(wheel.rotation, { x: on ? -0.65 : 0, duration: 0.3, overwrite: true });
+      // the wheel's notches
+      if (on) hoverSound(mouse, (s) => [0, 0.035, 0.07].forEach((delay) => s.tick({ pitch: 0.9, delay })));
     },
     onClick: () => {
       sfx.click();

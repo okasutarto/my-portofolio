@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { sfx } from "@/composables/useSfx";
+import { hoverSound, sfx } from "@/composables/useSfx";
 import { getStreamingResponse, toHistory } from "@/services/chatApi";
 import { canvasTexture, drawChatScreen, drawSatinFinish, drawGlassSheen } from "../textures";
 
@@ -165,7 +165,9 @@ export function createChat(runtime) {
     onHover: (on) => {
       if (runtime.camera.focus.name === "chat") return;
       gsap.to(phone.rotation, { x: on ? -0.2 : -0.28, z: 0, duration: 0.25, overwrite: true });
-      if (on) buzz();
+      if (!on) return;
+      buzz();
+      hoverSound(phoneStand, (s) => s.pop({ pitch: 1.5 }));
     },
     // Arrival: the phone hops, the unread badge clears and the chat box takes the keyboard
     onArrive: () => {

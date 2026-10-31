@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { sfx } from "@/composables/useSfx";
+import { hoverSound, sfx } from "@/composables/useSfx";
 import { canvasTexture, BUBBLE_TAILS, drawFur } from "../textures";
 
 export function createCat(runtime) {
@@ -1117,7 +1117,12 @@ export function createCat(runtime) {
     catToBed(tl, bedFor(runtime.theme.darkNow && !runtime.projectFiles.openFolder));
   }
   runtime.core.register(cat, {
-    onHover: (on) => on && !catBusy && gsap.fromTo(catHead.rotation, { z: 0.25 }, { z: catHead.rotation.z, duration: 0.6, ease: "elastic.out(1, 0.3)" }),
+    onHover: (on) => {
+      if (!on || catBusy) return;
+      gsap.fromTo(catHead.rotation, { z: 0.25 }, { z: catHead.rotation.z, duration: 0.6, ease: "elastic.out(1, 0.3)" });
+      // only now and then, or she'd never stop talking
+      if (Math.random() < 0.25) hoverSound(cat, (s) => s.meow({ short: true }));
+    },
     onClick: () => {
       catInterrupt();
       if (catBusy) return;

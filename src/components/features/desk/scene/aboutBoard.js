@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { sfx } from "@/composables/useSfx";
+import { hoverSound, sfx } from "@/composables/useSfx";
 import { ABOUT_NOTES } from "@/data/about";
 import { drawAboutBoard, drawAboutNote } from "../textures";
 
@@ -242,6 +242,7 @@ export function createAboutBoard(runtime) {
       gsap.to(note.shadow.scale, { x: on ? 1.08 : 1, y: on ? 1.08 : 1, duration: 0.3, overwrite: true });
       gsap.to(note.shadow.material, { opacity: on ? 0.22 : 0.32, duration: 0.3, overwrite: true });
       gsap.to(note.highlight.scale, { x: on ? 1.5 : 1, y: on ? 1.5 : 1, duration: 0.25, overwrite: true });
+      if (on) hoverSound(note.paper, (s) => s.rustle({ duration: 0.12 }));
     },
   }));
   let boardIntroduced = false;

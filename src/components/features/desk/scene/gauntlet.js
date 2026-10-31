@@ -574,8 +574,10 @@ export function createGauntlet(runtime) {
     rubik: () => sfx.click(),
     switch: () => sfx.blip(),
   };
-  // Hovered, each kind of prop answers softly in its own voice (the console and the trophy have their own)
+  // Hovered, each kind of prop answers softly in its own voice (the trophy has its own)
   const SHELF_HOVER_SOUNDS = {
+    // a faint electronic chime as its light blinks
+    console: (s) => s.ding({ pitch: 2, volume: 0.1 }),
     // a slightly different pitch per pass, so a sweep along the row sounds like a finger running over the spines
     case: (s) => s.slide({ duration: 0.15, pitch: 0.85 + Math.random() * 0.3 }),
     book: (s) => s.riffle({ count: 2, duration: 0.1 }),

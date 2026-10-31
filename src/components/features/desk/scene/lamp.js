@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { sfx } from "@/composables/useSfx";
+import { hoverSound, sfx } from "@/composables/useSfx";
 import { canvasTexture, drawFamilyPortrait } from "../textures";
 
 export function createLamp(runtime) {
@@ -186,6 +186,8 @@ export function createLamp(runtime) {
       if (lampHopping) return;
       // Swing the hanging bulb; the base and the pole stay put
       gsap.to(lampHead.rotation, { x: lampHeadRest.x + (on ? 0.12 : 0), z: lampHeadRest.z + (on ? 0.22 : 0), duration: on ? 0.32 : 0.6, ease: on ? "power2.out" : "elastic.out(1, 0.4)", overwrite: true });
+      // a light tap of its metal joint
+      if (on) hoverSound(lamp, (s) => s.tick({ pitch: 1.6 }));
     },
     onClick: () => {
       if (lampHopping) return;

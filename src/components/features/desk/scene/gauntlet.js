@@ -576,8 +576,8 @@ export function createGauntlet(runtime) {
   };
   // Hovered, each kind of prop answers softly in its own voice (the trophy has its own)
   const SHELF_HOVER_SOUNDS = {
-    // a faint electronic chime as its light blinks
-    console: (s) => s.ding({ pitch: 2, volume: 0.1 }),
+    // a short beep and its fan spinning up as its light blinks
+    console: (s) => s.consoleWake(),
     // a slightly different pitch per pass, so a sweep along the row sounds like a finger running over the spines
     case: (s) => s.slide({ duration: 0.15, pitch: 0.85 + Math.random() * 0.3 }),
     book: (s) => s.riffle({ count: 2, duration: 0.1 }),

@@ -159,7 +159,7 @@ export function createProjectFiles(runtime) {
     hinge.rotation.z = rest;
     folders.add(f);
     const lean = { x: wobble(i, 2) * 0.07, y: wobble(i, 3) * 0.05, z: wobble(i, 4) * 0.05, dx: wobble(i, 5) * 0.07 };
-    return { project, index: i, f, body, hinge, coverFlex, sheets, order: sheets.map((_, k) => k), flipping: false, out: 0, rest, lean };
+    return { project, index: i, f, body, hinge, coverFlex, sheets, order: sheets.map((_, k) => k), flipping: false, out: 0, homing: false, rest, lean };
   });
   let openFolder = null;
   // Standing in the drawer, the folder's -z edge (with its tab) points up and its cover faces
@@ -173,10 +173,6 @@ export function createProjectFiles(runtime) {
   const slotY = (d) => WALL + FOLDER_D / 2 + d * 0.05;
   const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
   const between = (from, to, t, lo, hi) => from + (to - from) * smooth((t - lo) / (hi - lo));
-  const bezier = (a, b, c, d, t) => {
-    const u = 1 - t;
-    return u * u * u * a + 3 * u * u * t * b + 3 * u * t * t * c + t * t * t * d;
-  };
   // Where the browse stands: which folder is at the front (fractional while flipping)
   const browse = { p: 0, target: 0 };
   const depthOf = (entry) => (((entry.index - browse.p) % n) + n) % n;
@@ -198,10 +194,43 @@ export function createProjectFiles(runtime) {
     out.x = 0;
     return out;
   };
-  // Out of the drawer, a folder follows one Bézier curve: straight up clear of the rim, over
-  // the drawer front, turning flat on the way, and down onto the desk.
+  // Out of the drawer, a folder rises straight up, standing, till its foot clears the drawer's
+  // front, and only then sets off over it in a low arc, laying down and turning as it goes, onto
+  // the desk. The phases overlap, so it never stops between them. t runs 0 (slot) → 1 (desk).
   const FLY_Y = DRAWER_H + FOLDER_D / 2 + 0.45;
   const slot = { x: 0, y: 0, z: 0 };
+  const smoother = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * x * (x * (6 * x - 15) + 10));
+  // Filed back, it doesn't retrace that path: the drawer's close-up clips everything well in
+  // front of the drawer, so a folder coming straight back from the desk would blink into sight
+  // mid-frame, and dropping in from above it would cut through the files standing behind. So it
+  // swings out wide to the side (crossing that clip off-screen), standing up on the way, slides in
+  // sideways just over the drawer's side wall, in the very slant of the front slot (the files
+  // behind lean the same way, so it passes clear of them), and lowers into it. s runs 0 (desk) → 1 (slot).
+  const HOME = { side: -6.2, y: DRAWER_H + FOLDER_D / 2 + 0.05 };
+  function homingPose(entry, s) {
+    const { f, lean } = entry;
+    // the front slot, where the file being read stands pulled up a little
+    const frontZ = slotZ(0);
+    const frontY = slotY(0) + 0.3;
+    // higher up the slant, a standing folder's plane sits further back
+    const slant = (HOME.y - frontY) / Math.tan(STAND_RX);
+    const rise = smooth(s / 0.25);
+    const wide = smoother(s / 0.4);
+    const back = smoother((s - 0.1) / 0.4);
+    const across = smoother((s - 0.45) / 0.33);
+    const drop = smooth((s - 0.74) / 0.26);
+    f.position.set(
+      OUT.x + (HOME.side - OUT.x) * wide - HOME.side * across,
+      OUT.y + (HOME.y - OUT.y) * rise + (frontY - HOME.y) * drop,
+      OUT.z + (frontZ - slant - OUT.z) * back + slant * drop,
+    );
+    // leans into the swing out; square while it slides in and lowers, and only takes up its own
+    // little lean as it settles
+    const firm = smooth((s - 0.9) / 0.1);
+    const bank = Math.sin(Math.PI * wide) * 0.1;
+    f.position.x += lean.dx * firm;
+    f.rotation.set(between(0, STAND_RX, s, 0.08, 0.5) + lean.x * firm, between(OUT.r, 0, s, 0.05, 0.5) + lean.y * firm, lean.z * firm + bank);
+  }
   function poseFolders() {
     folderList.forEach((entry) => {
       const { f, out: t } = entry;
@@ -212,15 +241,21 @@ export function createProjectFiles(runtime) {
         f.rotation.set(STAND_RX + lean.x, lean.y, lean.z);
         return;
       }
+      if (entry.homing) return homingPose(entry, 1 - t);
+      const lift = smooth(t / 0.32);
+      const travel = smoother((t - 0.2) / 0.8);
+      const land = smooth((t - 0.62) / 0.38);
       f.position.set(
-        bezier(slot.x, slot.x, OUT.x, OUT.x, t),
-        bezier(slot.y, FLY_Y + 0.4, FLY_Y, OUT.y, t),
-        bezier(slot.z, slot.z, OUT.z, OUT.z, t),
+        slot.x + (OUT.x - slot.x) * travel,
+        slot.y + (FLY_Y - slot.y) * lift + (OUT.y - FLY_Y) * land + Math.sin(Math.PI * travel) * 0.35,
+        slot.z + (OUT.z - slot.z) * travel,
       );
-      // it straightens up as it comes out
-      const loose = 1 - smooth(t / 0.6);
+      // it straightens up as it comes out, and leans into the carry a little, level again as
+      // it lands
+      const loose = 1 - smooth(t / 0.3);
+      const bank = Math.sin(Math.PI * travel) * 0.09;
       f.position.x += lean.dx * loose;
-      f.rotation.set(between(STAND_RX, 0, t, 0.3, 0.8) + lean.x * loose, between(0, OUT.r, t, 0.25, 0.85) + lean.y * loose, lean.z * loose);
+      f.rotation.set(between(STAND_RX, 0, t, 0.28, 0.9) + lean.x * loose, between(0, OUT.r, t, 0.24, 0.92) + lean.y * loose, lean.z * loose + bank);
     });
   }
   poseFolders();
@@ -280,15 +315,21 @@ export function createProjectFiles(runtime) {
       gsap.to(pivot.position, { x: restAt.x, y: restAt.y, z: restAt.z, duration: 0.3, overwrite: true });
     });
     entry.flipping = false;
-    // Shut the cover, then back into its slot at the front of the drawer
+    // Shut the cover (cutting short its swing open, if it was still under way), then back into its slot at the front of the drawer
     // the board lags its swing shut, curling up at the free edge, and slaps flat with a quiver
     gsap.to(entry.coverFlex, { bend: 0.3, duration: 0.3, delay: 0.1, ease: "power1.out", overwrite: true });
-    gsap.to(entry.hinge.rotation, { z: entry.rest, duration: 0.4, delay: 0.1, ease: "power2.in", onComplete: () => {
+    gsap.to(entry.hinge.rotation, { z: entry.rest, duration: 0.4, delay: 0.1, ease: "power2.in", overwrite: true, onComplete: () => {
       sfx.slap();
       // it lands on the pile and the free edge bounces up off it, never down into it
       runtime.core.flexSettle(entry.coverFlex, 0.1);
     } });
-    gsap.to(entry, { out: 0, duration: 0.95, delay: 0.45, ease: "power2.inOut", overwrite: true, onComplete: () => sfx.knock({ strength: 0.8 }) });
+    // it lifts off while the cover is still settling, and once home the cover gives a little quiver
+    entry.homing = true;
+    gsap.to(entry, { out: 0, duration: 1.9, delay: 0.35, ease: "power1.inOut", overwrite: true, onComplete: () => {
+      entry.homing = false;
+      sfx.knock({ strength: 0.8 });
+      runtime.core.flexSettle(entry.coverFlex, 0.06);
+    } });
   }
   // Pull the front folder out onto the desk, open its cover out flat, and move the camera in close
   function openProject(entry) {
@@ -296,16 +337,18 @@ export function createProjectFiles(runtime) {
     openFolder = entry;
     runtime.options.onEvent("projectOpen", { open: true });
     gsap.to(entry.body.position, { y: 0, z: 0, duration: 0.2, overwrite: true });
+    entry.homing = false;
     runtime.camera.applyShot(false, 1.2);
     // The cat gets off the desk first, whatever she's up to; the file waits for her to go
     runtime.cat.catShoo(() => {
       if (openFolder !== entry) return;
       sfx.folderSlide({ duration: 0.6 });
-      gsap.to(entry, { out: 1, duration: 1.0, ease: "power2.inOut", overwrite: true, onComplete: () => sfx.flop({ strength: 0.5, recorded: false }) });
+      // each phase of the flight eases itself, so time runs near even
+      gsap.to(entry, { out: 1, duration: 1.4, ease: "power1.inOut", overwrite: true, onComplete: () => sfx.flop({ strength: 0.5, recorded: false }) });
       // swung open by its edge, the board trails the hinge (its free edge held back) and
       // springs through flat as it lands
-      gsap.to(entry.coverFlex, { bend: -0.32, duration: 0.35, delay: 1.0, ease: "power1.out", overwrite: true });
-      gsap.to(entry.hinge.rotation, { z: Math.PI - OPEN_TILT, duration: 0.6, delay: 1.0, ease: "power2.inOut", onStart: () => sfx.coverOpen({ duration: 0.6 }), onComplete: () => {
+      gsap.to(entry.coverFlex, { bend: -0.32, duration: 0.35, delay: 1.3, ease: "power1.out", overwrite: true });
+      gsap.to(entry.hinge.rotation, { z: Math.PI - OPEN_TILT, duration: 0.6, delay: 1.3, ease: "power2.inOut", overwrite: true, onStart: () => sfx.coverOpen({ duration: 0.6 }), onComplete: () => {
         sfx.flop({ strength: 0.3, recorded: false });
         // laid open on the desk, the edge bounces up off it
         runtime.core.flexSettle(entry.coverFlex, -0.12);

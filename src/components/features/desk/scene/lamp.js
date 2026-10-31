@@ -154,7 +154,7 @@ export function createLamp(runtime) {
     lampHidden = hidden;
     if (hidden) {
       lamp.traverse((o) => {
-        if (!o.isMesh) return;
+        if (!o.isMesh && !o.isSprite) return;
         lampShown.set(o, o.visible);
         o.visible = false;
       });

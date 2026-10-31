@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { sfx } from "@/composables/useSfx";
+import { hoverSound, sfx } from "@/composables/useSfx";
 import { canvasTexture, drawFur, drawSisal } from "../textures";
 
 export function createCatTree(runtime) {
@@ -89,7 +89,11 @@ export function createCatTree(runtime) {
   ];
 
   runtime.core.register(tree, {
-    onHover: (on) => on && swing(0.35),
+    onHover: (on) => {
+      if (!on) return;
+      swing(0.35);
+      hoverSound(tree, (s) => s.whoosh({ duration: 0.2 }));
+    },
     // A swat at the pom-pom, and Oyen comes over to see about it
     onClick: () => {
       swing(0.9);

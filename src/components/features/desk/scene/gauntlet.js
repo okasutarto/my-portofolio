@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { sfx } from "@/composables/useSfx";
+import { hoverSound, sfx } from "@/composables/useSfx";
 import { canvasTexture, BUBBLE_TAILS, drawBrushedMetal, drawSatinFinish } from "../textures";
 
 export function createGauntlet(runtime) {
@@ -574,6 +574,20 @@ export function createGauntlet(runtime) {
     rubik: () => sfx.click(),
     switch: () => sfx.blip(),
   };
+  // Hovered, each kind of prop answers softly in its own voice (the console and the trophy have their own)
+  const SHELF_HOVER_SOUNDS = {
+    // a slightly different pitch per pass, so a sweep along the row sounds like a finger running over the spines
+    case: (s) => s.slide({ duration: 0.15, pitch: 0.85 + Math.random() * 0.3 }),
+    book: (s) => s.riffle({ count: 2, duration: 0.1 }),
+    controller: (s) => s.tick({ pitch: 1.4 }),
+    rubik: (s) => {
+      s.tick({ pitch: 1.2 });
+      s.tick({ pitch: 1.2, delay: 0.06 });
+    },
+    switch: (s) => s.pop({ pitch: 1.8 }),
+    figure: (s) => s.boing(),
+    robot: (s) => s.blip(),
+  };
   const itemFor = (obj) => runtime.shelf.shelfItems.find(({ obj: item }) => {
     for (let o = obj; o; o = o.parent) if (o === item) return true;
     return false;
@@ -727,6 +741,7 @@ export function createGauntlet(runtime) {
         if (on && busy) return;
         if (on && item.obj === runtime.shelfConsole.ps5) runtime.shelfConsole.blinkLed();
         if (on && item.obj === runtime.shelfCollectibles.trophy) sfx.trophyHover();
+        if (on && SHELF_HOVER_SOUNDS[item.sound]) hoverSound(item.obj, SHELF_HOVER_SOUNDS[item.sound]);
         gsap.to(carrier.position, { y: on ? lift : 0, z: on ? forward : 0, duration: on ? 0.25 : 0.35, ease: "power2.out", overwrite: true });
       },
       onClick: (hit) => runtime.core.interactive.get(runtime.shelf.shelf).onClick(hit),

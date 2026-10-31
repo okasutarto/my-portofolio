@@ -14,6 +14,8 @@ const readMuted = () => {
 const muted = ref(readMuted());
 let ctx = null;
 let out = null;
+// The master bus. `out` is briefly pointed at the hover bus while a hover cue is built.
+let master = null;
 let noiseBuffer = null;
 let hushDepth = 0;
 // True while a gesture's resume() is pending: sounds scheduled now play once it lands, so the
@@ -40,7 +42,7 @@ function createContext() {
   limiter.ratio.value = 20;
   limiter.attack.value = 0.002;
   limiter.release.value = 0.1;
-  out = ctx.createGain();
+  master = out = ctx.createGain();
   out.gain.value = 1;
   out.connect(comp).connect(makeup).connect(limiter).connect(ctx.destination);
   // One second of white noise, reused by every noisy sound
@@ -175,7 +177,7 @@ function toHall(node, amount) {
     const convolver = ctx.createConvolver();
     convolver.buffer = ir;
     hall = ctx.createGain();
-    hall.connect(convolver).connect(out);
+    hall.connect(convolver).connect(master);
   }
   const send = ctx.createGain();
   send.gain.value = amount;
@@ -307,8 +309,8 @@ const SOUNDS = {
     noise(t, { freq: 2200, to: 900, q: 0.7, attack: 0.02, peak: 0.22, decay: duration });
   },
   // Paper sliding over paper: a soft, breathy "shff" with a little grain in it
-  slide(t, { duration = 0.26, up = true } = {}) {
-    noise(t, { freq: up ? 2200 : 3800, to: up ? 3800 : 2200, q: 0.7, attack: duration * 0.4, peak: 0.13, decay: duration * 0.6 });
+  slide(t, { duration = 0.26, up = true, pitch = 1 } = {}) {
+    noise(t, { freq: (up ? 2200 : 3800) * pitch, to: (up ? 3800 : 2200) * pitch, q: 0.7, attack: duration * 0.4, peak: 0.13, decay: duration * 0.6 });
     for (let at = t + duration * 0.15; at < t + duration * 0.8; at += 0.03 + Math.random() * 0.04) {
       noise(at, { filter: "highpass", freq: vary(5000, 0.2), q: 0.6, attack: 0.002, peak: 0.025, decay: 0.012 });
     }
@@ -898,6 +900,37 @@ function play(name, options = {}) {
 
 // sfx.thud(), sfx.paper({ delay: 0.1 }), ...
 export const sfx = Object.fromEntries(Object.keys(SOUNDS).map((name) => [name, (options) => play(name, options)]));
+
+// Hover cues: the same sounds, played quieter through their own bus. A thing is heard only on
+// the first touch (then not again for a second), and a pointer swept across a row of things
+// plays one every so often instead of a clatter. None on touch screens, where a tap hovers first.
+const HOVER_LEVEL = 0.35;
+const HOVER_REPEAT = 1;
+const HOVER_GAP = 0.12;
+const noHover = window.matchMedia("(hover: none)");
+const hoverHeard = new WeakMap();
+let hoverBus = null;
+let lastHover = -Infinity;
+
+// hoverSound(bin, (s) => s.rimHit()): `key` is the hovered thing, `cue` plays through `s` (sfx)
+export function hoverSound(key, cue) {
+  if (noHover.matches || muted.value || !ctx || ctx.state !== "running" || document.hidden) return;
+  const now = ctx.currentTime;
+  if (now - lastHover < HOVER_GAP || now - (hoverHeard.get(key) ?? -Infinity) < HOVER_REPEAT) return;
+  lastHover = now;
+  hoverHeard.set(key, now);
+  if (!hoverBus || hoverBus.context !== ctx) {
+    hoverBus = ctx.createGain();
+    hoverBus.gain.value = HOVER_LEVEL;
+    hoverBus.connect(master);
+  }
+  out = hoverBus;
+  try {
+    cue(sfx);
+  } finally {
+    out = master;
+  }
+}
 
 // True when sounds would actually be heard: not muted and unlocked by a user gesture.
 // Lets an intro wait for a click instead of playing silently.

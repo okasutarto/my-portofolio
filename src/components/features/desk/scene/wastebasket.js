@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { sfx } from "@/composables/useSfx";
+import { hoverSound, sfx } from "@/composables/useSfx";
 import { canvasTexture, drawRepBadge, drawCrumpledPaper, drawBinRibs, drawBackboard, drawHoopNet } from "../textures";
 
 export function createWastebasket(runtime) {
@@ -425,6 +425,7 @@ export function createWastebasket(runtime) {
     onHover: (on) => {
       if (!on || paper.state !== "litter") return;
       gsap.fromTo(paper.ball.position, { y: runtime.room.FLOOR_Y + PAPER_R + 0.12 }, { y: runtime.room.FLOOR_Y + PAPER_R, duration: 0.4, ease: "bounce.out" });
+      hoverSound(paper.ball, (s) => s.paperBounce({ delay: 0.12 }));
     },
     onClick: () => paper.state === "litter" && shoot(paper),
   }));
@@ -434,6 +435,7 @@ export function createWastebasket(runtime) {
       if (!on) return;
       gsap.fromTo(binBody.position, { y: 0 }, { keyframes: [{ y: 0.12, duration: 0.14, ease: "power2.out" }, { y: 0, duration: 0.2, ease: "power2.in" }] });
       gsap.fromTo(hoop.rotation, { z: 0.08 }, { z: 0, duration: 0.8, ease: "elastic.out(1, 0.3)" });
+      hoverSound(bin, (s) => s.rimHit({ strength: 0.4, delay: 0.14 }));
     },
     onClick: () => shoot(),
   });

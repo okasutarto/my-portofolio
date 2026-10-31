@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { sfx } from "@/composables/useSfx";
+import { hoverSound, sfx } from "@/composables/useSfx";
 import { canvasTexture, drawLeatherGrain, drawChairCrest } from "../textures";
 
 export function createChair(runtime) {
@@ -415,6 +415,7 @@ export function createChair(runtime) {
       if (!on || chairBusy || gsap.isTweening(chairTop.rotation)) return;
       const y = chairTop.rotation.y;
       gsap.fromTo(chairTop.rotation, { y: y + 0.08 }, { y, duration: 0.9, ease: "elastic.out(1, 0.3)" });
+      hoverSound(chair, (s) => s.creak());
     },
     onClick: () => {
       if (chairBusy) return;

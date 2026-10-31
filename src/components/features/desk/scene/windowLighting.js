@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { sfx } from "@/composables/useSfx";
+import { hoverSound, sfx } from "@/composables/useSfx";
 import { Pass, FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
 import { canvasTexture } from "../textures";
 import { lowPower } from "../sceneConfig";
@@ -455,12 +455,21 @@ export function createWindowLighting(runtime) {
     focus: "window",
     item: true,
     // brushed past while shut, the handle gives a little turn
-    onHover: (on) => windowOpen || gsap.to(runtime.room.windowCatches[i].rotation, { z: on ? (i ? 0.55 : -0.55) : 0, duration: on ? 0.25 : 0.4, ease: "power2.out", overwrite: true }),
+    onHover: (on) => {
+      if (windowOpen) return;
+      gsap.to(runtime.room.windowCatches[i].rotation, { z: on ? (i ? 0.55 : -0.55) : 0, duration: on ? 0.25 : 0.4, ease: "power2.out", overwrite: true });
+      if (on) hoverSound(grip, (s) => s.tick({ pitch: 0.75 }));
+    },
     onClick: toggleWindow,
   }));
   runtime.core.register(runtime.windowBlind.blindChain, {
     // brushed past, it swings a little; let go of, a smaller sway the other way
-    onHover: (on) => (on ? runtime.windowBlind.swingChain(0.05, 0.16) : runtime.windowBlind.swingChain(-0.03, -0.08)),
+    onHover: (on) => {
+      if (!on) return runtime.windowBlind.swingChain(-0.03, -0.08);
+      runtime.windowBlind.swingChain(0.05, 0.16);
+      // the beads rattle against each other
+      hoverSound(runtime.windowBlind.blindChain, (s) => [2.4, 2.6, 2.8].forEach((pitch, k) => s.tick({ pitch, delay: k * 0.04 })));
+    },
     // pulled, it swings out harder as the blind starts to move
     onClick: () => {
       runtime.windowBlind.swingChain(0.08, 0.26);
@@ -468,7 +477,10 @@ export function createWindowLighting(runtime) {
     },
   });
   runtime.core.register(runtime.windowBlind.bottomBar, {
-    onHover: (on) => gsap.to(runtime.windowBlind.pull.rotation, { x: on ? 0.35 : 0, duration: on ? 0.25 : 0.8, ease: on ? "power2.out" : "elastic.out(1, 0.3)", overwrite: true }),
+    onHover: (on) => {
+      gsap.to(runtime.windowBlind.pull.rotation, { x: on ? 0.35 : 0, duration: on ? 0.25 : 0.8, ease: on ? "power2.out" : "elastic.out(1, 0.3)", overwrite: true });
+      if (on) hoverSound(runtime.windowBlind.bottomBar, (s) => s.rustle({ duration: 0.2 }));
+    },
     onClick: workBlind,
   });
 

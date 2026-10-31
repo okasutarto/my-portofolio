@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { sfx } from "@/composables/useSfx";
+import { hoverSound, sfx } from "@/composables/useSfx";
 import { canvasTexture, drawPainting, PAINTING_COUNT, drawClockFace, drawRug } from "../textures";
 
 export function createWallDecor(runtime) {
@@ -67,7 +67,13 @@ export function createWallDecor(runtime) {
   let clockBusy = false;
   runtime.core.register(clock, {
     onHover: (on) => {
-      if (!clockBusy) gsap.to(clockMount.rotation, { z: on ? 0.13 : 0, duration: on ? 0.35 : 0.8, ease: on ? "back.out(1.8)" : "elastic.out(1, 0.5)", overwrite: true });
+      if (clockBusy) return;
+      gsap.to(clockMount.rotation, { z: on ? 0.13 : 0, duration: on ? 0.35 : 0.8, ease: on ? "back.out(1.8)" : "elastic.out(1, 0.5)", overwrite: true });
+      // tick-tock
+      if (on) hoverSound(clock, (s) => {
+        s.tick({ pitch: 0.6 });
+        s.tick({ pitch: 0.5, delay: 0.18 });
+      });
     },
     onClick: () => {
       if (clockBusy) return;
@@ -153,7 +159,10 @@ export function createWallDecor(runtime) {
   let paintingBusy = false;
   runtime.core.register(paintingHang, {
     onHover: (on) => {
-      if (!paintingBusy) gsap.to(paintingHang.rotation, { z: on ? -0.085 : 0, duration: on ? 0.35 : 0.9, ease: on ? "back.out(1.8)" : "elastic.out(1, 0.5)", overwrite: true });
+      if (paintingBusy) return;
+      gsap.to(paintingHang.rotation, { z: on ? -0.085 : 0, duration: on ? 0.35 : 0.9, ease: on ? "back.out(1.8)" : "elastic.out(1, 0.5)", overwrite: true });
+      // the frame knocks against the wall
+      if (on) hoverSound(paintingHang, (s) => s.knock({ strength: 0.6 }));
     },
     onClick: () => {
       if (paintingBusy) return;

@@ -530,10 +530,10 @@ const SOUNDS = {
   },
   // A woofer nudged: one soft bass push of the cone, with the faint rattle of its grille
   woofer(t) {
-    tone(t, { freq: vary(85, 0.05), to: 48, attack: 0.012, peak: 0.55, decay: 0.16 });
+    tone(t, { freq: vary(85, 0.05), to: 48, attack: 0.012, peak: 0.8, decay: 0.16 });
     // its octave, so a laptop's small speakers still hear the push
-    tone(t, { type: "triangle", freq: vary(170, 0.05), to: 96, attack: 0.012, peak: 0.18, decay: 0.12 });
-    noise(t + 0.01, { filter: "lowpass", freq: 320, q: 0.7, attack: 0.01, peak: 0.12, decay: 0.08 });
+    tone(t, { type: "triangle", freq: vary(170, 0.05), to: 96, attack: 0.012, peak: 0.45, decay: 0.12 });
+    noise(t + 0.01, { filter: "lowpass", freq: 500, q: 0.7, attack: 0.01, peak: 0.25, decay: 0.08 });
   },
   // Rubber pulled taut: a low reedy creak rising in pitch as it stretches
   rubber(t, { duration = 0.4 } = {}) {
@@ -637,9 +637,9 @@ const SOUNDS = {
   },
   // Coffee rocking in a lifted mug: a low wash of liquid and a bubble or two
   slosh(t) {
-    noise(t, { filter: "lowpass", freq: 380, to: 900, q: 1.6, attack: 0.07, peak: 0.16, decay: 0.24 });
-    noise(t + 0.09, { filter: "lowpass", freq: 900, to: 420, q: 1.6, attack: 0.05, peak: 0.1, decay: 0.2 });
-    [0.12, 0.2].forEach((d) => tone(t + d + Math.random() * 0.04, { freq: vary(520, 0.2), to: vary(820, 0.15), peak: 0.04, decay: 0.03 }));
+    noise(t, { filter: "lowpass", freq: 500, to: 1300, q: 1.6, attack: 0.07, peak: 0.38, decay: 0.24 });
+    noise(t + 0.09, { filter: "lowpass", freq: 1300, to: 550, q: 1.6, attack: 0.05, peak: 0.24, decay: 0.2 });
+    [0.12, 0.2].forEach((d) => tone(t + d + Math.random() * 0.04, { freq: vary(520, 0.2), to: vary(820, 0.15), peak: 0.1, decay: 0.03 }));
   },
   // A dumbbell set down: heavy iron, the synth thump keeping the weight under it
   dumbbell(t, { strength = 1 } = {}) {

@@ -14,10 +14,10 @@ trophy.userData.restY = 2;
 const camera = new THREE.PerspectiveCamera();
 const shelfBubble = { sprite: new THREE.Sprite(), hide() {} };
 const ctx = vm.createContext({
-  trophy, camera, shelfBubble, BUBBLE_TAILS,
-  shelfBubbleAt: new THREE.Vector3(), trophyBubbleRight: new THREE.Vector3(), trophyBubbleUp: new THREE.Vector3(),
+  THREE, trophy, camera, shelfBubble, BUBBLE_TAILS, shelfBubbleAt: new THREE.Vector3(),
+  pad1: { userData: {} }, pad2: { userData: {} }, robot: {}, nintendoSwitch: {},
 });
-const place = vm.runInContext(section('  function placeTrophyBubble()', '  // `reach`') + '; placeTrophyBubble', ctx);
+const place = vm.runInContext(section('  const shelfBubbleAnchors', '  function shelfSay(') + '; shelfBubbleTarget = trophy; placeShelfBubble', ctx);
 for (const yaw of [-0.3, 0, 0.3]) {
   camera.rotation.set(-0.1, yaw, 0);
   for (const size of [0.2, 1, 2.7]) {

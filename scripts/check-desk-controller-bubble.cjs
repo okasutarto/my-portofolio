@@ -5,6 +5,8 @@ const THREE = require('three');
 const source = require('./helpers/desk-source.cjs').readDeskSource();
 const textures = require('./helpers/texture-source.cjs').readTexturesSource();
 const BUBBLE_TAILS = vm.runInNewContext(textures.slice(textures.indexOf('export const BUBBLE_TAILS'), textures.indexOf('function drawMangaBubble')).replace('export ', '') + '; BUBBLE_TAILS');
+// The handheld, both controllers and the robot all speak from a bubble up and to their right,
+// its tail leaving the bubble's lower left and stopping just short of their top-right corner
 const shelf = new THREE.Group();
 shelf.position.set(10.5, -5.2, -3.75);
 const pads = [-0.35, 0.9].map((x) => {
@@ -17,37 +19,45 @@ const pads = [-0.35, 0.9].map((x) => {
   shelf.add(item);
   return item;
 });
+const robot = new THREE.Group();
+robot.position.set(0.4, -1.5, 0.1);
+const nintendoSwitch = new THREE.Group();
+nintendoSwitch.position.set(0.66, 2.4, 0.05);
+shelf.add(robot, nintendoSwitch);
 const camera = new THREE.OrthographicCamera(-4, 4, 3, -3, 0.1, 100);
 const sprite = new THREE.Sprite();
-const print = { tail: 'side-left' };
-const ctx = vm.createContext({ THREE, camera, BUBBLE_TAILS, pad1: pads[0], pad2: pads[1], trophy: {},
-  shelfBubbleTarget: null, shelfBubbleAt: new THREE.Vector3(), SHELF_BUBBLE_W: 2.7,
-  trophyBubbleRight: new THREE.Vector3(), trophyBubbleUp: new THREE.Vector3(),
-  shelfBubblePrint: print, shelfBubble: { sprite, say() {} },
+const print = { tail: 'down-left' };
+const ctx = vm.createContext({ THREE, camera, BUBBLE_TAILS, pad1: pads[0], pad2: pads[1], robot, nintendoSwitch, trophy: new THREE.Group(),
+  shelfBubbleAt: new THREE.Vector3(), shelfBubblePrint: print, shelfBubble: { sprite, say() {} },
 });
-const start = source.indexOf('  function placeControllerBubble()');
-vm.runInContext(source.slice(start, source.indexOf('  function powerConsole()', start)), ctx);
-for (const pad of pads) {
-  ctx.pad = pad;
+const start = source.indexOf('  const shelfBubbleAnchors');
+vm.runInContext(source.slice(start, source.indexOf('  function powerConsole()', start)) + '; this.shelfBubbleAnchors = shelfBubbleAnchors;', ctx);
+const speakers = [[pads[0], pads[0].userData.moves], [pads[1], pads[1].userData.moves], [robot, robot], [nintendoSwitch, nintendoSwitch]];
+for (const [speaker, part] of speakers) {
+  ctx.speaker = speaker;
   for (const yaw of [-0.3, 0, 0.3]) {
     camera.position.set(10.5, 0, 8);
     camera.lookAt(10.5, -3, -3.75);
     camera.rotateY(yaw);
     camera.updateMatrixWorld(true);
-    vm.runInContext("shelfSay(pad, 'cheat code')", ctx);
-    assert.ok(['left', 'right'].includes(print.tail), 'controller bubble uses a downward diagonal tail');
+    vm.runInContext("shelfSay(speaker, 'hello')", ctx);
+    assert.equal(print.tail, 'down-left', 'shelf bubbles point down-left from their lower-left edge');
     for (const width of [0.432, 2.7, 3.1]) {
       sprite.scale.set(width, width * 1.42 / 2.7, 1);
-      pad.userData.moves.position.x += 0.04;
-      vm.runInContext('placeControllerBubble()', ctx);
+      part.position.x += 0.04;
+      part.updateMatrixWorld(true);
+      vm.runInContext('placeShelfBubble()', ctx);
       const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
       const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
-      const anchor = pad.userData.moves.getWorldPosition(new THREE.Vector3()).addScaledVector(up, 0.32);
-      const [tipX, tipY] = BUBBLE_TAILS[print.tail].tip;
+      const corner = part.localToWorld(ctx.shelfBubbleAnchors.get(speaker).at.clone());
+      const [tipX, tipY] = BUBBLE_TAILS['down-left'].tip;
       const tip = sprite.position.clone().addScaledVector(right, (tipX - 0.5) * sprite.scale.x).addScaledVector(up, (0.5 - tipY) * sprite.scale.y);
-      assert.ok(tip.distanceTo(anchor) < 1e-9, 'tail follows the pad through camera changes, vibration and bubble scale animation');
-      assert.ok(sprite.position.clone().sub(anchor).dot(up) > 0, 'bubble sits above the controller rather than on the floor');
+      const gap = tip.clone().sub(corner);
+      assert.ok(gap.dot(right) > 0 && gap.dot(up) > 0, 'tail stops up and to the right of the corner, not on it');
+      assert.ok(gap.length() < 0.2, 'tail stays close to what is speaking');
+      const offset = sprite.position.clone().sub(tip);
+      assert.ok(offset.dot(right) > 0 && offset.dot(up) > 0, 'bubble sits above and to the right of its tail');
     }
   }
 }
-console.log('Controller bubble: elevated position and exact diagonal-tail anchoring passed.');
+console.log('Shelf bubbles: upper-right placement with a down-left tail that stops short of the speaker passed.');

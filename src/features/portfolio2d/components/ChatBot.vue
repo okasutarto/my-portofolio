@@ -70,7 +70,7 @@
 
         <!-- Messages -->
         <div
-          class="flex-1 overflow-y-auto px-4 py-5 space-y-3 bg-dot-grid no-scrollbar"
+          class="flex-1 overflow-y-auto px-4 py-5 space-y-3 bg-[color-mix(in_srgb,var(--color-primary)_14%,#fff)] dark:bg-[color-mix(in_srgb,var(--color-primary)_10%,#241f1a)] no-scrollbar"
           ref="chatMessages"
           @scroll="handleScroll">
           <!-- Welcome card fills the empty window until the first question -->
@@ -198,7 +198,7 @@ import { ref, computed, watch, onMounted } from "vue";
 import BotFace from "./BotFace.vue";
 import { sfx } from "../../../shared/composables/useSfx";
 import { useRouter } from "vue-router";
-import { getStreamingResponse, toHistory } from "../../../shared/services/chatApi";
+import { chatErrorReply, getStreamingResponse, toHistory } from "../../../shared/services/chatApi";
 import { usePostHog } from "@/features/portfolio2d/composables/usePostHog";
 import { formatMessageWithLinks } from "@/features/portfolio2d/utils/formatChatMessage";
 
@@ -286,15 +286,6 @@ export default {
         const { scrollTop, scrollHeight, clientHeight } = chatMessages.value;
         isUserAtBottom.value = scrollHeight - scrollTop - clientHeight < 50;
       }
-    };
-
-    // What the bot says when a question fails: a rate limit says how long to wait
-    const errorReply = (error) => {
-      if (error.status !== 429) return "Oops, my wires got tangled for a sec 😅 Mind trying that again?";
-      if (error.scope === "everyone") return "I've talked a lot today and my circuits need a rest 😴 Try me again tomorrow, or reach Oka directly through the contact page!";
-      const minutes = Math.max(1, Math.ceil((error.retryAfter || 60) / 60));
-      const wait = minutes >= 60 ? "a few hours" : `${minutes} minute${minutes === 1 ? "" : "s"}`;
-      return `Whoa, that's a lot of questions! Give me ${wait} to catch my breath 😅 Or reach Oka directly through the contact page.`;
     };
 
     const sendMessage = async () => {
@@ -397,7 +388,7 @@ export default {
         sfx.buzz();
         messages.value.push({
           sender: "bot",
-          text: errorReply(error),
+          text: chatErrorReply(error),
           showContactButton: error.status === 429,
         });
       }

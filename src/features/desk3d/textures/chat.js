@@ -12,6 +12,50 @@ export const CHAT_QUESTIONS = [
 // Markdown down to plain text. A reply still streaming in can hold an unclosed "**": drop it too.
 const plain = (text) => text.replace(/\*\*([^*]+)\*\*/g, "$1").replace(/\*\*/g, "").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
 
+// The assistant's robot, drawn as in the 2D chat (BotFace.vue): its 40×40 box placed at (x, y),
+// `size` wide; mouth open while it's replying
+function drawBotFace(c, x, y, size, talking) {
+  c.save();
+  c.translate(x, y);
+  c.scale(size / 40, size / 40);
+  c.strokeStyle = "#000";
+  c.lineCap = "round";
+  c.lineWidth = 3;
+  c.beginPath();
+  c.moveTo(20, 3);
+  c.lineTo(20, 9);
+  c.stroke();
+  c.beginPath();
+  c.arc(20, 4, 3, 0, Math.PI * 2);
+  c.fillStyle = "#ff5c8a";
+  c.fill();
+  c.lineWidth = 2;
+  c.stroke();
+  c.beginPath();
+  c.roundRect(5, 9, 30, 25, 5);
+  c.fillStyle = "#fff";
+  c.fill();
+  c.lineWidth = 3;
+  c.stroke();
+  c.fillStyle = "#000";
+  for (const eyeX of [12, 23]) {
+    c.beginPath();
+    c.roundRect(eyeX, 16, 5, 7, 1.5);
+    c.fill();
+  }
+  c.beginPath();
+  if (talking) {
+    c.ellipse(20, 28.5, 4, 2.6, 0, 0, Math.PI * 2);
+    c.fill();
+  } else {
+    c.moveTo(15, 28);
+    c.quadraticCurveTo(20, 31, 25, 28);
+    c.lineWidth = 2.5;
+    c.stroke();
+  }
+  c.restore();
+}
+
 export function drawChatScreen(c, w, h, chat, { unread = false, caret = false, now = new Date() } = {}) {
   const hotspots = [];
   c.fillStyle = "#fffdf5";
@@ -122,18 +166,15 @@ export function drawChatScreen(c, w, h, chat, { unread = false, caret = false, n
   c.beginPath();
   c.roundRect(w / 2 - 75, 16, 150, 40, 20);
   c.fill();
-  brutalBox(c, 28, 68, 72, 72, "#fff", { shadow: 5, line: 4, radius: 36 });
+  // The assistant's robot on a white tile, tilted like the 2D chat's header
+  c.save();
+  c.translate(64, 104);
+  c.rotate(-0.1);
+  c.translate(-64, -104);
+  brutalBox(c, 28, 68, 72, 72, "#fff", { shadow: 5, line: 4, radius: 20 });
+  drawBotFace(c, 36, 74, 56, chat.waiting);
+  c.restore();
   c.fillStyle = "#000";
-  c.beginPath();
-  c.arc(53, 97, 6, 0, Math.PI * 2);
-  c.arc(77, 97, 6, 0, Math.PI * 2);
-  c.fill();
-  c.lineWidth = 5;
-  c.lineCap = "round";
-  c.beginPath();
-  c.arc(65, 108, 12, 0.2 * Math.PI, 0.8 * Math.PI);
-  c.stroke();
-  c.lineCap = "butt";
   c.font = `800 28px ${DISPLAY}`;
   c.fillText("Desk AI", 122, 92);
   c.font = `700 20px ${BODY}`;

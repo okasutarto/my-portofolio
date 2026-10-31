@@ -16,6 +16,20 @@ export const toHistory = (messages) => messages
     : { role: 'assistant', content: m.text, signature: m.signature }));
 
 /**
+ * What the bot says when a question fails, the same in both chats (the 2D bot and the desk
+ * phone): for a rate limit, how long to wait or that it's resting for the day.
+ * @param {Error & { status?: number, scope?: string, retryAfter?: number }} error - From getStreamingResponse
+ * @returns {string}
+ */
+export const chatErrorReply = (error) => {
+  if (error.status !== 429) return "Oops, my wires got tangled for a sec 😅 Mind trying that again?";
+  if (error.scope === 'everyone') return "I've talked a lot today and my circuits need a rest 😴 Try me again tomorrow, or reach Oka directly through the contact page!";
+  const minutes = Math.max(1, Math.ceil((error.retryAfter || 60) / 60));
+  const wait = minutes >= 60 ? 'a few hours' : `${minutes} minute${minutes === 1 ? '' : 's'}`;
+  return `Whoa, that's a lot of questions! Give me ${wait} to catch my breath 😅 Or reach Oka directly through the contact page.`;
+};
+
+/**
  * Get streaming response from the backend API
  * @param {string} prompt - User message
  * @param {function} onToken - Callback function that receives each token as it arrives

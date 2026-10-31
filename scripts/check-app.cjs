@@ -104,6 +104,13 @@ async function main() {
     await assert.rejects(stream('hello', () => {}), (error) => error.status === 429 && error.retryAfter === undefined);
     global.fetch = async () => ({ ok: false, status: 500 });
     await assert.rejects(stream('hello', () => {}), (error) => error.status === 500);
+    // Both chats (2D bot and the desk phone) word a rate limit the same way
+    const { chatErrorReply } = await loadModule('src/shared/services/chatApi.js');
+    assert.match(chatErrorReply({ status: 500 }), /wires got tangled/);
+    assert.match(chatErrorReply(new TypeError('Failed to fetch')), /wires got tangled/);
+    assert.match(chatErrorReply({ status: 429, scope: 'visitor', retryAfter: 120 }), /2 minutes/);
+    assert.match(chatErrorReply({ status: 429, scope: 'visitor', retryAfter: 30 }), /1 minute to/);
+    assert.match(chatErrorReply({ status: 429, scope: 'everyone', retryAfter: 9000 }), /tomorrow/);
   } finally {
     global.fetch = originalFetch;
   }

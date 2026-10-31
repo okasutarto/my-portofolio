@@ -9,7 +9,7 @@ export function createPostcard(runtime) {
   // ---------- postcard + envelope (contact) ----------
   // Zoomed in, the postcard slides out and turns over to its writing side: click the message
   // area or an address line to write (Tab moves along), press the SEND stamp to mail it. It
-  // goes out through EmailJS, like the 2D contact form, and the envelope flies off.
+  // goes out through EmailJS, like the 2D contact form, folded into a paper plane that flies off.
   const mail = new THREE.Group();
   const MAIL_POS = { x: 4.2, y: 0, z: 3.2 };
   mail.position.set(MAIL_POS.x, MAIL_POS.y, MAIL_POS.z);
@@ -63,7 +63,40 @@ export function createPostcard(runtime) {
   postage.rotation.x = -Math.PI / 2;
   postage.position.set(CARD_W * 0.385, 0.026, -CARD_D * 0.316);
   postcard.add(postage);
-  mail.add(postcard, envelope);
+  // The paper plane a sent card folds into: two wings hinged on the centre line, nose toward
+  // -z, and a keel folded down under them. Flat (wings level, no keel) it's the folded sheet.
+  const PLANE_L = 1.15;
+  const PLANE_W = 0.5;
+  const PLANE_KEEL = 0.13;
+  const PLANE_FOLD = 0.42;
+  const planeMat = runtime.core.toon("#fffdf5");
+  planeMat.side = THREE.DoubleSide;
+  const planeEdge = runtime.core.track(new THREE.LineBasicMaterial({ color: "#000" }));
+  const paperPiece = (points) => {
+    const geo = runtime.core.track(new THREE.BufferGeometry().setFromPoints(points.map((p) => new THREE.Vector3(...p))));
+    geo.computeVertexNormals();
+    const piece = new THREE.Mesh(geo, planeMat);
+    piece.castShadow = true;
+    piece.add(new THREE.LineSegments(runtime.core.track(new THREE.EdgesGeometry(geo)), planeEdge));
+    return piece;
+  };
+  const nose = [0, 0, -PLANE_L / 2];
+  const tail = [0, 0, PLANE_L / 2];
+  const wings = [-1, 1].map((side) => paperPiece([nose, tail, [side * PLANE_W, 0, PLANE_L / 2]]));
+  const keel = paperPiece([nose, tail, [0, -PLANE_KEEL, PLANE_L / 2]]);
+  const plane = new THREE.Group();
+  plane.add(...wings, keel);
+  plane.visible = false;
+  // Laid flat and hidden, where the card lies out on the envelope
+  function resetPlane() {
+    plane.visible = false;
+    plane.position.set(POSTCARD_OUT.x, POSTCARD_OUT.y + 0.03, POSTCARD_OUT.z);
+    plane.rotation.set(0, POSTCARD_OUT.r, 0);
+    wings.forEach((wing) => wing.rotation.set(0, 0, 0));
+    keel.scale.set(1, 0.01, 1);
+  }
+  resetPlane();
+  mail.add(postcard, envelope, plane);
   const redrawCard = () => postBack.userData.tex.redraw();
   let mailIntro = null;
   let cardReady = false;
@@ -133,10 +166,19 @@ export function createPostcard(runtime) {
       return redrawCard();
     }
     if (runtime.core.destroyed) return;
-    Object.assign(card, { name: "", email: "", message: "", status: "idle", errors: {} });
+    // The card keeps its words until it's tucked into the envelope (mailOff clears it)
+    card.status = "sent";
+    redrawCard();
     mailOff();
   }
+  // A sent card comes back blank for the next message
+  function clearSentCard() {
+    if (card.status !== "sent") return;
+    Object.assign(card, { name: "", email: "", message: "", status: "idle", errors: {} });
+    redrawCard();
+  }
   function resetEnvelope() {
+    clearSentCard();
     mailIntro?.kill();
     mailIntro = null;
     cardReady = false;
@@ -149,6 +191,8 @@ export function createPostcard(runtime) {
     envelope.visible = true;
     envelope.position.set(0, 0.04, 0);
     envelope.rotation.set(0, 0, 0);
+    envelope.scale.set(1, 1, 1);
+    resetPlane();
     gsap.killTweensOf(flap.rotation);
     flap.rotation.x = 0;
     flap.position.y = 0.075;
@@ -192,20 +236,56 @@ export function createPostcard(runtime) {
       .fromTo(postage.scale, { x: 2.2, y: 2.2 }, { x: 1, y: 1, duration: 0.45, ease: "back.out(2)" })
       .call(() => sfx.stamp(), null, "<+0.08");
   }
+  // Sent: the card folds into a paper plane that takes off from the envelope and flies away;
+  // then the empty envelope's flap folds shut and it gets its DELIVERED stamp. It stays closed;
+  // clicking it (or coming back to it) opens a fresh card.
   function mailOff() {
     cardReady = false;
     mailIntro?.kill();
+    resetPlane();
+    // Pull back to frame the whole envelope, as while it opens
+    runtime.camera.applyShot(false, 0.8);
     mailIntro = gsap.timeline()
-      .call(() => sfx.whoosh({ duration: 0.6 }))
-      .to(postcard.position, { y: 5, z: -5, duration: 0.7, ease: "power2.in" })
-      .to(postcard.rotation, { x: -1.1, y: -0.14, duration: 0.7 }, "<")
-      .to(postcard.scale, { x: 0.4, y: 0.4, z: 0.4, duration: 0.7 }, "<")
+      // 1. The card creases in from its sides...
+      .to(postcard.scale, { x: 0.62, z: 0.92, duration: 0.3, ease: "power2.in" }, 0)
+      .call(() => sfx.paper(), null, 0)
+      .call(() => sfx.paper(), null, 0.2)
+      // ...and becomes the flat folded sheet, whose wings fold up over a keel
+      .set([postcard, postage], { visible: false }, 0.3)
+      .set(plane, { visible: true }, 0.3)
+      .call(clearSentCard, null, 0.3)
+      .to(wings[0].rotation, { z: -PLANE_FOLD, duration: 0.4, ease: "back.out(2)" }, 0.32)
+      .to(wings[1].rotation, { z: PLANE_FOLD, duration: 0.4, ease: "back.out(2)" }, 0.32)
+      .to(keel.scale, { y: 1, duration: 0.3, ease: "power2.out" }, 0.32)
+      .to(plane.position, { y: POSTCARD_OUT.y + 0.12, duration: 0.4, ease: "power2.out" }, 0.32)
+      .to(plane.rotation, { y: 0, duration: 0.4, ease: "sine.inOut" }, 0.32)
+      .call(() => sfx.rustle({ duration: 0.35 }), null, 0.32)
+      // 2. Ready for takeoff: it lifts, nose up, and rocks once
+      .to(plane.position, { y: 0.5, duration: 0.4, ease: "sine.inOut" }, 0.8)
+      .to(plane.rotation, { x: 0.28, z: 0.12, duration: 0.25, ease: "sine.out" }, 0.8)
+      .to(plane.rotation, { z: -0.08, duration: 0.2, ease: "sine.inOut" }, 1.05)
+      .call(() => sfx.planeTakeoff({ duration: 1.6 }), null, 0.85)
+      // 3. Takeoff: away past the far edge of the desk, climbing and banking as it goes
+      .to(plane.position, { x: 1.6, y: 2.2, z: -8, duration: 1.1, ease: "power2.in" }, 1.25)
+      .to(plane.rotation, { x: 0.12, z: -0.4, duration: 1.1, ease: "sine.inOut" }, 1.25)
+      .set(plane, { visible: false }, 2.35)
+      // 4. The envelope settles back, its flap lifts off the desk and folds shut
+      .to(envelope.position, { y: 0.04, z: 0, duration: 0.6, ease: "sine.inOut" }, 1.6)
+      .to(envelope.rotation, { y: 0, duration: 0.6, ease: "sine.inOut" }, 1.6)
+      .to(flap.position, { y: 0.075, duration: 0.15, ease: "power2.out" }, 2.1)
+      .to(flap.rotation, { x: 0, duration: 0.5, ease: "power2.inOut" }, 2.15)
+      .call(() => sfx.cardDown({ strength: 0.4 }), null, 2.6)
+      // 5. Stamped DELIVERED, with a thump that squashes the envelope a little
       .call(() => {
-        resetEnvelope();
         envTop.userData.tex.redraw({ delivered: true });
         sfx.stamp();
-        runtime.core.timers.push(setTimeout(() => !runtime.core.destroyed && (runtime.camera.focus.name === "contact" ? openEnvelope() : resetEnvelope()), 2800));
-      });
+      }, null, 2.85)
+      .fromTo(envelope.scale, { x: 1.04, y: 0.6, z: 1.04 }, { x: 1, y: 1, z: 1, duration: 0.4, ease: "back.out(3)" }, 2.85)
+      // Back at rest inside the envelope, out of sight, for the next card
+      .set(postcard.position, { x: POSTCARD_REST.x, y: POSTCARD_REST.y, z: POSTCARD_REST.z }, 2.85)
+      .set(postcard.rotation, { y: 0 }, 2.85)
+      .set(postcard.scale, { x: 1, z: 1 }, 2.85)
+      .call(resetPlane, null, 3.25);
   }
   runtime.core.register(mail, {
     focus: "contact",
@@ -216,6 +296,8 @@ export function createPostcard(runtime) {
     },
     onArrive: openEnvelope,
     onLeave: resetEnvelope,
+    // Zoomed in on the closed, delivered envelope: open it for another card
+    onClick: () => !cardReady && !mailIntro?.isActive() && openEnvelope(),
     onHotspot: (hs) => cardReady && (hs.id === "send" ? sendCard() : editField(hs.id)),
   });
 

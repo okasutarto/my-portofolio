@@ -29,7 +29,7 @@
           <form
             ref="postcardRef"
             class="postcard relative z-10 grid grid-cols-1 md:grid-cols-[1.2fr_1fr] min-h-[400px] bg-[#fffdf5] text-[#1a1714] border-[2.5px] border-black shadow-[8px_8px_0_#000]"
-            :class="{ ready: introDone, sent: status === 'sent', shake: status === 'error' }"
+            :class="{ ready: introDone, shake: status === 'error' }"
             :inert="status === 'sent'"
             novalidate
             @submit.prevent="submitForm">
@@ -134,13 +134,27 @@
             </div>
           </template>
 
-          <!-- Delivered stamp shown after the card flies off -->
+          <!-- The paper plane a sent card folds into before it flies off -->
+          <svg ref="planeRef" class="paper-plane" viewBox="0 0 120 80" aria-hidden="true">
+            <polygon points="4,40 116,6 46,48" fill="#fffdf5" />
+            <polygon points="46,48 116,6 56,74" fill="#e6dcc4" />
+            <polygon points="46,48 56,74 38,60" fill="#d4c6a6" />
+          </svg>
+
+          <!-- The closed envelope's stamp once the plane is away, and a way to write again -->
           <div
-            class="delivered absolute inset-0 grid place-items-center pointer-events-none"
-            :class="{ show: status === 'sent' }"
+            class="delivered absolute inset-0 flex flex-col items-center justify-center gap-5 pointer-events-none"
             role="status"
             aria-live="polite">
-            <span v-if="status === 'sent'">DELIVERED ✓</span>
+            <template v-if="stamped">
+              <span class="delivered-stamp">DELIVERED ✓</span>
+              <button
+                type="button"
+                class="write-again pointer-events-auto inline-flex items-center gap-2 px-4 py-2 font-display font-bold uppercase text-sm text-black bg-white border-2 border-black shadow-[4px_4px_0_#000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_#000] transition-all"
+                @click="writeAnother">
+                Write another <i class="fas fa-pen"></i>
+              </button>
+            </template>
           </div>
         </div>
 
@@ -230,15 +244,18 @@ const form = reactive({ name: "", email: "", message: "" });
 const errors = reactive({ name: "", email: "", message: "" });
 // idle | sending | sent | error
 const status = ref("idle");
-// The fly-away transition is only switched on after the intro, otherwise it would
-// also delay every value GSAP sets while tossing the card in
+// The intro has finished: the card rests on the envelope (.ready)
 const introDone = ref(false);
 // The envelope remains visible as a background wrapper for the postcard
 const showEnvelope = ref(true);
 const envelopeBackRef = ref(null);
 const envelopeFrontRef = ref(null);
 const flapRef = ref(null);
-let resetTimer = null;
+const planeRef = ref(null);
+// The sent card has flown off and the envelope is shut with its DELIVERED stamp
+const stamped = ref(false);
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+let sendTl = null;
 let ctx = null;
 
 const validateForm = () => {
@@ -280,18 +297,7 @@ const submitForm = async () => {
     );
     posthog.capture("contact_form_sent");
     status.value = "sent";
-    // The card flies off to the mailbox, then gets its "delivered" stamp
-    sfx.whoosh({ duration: 0.6 });
-    sfx.stamp({ delay: 0.7 });
-
-    // Card flies off, "delivered" stamp shows, then a fresh card comes back
-    clearTimeout(resetTimer);
-    resetTimer = setTimeout(() => {
-      form.name = "";
-      form.email = "";
-      form.message = "";
-      status.value = "idle";
-    }, 3600);
+    flyOff();
   } catch (error) {
     console.error("EmailJS Error:", error);
     status.value = "error";
@@ -299,8 +305,88 @@ const submitForm = async () => {
   }
 };
 
+const clearForm = () => {
+  form.name = "";
+  form.email = "";
+  form.message = "";
+};
+
+// Sent: the card folds into a paper plane that takes off and flies away, then the envelope's
+// flap folds shut and it gets its DELIVERED stamp. It stays that way until "Write another".
+const flyOff = () => {
+  const card = postcardRef.value;
+  const plane = planeRef.value;
+  const flap = flapRef.value;
+  sendTl?.kill();
+  if (reducedMotion) {
+    gsap.set(card, { opacity: 0 });
+    gsap.set(flap, { rotateX: 0, zIndex: 30 });
+    clearForm();
+    stamped.value = true;
+    sfx.stamp();
+    return;
+  }
+  sendTl = gsap
+    .timeline()
+    // 1. The card creases in from its sides and becomes the plane
+    .to(card, { scaleX: 0.45, scaleY: 0.85, rotate: -4, duration: 0.3, ease: "power2.in" }, 0)
+    .call(() => sfx.paper(), null, 0)
+    .call(() => sfx.paper(), null, 0.2)
+    .to(card, { opacity: 0, duration: 0.12 }, 0.24)
+    .call(clearForm, null, 0.4)
+    .fromTo(plane, { opacity: 0, x: 0, y: 0, scale: 0.5, rotate: 0 }, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2.5)" }, 0.28)
+    .call(() => sfx.rustle({ duration: 0.35 }), null, 0.28)
+    // 2. Ready for takeoff: it lifts, nose up, and rocks once
+    .to(plane, { y: -30, rotate: -14, duration: 0.4, ease: "sine.inOut" }, 0.7)
+    .to(plane, { rotate: -6, duration: 0.2, ease: "sine.inOut" }, 1.1)
+    .call(() => sfx.planeTakeoff({ duration: 1.6 }), null, 0.75)
+    // 3. Takeoff: up and away off the top right of the screen
+    .to(plane, { x: () => window.innerWidth * 0.9, y: () => -window.innerHeight * 0.8, rotate: -24, scale: 0.6, duration: 1.1, ease: "power2.in" }, 1.25)
+    // The section clips it, so it fades out on the way rather than vanishing at the edge
+    .to(plane, { opacity: 0, duration: 0.35, ease: "power1.in" }, 2.0)
+    // 4. The empty envelope's flap folds shut, coming in front of it halfway over
+    .to(flap, { rotateX: 0, duration: 0.5, ease: "power2.inOut" }, 1.7)
+    .set(flap, { zIndex: 30 }, 1.95)
+    .call(() => sfx.cardDown({ strength: 0.4 }), null, 2.15)
+    // 5. Stamped
+    .call(() => {
+      stamped.value = true;
+      sfx.stamp();
+    }, null, 2.35);
+};
+
+// A fresh card: the flap opens and a blank card slides out and settles, as in the intro
+const writeAnother = () => {
+  const card = postcardRef.value;
+  const flap = flapRef.value;
+  sendTl?.kill();
+  stamped.value = false;
+  const done = async () => {
+    gsap.set(card, { clearProps: "transform,opacity,transformOrigin" });
+    status.value = "idle";
+    await nextTick();
+    card.querySelector("textarea")?.focus({ preventScroll: true });
+  };
+  if (reducedMotion) {
+    gsap.set(flap, { rotateX: 180, zIndex: 5 });
+    return done();
+  }
+  sendTl = gsap
+    .timeline({ onComplete: done })
+    .set(card, { opacity: 1, scaleX: 1, scaleY: 1, rotate: 0, yPercent: 0, y: 32, zIndex: 10 })
+    .to(flap, { rotateX: 180, duration: 0.45, ease: "power2.inOut" })
+    .call(() => sfx.slide({ duration: 0.4 }), null, "<")
+    .set(flap, { zIndex: 5 }, "-=0.22")
+    // Up out of the pocket until it clears it, then in front of the envelope and down to rest
+    .to(card, { yPercent: -106, y: 0, duration: 0.8, ease: "power2.inOut" })
+    .call(() => sfx.slide({ duration: 0.7 }), null, "<")
+    .set(card, { zIndex: 35 })
+    .to(card, { yPercent: 0, y: -6, duration: 0.6, ease: "power2.inOut" })
+    .call(() => sfx.cardDown({ strength: 0.6 }));
+};
+
 onMounted(() => {
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  if (reducedMotion) {
     introDone.value = true;
     gsap.set(postcardRef.value, { zIndex: 35 });
     gsap.set([envelopeBackRef.value, envelopeFrontRef.value], { y: 32, rotate: 1.5, opacity: 1 });
@@ -361,7 +447,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-  clearTimeout(resetTimer);
+  sendTl?.kill();
   if (ctx) ctx.revert();
 });
 </script>
@@ -501,7 +587,7 @@ onBeforeUnmount(() => {
   color: rgba(0, 0, 0, 0.4);
 }
 
-/* Sent: the card folds back and flies off */
+/* Sent, it folds into the paper plane (GSAP, flyOff) */
 .postcard {
   transform-origin: center;
 }
@@ -509,13 +595,24 @@ onBeforeUnmount(() => {
 .postcard.ready {
   z-index: 35;
   transform: translateY(-6px);
-  transition:
-    transform 0.8s cubic-bezier(0.6, -0.2, 0.4, 1.2),
-    opacity 0.4s 0.5s;
 }
-.postcard.sent {
-  transform: rotateX(70deg) rotateZ(-8deg) scale(0.4) translateY(-640px);
+
+/* The paper plane: hidden over the middle of the card until a card is sent */
+.paper-plane {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 180px;
+  margin: -60px 0 0 -90px;
+  z-index: 45;
   opacity: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.paper-plane polygon {
+  stroke: #000;
+  stroke-width: 3;
+  stroke-linejoin: round;
 }
 .postcard-stage {
   perspective: 1400px;
@@ -539,14 +636,23 @@ onBeforeUnmount(() => {
 .delivered {
   z-index: 40;
 }
-.delivered span {
+.delivered-stamp {
   font: 800 2rem "Lexend Mega", sans-serif;
   color: #22a34a;
   border: 5px solid #22a34a;
   padding: 10px 22px;
   background: rgba(255, 255, 255, 0.75);
   transform: rotate(-8deg);
-  animation: stamp-in 0.4s 0.6s cubic-bezier(0.34, 1.8, 0.64, 1) both;
+  animation: stamp-in 0.4s cubic-bezier(0.34, 1.8, 0.64, 1) both;
+}
+.write-again {
+  animation: fade-up 0.35s 0.5s ease-out both;
+}
+@keyframes fade-up {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
 }
 @keyframes stamp-in {
   from {
@@ -563,15 +669,9 @@ onBeforeUnmount(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .postcard,
-  .postcard.sent {
-    transition: none;
-  }
-  .postcard.sent {
-    transform: translateY(-6px);
-    opacity: 0.25;
-  }
-  .postcard.shake {
+  .postcard.shake,
+  .delivered-stamp,
+  .write-again {
     animation: none;
   }
 }

@@ -43,8 +43,9 @@ export function windowSky(time, from = SKIES[time], blend = 1) {
   };
 }
 
-// `time` is the part of the day outside (morning, day, evening, night), `rain` 0–1
-export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt = -99, starAt = -99, skyFrom, skyBlend = 1 } = {}) {
+// `time` is the part of the day outside (morning, day, evening, night), `rain` 0–1, `glass` how
+// much of the glass is still in front of the view (0 once the leaves have swung wide open)
+export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, glass = 1, flockAt = -99, starAt = -99, skyFrom, skyBlend = 1 } = {}) {
   const look = windowSky(time, skyFrom, skyBlend);
   const dark = look.night >= 0.5;
   // Rain greys everything over: a real shower (0.7) is already a dull, overcast sky
@@ -1115,8 +1116,9 @@ export function drawWindowView(c, w, h, { t = 0, time = "day", rain = 0, flockAt
   // and shrunk, with a dark rim along its top, a bright caustic inside its lower edge and a
   // pinpoint of light. The bigger ones cling and swell, then let go and run in a quick
   // stick-slip zigzag, leaving a wet trail that dries again while they wait.
-  if (rain > 0.05) {
-    const wet = Math.min(1, rain * 1.3);
+  // The water is on the glass, so it goes as the leaves swing out of the way
+  if (rain > 0.05 && glass > 0.01) {
+    const wet = Math.min(1, rain * 1.3) * glass;
     // the drops refract a snapshot of the finished view, not the canvas they're drawing into
     if (!glassCopy) glassCopy = document.createElement("canvas");
     if (glassCopy.width !== w || glassCopy.height !== h) Object.assign(glassCopy, { width: w, height: h });

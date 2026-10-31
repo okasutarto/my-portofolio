@@ -240,6 +240,9 @@ export function createCamera(runtime) {
     // the family photo stands just in front of the folders, so it steps out of their close-up the same way
     runtime.lamp.familyFrame.visible = true;
     if (name === "projects") runtime.core.timers.push(setTimeout(() => focus.name === "projects" && (runtime.lamp.familyFrame.visible = false), 450));
+    // and the chair, pulled up in front of the window, steps out of the window's
+    runtime.chair.chair.visible = true;
+    if (name === "window") runtime.core.timers.push(setTimeout(() => focus.name === "window" && (runtime.chair.chair.visible = false), 450));
     if (name === "shelf") {
       // Frame the whole bay that was clicked (whatever part of it was hit), or on the top board
       // its two display props; with no click, the console's bay at the top

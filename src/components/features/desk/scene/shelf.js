@@ -27,7 +27,7 @@ export function createShelf(runtime) {
   const shelfMat = runtime.core.toon("#f3d3b0");
   shelfMat.map = shelfWood.texture;
   [-1, 1].forEach((side) => {
-    const panel = runtime.core.mesh(runtime.core.rbox(BOARD, SHELF_H, SHELF_D, 0.04), shelfMat, { outline: 0.05 });
+    const panel = runtime.core.mesh(runtime.core.rbox(BOARD, SHELF_H, SHELF_D, 0.04), shelfMat, { outline: 0.03 });
     panel.position.set(side * (SHELF_W / 2 - BOARD / 2), SHELF_H / 2, 0);
     shelf.add(panel);
   });
@@ -35,19 +35,19 @@ export function createShelf(runtime) {
   const shelfBackMat = runtime.core.toon("#d9a878");
   shelfBackMat.map = shelfWood.texture;
   // (between the side panels, like the shelves, so its ends don't flicker on their outer faces)
-  const shelfBack = runtime.core.mesh(runtime.core.rbox(SHELF_W - BOARD * 2 + 0.02, SHELF_H, 0.12, 0.03), shelfBackMat, { outline: 0.04 });
+  const shelfBack = runtime.core.mesh(runtime.core.rbox(SHELF_W - BOARD * 2 + 0.02, SHELF_H, 0.12, 0.03), shelfBackMat, { outline: 0.025 });
   shelfBack.position.set(0, SHELF_H / 2, -SHELF_D / 2 + 0.06);
   shelf.add(shelfBack);
   // Bay heights follow their contents: 1.78 for the cases, 1.72 for the manga and trophy, and
   // the tall 2.18 at the top for the standing console
   const LEVELS = [0.15, 2.15, 4.09, SHELF_H - BOARD / 2];
-  // The shelves' front lips read as the boards' own front edges: the boards' tone, and their
-  // grain at the boards' scale (the lip's face maps the whole texture over its 0.28 height, so
-  // it takes only the slice the board's 1.5-deep top would show there)
+  // Each shelf's front edge is its board's own front face, in the board's tone, with the grain
+  // at the board's scale (the face maps the whole texture over its 0.22 height, so it takes
+  // only the slice the board's 1.5-deep top would show there)
   const lipMat = runtime.core.toon("#f3d3b0");
   lipMat.map = runtime.core.track(shelfWood.texture.clone());
   lipMat.map.wrapS = lipMat.map.wrapT = THREE.RepeatWrapping;
-  lipMat.map.repeat.set(1, (BOARD + 0.06) / SHELF_D);
+  lipMat.map.repeat.set(1, BOARD / SHELF_D);
   // Recessed diffusers sit flush under the rear of each shelf; all bays share one colour.
   const glowTex = canvasTexture(256, 128);
   runtime.core.track(glowTex.texture);
@@ -68,12 +68,11 @@ export function createShelf(runtime) {
   const shelfLeds = [];
   LEVELS.forEach((y, i) => {
     // Fitted between the side panels, its ends a hair into them: run out to the panels' outer
-    // faces, the two shared a plane there and flickered over each other
-    const board = runtime.core.mesh(runtime.core.rbox(SHELF_W - BOARD * 2 + 0.02, BOARD, SHELF_D, 0.04), shelfMat, { outline: 0.045 });
+    // faces, the two shared a plane there and flickered over each other. (A box's faces run +x,
+    // -x, +y, -y, +z, -z: the front, +z, takes the front edge's grain.)
+    const board = runtime.core.mesh(runtime.core.rbox(SHELF_W - BOARD * 2 + 0.02, BOARD, SHELF_D, 0.04), [shelfMat, shelfMat, shelfMat, shelfMat, lipMat, shelfMat], { outline: 0.025 });
     board.position.y = y;
-    const lip = runtime.core.mesh(runtime.core.rbox(SHELF_W - BOARD * 2, BOARD + 0.06, 0.08, 0.02), lipMat, { outline: 0.02 });
-    lip.position.set(0, y, SHELF_D / 2 - 0.02);
-    shelf.add(board, lip);
+    shelf.add(board);
     if (i === 0) return;
     const channel = runtime.core.mesh(runtime.core.rbox(SHELF_W - 0.5, 0.055, 0.12, 0.015), runtime.core.toon("#454b50"), { outline: 0.008, cast: false });
     channel.position.set(0, y - BOARD / 2 - 0.0275, -0.48);

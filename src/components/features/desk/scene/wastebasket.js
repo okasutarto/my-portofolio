@@ -11,9 +11,9 @@ export function createWastebasket(runtime) {
   const bin = new THREE.Group();
   bin.rotation.y = -0.2;
   bin.scale.setScalar(2);
-  // Snug against the shelf's right side, level with its middle (the rim's radius is 0.54)
+  // Just clear of the shelf's right side, level with its middle (the rim's radius is 0.54)
   bin.position.set(
-    runtime.shelf.shelf.position.x + runtime.shelf.SHELF_W * runtime.shelf.shelf.scale.x / 2 + 0.54 * bin.scale.x + 0.02,
+    runtime.shelf.shelf.position.x + runtime.shelf.SHELF_W * runtime.shelf.shelf.scale.x / 2 + 0.54 * bin.scale.x + 0.2,
     runtime.room.FLOOR_Y,
     runtime.shelf.shelf.position.z,
   );

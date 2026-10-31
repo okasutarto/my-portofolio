@@ -726,6 +726,7 @@ export function createGauntlet(runtime) {
           || (item.obj === runtime.shelfCollectibles.rubikItem && runtime.shelfCollectibles.rubikBusy) || (item.obj === runtime.handheld.nintendoSwitch && runtime.handheld.switchBusy);
         if (on && busy) return;
         if (on && item.obj === runtime.shelfConsole.ps5) runtime.shelfConsole.blinkLed();
+        if (on && item.obj === runtime.shelfCollectibles.trophy) sfx.trophyHover();
         gsap.to(carrier.position, { y: on ? lift : 0, z: on ? forward : 0, duration: on ? 0.25 : 0.35, ease: "power2.out", overwrite: true });
       },
       onClick: (hit) => runtime.core.interactive.get(runtime.shelf.shelf).onClick(hit),

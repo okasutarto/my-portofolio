@@ -80,6 +80,7 @@ export function createSecrets(runtime) {
     gsap.fromTo(runtime.shelfCollectibles.trophyHalo.scale, { x: 1.2, y: 1.2 }, { x: 3.4, y: 3.4, duration: 1, ease: "power2.out", overwrite: true });
     gsap.killTweensOf([runtime.shelfCollectibles.trophy.position, runtime.shelfCollectibles.trophy.rotation, runtime.shelfCollectibles.trophy.scale, runtime.shelfCollectibles.trophyGold.emissive]);
     const restY = runtime.shelfCollectibles.trophy.userData.restY;
+    sfx.trophyLift();
     runtime.shelfCollectibles.trophyCelebration = gsap.timeline({ onComplete: () => { runtime.shelfCollectibles.trophyCelebrating = false; } })
       .to(runtime.shelfCollectibles.trophy.position, { y: restY + 0.18, duration: 0.6, ease: "power2.out" })
       .to(runtime.shelfCollectibles.trophy.rotation, { y: Math.PI * 2, duration: 1.5, ease: "power2.inOut" }, 0.25)

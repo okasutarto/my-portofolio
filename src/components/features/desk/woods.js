@@ -105,3 +105,13 @@ export const DEFAULT_WOODS = {
   window: { wood: "cherry", pattern: "planks" },
   shelf: { wood: "cherry", pattern: "planks" },
 };
+
+// The floor is any of the same woods, laid in one of these
+export const FLOOR_LAYOUTS = {
+  planks: "Planks",
+  herringbone: "Herringbone",
+  parquet: "Parquet",
+};
+
+// The floor until the visitor picks another, and the one it is first drawn in
+export const DEFAULT_FLOOR = { wood: "oak", layout: "planks" };

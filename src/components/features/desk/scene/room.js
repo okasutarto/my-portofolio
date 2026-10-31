@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { canvasTexture, drawWindowView, windowSky, drawWallPaint, drawWoodTop, drawWoodFloor } from "../textures";
-import { DEFAULT_WOODS } from "../woods";
+import { DEFAULT_WOODS, DEFAULT_FLOOR } from "../woods";
 import { partFor } from "../daylight";
 import { PALETTES } from "../sceneConfig";
 
@@ -78,11 +78,11 @@ export function createRoom(runtime) {
   // ---------- full-viewport room: walls and floor extend beyond every camera shot ----------
   const room = new THREE.Group();
   runtime.core.scene.add(room);
-  // Wood flooring: one tile of staggered planks repeated across the floor (8 × 8 units a tile)
+  // Wood flooring: one tile of boards repeated across the floor (8 × 8 units a tile)
   const floorMat = runtime.core.toon("#ffffff");
   const floorWood = canvasTexture(1024, 1024);
   runtime.core.track(floorWood.texture);
-  drawWoodFloor(floorWood.ctx, 1024, 1024);
+  drawWoodFloor(floorWood.ctx, 1024, 1024, DEFAULT_FLOOR);
   floorWood.texture.wrapS = floorWood.texture.wrapT = THREE.RepeatWrapping;
   floorWood.texture.repeat.set(25, 25);
   floorMat.map = floorWood.texture;
@@ -614,6 +614,7 @@ export function createRoom(runtime) {
     DESK_WASH,
     shadowedNeons,
     floorMat,
+    floorWood,
     roomBackground,
     trimMat,
     get diorama() { return diorama; },

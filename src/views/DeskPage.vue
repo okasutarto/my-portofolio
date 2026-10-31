@@ -118,6 +118,33 @@
                       </label>
                     </div>
                   </div>
+                  <div v-else-if="group.key === 'floor'" class="settings-sub">
+                    <div class="flex flex-wrap items-center gap-1.5">
+                      <button
+                        v-for="(wood, key) in WOODS"
+                        :key="key"
+                        class="swatch"
+                        :class="{ 'swatch--on': settings.floor.wood === key }"
+                        :style="{ background: wood.swatch }"
+                        :title="wood.name"
+                        :aria-label="`${wood.name} floor`"
+                        :aria-pressed="settings.floor.wood === key"
+                        @click="setFloor({ wood: key })">
+                        <span v-if="settings.floor.wood === key" class="swatch-tick" :class="{ 'swatch-tick--light': isDarkColour(wood.swatch) }" aria-hidden="true">✓</span>
+                      </button>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 mt-2">
+                      <button
+                        v-for="(name, key) in FLOOR_LAYOUTS"
+                        :key="key"
+                        class="pattern-chip"
+                        :class="{ 'pattern-chip--on': settings.floor.layout === key }"
+                        :aria-pressed="settings.floor.layout === key"
+                        @click="setFloor({ layout: key })">
+                        {{ name }}
+                      </button>
+                    </div>
+                  </div>
                   <template v-else>
                     <div v-for="(label, part) in WOOD_TARGETS" :key="part" class="settings-sub">
                       <h3 class="settings-sublabel">
@@ -234,7 +261,7 @@ import { experiences } from "@/data/experience";
 import { useTheme } from "@/composables/useTheme";
 import { useSfx, initializeAudio, sfx } from "@/composables/useSfx";
 import { hideBootLoader, showEnterGate, setBootProgress, bootLoaderShowing } from "@/utils/bootLoader";
-import { WOODS, WOOD_PATTERNS, WOOD_TARGETS, DEFAULT_WOODS } from "@/components/features/desk/woods";
+import { WOODS, WOOD_PATTERNS, WOOD_TARGETS, DEFAULT_WOODS, FLOOR_LAYOUTS, DEFAULT_FLOOR } from "@/components/features/desk/woods";
 import { DAY_PARTS, TIME_MODES, RAIN_MODES, DEFAULT_TIME, DEFAULT_RAIN, partOfDay, partFor } from "@/components/features/desk/daylight";
 
 const COMMAND_CHIPS = ["help", "whoami", "projects", "hobbies", "sudo hire oka"];
@@ -242,6 +269,7 @@ const COMMAND_CHIPS = ["help", "whoami", "projects", "hobbies", "sudo hire oka"]
 const SETTINGS_GROUPS = [
   { key: "sky", label: "Time & weather", icon: "☀️", accent: "#ffc900" },
   { key: "wall", label: "Wall", icon: "🧱", accent: "#ff90e8" },
+  { key: "floor", label: "Floor", icon: "🟫", accent: "#ff7a45" },
   { key: "wood", label: "Furniture", icon: "🪵", accent: "#00e0c6" },
 ];
 const WALL_PAINTS = [
@@ -307,6 +335,7 @@ const groupSummary = computed(() => {
   return {
     sky: `${settings.time === "auto" ? "Auto" : TIME_MODES[settings.time]}, ${settings.rain === "auto" ? "auto" : RAIN_MODES[settings.rain].toLowerCase()}`,
     wall: wallName.value,
+    floor: `${WOODS[settings.floor.wood].name}, ${FLOOR_LAYOUTS[settings.floor.layout].toLowerCase()}`,
     wood: woods.size === 1 ? WOODS[[...woods][0]].name : "Mixed",
   };
 });
@@ -406,6 +435,10 @@ function readSettings() {
     rain: RAIN_MODES[saved.rain] ? saved.rain : DEFAULT_RAIN,
     wall: /^#[0-9a-f]{6}$/i.test(saved.wall || "") ? saved.wall : DEFAULT_WALL,
     woods: Object.fromEntries(Object.keys(WOOD_TARGETS).map((part) => [part, pickWood(part, saved.woods?.[part])])),
+    floor: {
+      wood: WOODS[saved.floor?.wood] ? saved.floor.wood : DEFAULT_FLOOR.wood,
+      layout: FLOOR_LAYOUTS[saved.floor?.layout] ? saved.floor.layout : DEFAULT_FLOOR.layout,
+    },
   };
 }
 function saveSettings() {
@@ -423,6 +456,11 @@ function setWall(hex) {
 function setWood(part, choice) {
   Object.assign(settings.woods[part], choice);
   scene.value?.setWood(part, choice);
+  saveSettings();
+}
+function setFloor(choice) {
+  Object.assign(settings.floor, choice);
+  scene.value?.setFloor(choice);
   saveSettings();
 }
 function setTime(mode) {
@@ -465,6 +503,7 @@ onMounted(async () => {
       muted: muted.value,
       wallColor: settings.wall,
       woods: JSON.parse(JSON.stringify(settings.woods)),
+      floor: { ...settings.floor },
       time: settings.time,
       rain: settings.rain,
       onEvent,

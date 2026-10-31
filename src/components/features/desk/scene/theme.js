@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { loadPortrait, windowSky, drawWoodTop } from "../textures";
-import { WOODS, WOOD_PATTERNS, DEFAULT_WOODS, SPEAKER_FINISHES } from "../woods";
+import { loadPortrait, windowSky, drawWoodTop, drawWoodFloor } from "../textures";
+import { WOODS, WOOD_PATTERNS, DEFAULT_WOODS, SPEAKER_FINISHES, FLOOR_LAYOUTS, DEFAULT_FLOOR } from "../woods";
 import { TIME_MODES, partFor } from "../daylight";
 import { PALETTES } from "../sceneConfig";
 
@@ -307,6 +307,23 @@ export function createTheme(runtime) {
     const { wood, pattern } = woodChoice[part];
     paintWood(part, wood !== DEFAULT_WOODS[part].wood || pattern !== DEFAULT_WOODS[part].pattern);
   });
+  // The floor is painted in its wood's own colours, so a new pick is only drawn again; it was
+  // first drawn in the default floor
+  const pickFloor = (choice = {}) => ({
+    wood: WOODS[choice.wood] ? choice.wood : DEFAULT_FLOOR.wood,
+    layout: FLOOR_LAYOUTS[choice.layout] ? choice.layout : DEFAULT_FLOOR.layout,
+  });
+  let floorChoice = pickFloor(runtime.options.floor);
+  function paintFloor() {
+    const { canvas, ctx } = runtime.room.floorWood;
+    drawWoodFloor(ctx, canvas.width, canvas.height, floorChoice);
+    runtime.room.floorWood.texture.needsUpdate = true;
+  }
+  function setFloor(choice) {
+    floorChoice = pickFloor({ ...floorChoice, ...choice });
+    paintFloor();
+  }
+  if (floorChoice.wood !== DEFAULT_FLOOR.wood || floorChoice.layout !== DEFAULT_FLOOR.layout) paintFloor();
   // The monitor's desktop follows the room
   const setRoomTheme = (isDark) => {
     // Back from the night shift, the window shows the part of the day it's set to (by the clock
@@ -362,6 +379,7 @@ export function createTheme(runtime) {
     setRoomTheme,
     setWallColor,
     setWood,
+    setFloor,
     clockTimer,
   };
 }

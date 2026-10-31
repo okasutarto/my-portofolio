@@ -35,8 +35,8 @@ Prefer a classic page? The same content lives at [`/2d`](https://okasp.dev/2d).
 - 🧭 **30-odd props to poke**, with close-ups, sounds and 20 hidden discoveries around the room
 - 🖥️ **A real little desktop** on the monitor: dock, terminal, music player, Snake and an AI chat
 - 🏴‍☠️ **A whole shoot-'em-up** on the console: *Straw Hat Strike*, Going Merry vs. the Marines
-- 🌦️ **A living room**: morning to moonlight, rain, neon and a sleepy cat
-- 🎨 **Make it yours**: repaint the walls, swap the wood and the grain of the furniture
+- 🌦️ **A living room**: morning to moonlight, rain, neon and a kitten with a cat tree of her own
+- 🎨 **Make it yours**: repaint the walls, lay a new floor, swap the wood and the grain of the furniture
 - 📱 **Phone-friendly**: a pocket diorama you pinch, pan and turn
 - 🖌️ **Painted in code**: the props' surfaces are canvas textures, and the music and guitar are synthesized
 
@@ -57,7 +57,7 @@ Prefer a classic page? The same content lives at [`/2d`](https://okasp.dev/2d).
 | 💡 **Lamp** | Day and night, by hand. |
 | 🔦 **Monitor lightbar** | Toggle the task light on or off during the night shift. |
 | 🔊 **Speakers** | Sound on or off, with a little groove when it comes on. |
-| 🪟 **Window & blind** | Morning, midday, sunset and moonlight scenery with birds, stars and rain. Pull the blind or its chain; three quick knocks toggle rain. The weather card shows live weather for your area when available. |
+| 🪟 **Window & blind** | Morning, midday, sunset and moonlight scenery with birds, stars and rain. Pull the blind or its chain; three quick knocks toggle rain. Its close-up shows the weather where you are as a chip: place, temperature and conditions. |
 | 🪴 **Plant** | Each click blooms a flower. Three blooms call a butterfly. |
 | 🖱️ **Mouse** | Grows ears and a tail, and scampers off for a lap. |
 | 🪑 **Chair** | A Titan Evo-inspired gaming chair, traced from photos. Click to spin it, or drag it round on its post. |
@@ -70,7 +70,8 @@ Prefer a classic page? The same content lives at [`/2d`](https://okasp.dev/2d).
 | 🧤 **Infinity Gauntlet** | Please don't. |
 | 🎮 **Game shelf & console** | Explore the collection and power the console: the monitor becomes a TV running **Straw Hat Strike**. Drag vertically to browse the shelf. |
 | 🤖 **Robot** | A small animated companion on the shelf. |
-| 🐈 **Oyen** | A ginger kitten who naps on the rug by day and by the desk lamp at night, watches, settles and reacts to activity around the room. |
+| 🐈 **Oyen** | A ginger kitten who naps on the rug by day and by the desk lamp at night. Between naps she walks, jumps, swishes her tail and reacts to activity around the room. |
+| 🧶 **Cat tree** | Swat its pom-pom and Oyen comes over and climbs up to the bed on top. |
 | 🗑️ **Wastebasket** | Crumple papers and throw them into the basket. |
 | 🏆 **Secrets trophy** | Tracks 20 discoveries and celebrates when the collection is complete; click it to replay the celebration. |
 
@@ -93,7 +94,7 @@ Chain kills for a multiplier, and if you go down you get your own wanted poster.
 ## 🎨 Make it your room
 
 The ⚙️ gear next to **2D site** opens the room settings, grouped into **Time & weather**,
-**Wall** and **Furniture** sections that expand one at a time. Every pick applies instantly and is
+**Wall**, **Floor** and **Furniture** sections that expand one at a time. Every pick applies instantly and is
 remembered in your browser. Close the panel with its ✕, the gear or Esc.
 
 | Part | Choices | Default |
@@ -101,16 +102,20 @@ remembered in your browser. Close the panel with its ✕, the gear or Esc.
 | 🕰️ **Time of day** | Auto · Morning · Midday · Evening · Night | Auto: your own clock |
 | 🌧️ **Weather** | Auto · Clear · Rain | Auto: the real weather where you are |
 | 🧱 **Wall** | Seven house paints from white to graphite, or any colour at all | Graphite |
-| 🪵 **Desk** | Six woods × four cuts | Cherry, butcher block |
-| 🖥️ **Monitor riser** | Six woods × four cuts | Cherry, cathedral |
-| 🪟 **Window frame** | Six woods × four cuts | Cherry, planks |
-| 🎮 **Game shelf** | Six woods × four cuts | Cherry, planks |
+| 🟫 **Floor** | Six woods × planks, herringbone or parquet | Oak, planks |
+| 🪵 **Desk** | Six woods × planks, cathedral, knotty, butcher block or quartersawn | Cherry, butcher block |
+| 🖥️ **Monitor riser** | Six woods × planks, cathedral, butcher block or bamboo | Cherry, cathedral |
+| 🔊 **Speakers** | Wood sides (six woods × planks or cathedral) or all black | Cherry wood sides, planks |
+| 🪟 **Window frame** | Six woods × planks or knotty, or painted in six coats or any colour | Cherry, planks |
+| 🎮 **Game shelf** | Six woods × planks, cathedral, knotty or plywood | Cherry, planks |
 
 "Where you are" comes from your browser's time zone (`Asia/Jakarta` is Jakarta), looked up
 with Open-Meteo's geocoder: no location prompt, and Pontianak when the zone doesn't name a city.
 
 **Woods:** Oak · Maple · White ash · Cherry · Walnut · Ebony stain
-**Cuts:** Planks · Cathedral · Knotty · Butcher block
+
+Each piece is only offered the cuts it would really be made in, so there's no butcher-block
+window frame. If a saved pick isn't offered any more, that piece goes back to its default.
 
 The grain is painted on a canvas at runtime, so every combination is drawn on the fly: no
 texture files.
@@ -322,7 +327,7 @@ the-desk/
 ├── index.html                    # Meta tags and the boot loader
 ├── vite.config.js                # Vite build, the `@` alias and the env values the code reads
 ├── public/
-│   ├── og-image.png              # Link preview image
+│   ├── og-image.jpg              # Link preview image
 │   ├── readme-desk.jpg           # README hero screenshot
 │   ├── readme-desk-morning.jpg   # Morning README screenshot, paired with the night one
 │   ├── readme-desk-night.jpg     # Nighttime README screenshot

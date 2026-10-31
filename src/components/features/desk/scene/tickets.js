@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { sfx } from "@/composables/useSfx";
+import { hoverSound, sfx } from "@/composables/useSfx";
 import { drawTicket, drawTicketBack } from "../textures";
 
 export function createTickets(runtime) {
@@ -70,6 +70,7 @@ export function createTickets(runtime) {
   const DAMPING = 2 * Math.sqrt(SPRING);
   function hoverTicket(entry, on) {
     entry.hoverTarget = on ? 1 : 0;
+    if (on) hoverSound(entry, (s) => s.paper());
   }
   function updateTicketHover(dt) {
     const hoveredIndex = ticketList.findIndex((entry) => entry.hoverTarget === 1 && entry !== heldTicket);
